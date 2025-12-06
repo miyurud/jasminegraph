@@ -21,6 +21,22 @@ datasources:
       access: proxy
       isDefault: false
       editable: true
+    - name: Tempo
+      type: tempo
+      url: http://tempo:3200
+      access: proxy
+      isDefault: false
+      editable: true
+      jsonData:
+        httpMethod: GET
+        serviceMap:
+          datasourceUid: prometheus
+    - name: Prometheus
+      type: prometheus
+      url: http://prometheus-server:80
+      access: proxy
+      isDefault: false
+      editable: true
 
 service:
   type: NodePort

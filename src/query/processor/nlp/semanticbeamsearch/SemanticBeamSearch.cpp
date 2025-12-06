@@ -1,7 +1,15 @@
-//
-// Created by sajeenthiran on 2025-08-18.
-//
-
+/**
+Copyright 2025 JasmineGraph Team
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+    http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+ */
 #include "SemanticBeamSearch.h"
 
 #include <iostream>
@@ -10,11 +18,11 @@
 #include <utility>
 #include <vector>
 
-#include "../../../nativestore/NodeManager.h"
-#include "../../../server/JasmineGraphInstanceProtocol.h"
-#include "../../../server/JasmineGraphServer.h"
-#include "../../../vectorstore/FaissIndex.h"
-#include "../cypher/runtime/Helpers.h"
+#include "../../../../nativestore/NodeManager.h"
+#include "../../../../server/JasmineGraphInstanceProtocol.h"
+#include "../../../../server/JasmineGraphServer.h"
+#include "../../../../vectorstore/FaissIndex.h"
+#include "../../cypher/runtime/Helpers.h"
 
 Logger semantic_beam_search_logger;
 
@@ -60,7 +68,6 @@ std::vector<ScoredPath> SemanticBeamSearch::getSeedNodes() {
         nodeData[key] = value;
       }
 
-      // nodeData["id"] = std::to_string(seedNode->nodeId);
       initialPath["pathNodes"].push_back(nodeData);
       initialPath["pathRels"] = json::array();
       float score = Utils::cosineSimilarity(
@@ -68,8 +75,9 @@ std::vector<ScoredPath> SemanticBeamSearch::getSeedNodes() {
       paths.push_back({initialPath, score});
     }
   } catch (std::exception& e) {
-    std::cout << e.what() << "\n";
-  }
+      semantic_beam_search_logger.error(std::string("getSeedNodes exception: ") + e.what());
+    }
+
 
   return paths;
 }
@@ -78,7 +86,7 @@ void SemanticBeamSearch::semanticMultiHopBeamSearch(SharedBuffer& buffer,
                                                     int numHops,
                                                     int beamWidth) {
   semantic_beam_search_logger.info(
-      "Starting semanticMultiHopBeamSearch with numHops: " +
+      "Starting semantic Multi-Hop Beam Search with following number of hops : " +
       std::to_string(numHops) + ", beamWidth: " + std::to_string(beamWidth));
 
   // 1. Get seed nodes using FAISS
@@ -293,7 +301,6 @@ void SemanticBeamSearch::semanticMultiHopBeamSearch(SharedBuffer& buffer,
           nodeData["partitionID"] =
               std::string(destNode->getMetaPropertyHead()->value);
           for (auto& [k, v] : nodeProps) nodeData[k] = v;
-          // nodeData["id"] = std::to_string(destNode->nodeId);
           vector<float> emb_ =
               faissStore->getEmbeddingById(std::to_string(destNode->nodeId));
           semantic_beam_search_logger.debug("Scoring node ID: " +

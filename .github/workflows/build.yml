@@ -55,13 +55,49 @@ jobs:
         ref: ${{github.head_ref}}
         repository: ${{ github.event.pull_request.head.repo.full_name || github.repository }}
 
+
     - name: Docker Build
       run: docker build -t jasminegraph .
 
     - name: Run Integration Tests
       run: |
         chmod +x test-docker.sh
-        ./test-docker.sh
+        TEST_NAME="main"  ./test-docker.sh
+
+  docker-integration-tests-graph-rag:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    if: ${{!contains(github.event.pull_request.labels.*.name, 'Skip docker integration')}}
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{github.head_ref}}
+          repository: ${{ github.event.pull_request.head.repo.full_name || github.repository }}
+
+      - name: Docker Build
+        run: docker build -t jasminegraph .
+
+      - uses: actions/setup-python@v4
+        with:
+          python-version: 3.11
+      - name: Install python dependencies Build
+        run: |
+          pip install fastapi uvicorn httpx
+
+      # 4. Start mock Ollama server in the background
+      - name: Start Mock LLM Server
+        run: |
+          nohup uvicorn mock_ollama_server:app --host 0.0.0.0 --port 11450 &
+
+      # 5. Wait a few seconds for server to be ready
+      - run: sleep 2
+
+
+      - name: Run Integration Tests
+        run: |
+          chmod +x test-docker.sh
+          TEST_NAME="graphRAG"  ./test-docker.sh
 
   k8s-integration-tests:
     runs-on: ubuntu-latest
@@ -96,8 +132,24 @@ jobs:
       - name: Grant permissions for default user
         run: kubectl apply -f ./k8s/rbac.yaml
 
+      - uses: actions/setup-python@v4
+        with:
+          python-version: 3.11
+      - name: Install python dependencies Build
+        run: |
+          pip install fastapi uvicorn httpx
+
+      # 4. Start mock Ollama server in the background
+      - name: Start Mock LLM Server
+        run: |
+          nohup uvicorn mock_ollama_server:app --host 0.0.0.0 --port 11450 &
+
+      # 5. Wait a few seconds for server to be ready
+      - run: sleep 2
+
       - name: Docker Build
         run: docker build -t jasminegraph .
+
 
       - name: K8S integration tests
         run: |

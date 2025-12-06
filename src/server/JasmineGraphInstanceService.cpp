@@ -28,11 +28,12 @@ limitations under the License.
 #include "../knowledgegraph/construction/VLLMTupleStreamer.h"
 #include "../query/algorithms/triangles/StreamingTriangles.h"
 #include "../query/processor/cypher/runtime/InstanceHandler.h"
-#include "../query/processor/semanticbeamsearch/SemanticBeamSearch.h"
+#include "../query/processor/nlp/semanticbeamsearch/SemanticBeamSearch.h"
 #include "../server/JasmineGraphServer.h"
 #include "../util/hdfs/HDFSConnector.h"
 #include "../util/kafka/InstanceStreamHandler.h"
 #include "../util/logger/Logger.h"
+#include "../util/telemetry/OpenTelemetryUtil.h"
 #include "JasmineGraphInstance.h"
 
 using namespace std;
@@ -459,9 +460,14 @@ long countLocalTriangles(
     std::map<std::string, JasmineGraphHashMapCentralStore> &graphDBMapCentralStores,
     std::map<std::string, JasmineGraphHashMapDuplicateCentralStore> &graphDBMapDuplicateCentralStores,
     int threadPriority) {
+
+    OTEL_TRACE_FUNCTION();
+
     long result;
 
-    instance_logger.info("###INSTANCE### Local Triangle Count : Started");
+    instance_logger.info("###INSTANCE### Local Triangle Count : Started: Graph ID " + graphId +
+                         " Partition " + partitionId);
+
     std::string graphIdentifier = graphId + "_" + partitionId;
     std::string centralGraphIdentifier = graphId + "_centralstore_" + partitionId;
     std::string duplicateCentralGraphIdentifier = graphId + "_centralstore_dp_" + partitionId;
@@ -1859,7 +1865,7 @@ void JasmineGraphInstanceService::startCollectingLoadAverage() {
         time_t elapsed = time(0) - start;
         if (elapsed >= Conts::LOAD_AVG_COLLECTING_GAP) {
             elapsedTime += Conts::LOAD_AVG_COLLECTING_GAP * 1000;
-            double loadAgerage = StatisticCollector::getLoadAverage();
+            double loadAgerage = StatisticsCollector::getLoadAverage();
             loadAverageVector.push_back(std::to_string(loadAgerage));
             start = start + Conts::LOAD_AVG_COLLECTING_GAP;
         } else {
@@ -2926,6 +2932,27 @@ static void triangles_command(
     string priority = Utils::read_str_trim_wrapper(connFd, data, INSTANCE_DATA_LENGTH);
     instance_logger.info("Received Priority : " + priority);
 
+    if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::OK)) {
+        *loop_exit_p = true;
+        return;
+    }
+
+    // Receive trace context from master
+    string traceContext = Utils::read_str_trim_wrapper(connFd, data, INSTANCE_DATA_LENGTH);
+
+    // Use utility function to validate and set trace context
+    OpenTelemetryUtil::receiveAndSetTraceContext(traceContext, "triangle counting");
+
+    // Start tracing AFTER trace context is set to ensure proper parent-child relationship
+    OTEL_TRACE_FUNCTION();
+
+    // Add worker identification attributes to distinguish workers in traces
+    OpenTelemetryUtil::addSpanAttribute("worker.id", "worker_" + std::to_string(serverPort));
+    OpenTelemetryUtil::addSpanAttribute("worker.port", std::to_string(serverPort));
+    OpenTelemetryUtil::addSpanAttribute("partition.id", partitionId);
+    OpenTelemetryUtil::addSpanAttribute("graph.id", graphID);
+    OpenTelemetryUtil::addSpanAttribute("operation.type", "triangle_counting");
+
     int threadPriority = stoi(priority);
 
     if (threadPriority > Conts::DEFAULT_THREAD_PRIORITY) {
@@ -2937,8 +2964,11 @@ static void triangles_command(
 
     std::thread perfThread = std::thread(&PerformanceUtil::collectPerformanceStatistics);
     perfThread.detach();
+
     long localCount = countLocalTriangles(graphID, partitionId, graphDBMapLocalStores, graphDBMapCentralStores,
                                           graphDBMapDuplicateCentralStores, threadPriority);
+
+
 
     if (threadPriority > Conts::DEFAULT_THREAD_PRIORITY) {
         threadPriorityMutex.lock();
@@ -3306,14 +3336,6 @@ static void streaming_kg_construction(
   instance_logger.info("Started listening to " + hdfsPath);
 
   streamHandler->init();
-
-  // int conResultWr = write( , DONE.c_str(), DONE.length());
-  // if (!Utils::send_str_wrapper(connFd, DONE.c_str()))
-  // {
-  //     *loop_exit_p     = true;
-  //     return;
-  //
-  // }
   *loop_exit_p = true;
 
   close(connFd);
@@ -3328,8 +3350,6 @@ static void streaming_tuple_extraction(
 
   instance_logger.info("in streaming_tuple_extraction");
   Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::OK);
-  // instance_logger.info("in streaming_tuple_extraction");
-
   // 2. Expect graphID
   std::string graphID =
       Utils::read_str_trim_wrapper(connFd, data, INSTANCE_DATA_LENGTH);
@@ -3347,16 +3367,6 @@ static void streaming_tuple_extraction(
   std::string llm =
       Utils::read_str_trim_wrapper(connFd, data, INSTANCE_DATA_LENGTH);
   Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::OK);
-  // instance_logger.info("LLM Host and Port: " + llmHostPort);
-  // split llmHostPort into hostname and port
-  // size_t pos = llmHostPort.find(":");
-  // if (pos == std::string::npos) {
-  //     instance_logger.error("Invalid LLM host and port format");
-  //     *loop_exit_p = true;
-  //     return;
-  // // }
-  // std::string llmHost = llmHostPort.substr(0, pos);
-  // int llmPort = std::stoi(llmHostPort.substr(pos + 1));
   instance_logger.info("LLM Host: " + llmHost);
   instance_logger.info("LLM : " + llm);
   std::unique_ptr<TupleStreamer> streamer;
@@ -3366,12 +3376,6 @@ static void streaming_tuple_extraction(
   } else {
     streamer = std::make_unique<VLLMTupleStreamer>(llm, llmHost);
   }
-  // VLLMTupleStreamer streamer("meta-llama/Llama-3.2-3B-Instruct", llmHost);
-
-  // // VLLMTupleStreamer streamer("numind/NuExtract-2.0-4B", llmHost);
-  // VLLMTupleStreamer streamer("meta-llama/Meta-Llama-3-8B", llmHost);
-  // VLLMTupleStreamer streamer("SciPhi/Triplex", llmHost);
-  // VLLMTupleStreamer streamer(llm, llmHost);
 
   SharedBuffer sharedBuffer(5);
   SharedBuffer tupleBuffer(5);
@@ -3404,8 +3408,6 @@ static void streaming_tuple_extraction(
     Utils::send_str_wrapper(connFd,
                             JasmineGraphInstanceProtocol::GRAPH_DATA_SUCCESS);
     instance_logger.info(chunk);
-    // Process and add to buffers
-    // sharedBuffer.add(chunk);
 
     // Consumer thread that prints tuples from buffer
     std::thread consumer([&]() {
@@ -3417,7 +3419,6 @@ static void streaming_tuple_extraction(
         *loop_exit_p = true;
         close(connFd);
       };
-      instance_logger.info("3200");
       int idleTimeoutSec = 120;  // e.g., break if no tuple for 30s
 
       while (true) {
@@ -3458,9 +3459,6 @@ static void streaming_tuple_extraction(
           break;
         }
 
-        // Utils::expect_str_wrapper(connFd,
-        // JasmineGraphInstanceProtocol::GRAPH_DATA_SUCCESS);
-
         if (tupleData == "-1") {
           instance_logger.info("Received end signal from producer");
           tupleBuffer.clear();
@@ -3469,17 +3467,8 @@ static void streaming_tuple_extraction(
       }
     });
     streamer->streamChunk("chunk1", chunk, tupleBuffer);
-    // streamer.processChunk("chunk1", chunk, tupleBuffer);
-
     consumer.join();
-
-    // tupleBuffer.add("ProcessedTupleFor:" + sharedBuffer.get()); // Example
-    instance_logger.info("3196");
-    // Send tuple back to client
   }
-
-  // Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::CLOSE);
-  // close(connFd);
 }
 
 
@@ -3685,6 +3674,21 @@ static void aggregate_centralstore_triangles_command(int connFd, bool *loop_exit
         highestPriority = threadPriority;
         threadPriorityMutex.unlock();
     }
+
+    // Send OK to indicate ready for trace context
+    if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::OK)) {
+        *loop_exit_p = true;
+        return;
+    }
+
+    // Receive and set trace context for distributed tracing
+    string traceContext = Utils::read_str_trim_wrapper(connFd, data, INSTANCE_DATA_LENGTH);
+
+    // Use utility function to validate and set trace context
+    OpenTelemetryUtil::receiveAndSetTraceContext(traceContext, "aggregation");
+
+    // Start tracing AFTER trace context is set to ensure proper parent-child relationship
+    OTEL_TRACE_FUNCTION();
 
     const std::string &aggregatedTriangles =
         aggregateCentralStoreTriangles(graphId, partitionId, partitionIdList, threadPriority);
@@ -4931,8 +4935,6 @@ static void semantic_beam_search(
     workers.push_back(worker);
   }
 
-  // instanceHandler.handleRequest(connFd, loop_exit_p,
-  // incrementalLocalStoreInstance->gc, masterIP, message);
   unsigned long maxLabel = std::stol(Utils::getJasmineGraphProperty(
       "org.jasminegraph.nativestore.max.label.size"));
   GraphConfig gc{maxLabel, static_cast<unsigned int>(std::stoi(graphId)),
@@ -4972,7 +4974,6 @@ static void semantic_beam_search(
       instanceHandler.dataPublishToMaster(connFd, loop_exit_p, raw);
       instance_logger.info("Total time taken for query execution: " +
                            std::to_string(time) + " ms");
-      // result.join();
       break;
     }
     auto endTime = std::chrono::high_resolution_clock::now();
@@ -4982,11 +4983,6 @@ static void semantic_beam_search(
     instanceHandler.dataPublishToMaster(connFd, loop_exit_p, raw);
     startTime = std::chrono::high_resolution_clock::now();
   }
-  // if (!Utils::send_str_wrapper(connFd,fF
-  // JasmineGrapfhInstanceProtocol::GRAPH_STREAM_END_OF_EDGE)) {
-  //     *loop_exit_p = true;
-  //     return;
-  // }
   instance_logger.debug("Sent CRLF string to mark the end");
   *loop_exit_p = true;
 
@@ -5022,7 +5018,6 @@ static void semantic_search_expand_node_remote_batch(
         received += ret;
     }
     instance_logger.info("Received request string of length: " + std::to_string(received));
-    instance_logger.info("Received request string of length: " + std::to_string(requestStr.size()));
     instance_logger.info("Received request: " + requestStr);
 
     json request = json::parse(requestStr);
@@ -5030,28 +5025,6 @@ static void semantic_search_expand_node_remote_batch(
     std::string fromPartition = request["fromPartition"];
     unsigned int partitionId = request["toPartition"].get<unsigned int>();
     vector<float> queryEmbedding = request["queryEmbedding"].get<std::vector<float>>();
-
-    // recieve embedding size
-    // recv( connFd, &content_length, sizeof(int), 0);
-    // content_length = ntohl(content_length);
-    // std::vector<float> queryEmbedding(content_length);
-    //
-    // recv(connFd, queryEmbedding.data(), queryEmbedding.size() * sizeof(float),
-    // 0);
-    // // request[""]
-    // instance_logger.info("Received query embedding of size: " +
-    // std::to_string(queryEmbedding.size()));
-    // // log query emb
-    // instance_logger.debug("Query embedding: ");
-    // for (const auto &val : queryEmbedding)
-    // {
-    //     instance_logger.debug(std::to_string(val));
-    // }
-
-    // log emb
-
-    // instance_logger.info("Expanding " + std::to_string(nodeIds.size()) +
-    //                      " nodes from partition " + fromPartition);
 
     // 4. Expand nodes using local store
     json response;
@@ -5122,13 +5095,6 @@ static void semantic_search_expand_node_remote_batch(
                                  std::to_string(newPath["pathRels"].size()) + " relations.");
         }
     }
-
-    // if (!Utils::sendExpectResponse(connFd, data, INSTANCE_DATA_LENGTH,
-    // JasmineGraphInstanceProtocol::QUERY_DATA_START,
-    // JasmineGraphInstanceProtocol::OK)) {
-    //     instance_logger.error("Failed to send QUERY_DATA_START");
-    //
-    // }
 
     std::string responseStr = response.dump();
     instance_logger.info("Expanded Response: " + responseStr);

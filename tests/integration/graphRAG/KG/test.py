@@ -37,7 +37,7 @@ REASONING_MODEL_URI = RUNNER_URLS[0] if RUNNER_URLS else None
 LLM_MODEL = "gemma3:1b"
 LLM_INFERENCE_ENGINE = "ollama"
 
-CHUNK_SIZE = "2048"
+CHUNK_SIZE = "1000"
 
 # HDFS target folder
 HDFS_BASE = "/home/"
@@ -180,7 +180,6 @@ def test_kg(text_folder, upload_file_script, host, port):
     random.shuffle(all_txt_files)
 
     for local_path in all_txt_files:
-        folder_name = os.path.basename(os.path.dirname(local_path))
         try:
             hdfs_path = upload_to_hdfs(local_path, upload_file_script)
             graph_id = send_file_to_master(hdfs_path, host, port)
@@ -189,16 +188,16 @@ def test_kg(text_folder, upload_file_script, host, port):
             continue
 
         # Wait for KG construction
-        time.sleep(240)
+        time.sleep(300)
         raw = run_cypher_query(str(graph_id), query, host, port)
         triples = parse_results(raw)
         print(json.dumps(triples, indent=2, ensure_ascii=False))
 
-        output_dir = os.path.join("pred", folder_name)
-        os.makedirs(output_dir, exist_ok=True)
+        entities = []
+        for triple in triples :
+            entities.append(triple["head_entity"])
 
-        with open(os.path.join(output_dir, "pred.json"), "w", encoding="utf-8") as f:
-            json.dump(triples, f, indent=2, ensure_ascii=False)
+        assert entities.index("Radio City") != -1
 
 if __name__ == "__main__":
     test_kg(TEXT_FOLDER, UPLOAD_SCRIPT, HOST, PORT)

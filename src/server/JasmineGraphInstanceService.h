@@ -41,7 +41,7 @@ limitations under the License.
 #include "../localstore/JasmineGraphLocalStore.h"
 #include "../localstore/JasmineGraphLocalStoreFactory.h"
 #include "../localstore/incremental/JasmineGraphIncrementalLocalStore.h"
-#include "../performance/metrics/StatisticCollector.h"
+#include "../performance/metrics/StatisticsCollector.h"
 #include "../query/algorithms/triangles/Triangles.h"
 #include "../util/Conts.h"
 #include "../util/Utils.h"

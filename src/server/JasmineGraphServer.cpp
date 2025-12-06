@@ -164,7 +164,7 @@ int JasmineGraphServer::run(std::string masterIp, int numberofWorkers, std::stri
 
     init();
     std::thread *myThreads = new std::thread[1];
-    myThreads[0] = std::thread(StatisticCollector::logLoadAverage, "Load Average");
+    myThreads[0] = std::thread(StatisticsCollector::logLoadAverage, "Load Average");
     sleep(1);
     waitForAcknowledgement(numberofWorkers);
     resolveOperationalGraphs();
@@ -911,8 +911,6 @@ JasmineGraphServer::worker JasmineGraphServer::getDesignatedWorker() {
     return best_worker;
 }
 
-
-
 std::vector<JasmineGraphServer::worker> JasmineGraphServer::getWorkers(size_t npart) {
     // TODO: get the workers with lowest load from workerList
     std::vector<JasmineGraphServer::worker> *workerListAll;
@@ -966,13 +964,6 @@ std::vector<JasmineGraphServer::worker> JasmineGraphServer::getWorkers(size_t np
 std::vector<JasmineGraphServer::worker> JasmineGraphServer::workers(size_t npart) {
     return getWorkers(npart);
 }
-
-// JasmineGraphServer::worker JasmineGraphServer::getDesignatedWorker()
-// {
-//     //TODO (sajeenthiran): handle designated worker
-//     return hostWorkerList[0];
-//
-// }
 
 void JasmineGraphServer::uploadGraphLocally(int graphID, const string graphType,
                                             vector<std::map<int, string>> fullFileList, std::string masterIP) {

@@ -31,7 +31,7 @@ limitations under the License.
 #include "../../util/Conts.h"
 #include "../../util/Utils.h"
 #include "../../util/logger/Logger.h"
-#include "StatisticCollector.h"
+#include "StatisticsCollector.h"
 
 #ifndef JASMINEGRAPH_PERFORMANCEUTIL_H
 #define JASMINEGRAPH_PERFORMANCEUTIL_H

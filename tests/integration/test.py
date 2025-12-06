@@ -9,14 +9,12 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 """
-import subprocess
 import sys
 import socket
 import logging
 import os
 import time
 
-from graphRAG.KG.test import test_kg
 from utils.telnetScripts.validate_uploaded_graph import  test_graph_validation
 
 logging.addLevelName(
@@ -195,8 +193,6 @@ failed_tests = []
 
 def test(host, port):
     """Test the JasmineGraph server by sending a series of commands and checking the responses."""
-
-    subprocess.run(['bash', OLLAMA_SETUP_SCRIPT], check=True)
 
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
         sock.connect((host, port))
@@ -596,10 +592,6 @@ def test(host, port):
                                  b'done', exit_on_failure=True)
 
         print()
-        logging.info('[GraphRAG] Testing knowledge graph construction ')
-        test_kg(TEXT_FOLDER ,UPLOAD_SCRIPT, host, port)
-
-        print()
         logging.info('[Cypher] Testing rmgr after adhdfs')
         send_and_expect_response(sock, 'rmgr', RMGR, SEND, exit_on_failure=True)
         send_and_expect_response(sock, 'rmgr', b'1', DONE, exit_on_failure=True)
@@ -619,9 +611,9 @@ def test(host, port):
                                       'orderby_expected_output_file.txt',exit_on_failure=True)
 
         # shutting down workers after testing
-        print()
-        logging.info('Shutting down')
-        sock.sendall(SHDN + LINE_END)
+        # print()
+        # logging.info('Shutting down')
+        # sock.sendall(SHDN + LINE_END)
         if passed_all:
             print()
             logging.info('Passed all tests')

@@ -11,8 +11,8 @@ See the License for the specific language governing permissions and
 limitations under the License.
  */
 
-#ifndef JASMINEGRAPH_STATISTICCOLLECTOR_H
-#define JASMINEGRAPH_STATISTICCOLLECTOR_H
+#ifndef JASMINEGRAPH_STATISTICSCOLLECTOR_H
+#define JASMINEGRAPH_STATISTICSCOLLECTOR_H
 
 #include <dirent.h>
 #include <string.h>
@@ -35,7 +35,7 @@ limitations under the License.
 #include "string.h"
 #include "sys/times.h"
 
-class StatisticCollector {
+class StatisticsCollector {
  private:
     static const int BUFFER_SIZE = 128;
 
@@ -59,4 +59,4 @@ class StatisticCollector {
     static double getMemoryUsagePercentage();
 };
 
-#endif  // JASMINEGRAPH_STATISTICCOLLECTOR_H
+#endif  // JASMINEGRAPH_STATISTICSCOLLECTOR_H

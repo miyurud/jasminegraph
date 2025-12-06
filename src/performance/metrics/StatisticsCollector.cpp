@@ -11,7 +11,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
  */
 
-#include "StatisticCollector.h"
+#include "StatisticsCollector.h"
 
 Logger stat_logger;
 static int numProcessors;
@@ -21,7 +21,7 @@ static long getSwapSpace(const char *type);
 
 #define LINE_BUF_SIZE 128
 
-int StatisticCollector::init() {
+int StatisticsCollector::init() {
     FILE *file;
     struct tms timeSample;
     char line[LINE_BUF_SIZE];
@@ -39,7 +39,7 @@ int StatisticCollector::init() {
     return 0;
 }
 
-long StatisticCollector::getMemoryUsageByProcess() {
+long StatisticsCollector::getMemoryUsageByProcess() {
     FILE *file = fopen("/proc/self/status", "r");
     long result = -1;
     char line[LINE_BUF_SIZE];
@@ -54,7 +54,7 @@ long StatisticCollector::getMemoryUsageByProcess() {
     return result;
 }
 
-int StatisticCollector::getThreadCount() {
+int StatisticsCollector::getThreadCount() {
     FILE *file = fopen("/proc/self/stat", "r");
     long result;
     char line[LINE_BUF_SIZE];
@@ -103,17 +103,17 @@ static long getSwapSpace(int field) {
     return result;
 }
 
-long StatisticCollector::getUsedSwapSpace() {
+long StatisticsCollector::getUsedSwapSpace() {
     long result = getSwapSpace(4);
     return result;
 }
 
-long StatisticCollector::getTotalSwapSpace() {
+long StatisticsCollector::getTotalSwapSpace() {
     long result = getSwapSpace(3);
     return result;
 }
 
-long StatisticCollector::getRXBytes() {
+long StatisticsCollector::getRXBytes() {
     FILE *file = fopen("/sys/class/net/eth0/statistics/rx_bytes", "r");
     long result = -1;
     fscanf(file, "%li", &result);
@@ -121,7 +121,7 @@ long StatisticCollector::getRXBytes() {
     return result;
 }
 
-long StatisticCollector::getTXBytes() {
+long StatisticsCollector::getTXBytes() {
     FILE *file = fopen("/sys/class/net/eth0/statistics/tx_bytes", "r");
     long result = -1;
     fscanf(file, "%li", &result);
@@ -129,7 +129,7 @@ long StatisticCollector::getTXBytes() {
     return result;
 }
 
-int StatisticCollector::getSocketCount() {
+int StatisticsCollector::getSocketCount() {
     DIR *d = opendir("/proc/self/fd");
     if (!d) {
         puts("Error opening directory /proc/self/fd");
@@ -197,7 +197,7 @@ static void getCpuCycles(long long *totalp, long long *idlep) {
     *idlep = idle;
 }
 
-double StatisticCollector::getCpuUsage() {
+double StatisticsCollector::getCpuUsage() {
     long long total1;
     long long idle1;
     getCpuCycles(&total1, &idle1);
@@ -212,7 +212,7 @@ double StatisticCollector::getCpuUsage() {
     return (diffTotal - diffIdle) / (double)diffTotal;
 }
 
-long StatisticCollector::getTotalMemoryAllocated() {
+long StatisticsCollector::getTotalMemoryAllocated() {
     std::string token;
     std::ifstream file("/proc/meminfo");
     while (file >> token) {
@@ -227,7 +227,7 @@ long StatisticCollector::getTotalMemoryAllocated() {
     }
     return 0;
 }
-double StatisticCollector::getMemoryUsagePercentage() {
+double StatisticsCollector::getMemoryUsagePercentage() {
     long totalMem = getTotalMemoryAllocated();   // in KB
     long usedMem = getTotalMemoryUsage();        // in KB
 
@@ -237,12 +237,12 @@ double StatisticCollector::getMemoryUsagePercentage() {
 }
 
 
-int StatisticCollector::getTotalNumberofCores() {
+int StatisticsCollector::getTotalNumberofCores() {
     unsigned concurentThreadsSupported = std::thread::hardware_concurrency();
     return concurentThreadsSupported;
 }
 
-double StatisticCollector::getCpuLoadPercentage() {
+double StatisticsCollector::getCpuLoadPercentage() {
     int cores = getTotalNumberofCores();       // total CPU cores
     double load = getLoadAverage();            // 1-min load average
 
@@ -250,7 +250,7 @@ double StatisticCollector::getCpuLoadPercentage() {
 
     return (load / cores);
 }
-long StatisticCollector::getTotalMemoryUsage() {
+long StatisticsCollector::getTotalMemoryUsage() {
     std::string token;
     std::ifstream file("/proc/meminfo");
     unsigned long memTotal;
@@ -279,7 +279,7 @@ long StatisticCollector::getTotalMemoryUsage() {
     return memUsage;
 }
 
-double StatisticCollector::getTotalCpuUsage() {
+double StatisticsCollector::getTotalCpuUsage() {
     std::string mpstatCommand = "mpstat";
     char buffer[BUFFER_SIZE];
     std::string result = "";
@@ -328,13 +328,13 @@ double StatisticCollector::getTotalCpuUsage() {
     return totalCPUUsage;
 }
 
-double StatisticCollector::getLoadAverage() {
+double StatisticsCollector::getLoadAverage() {
     double loadAvg;
     getloadavg(&loadAvg, 1);
     return loadAvg;
 }
 
-void StatisticCollector::logLoadAverage(std::string name) {
+void StatisticsCollector::logLoadAverage(std::string name) {
     PerformanceUtil::logLoadAverage();
 
     int elapsedTime = 0;

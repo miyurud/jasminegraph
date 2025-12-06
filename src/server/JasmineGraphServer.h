@@ -28,7 +28,7 @@ limitations under the License.
 #include "../frontend/ui/JasmineGraphFrontEndUI.h"
 #include "../frontend/core/scheduler/JobScheduler.h"
 #include "../metadb/SQLiteDBInterface.h"
-#include "../performance/metrics/StatisticCollector.h"
+#include "../performance/metrics/StatisticsCollector.h"
 #include "../performancedb/PerformanceSQLiteDBInterface.h"
 #include "../util/Conts.h"
 #include "../util/Utils.h"

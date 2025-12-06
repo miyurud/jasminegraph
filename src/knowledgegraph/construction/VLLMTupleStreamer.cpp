@@ -66,9 +66,9 @@ size_t VLLMTupleStreamer::StreamCallback(char* ptr, size_t size, size_t nmemb,
 
     std::string jsonPart = line.substr(prefix.size());
     try {
-      auto j = json::parse(jsonPart);
-      if (j.contains("choices") && !j["choices"].empty()) {
-        std::string partial = j["choices"][0]["delta"].value("content", "");
+      auto jsonLine = json::parse(jsonPart);
+      if (jsonLine.contains("choices") && !jsonLine["choices"].empty()) {
+        std::string partial = jsonLine["choices"][0]["delta"].value("content", "");
 
         size_t i = 0;
         while (i < partial.size()) {
@@ -157,8 +157,10 @@ size_t VLLMTupleStreamer::StreamCallback(char* ptr, size_t size, size_t nmemb,
 void VLLMTupleStreamer::streamChunk(const std::string& chunkKey,
                                     const std::string& chunkText,
                                     SharedBuffer& tupleBuffer) {
-  const int maxRetries = 10;
-  const int baseDelaySeconds = 50;
+  const int maxRetries = std::stoi(Utils::getJasmineGraphProperty(
+      "org.jasminegraph.kg.tuplestreamer.retry.max"));
+  const int baseDelaySeconds = std::stoi(Utils::getJasmineGraphProperty(
+      "org.jasminegraph.kg.tuplestreamer.retry.base"));  // exponential backoff base
   int attempt = 0;
   CURLcode res;
 
@@ -192,9 +194,9 @@ void VLLMTupleStreamer::streamChunk(const std::string& chunkKey,
     curl_easy_setopt(curl, CURLOPT_POST, 1L);
 
     // JSON request
-    json j;
-    j["model"] = model;
-    j["messages"] = {{{"role", "system"},
+    json jsonRequest;
+    jsonRequest["model"] = model;
+    jsonRequest["messages"] = {{{"role", "system"},
                       {"content",
                        "You are an expert information extractor specialized in "
                        "knowledge graph construction."}},
@@ -203,10 +205,10 @@ void VLLMTupleStreamer::streamChunk(const std::string& chunkKey,
                                       "\nNow process the following text:\n" +
                                       chunkText + "\n\nArray:"}}};
 
-    j["stream"] = true;
-    j["max_tokens"] = 10000;
+    jsonRequest["stream"] = true;
+    jsonRequest["max_tokens"] = 10000;
 
-    std::string postFields = j.dump();
+    std::string postFields = jsonRequest.dump();
     vllm_tuple_streamer_logger.info("Post fields: " + postFields);
 
     curl_easy_setopt(curl, CURLOPT_POSTFIELDS, postFields.c_str());
