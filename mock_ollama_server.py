@@ -1,9 +1,22 @@
 # mock_ollama_server_array.py
 from fastapi import FastAPI, Request
 from fastapi.responses import StreamingResponse, JSONResponse
-import json, asyncio
+from fastapi.middleware.cors import CORSMiddleware
+import json
+import asyncio
 
 app = FastAPI()
+
+# ======================
+# CORS FIX (OPTIONS 405)
+# ======================
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # Mock available models
 AVAILABLE_MODELS = [
@@ -11,30 +24,56 @@ AVAILABLE_MODELS = [
     {"name": "mock-llama", "description": "Another mock LLM."}
 ]
 
-async def streamer(prompt: str):
-    """Simulate streaming a JSON array of arrays."""
+async def streamer(prompt: str, model: str):
+    """Stream Ollama-style NDJSON."""
+
     response = [
         ["Alice","knows","Bob","Person","Person"],
         ["Bob","works_at","AcmeCorp","Person","Organization"],
         ["AcmeCorp","located_in","London","Organization","Location"]
     ]
 
-    yield "["  # start array
-    for i, t in enumerate(response):
-        yield json.dumps(t)
-        if i < len(response) - 1:
-            yield ","
-        await asyncio.sleep(0.05)  # simulate streaming delay
-    yield "]\n"  # end array
+    for triple in response:
+        yield json.dumps({
+            "model": model,
+            "created_at": "2025-01-01T00:00:00Z",
+            "response": triple,
+            "done": False
+        }) + "\n"
+        await asyncio.sleep(0.05)
+
+    yield json.dumps({
+        "model": model,
+        "created_at": "2025-01-01T00:00:00Z",
+        "response": "",
+        "done": True
+    }) + "\n"
+
 
 @app.get("/api/tags")
 async def get_models():
-    """Return a list of available mock models."""
     return JSONResponse(content=AVAILABLE_MODELS)
+
 
 @app.post("/api/generate")
 async def generate(request: Request):
-    """Simulate generating tuples from a prompt."""
     data = await request.json()
     prompt = data.get("prompt", "")
-    return StreamingResponse(streamer(prompt), media_type="application/json")
+    model = data.get("model", "mock-llama")
+    stream = data.get("stream", False)
+
+    if not stream:
+        return JSONResponse(content={
+            "model": model,
+            "response": [
+                ["Alice","knows","Bob","Person","Person"],
+                ["Bob","works_at","AcmeCorp","Person","Organization"],
+                ["AcmeCorp","located_in","London","Organization","Location"]
+            ],
+            "done": True
+        })
+
+    return StreamingResponse(
+        streamer(prompt, model),
+        media_type="application/x-ndjson"
+    )
