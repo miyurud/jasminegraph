@@ -268,7 +268,7 @@ cd "$PROJECT_ROOT"
 build_and_run_on_k8s
 docker images
 docker rmi -f jasminegraph
-docker image prune -f
+docker system prune -f
 docker images
 ready_hdfs
 start_master_logs
