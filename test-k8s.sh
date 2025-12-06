@@ -269,6 +269,10 @@ build_and_run_on_k8s
 docker images
 docker rmi -f jasminegraph
 docker system prune -f
+docker image prune -f
+docker ps -a -q --filter "ancestor=$(docker images -f dangling=true -q)" | xargs -r docker rm -f
+docker rmi -f $(docker images -f dangling=true -q)
+
 docker images
 ready_hdfs
 start_master_logs
