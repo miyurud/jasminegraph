@@ -27,7 +27,7 @@ async def streamer(prompt: str):
         await asyncio.sleep(0.05)  # simulate streaming delay
     yield "]\n"  # end array
 
-@app.get("/api/models")
+@app.get("api/tags")
 async def get_models():
     """Return a list of available mock models."""
     return JSONResponse(content=AVAILABLE_MODELS)
