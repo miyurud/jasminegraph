@@ -267,7 +267,7 @@ cp -r env_init env
 cd "$PROJECT_ROOT"
 build_and_run_on_k8s
 docker images
-dcoker rmi -f jasminegraphd
+docker rmi -f jasminegraphd
 docker image prune -f
 docker images
 ready_hdfs
