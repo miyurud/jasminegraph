@@ -266,7 +266,8 @@ cp -r env_init env
 
 cd "$PROJECT_ROOT"
 build_and_run_on_k8s
-docker rmi -f jasminegraph
+docker images
+docker image prune -f
 docker images
 ready_hdfs
 start_master_logs
