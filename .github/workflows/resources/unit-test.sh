@@ -55,7 +55,7 @@ if [[ $pod_status != "Running" && $pod_status != "Completed" ]]; then
     echo "Unit tests failed"
     echo "----------------------------- details --------------------------"
     kubectl describe pod jasminegraph-unit-test-pod
-    
+
     # Cleanup on failure
     kubectl delete pod jasminegraph-unit-test-pod --ignore-not-found=true
     kubectl delete pvc host-volume-claim --ignore-not-found=true
@@ -63,7 +63,7 @@ if [[ $pod_status != "Running" && $pod_status != "Completed" ]]; then
     kubectl delete deployment -l deployment=jasminegraph-worker --ignore-not-found=true
     kubectl delete service -l service=jasminegraph-worker --ignore-not-found=true
     kubectl delete service jasminegraph-master-service --ignore-not-found=true
-    
+
     exit 1
 fi
 
