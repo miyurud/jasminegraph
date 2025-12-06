@@ -976,7 +976,7 @@ static void cypher_ast_command(int connFd, vector<DataPublisher *> &workerClient
 
     // send query plan
     JasmineGraphServer *server = JasmineGraphServer::getInstance();
-    server->sendQueryPlan(stoi(user_res_1), workerClients.size(), obj, std::ref(bufferPool));
+    server->sendQueryPlan(stoi(user_res_1), numberOfPartitions, obj, std::ref(bufferPool));
 
     int closeFlag = 0;
     if (Operator::isAggregate) {

@@ -53,9 +53,13 @@ JasmineGraphIncrementalLocalStore::JasmineGraphIncrementalLocalStore(
   }
 };
 bool JasmineGraphIncrementalLocalStore::getAndStoreEmbeddings() {
+    incremental_localstore_logger.info("56 :");
+
   std::vector<string> batch_request;
   for (EmbeddingRequest& request : *embedding_requests) {
     batch_request.emplace_back(request.nodeText);
+      incremental_localstore_logger.info("node Text :" + request.nodeText);
+
   }
   vector<vector<float>> results = textEmbedder->batch_embed(batch_request);
 
@@ -382,6 +386,7 @@ void JasmineGraphIncrementalLocalStore::addDestinationProperties(
                 " found . Skipping ");
             return;
           }
+            incremental_localstore_logger.debug(" Adding embedding request: "+ nodeText);
           EmbeddingRequest request = {destinationJson["id"].get<std::string>(),
                                       nodeText};
           embedding_requests->emplace_back(request);

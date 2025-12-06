@@ -2183,7 +2183,7 @@ std::string Utils::normalizeURL(const std::string &server, const std::string &pa
 
 
 std::vector<std::string> Utils::getUniqueLLMRunners(const std::string &hostnamePortS) {
-    std::vector<std::string> llmRunnerSockets;
+    std::vector<std::string> llmRunnerServers;
     std::unordered_set<std::string> seen;
     std::stringstream ss(hostnamePortS);
     std::string token;
@@ -2193,19 +2193,32 @@ std::vector<std::string> Utils::getUniqueLLMRunners(const std::string &hostnameP
         token.erase(0, token.find_first_not_of(" \t\r\n"));
         token.erase(token.find_last_not_of(" \t\r\n") + 1);
 
-        // Skip empty entries
         if (token.empty()) continue;
 
-        // Convert to lowercase for case-insensitive uniqueness (optional)
+        // ===== Remove chunk count =====
+        // Example: "10.0.10.22:11450:10" → "10.0.10.22:11450"
+        //          "https://llm.com:4"   → "https://llm.com"
+        size_t lastColon = token.rfind(':');
+        if (lastColon != std::string::npos) {
+            // Check whether the part after last colon is a number
+            std::string lastPart = token.substr(lastColon + 1);
+            bool isNumber = !lastPart.empty() &&
+                            std::all_of(lastPart.begin(), lastPart.end(), ::isdigit);
+            if (isNumber) {
+                token = token.substr(0, lastColon);
+            }
+        }
+
+        // Convert to lowercase for deduplication
         std::string key = token;
         std::transform(key.begin(), key.end(), key.begin(), ::tolower);
 
         if (seen.find(key) == seen.end()) {
             seen.insert(key);
-            llmRunnerSockets.push_back(token);
+            llmRunnerServers.push_back(token);
         }
     }
 
-    return llmRunnerSockets;
+    return llmRunnerServers;
 }
 

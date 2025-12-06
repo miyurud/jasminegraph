@@ -15,9 +15,25 @@ limitations under the License.
 
 namespace Prompts {
 inline const std::string KNOWLEDGE_EXTRACTION = R"(
--  Extract subgraphs with many meaningful, non-duplicate triples (facts) as possible
-- Omit triples where subject/object is an ambiguous pronoun (he, she, it, they).
-- Return only a JSON array of arrays in the form:
-    [subject, predicate, object, subject_type, object_type].
+You MUST extract **ALL** factual triples present in the text.
+Do **NOT** summarize.
+Do **NOT** skip any fact unless the subject or object is an ambiguous pronoun
+(he, she, it, they, them, this, that).
+
+Output format:
+[
+  [subject, predicate, object, subject_type, object_type],
+  ...
+]
+
+STRICT RULES:
+- Extract **every possible factual relation** in the text, even if many.
+- Continue until you have processed the **entire chunk** fully.
+- Do not stop early.
+- Do not guess missing types; mark unknown types as "unknown".
+- Output ONLY valid JSON.
+- The array MUST contain **all triples**, not a representative sample.
+
+Now extract ALL triples from the text:
 )";
 }
