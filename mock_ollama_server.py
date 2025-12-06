@@ -84,3 +84,20 @@ async def generate(request: Request):
         streamer(prompt, model),
         media_type="application/x-ndjson"
     )
+
+
+def fake_embedding(text, dim=768):
+    """Return a deterministic mock embedding based on the text content."""
+    # Simple deterministic embedding using character codes
+    vec = [(ord(c) % 10 + 0.1 * i) for i, c in enumerate(text[:dim])]
+    # Pad to dimension
+    while len(vec) < dim:
+        vec.append(0.0)
+    return vec
+
+@app.post("/api/embeddings")
+async def single_embed(request: Request):
+    data = await request.json()
+    text = data.get("prompt") or (data.get("input")[0] if isinstance(data.get("input"), list) else "")
+    embedding = fake_embedding(text, dim=768)
+    return JSONResponse(content={"embedding": embedding})
