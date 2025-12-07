@@ -271,6 +271,17 @@ docker ps -a --filter "ancestor=grafana/grafana-enterprise" -q | xargs -r docker
 docker ps -a --filter "ancestor=grafana/grafana-enterprise" -q | xargs -r docker rm
 docker images | grep "grafana/grafana-enterprise" | awk '{print $3}' | xargs -r docker rmi -f
 docker images
+
+docker system prune -af
+
+# Remove dangling volumes
+docker volume prune -f
+
+# Remove unused networks
+docker network prune -f
+
+# Optional: check disk usage
+df -h
 ready_hdfs
 start_master_logs
 
