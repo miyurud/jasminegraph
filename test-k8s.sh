@@ -270,7 +270,7 @@ build_and_run_on_k8s
 docker ps -a --filter "ancestor=grafana/grafana-enterprise" -q | xargs -r docker stop
 docker ps -a --filter "ancestor=grafana/grafana-enterprise" -q | xargs -r docker rm
 docker images | grep "grafana/grafana-enterprise" | awk '{print $3}' | xargs -r docker rmi -f
-
+docker images
 ready_hdfs
 start_master_logs
 
