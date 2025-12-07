@@ -15,8 +15,8 @@ limitations under the License.
 #include <time.h>
 #include <unistd.h>
 
-constexpr std::size_t THOUSAND = 1000.0;
-constexpr std::size_t BILLION = 1000000000.0;
+constexpr double THOUSAND = 1000.0;
+constexpr double BILLION = 1000000000.0;
 constexpr std::size_t LINE_BUF_SIZE = 128;
 constexpr std::size_t LINE_BUF_SIZE_LONG = 256;
 
