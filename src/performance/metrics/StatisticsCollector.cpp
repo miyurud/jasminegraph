@@ -15,6 +15,8 @@ limitations under the License.
 #include <time.h>
 #include <unistd.h>
 
+constexpr std::size_t THOUSAND = 1000.0;
+constexpr std::size_t BILLION = 1000000000.0;
 constexpr std::size_t LINE_BUF_SIZE = 128;
 constexpr std::size_t LINE_BUF_SIZE_LONG = 256;
 
@@ -50,12 +52,11 @@ static void getCpuCycles(long *totalp, long *idlep);
 // Time calculation utilities
 static double calculateElapsedTime(const struct timespec& startTime, const struct timespec& endTime) {
     return (endTime.tv_sec - startTime.tv_sec) +
-           (endTime.tv_nsec - startTime.tv_nsec) / 1000000000.0;
+           (endTime.tv_nsec - startTime.tv_nsec) / BILLION;
 }
 
 static double calculateElapsedTimeMs(const struct timespec& startTime, const struct timespec& endTime) {
-    return ((endTime.tv_sec - startTime.tv_sec) * 1000.0) +
-           ((endTime.tv_nsec - startTime.tv_nsec) / 1000000.0);
+    return calculateElapsedTime(startTime, endTime) * THOUSAND;
 }
 
 // /proc/stat operations
