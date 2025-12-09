@@ -326,13 +326,23 @@ static bool readDiskStats(std::map<std::string, DiskStats, std::less<>> &out, co
 }
 
 // Memory and process utilities
-static long parseLine(char *line) {
-    int i = strlen(line);
+static long parseLine(const char *line) {
+    if (!line) return -1;
+
+    // Skip until we find first digit
     const char *p = line;
-    while (*p < '0' || *p > '9') p++;
-    line[i - 3] = '\0';
-    long val = strtol(p, nullptr, 10);
-    if (val < 0 || val > 0xfffffffffffffffL) return -1;
+    while (*p && (*p < '0' || *p > '9'))
+        p++;
+
+    if (!*p)   // no digits found
+        return -1;
+
+    // Parse number
+    char *end = nullptr;
+    long val = strtol(p, &end, 10);
+    if (end == p || val < 0)
+        return -1;
+
     return val;
 }
 
@@ -539,21 +549,31 @@ int StatisticsCollector::getSocketCount() {
         puts("Error opening directory /proc/self/fd");
         return -1;
     }
-    const struct dirent *dir;
+
+    struct dirent *dir;
     char path[64];
     char link_buf[1024];
     int count = 0;
+
     while ((dir = readdir(d)) != nullptr) {
         const char *filename = dir->d_name;
-        if (filename[0] < '0' || '9' < filename[0]) continue;
-        sprintf(path, "/proc/self/fd/%s", filename);
-        size_t len = readlink(path, link_buf, sizeof(link_buf) - 1);
-        link_buf[len] = 0;
-        if (len > 0 && strncmp("socket:", link_buf, 7) == 0) {
+
+        // Skip non-numeric entries
+        if (!isdigit((unsigned char)filename[0])) continue;
+
+        int n = snprintf(path, sizeof(path), "/proc/self/fd/%s", filename);
+        if (n < 0 || n >= (int)sizeof(path)) continue;  // skip if path too long
+
+        ssize_t len = readlink(path, link_buf, sizeof(link_buf) - 1);
+        if (len <= 0) continue;
+
+        link_buf[len] = '\0';
+        if (strncmp(link_buf, "socket:", 7) == 0) {
             count++;
         }
     }
-    (void)closedir(d);
+
+    closedir(d);
     return count;
 }
 
