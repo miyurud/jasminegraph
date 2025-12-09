@@ -2,45 +2,46 @@ FROM grafana/grafana-enterprise:12.3.0
 
 COPY ./performance_tools/grafana_dashboard.json /var/lib/grafana/dashboards/
 
-RUN mkdir -p /etc/grafana/provisioning/datasources && \
-    cat <<EOF > /etc/grafana/provisioning/datasources/ds.yaml
+# hadolint ignore=DL3059
+RUN mkdir -p /etc/grafana/provisioning/datasources \
+  && mkdir -p /etc/grafana/provisioning/dashboards \
+  && cat <<'EOF' > /etc/grafana/provisioning/datasources/ds.yaml
 apiVersion: 1
 datasources:
-- name: Loki
-  type: loki
-  access: proxy
-  orgId: 1
-  url: 'http://loki:3100'
-  basicAuth: false
-  isDefault: true
-  version: 1
-  editable: true 
-- name: Tempo
-  type: tempo
-  access: proxy
-  orgId: 1
-  url: 'http://tempo:3200'
-  basicAuth: false
-  isDefault: false
-  version: 1
-  editable: true
-  jsonData:
-    httpMethod: GET
-    serviceMap:
-      datasourceUid: 'prometheus'
-- name: Prometheus
-  type: prometheus
-  access: proxy
-  orgId: 1
-  url: 'http://prometheus:9090'
-  basicAuth: false
-  isDefault: false
-  version: 1
-  editable: true
+  - name: Loki
+    type: loki
+    access: proxy
+    orgId: 1
+    url: 'http://loki:3100'
+    basicAuth: false
+    isDefault: true
+    version: 1
+    editable: true
+  - name: Tempo
+    type: tempo
+    access: proxy
+    orgId: 1
+    url: 'http://tempo:3200'
+    basicAuth: false
+    isDefault: false
+    version: 1
+    editable: true
+    jsonData:
+      httpMethod: GET
+      serviceMap:
+        datasourceUid: 'prometheus'
+  - name: Prometheus
+    type: prometheus
+    access: proxy
+    orgId: 1
+    url: 'http://prometheus:9090'
+    basicAuth: false
+    isDefault: false
+    version: 1
+    editable: true
 EOF
-
-RUN mkdir -p /etc/grafana/provisioning/dashboards && \
-    cat <<EOF > /etc/grafana/provisioning/dashboards/dashboard.yaml
+# hadolint ignore=DL3059
+RUN cat <<'EOF' > /etc/grafana/provisioning/dashboards/dashboard.yaml
 apiVersion: 1
 providers:
   - name: 'auto-provisioned'
