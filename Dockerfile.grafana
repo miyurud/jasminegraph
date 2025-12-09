@@ -2,17 +2,17 @@ FROM grafana/grafana-enterprise:12.3.0
 
 COPY ./performance_tools/grafana_dashboard.json /var/lib/grafana/dashboards/
 
-# hadolint ignore=DL3059
-RUN mkdir -p /etc/grafana/provisioning/datasources \
-  && mkdir -p /etc/grafana/provisioning/dashboards \
-  && cat <<'EOF' > /etc/grafana/provisioning/datasources/ds.yaml
+RUN <<'SCRIPT'
+set -e
+mkdir -p /etc/grafana/provisioning/datasources /etc/grafana/provisioning/dashboards
+cat >/etc/grafana/provisioning/datasources/ds.yaml <<'EOF'
 apiVersion: 1
 datasources:
   - name: Loki
     type: loki
     access: proxy
     orgId: 1
-    url: 'http://loki:3100'
+    url: http://loki:3100
     basicAuth: false
     isDefault: true
     version: 1
@@ -21,7 +21,7 @@ datasources:
     type: tempo
     access: proxy
     orgId: 1
-    url: 'http://tempo:3200'
+    url: http://tempo:3200
     basicAuth: false
     isDefault: false
     version: 1
@@ -29,27 +29,27 @@ datasources:
     jsonData:
       httpMethod: GET
       serviceMap:
-        datasourceUid: 'prometheus'
+        datasourceUid: prometheus
   - name: Prometheus
     type: prometheus
     access: proxy
     orgId: 1
-    url: 'http://prometheus:9090'
+    url: http://prometheus:9090
     basicAuth: false
     isDefault: false
     version: 1
     editable: true
 EOF
-# hadolint ignore=DL3059
-RUN cat <<'EOF' > /etc/grafana/provisioning/dashboards/dashboard.yaml
+cat >/etc/grafana/provisioning/dashboards/dashboard.yaml <<'EOF'
 apiVersion: 1
 providers:
-  - name: 'auto-provisioned'
+  - name: auto-provisioned
     orgId: 1
-    folder: ''
+    folder: ""
     type: file
     options:
       path: /var/lib/grafana/dashboards
 EOF
+SCRIPT
 
 ENTRYPOINT ["/run.sh"]
