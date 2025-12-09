@@ -288,8 +288,8 @@ static bool readNetworkStats(std::map<std::string, NetworkStats, std::less<>> &o
 
 // Disk statistics operations
 static bool readDiskStats(std::map<std::string, DiskStats, std::less<>> &out, const std::string& errorContext = "") {
-    FILE *file = fopen("/proc/diskstats", "r");
-    if (!file) {
+    std::ifstream file("/proc/diskstats");
+    if (!file.is_open()) {
         std::string msg = "Cannot open /proc/diskstats";
         if (!errorContext.empty()) {
             msg += " for " + errorContext;
@@ -299,32 +299,29 @@ static bool readDiskStats(std::map<std::string, DiskStats, std::less<>> &out, co
     }
 
     std::string line;
-    std::string buffer(LINE_BUF_SIZE_LONG, '\0');
-    while (fgets(&buffer[0], LINE_BUF_SIZE_LONG, file) != nullptr) {
-        line = buffer.c_str();
+    while (std::getline(file, line)) {
+        std::istringstream iss(line);
         int major = 0;
         int minor = 0;
         std::string device;
         DiskStats ds;
 
-        // Parse up to 14 fields; sscanf will fill available values.
-        std::string deviceBuffer(32, '\0');
-        int ret = sscanf(line.c_str(), "%d %d %31s %llu %llu %llu %llu %llu %llu %llu %llu %llu %llu %llu",
-                         &major, &minor, &deviceBuffer[0],
-                         &ds.reads_completed, &ds.reads_merged, &ds.sectors_read, &ds.time_reading,
-                         &ds.writes_completed, &ds.writes_merged, &ds.sectors_written, &ds.time_writing,
-                         &ds.ios_in_progress, &ds.io_time, &ds.weighted_io_time);
+        // Parse fields; /proc/diskstats has at least 3 fields always.
+        if (!(iss >> major >> minor >> device))
+            continue;
 
-        if (ret >= 3) {
-            device = deviceBuffer.c_str();
-            // Skip loop and ram devices
-            if (device.compare(0, 4, "loop") != 0 && device.compare(0, 3, "ram") != 0) {
-                out[device] = ds;
-            }
-        }
+        // Skip loop and ram devices
+        if (device.rfind("loop", 0) == 0 || device.rfind("ram", 0) == 0)
+            continue;
+
+        // Now parse the remaining fields if available
+        iss >> ds.reads_completed >> ds.reads_merged >> ds.sectors_read >> ds.time_reading
+            >> ds.writes_completed >> ds.writes_merged >> ds.sectors_written >> ds.time_writing
+            >> ds.ios_in_progress >> ds.io_time >> ds.weighted_io_time;
+
+        out[device] = ds;
     }
 
-    fclose(file);
     return true;
 }
 
@@ -340,38 +337,51 @@ static long parseLine(char *line) {
 }
 
 static long getSwapSpace(int field) {
-    FILE *file = fopen("/proc/swaps", "r");
-    long result = -1;
-    char line[LINE_BUF_SIZE];
-
-    fgets(line, LINE_BUF_SIZE, file);
-
-    while (fgets(line, LINE_BUF_SIZE, file) != nullptr) {
-        const char *value = nullptr;
-        char *save = nullptr;
-        for (int i = 0; i < field; i++) {
-            if (i == 0) {
-                value = strtok_r(line, " ", &save);
-            } else {
-                value = strtok_r(nullptr, "\t", &save);
-            }
+    std::ifstream file("/proc/swaps");
+    if (!file.is_open()) {
+        std::string msg = "Cannot open /proc/swaps";
+        if (!errorContext.empty()) {
+            msg += " for " + errorContext;
         }
-        if (value == nullptr) {
-            continue;
-        }
-        long used = strtol(value, nullptr, 10);
-        if (used < 0 || used > 0xfffffffffffffffL) {
-            continue;
-        }
-        if (result >= 0) {
-            result += used;
-        } else {
-            result = used;
-        }
+        stat_logger.error(msg);
+        return false;
     }
-    fclose(file);
 
-    return result;
+    char line[LINE_BUF_SIZE];
+    long result = 0;
+    bool hasValue = false;
+
+    // skip header
+    fgets(line, sizeof(line), file);
+
+    while (fgets(line, sizeof(line), file)) {
+        const char* p = line;
+        int current = 0;
+
+        // skip leading spaces/tabs
+        while (*p == ' ' || *p == '\t') p++;
+
+        // iterate over whitespace-separated fields
+        while (*p && current < field) {
+            // skip token
+            while (*p && *p != ' ' && *p != '\t') p++;
+            // skip whitespace
+            while (*p == ' ' || *p == '\t') p++;
+            current++;
+        }
+
+        if (current != field || !*p) continue;
+
+        // parse value
+        char* end = nullptr;
+        long value = strtol(p, &end, 10);
+        if (end == p || value < 0) continue;
+
+        result += value;
+        hasValue = true;
+    }
+
+    return hasValue ? result : -1;
 }
 
 int StatisticsCollector::init() {
