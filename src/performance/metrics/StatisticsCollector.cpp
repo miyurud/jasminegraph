@@ -61,79 +61,73 @@ static double calculateElapsedTimeMs(const struct timespec& startTime, const str
 
 // /proc/stat operations
 static long readProcStatValue(const char* prefix, int prefixLen) {
-    FILE *file = fopen("/proc/stat", "r");
-    if (!file) {
+    std::ifstream file("/proc/stat");
+    if (!file.is_open()) {
         stat_logger.error("Cannot open /proc/stat");
         return -1;
     }
 
     std::string line;
-    std::string buffer(LINE_BUF_SIZE, '\0');
-    long value = -1;
+    std::string_view prefixView(prefix, prefixLen);
 
-    while (fgets(&buffer[0], LINE_BUF_SIZE, file) != nullptr) {
-        line = buffer.c_str();
-        std::string_view lineView(line);
-        if (std::string_view prefixView(prefix, prefixLen); lineView.substr(0, prefixLen) != prefixView) {
+    while (std::getline(file, line)) {
+        std::string_view view(line);
+
+        // Skip if line doesn't start with the prefix
+        if (!view.starts_with(prefixView))
             continue;
-        }
-        const char *p = line.c_str();
-        while (*p && (*p < '0' || *p > '9')) p++;  // Skip to first digit
-        if (*p) {
-            value = strtoll(p, nullptr, 10);
-            if (value < 0) {
-                value = -1;  // Invalid value
-            }
-        }
-        break;
+
+        // Find first digit
+        auto pos = view.find_first_of("0123456789");
+        if (pos == std::string_view::npos)
+            return -1;
+
+        long value = -1;
+        auto [ptr, ec] = std::from_chars(view.data() + pos,
+                                         view.data() + view.size(),
+                                         value);
+
+        if (ec != std::errc() || value < 0)
+            return -1;
+
+        return value;
     }
 
-    fclose(file);
-    return value;
+    return -1; // Not found
 }
 
 static double measureProcStatRate(const char* prefix, int prefixLen, int sleepSeconds) {
     // First reading
-    long firstValue = readProcStatValue(prefix, prefixLen);
-    if (firstValue == -1) {
+    const long firstValue = readProcStatValue(prefix, prefixLen);
+    if (firstValue < 0) {
         stat_logger.error(std::string("Could not read initial ") + prefix + " value");
         return -1.0;
     }
 
     // Record start time
-    struct timespec startTime;
-    struct timespec endTime;
-    clock_gettime(CLOCK_MONOTONIC, &startTime);
-
-    // Sleep for measurement interval
+    const auto start = std::chrono::steady_clock::now();
     sleep(sleepSeconds);
 
-    // Second reading
-    long secondValue = readProcStatValue(prefix, prefixLen);
-    if (secondValue == -1) {
+    const long secondValue = readProcStatValue(prefix, prefixLen);
+    if (secondValue < 0) {
         stat_logger.error(std::string("Could not read final ") + prefix + " value");
         return -1.0;
     }
 
-    // Record end time
-    clock_gettime(CLOCK_MONOTONIC, &endTime);
-
     // Calculate elapsed time in seconds
-    double elapsedTime = calculateElapsedTime(startTime, endTime);
-
-    if (elapsedTime <= 0.0) {
+    const std::chrono::duration<double> elapsed = std::chrono::steady_clock::now() - start;
+    if (elapsed.count() <= 0.0) {
         stat_logger.error(std::string("Invalid elapsed time for ") + prefix + " calculation");
         return -1.0;
     }
 
-    // Calculate rate per second
-    long valueDiff = secondValue - firstValue;
+    const long valueDiff = secondValue - firstValue;
     if (valueDiff < 0) {
         stat_logger.error(std::string(prefix) + " counter wrapped or invalid");
         return -1.0;
     }
 
-    return (double)valueDiff / elapsedTime;
+    return valueDiff / elapsed.count();
 }
 
 // CPU statistics operations
@@ -186,33 +180,31 @@ static bool readCpuStats(std::vector<std::vector<long>> &readings, const std::st
 static void getCpuCycles(long *totalp, long *idlep) {
     *totalp = 0;
     *idlep = 0;
-    FILE *fp = fopen("/proc/stat", "r");
-    if (!fp) return;
-    char line[1024];
-    fscanf(fp, "%[^\r\n]%*c", line);
-    fclose(fp);
 
-    char *p = line;
-    while (*p < '0' || *p > '9') p++;
-    long total = 0;
-    long idle = 0;
-    char *end_ptr = p;
-    for (int field = 1; field <= 10; field++) {
-        while (*p < '0' || *p > '9') {
-            if (!(*p)) break;
-            p++;
-        }
-        if (!(*p)) break;
-        long value = strtoll(p, &end_ptr, 10);
-        p = end_ptr;
-        if (value < 0) {
-            stat_logger.error("Value is " + to_string(value) + " for line " + string(line));
-        }
-        if (field == 4) {
-            idle += value;
-        }
-        total += value;
+    std::ifstream file("/proc/stat");
+    if (!file.is_open()) return;
+
+    std::string cpu;
+    long user;
+    long nice;
+    long system;
+    long idle;
+    long iowait;
+    long irq;
+    long softirq;
+    long steal;
+    long guest;
+    long guest_nice;
+
+    file >> cpu;
+    if (cpu != "cpu") return;
+
+    if (!(file >> user >> nice >> system >> idle >> iowait >> irq >> softirq >> steal >> guest >> guest_nice)) {
+        return;
     }
+
+    long total = user + nice + system + idle + iowait + irq + softirq + steal + guest + guest_nice;
+
     *totalp = total;
     *idlep = idle;
 }
@@ -220,8 +212,8 @@ static void getCpuCycles(long *totalp, long *idlep) {
 // Network statistics operations
 static bool readNetworkStats(std::map<std::string, NetworkStats, std::less<>> &out,
                 const std::string& errorContext = "") {
-    FILE *file = fopen("/proc/net/dev", "r");
-    if (!file) {
+    std::ifstream file("/proc/net/dev");
+    if (!file.is_open()) {
         std::string msg = "Cannot open /proc/net/dev";
         if (!errorContext.empty()) {
             msg += " for " + errorContext;
@@ -231,23 +223,34 @@ static bool readNetworkStats(std::map<std::string, NetworkStats, std::less<>> &o
     }
 
     std::string line;
-    std::string buffer(LINE_BUF_SIZE_LONG, '\0');
+
     // Skip header lines
-    if (fgets(&buffer[0], LINE_BUF_SIZE_LONG, file) == nullptr || fgets(&buffer[0], LINE_BUF_SIZE_LONG, file)
-                    == nullptr) {
+    if (!std::getline(file, line) || !std::getline(file, line)) {
         std::string msg = "Cannot read header lines from /proc/net/dev";
         if (!errorContext.empty()) {
             msg += " in " + errorContext;
         }
         stat_logger.error(msg);
-        fclose(file);
         return false;
     }
 
-    // Read network interface statistics
-    while (fgets(&buffer[0], LINE_BUF_SIZE_LONG, file) != nullptr) {
-        line = buffer.c_str();
-        std::string interface;
+    while (std::getline(file, line)) {
+        std::string_view sv(line);
+
+        // Trim leading spaces
+        while (!sv.empty() && (sv.front() == ' ' || sv.front() == '\t'))
+            sv.remove_prefix(1);
+
+        // Find interface name (before ':')
+        size_t pos = sv.find(':');
+        if (pos == std::string_view::npos)
+            continue;
+
+        std::string interface(sv.substr(0, pos));
+
+        // Remainder has the counters
+        std::string_view rest = sv.substr(pos + 1);
+
         unsigned long rx_bytes;
         unsigned long rx_packets;
         unsigned long rx_errs;
@@ -265,26 +268,21 @@ static bool readNetworkStats(std::map<std::string, NetworkStats, std::less<>> &o
         unsigned long tx_carrier;
         unsigned long tx_compressed;
 
-        // Strip spaces and parse the line
-        const char *p = line.c_str();
-        while (*p == ' ' || *p == '\t') p++;  // Skip leading whitespace
-
-        std::string interfaceBuffer(32, '\0');
-        int ret = sscanf(p, "%31[^:]: %llu %llu %llu %llu %llu %llu %llu %llu %llu %llu %llu %llu %llu %llu %llu %llu",
-            &interfaceBuffer[0],
-            &rx_bytes, &rx_packets, &rx_errs, &rx_drop, &rx_fifo, &rx_frame, &rx_compressed, &rx_multicast,
-            &tx_bytes, &tx_packets, &tx_errs, &tx_drop, &tx_fifo, &tx_colls, &tx_carrier, &tx_compressed);
-
-        if (ret == 17) {
-            interface = interfaceBuffer.c_str();
-            NetworkStats ns;
-            ns.rx_packets = rx_packets;
-            ns.tx_packets = tx_packets;
-            out[interface] = ns;
+        // Parse fast using std::istringstream (fits <20 integers)
+        std::istringstream iss(std::string(rest));
+        if (!(iss >> rx_bytes >> rx_packets >> rx_errs >> rx_drop >> rx_fifo >> rx_frame
+                  >> rx_compressed >> rx_multicast >> tx_bytes >> tx_packets >> tx_errs >> tx_drop
+                  >> tx_fifo >> tx_colls >> tx_carrier >> tx_compressed))
+        {
+            continue; // skip malformed line
         }
-    }
 
-    fclose(file);
+        NetworkStats stats;
+        stats.rx_packets = rx_packets;
+        stats.tx_packets = tx_packets;
+
+        out[interface] = stats;
+    }
     return true;
 }
 
