@@ -857,78 +857,67 @@ std::map<std::string, double, std::less<>> StatisticsCollector::getDiskBusyPerce
 std::map<std::string, std::pair<double, double>, std::less<>> StatisticsCollector::getDiskReadWriteKBPerSecond() {
     std::map<std::string, std::pair<double, double>, std::less<>> diskRates;
 
-    struct timespec startTime;
-    struct timespec endTime;
-
-    // Record start time
-    clock_gettime(CLOCK_MONOTONIC, &startTime);
-
-    // First reading - store sectors_read and sectors_written for each device
-    std::map<std::string, DiskStats, std::less<>> firstReading;
-    if (!readDiskStats(firstReading, "first reading")) {
-        return diskRates;
-    }
-
-    if (firstReading.empty()) {
-        stat_logger.error("No valid disk devices found in first reading");
-        return diskRates;
-    }
-
-    // Sleep for a short interval to get meaningful difference
-    struct timespec sleepTime = {1, 0};  // 1 second
-    nanosleep(&sleepTime, nullptr);
-
-    // Second reading
-    std::map<std::string, DiskStats, std::less<>> secondReading;
-    if (!readDiskStats(secondReading, "second reading")) {
-        return diskRates;
-    }
-
-    // Record end time
-    clock_gettime(CLOCK_MONOTONIC, &endTime);
-
-    // Calculate elapsed time in seconds
-    double elapsedTime = calculateElapsedTime(startTime, endTime);
-
+    double elapsedTime;
+    auto [firstReading, secondReading] = getTwoDiskReadings(elapsedTime);
     if (elapsedTime <= 0.0) {
         stat_logger.error("Invalid elapsed time for disk read/write calculation");
         return diskRates;
     }
 
-    // Calculate read/write KB per second for each device
+    diskRates = calculateDiskRates(firstReading, secondReading, elapsedTime);
+    return diskRates;
+}
+
+// Take two readings with a 1-second interval
+std::pair<std::map<std::string, DiskStats>, std::map<std::string, DiskStats>>
+StatisticsCollector::getTwoDiskReadings(double &elapsedTime) {
+    struct timespec startTime, endTime;
+    clock_gettime(CLOCK_MONOTONIC, &startTime);
+
+    std::map<std::string, DiskStats> firstReading;
+    if (!readDiskStats(firstReading, "first reading")) return {{}, {}};
+
+    if (firstReading.empty()) {
+        stat_logger.error("No valid disk devices found in first reading");
+        return {{}, {}};
+    }
+
+    nanosleep(&(struct timespec{1, 0}), nullptr);
+
+    std::map<std::string, DiskStats> secondReading;
+    if (!readDiskStats(secondReading, "second reading")) return {{}, {}};
+
+    clock_gettime(CLOCK_MONOTONIC, &endTime);
+    elapsedTime = calculateElapsedTime(startTime, endTime);
+
+    return {firstReading, secondReading};
+}
+
+// Calculate delta, handle counter wraparound
+unsigned long calculateDelta(unsigned long first, unsigned long second) {
+    if (second >= first) return second - first;
+    return (ULLONG_MAX - first) + second + 1;
+}
+
+// Compute read/write KB per second for each device
+std::map<std::string, std::pair<double, double>, std::less<>> StatisticsCollector::calculateDiskRates(
+    const std::map<std::string, DiskStats> &firstReading,
+    const std::map<std::string, DiskStats> &secondReading,
+    double elapsedTime) {
+
+    std::map<std::string, std::pair<double, double>, std::less<>> diskRates;
+
     for (const auto& [device, diskStats] : firstReading) {
-        unsigned long firstSectorsRead = diskStats.sectors_read;
-        unsigned long firstSectorsWritten = diskStats.sectors_written;
+        if (secondReading.find(device) == secondReading.end()) continue;
 
-        if (secondReading.find(device) != secondReading.end()) {
-            unsigned long secondSectorsRead = secondReading[device].sectors_read;
-            unsigned long secondSectorsWritten = secondReading[device].sectors_written;
+        unsigned long deltaRead = calculateDelta(diskStats.sectors_read, secondReading.at(device).sectors_read);
+        unsigned long deltaWritten = calculateDelta(diskStats.sectors_written,
+                                            secondReading.at(device).sectors_written);
 
-            // Calculate the deltas (handling potential counter wraparound)
-            unsigned long deltaSectorsRead;
-            unsigned long deltaSectorsWritten;
+        double readKBPerSecond = (static_cast<double>(deltaRead) / 2.0) / elapsedTime;
+        double writeKBPerSecond = (static_cast<double>(deltaWritten) / 2.0) / elapsedTime;
 
-            if (secondSectorsRead >= firstSectorsRead) {
-                deltaSectorsRead = secondSectorsRead - firstSectorsRead;
-            } else {
-                // Counter wrapped around, assume it's a 64-bit counter
-                deltaSectorsRead = (ULLONG_MAX - firstSectorsRead) + secondSectorsRead + 1;
-            }
-
-            if (secondSectorsWritten >= firstSectorsWritten) {
-                deltaSectorsWritten = secondSectorsWritten - firstSectorsWritten;
-            } else {
-                // Counter wrapped around, assume it's a 64-bit counter
-                deltaSectorsWritten = (ULLONG_MAX - firstSectorsWritten) + secondSectorsWritten + 1;
-            }
-
-            // Convert sectors to KB: sectors are 512 bytes, so divide by 2 to get KB
-            // Then divide by elapsed time to get KB per second
-            double readKBPerSecond = (static_cast<double>(deltaSectorsRead) / 2.0) / elapsedTime;
-            double writeKBPerSecond = (static_cast<double>(deltaSectorsWritten) / 2.0) / elapsedTime;
-
-            diskRates[device] = std::make_pair(readKBPerSecond, writeKBPerSecond);
-        }
+        diskRates[device] = {readKBPerSecond, writeKBPerSecond};
     }
 
     return diskRates;
@@ -962,8 +951,8 @@ std::map<std::string, double, std::less<>> StatisticsCollector::getDiskBlockSize
     return diskBlockSizes;
 }
 
-std::map<std::string, double, std::less<>> StatisticsCollector::getDiskTransfersPerSecond() {
-    std::map<std::string, double, std::less<>> diskTransferRates;
+std::unordered_map<std::string, double> StatisticsCollector::getDiskTransfersPerSecond() {
+    std::unordered_map<std::string, double> diskTransferRates;
 
     struct timespec startTime;
     struct timespec endTime;
@@ -972,22 +961,17 @@ std::map<std::string, double, std::less<>> StatisticsCollector::getDiskTransfers
     clock_gettime(CLOCK_MONOTONIC, &startTime);
 
     // First reading - store total transfers (dk_xfers = dk_reads + dk_writes) for each device
-    std::map<std::string, DiskStats, std::less<>> firstReading;
-    if (!readDiskStats(firstReading, "first reading")) {
-        return diskTransferRates;
-    }
-
-    if (firstReading.empty()) {
+    std::unordered_map<std::string, DiskStats> firstReading;
+    if (!readDiskStats(firstReading, "first reading") || firstReading.empty()) {
         stat_logger.error("No valid disk devices found in first reading");
         return diskTransferRates;
     }
 
     // Sleep for a short interval to get meaningful difference
-    struct timespec sleepTime = {1, 0};  // 1 second
-    nanosleep(&sleepTime, nullptr);
+    nanosleep(&(struct timespec){1, 0}, nullptr);
 
     // Second reading
-    std::map<std::string, DiskStats, std::less<>> secondReading;
+    std::unordered_map<std::string, DiskStats> secondReading;
     if (!readDiskStats(secondReading, "second reading")) {
         return diskTransferRates;
     }
@@ -1004,27 +988,18 @@ std::map<std::string, double, std::less<>> StatisticsCollector::getDiskTransfers
     }
 
     // Calculate transfers per second for each device
-    for (const auto& [device, diskStats] : firstReading) {
-        unsigned long firstTransfers = diskStats.reads_completed + diskStats.writes_completed;
+    for (const auto& [device, stats1] : firstReading) {
+        auto it2 = secondReading.find(device);
+        if (it2 == secondReading.end()) continue;
 
-        if (secondReading.find(device) != secondReading.end()) {
-            unsigned long secondTransfers = secondReading[device].reads_completed +
-                secondReading[device].writes_completed;
+        unsigned long transfers1 = stats1.reads_completed + stats1.writes_completed;
+        unsigned long transfers2 = it2->second.reads_completed + it2->second.writes_completed;
 
-            // Calculate the delta (handling potential counter wraparound)
-            unsigned long deltaTransfers;
-            if (secondTransfers >= firstTransfers) {
-                deltaTransfers = secondTransfers - firstTransfers;
-            } else {
-                // Counter wrapped around, assume it's a 64-bit counter
-                deltaTransfers = (ULLONG_MAX - firstTransfers) + secondTransfers + 1;
-            }
+        unsigned long deltaTransfers = (transfers2 >= transfers1)
+            ? (transfers2 - transfers1)
+            : (ULLONG_MAX - transfers1 + transfers2 + 1);
 
-            // Calculate transfers per second: DKDELTA(dk_xfers) / elapsed
-            double transfersPerSecond = static_cast<double>(deltaTransfers) / elapsedTime;
-
-            diskTransferRates[device] = transfersPerSecond;
-        }
+        diskTransferRates[device] = static_cast<double>(deltaTransfers) / elapsedTime;
     }
 
     return diskTransferRates;
