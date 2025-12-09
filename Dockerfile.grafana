@@ -52,7 +52,6 @@ providers:
 EOF
 SCRIPT
 
-RUN chown -R 472:472 /etc/grafana/provisioning /var/lib/grafana
-USER 472
+USER grafana
 
 ENTRYPOINT ["/run.sh"]
