@@ -34,7 +34,7 @@ static json extractNodeDataAndCleanup(NodeBlock* node) {
     json nodeData;
     std::string pid(node->getMetaPropertyHead()->value);
     nodeData["partitionID"] = pid;
-    std::map<std::string, std::unique_ptr<char[]>> properties;
+    std::map<std::string, std::unique_ptr<char[]>, std::less<>> properties;
     std::map<std::string, char*> rawProps = node->getAllProperties();
     for (auto& [key, value] : rawProps) {
         nodeData[key] = value;
@@ -46,7 +46,7 @@ static json extractNodeDataAndCleanup(NodeBlock* node) {
 // Helper function to extract relation data and manage memory
 static json extractRelationDataAndCleanup(RelationBlock* relation) {
     json relationData;
-    std::map<std::string, std::unique_ptr<char[]>> properties;
+    std::map<std::string, std::unique_ptr<char[]>, std::less<>> properties;
     std::map<std::string, char*> rawProps = relation->getAllProperties();
     for (auto& [key, value] : rawProps) {
         relationData[key] = std::string(value);
@@ -82,11 +82,9 @@ void initializeThreadLocalDBs(const GraphConfig& gc) {
     static thread_local int currentGraphID = -1;
     
     // Check if already initialized for this partition
-    bool needsInit = (currentPartitionID != gc.partitionID || 
-                      currentGraphID != gc.graphID || 
-                      RelationBlock::relationsDB == nullptr);
-    
-    if (!needsInit) {
+    if (bool needsInit = (currentPartitionID != gc.partitionID || 
+                          currentGraphID != gc.graphID || 
+                          RelationBlock::relationsDB == nullptr); !needsInit) {
         return;
     }
 
@@ -1731,7 +1729,7 @@ static std::vector<std::string> processNodeScanChunk(
         if (value == to_string(graphConfig.partitionID)) {
             json nodeData;
             nodeData["partitionID"] = value;
-            std::map<std::string, std::unique_ptr<char[]>> properties;
+            std::map<std::string, std::unique_ptr<char[]>, std::less<>> properties;
             std::map<std::string, char*> rawProps = node->getAllProperties();
             for (const auto& [key, val] : rawProps) {
                 nodeData[key] = std::string(val);
@@ -1822,7 +1820,7 @@ void OperatorExecutor::NodeScanByLabelParallel(SharedBuffer &buffer, std::string
                 if (partitionValue == to_string(graphConfig.partitionID) && label == targetLabel) {
                     json nodeData;
                     nodeData["partitionID"] = partitionValue;
-                    std::map<std::string, std::unique_ptr<char[]>> properties;
+                    std::map<std::string, std::unique_ptr<char[]>, std::less<>> properties;
                     std::map<std::string, char*> rawProps = node->getAllProperties();
                     for (const auto& [key, val] : rawProps) {
                         nodeData[key] = std::string(val);
