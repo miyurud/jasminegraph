@@ -400,7 +400,7 @@ int NodeManager::dbSize(std::string path) {
  * @Deprecated use NodeBlock.get() instead
  **/
 NodeBlock *NodeManager::get(std::string nodeId) {
-    NodeBlock *nodeBlockPointer = NULL;
+    NodeBlock *nodeBlockPointer = nullptr;
     if (this->nodeIndex.find(nodeId) == this->nodeIndex.end()) {  // Not found
         return nodeBlockPointer;
     }
