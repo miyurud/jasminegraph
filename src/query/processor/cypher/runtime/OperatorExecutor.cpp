@@ -29,10 +29,6 @@ std::unordered_map<std::string,
 // Initialize static parallel executor (shared across all instances)
 std::unique_ptr<IntraPartitionParallelExecutor> OperatorExecutor::parallelExecutor = nullptr;
 
-// Thread-local state for DB connections
-static thread_local int currentPartitionID = -1;
-static thread_local int currentGraphID = -1;
-
 // Helper function to extract node data and manage memory
 static json extractNodeDataAndCleanup(NodeBlock* node) {
     json nodeData;
@@ -81,7 +77,16 @@ static void openDatabaseFiles(const std::string& dbPrefix) {
 
 // Initialize thread-local database connections
 void initializeThreadLocalDBs(const GraphConfig& gc) {
-    if (currentPartitionID == gc.partitionID && currentGraphID == gc.graphID && RelationBlock::relationsDB != nullptr) {
+    // Use function-local static variables (thread-safe in C++11+)
+    static thread_local int currentPartitionID = -1;
+    static thread_local int currentGraphID = -1;
+    
+    // Check if already initialized for this partition
+    bool needsInit = (currentPartitionID != gc.partitionID || 
+                      currentGraphID != gc.graphID || 
+                      RelationBlock::relationsDB == nullptr);
+    
+    if (!needsInit) {
         return;
     }
 
@@ -96,8 +101,8 @@ void initializeThreadLocalDBs(const GraphConfig& gc) {
 
     std::string instanceDataFolderLocation =
         Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder");
-    std::string graphPrefix = instanceDataFolderLocation + "/g" + std::to_string(gc.graphID);
-    std::string dbPrefix = graphPrefix + "_p" + std::to_string(gc.partitionID);
+    std::string dbPrefix = instanceDataFolderLocation + "/g" + std::to_string(gc.graphID) + 
+                          "_p" + std::to_string(gc.partitionID);
 
     openDatabaseFiles(dbPrefix);
 
@@ -420,7 +425,8 @@ void OperatorExecutor::Filter(SharedBuffer &buffer, std::string jsonPlan, GraphC
         string raw = sharedBuffer.get();
         if (raw == "-1") {
             // Process remaining batch using helper function
-            processBatch(batch, filterHelper, buffer, parallelExecutor.get());
+            IntraPartitionParallelExecutor* executor = parallelExecutor.get();
+            processBatch(batch, filterHelper, buffer, executor);
             buffer.add(raw);
             result.join();
             break;
