@@ -14,7 +14,7 @@
 #include "IntraPartitionParallelExecutor.h"
 
 // DynamicThreadPool Implementation
-DynamicThreadPool::DynamicThreadPool() : stop(false) {
+DynamicThreadPool::DynamicThreadPool() {
     // Auto-detect optimal worker count based on CPU cores
     optimalWorkerCount = StatisticsCollector::getTotalNumberofCores();
 

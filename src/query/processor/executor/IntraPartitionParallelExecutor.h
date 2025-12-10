@@ -34,10 +34,10 @@
 struct PreloadedNodeData {
     std::string nodeId;
     std::string partitionId;
-    std::map<std::string, std::string> properties;
+    std::map<std::string, std::string, std::less<>> properties;
 
     PreloadedNodeData(const std::string& id, const std::string& partId,
-                      const std::map<std::string, std::string>& props)
+                      const std::map<std::string, std::string, std::less<>>& props)
         : nodeId(id), partitionId(partId), properties(props) {}
 };
 
@@ -110,7 +110,7 @@ class DynamicThreadPool {
     std::queue<std::function<void()>> tasks;
     std::mutex queueMutex;
     std::condition_variable condition;
-    std::atomic<bool> stop;
+    std::atomic<bool> stop{false};
     int optimalWorkerCount;
 
  public:
