@@ -57,6 +57,61 @@ static json extractRelationDataAndCleanup(RelationBlock* relation) {
     return relationData;
 }
 
+// Initialize thread-local database connections
+void initializeThreadLocalDBs(GraphConfig gc) {
+    if (currentPartitionID == gc.partitionID && currentGraphID == gc.graphID && RelationBlock::relationsDB != nullptr) {
+        return;
+    }
+
+    // Close existing if any (basic cleanup) - using reset() to avoid manual delete
+    if (NodeBlock::nodesDB) {
+        NodeBlock::nodesDB->close();
+        NodeBlock::nodesDB = nullptr;
+    }
+    if (RelationBlock::relationsDB) {
+        RelationBlock::relationsDB->close();
+        RelationBlock::relationsDB = nullptr;
+    }
+    if (RelationBlock::centralRelationsDB) {
+        RelationBlock::centralRelationsDB->close();
+        RelationBlock::centralRelationsDB = nullptr;
+    }
+    if (PropertyLink::propertiesDB) {
+        PropertyLink::propertiesDB->close();
+        PropertyLink::propertiesDB = nullptr;
+    }
+    if (MetaPropertyLink::metaPropertiesDB) {
+        MetaPropertyLink::metaPropertiesDB->close();
+        MetaPropertyLink::metaPropertiesDB = nullptr;
+    }
+    if (PropertyEdgeLink::edgePropertiesDB) {
+        PropertyEdgeLink::edgePropertiesDB->close();
+        PropertyEdgeLink::edgePropertiesDB = nullptr;
+    }
+    if (MetaPropertyEdgeLink::metaEdgePropertiesDB) {
+        MetaPropertyEdgeLink::metaEdgePropertiesDB->close();
+        MetaPropertyEdgeLink::metaEdgePropertiesDB = nullptr;
+    }
+
+    std::string instanceDataFolderLocation =
+        Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder");
+    std::string graphPrefix = instanceDataFolderLocation + "/g" + std::to_string(gc.graphID);
+    std::string dbPrefix = graphPrefix + "_p" + std::to_string(gc.partitionID);
+
+    std::ios_base::openmode openMode = std::ios::in | std::ios::out | std::ios::binary;
+
+    NodeBlock::nodesDB = Utils::openFile(dbPrefix + "_nodes.db", openMode);
+    RelationBlock::relationsDB = Utils::openFile(dbPrefix + "_relations.db", openMode);
+    RelationBlock::centralRelationsDB = Utils::openFile(dbPrefix + "_central_relations.db", openMode);
+    PropertyLink::propertiesDB = Utils::openFile(dbPrefix + "_properties.db", openMode);
+    MetaPropertyLink::metaPropertiesDB = Utils::openFile(dbPrefix + "_meta_properties.db", openMode);
+    PropertyEdgeLink::edgePropertiesDB = Utils::openFile(dbPrefix + "_edge_properties.db", openMode);
+    MetaPropertyEdgeLink::metaEdgePropertiesDB = Utils::openFile(dbPrefix + "_meta_edge_properties.db", openMode);
+
+    currentPartitionID = gc.partitionID;
+    currentGraphID = gc.graphID;
+}
+
 // Helper function to process batch filtering (reduce nesting complexity)
 static void processBatch(const std::vector<std::string>& batch, 
                         FilterHelper& filterHelper,
@@ -146,60 +201,6 @@ static std::vector<std::string> processRelationshipChunk(
         results.push_back(directionData.dump());
     }
     return results;
-}
-
-void initializeThreadLocalDBs(GraphConfig gc) {
-    if (currentPartitionID == gc.partitionID && currentGraphID == gc.graphID && RelationBlock::relationsDB != nullptr) {
-        return;
-    }
-
-    // Close existing if any (basic cleanup) - using reset() to avoid manual delete
-    if (NodeBlock::nodesDB) {
-        NodeBlock::nodesDB->close();
-        NodeBlock::nodesDB = nullptr;
-    }
-    if (RelationBlock::relationsDB) {
-        RelationBlock::relationsDB->close();
-        RelationBlock::relationsDB = nullptr;
-    }
-    if (RelationBlock::centralRelationsDB) {
-        RelationBlock::centralRelationsDB->close();
-        RelationBlock::centralRelationsDB = nullptr;
-    }
-    if (PropertyLink::propertiesDB) {
-        PropertyLink::propertiesDB->close();
-        PropertyLink::propertiesDB = nullptr;
-    }
-    if (MetaPropertyLink::metaPropertiesDB) {
-        MetaPropertyLink::metaPropertiesDB->close();
-        MetaPropertyLink::metaPropertiesDB = nullptr;
-    }
-    if (PropertyEdgeLink::edgePropertiesDB) {
-        PropertyEdgeLink::edgePropertiesDB->close();
-        PropertyEdgeLink::edgePropertiesDB = nullptr;
-    }
-    if (MetaPropertyEdgeLink::metaEdgePropertiesDB) {
-        MetaPropertyEdgeLink::metaEdgePropertiesDB->close();
-        MetaPropertyEdgeLink::metaEdgePropertiesDB = nullptr;
-    }
-
-    std::string instanceDataFolderLocation =
-        Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder");
-    std::string graphPrefix = instanceDataFolderLocation + "/g" + std::to_string(gc.graphID);
-    std::string dbPrefix = graphPrefix + "_p" + std::to_string(gc.partitionID);
-
-    std::ios_base::openmode openMode = std::ios::in | std::ios::out | std::ios::binary;
-
-    NodeBlock::nodesDB = Utils::openFile(dbPrefix + "_nodes.db", openMode);
-    RelationBlock::relationsDB = Utils::openFile(dbPrefix + "_relations.db", openMode);
-    RelationBlock::centralRelationsDB = Utils::openFile(dbPrefix + "_central_relations.db", openMode);
-    PropertyLink::propertiesDB = Utils::openFile(dbPrefix + "_properties.db", openMode);
-    MetaPropertyLink::metaPropertiesDB = Utils::openFile(dbPrefix + "_meta_properties.db", openMode);
-    PropertyEdgeLink::edgePropertiesDB = Utils::openFile(dbPrefix + "_edge_properties.db", openMode);
-    MetaPropertyEdgeLink::metaEdgePropertiesDB = Utils::openFile(dbPrefix + "_meta_edge_properties.db", openMode);
-
-    currentPartitionID = gc.partitionID;
-    currentGraphID = gc.graphID;
 }
 
 OperatorExecutor::OperatorExecutor(GraphConfig gc, std::string queryPlan, std::string masterIP):
