@@ -59,49 +59,17 @@ static json extractRelationDataAndCleanup(RelationBlock* relation) {
     return relationData;
 }
 
-// Initialize thread-local database connections
-void initializeThreadLocalDBs(const GraphConfig& gc) {
-    if (currentPartitionID == gc.partitionID && currentGraphID == gc.graphID && RelationBlock::relationsDB != nullptr) {
-        return;
+// Helper to safely close a database stream
+static void closeDBStream(std::fstream*& db) {
+    if (db) {
+        db->close();
+        db = nullptr;
     }
+}
 
-    // Close existing if any (basic cleanup) - using reset() to avoid manual delete
-    if (NodeBlock::nodesDB) {
-        NodeBlock::nodesDB->close();
-        NodeBlock::nodesDB = nullptr;
-    }
-    if (RelationBlock::relationsDB) {
-        RelationBlock::relationsDB->close();
-        RelationBlock::relationsDB = nullptr;
-    }
-    if (RelationBlock::centralRelationsDB) {
-        RelationBlock::centralRelationsDB->close();
-        RelationBlock::centralRelationsDB = nullptr;
-    }
-    if (PropertyLink::propertiesDB) {
-        PropertyLink::propertiesDB->close();
-        PropertyLink::propertiesDB = nullptr;
-    }
-    if (MetaPropertyLink::metaPropertiesDB) {
-        MetaPropertyLink::metaPropertiesDB->close();
-        MetaPropertyLink::metaPropertiesDB = nullptr;
-    }
-    if (PropertyEdgeLink::edgePropertiesDB) {
-        PropertyEdgeLink::edgePropertiesDB->close();
-        PropertyEdgeLink::edgePropertiesDB = nullptr;
-    }
-    if (MetaPropertyEdgeLink::metaEdgePropertiesDB) {
-        MetaPropertyEdgeLink::metaEdgePropertiesDB->close();
-        MetaPropertyEdgeLink::metaEdgePropertiesDB = nullptr;
-    }
-
-    std::string instanceDataFolderLocation =
-        Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder");
-    std::string graphPrefix = instanceDataFolderLocation + "/g" + std::to_string(gc.graphID);
-    std::string dbPrefix = graphPrefix + "_p" + std::to_string(gc.partitionID);
-
+// Helper to open database files
+static void openDatabaseFiles(const std::string& dbPrefix) {
     std::ios_base::openmode openMode = std::ios::in | std::ios::out | std::ios::binary;
-
     NodeBlock::nodesDB = Utils::openFile(dbPrefix + "_nodes.db", openMode);
     RelationBlock::relationsDB = Utils::openFile(dbPrefix + "_relations.db", openMode);
     RelationBlock::centralRelationsDB = Utils::openFile(dbPrefix + "_central_relations.db", openMode);
@@ -109,6 +77,29 @@ void initializeThreadLocalDBs(const GraphConfig& gc) {
     MetaPropertyLink::metaPropertiesDB = Utils::openFile(dbPrefix + "_meta_properties.db", openMode);
     PropertyEdgeLink::edgePropertiesDB = Utils::openFile(dbPrefix + "_edge_properties.db", openMode);
     MetaPropertyEdgeLink::metaEdgePropertiesDB = Utils::openFile(dbPrefix + "_meta_edge_properties.db", openMode);
+}
+
+// Initialize thread-local database connections
+void initializeThreadLocalDBs(const GraphConfig& gc) {
+    if (currentPartitionID == gc.partitionID && currentGraphID == gc.graphID && RelationBlock::relationsDB != nullptr) {
+        return;
+    }
+
+    // Close existing connections
+    closeDBStream(NodeBlock::nodesDB);
+    closeDBStream(RelationBlock::relationsDB);
+    closeDBStream(RelationBlock::centralRelationsDB);
+    closeDBStream(PropertyLink::propertiesDB);
+    closeDBStream(MetaPropertyLink::metaPropertiesDB);
+    closeDBStream(PropertyEdgeLink::edgePropertiesDB);
+    closeDBStream(MetaPropertyEdgeLink::metaEdgePropertiesDB);
+
+    std::string instanceDataFolderLocation =
+        Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder");
+    std::string graphPrefix = instanceDataFolderLocation + "/g" + std::to_string(gc.graphID);
+    std::string dbPrefix = graphPrefix + "_p" + std::to_string(gc.partitionID);
+
+    openDatabaseFiles(dbPrefix);
 
     currentPartitionID = gc.partitionID;
     currentGraphID = gc.graphID;
@@ -442,7 +433,8 @@ void OperatorExecutor::Filter(SharedBuffer &buffer, std::string jsonPlan, GraphC
         batch.push_back(raw);
         if (batch.size() >= 100) {
             // Process and flush batch using helper function
-            processBatch(batch, filterHelper, buffer, parallelExecutor.get());
+            IntraPartitionParallelExecutor* executor = parallelExecutor.get();
+            processBatch(batch, filterHelper, buffer, executor);
             batch.clear();
         }
     }
@@ -1781,7 +1773,7 @@ void OperatorExecutor::AllNodeScanParallel(SharedBuffer &buffer, std::string jso
     }
 }
 
-void OperatorExecutor::NodeScanByLabelParallel(SharedBuffer &buffer, std::string jsonPlan, GraphConfig graphConfig) {
+void OperatorExecutor::NodeScanByLabelParallel(SharedBuffer &buffer, std::string jsonPlan, const GraphConfig& graphConfig) {
     try {
         json queryParsed = json::parse(jsonPlan);
         NodeManager nodeManager(graphConfig);
