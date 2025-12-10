@@ -43,9 +43,9 @@ class OperatorExecutor {
     void OrderBy(SharedBuffer &buffer, string jsonPlan, GraphConfig gc);
 
     // Parallel processing methods (minimal addition)
-    void AllNodeScanParallel(SharedBuffer &buffer, string jsonPlan, GraphConfig gc);
-    void NodeScanByLabelParallel(SharedBuffer &buffer, string jsonPlan, GraphConfig gc);
-    void DirectedAllRelationshipScanParallel(SharedBuffer &buffer, string jsonPlan, GraphConfig gc);
+    void AllNodeScanParallel(SharedBuffer &buffer, string jsonPlan, GraphConfig graphConfig);
+    void NodeScanByLabelParallel(SharedBuffer &buffer, string jsonPlan, GraphConfig graphConfig);
+    void DirectedAllRelationshipScanParallel(SharedBuffer &buffer, string jsonPlan, GraphConfig graphConfig);
 
     string masterIP;
     string  queryPlan;

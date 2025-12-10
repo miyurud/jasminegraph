@@ -408,8 +408,8 @@ NodeBlock *NodeManager::get(std::string nodeId) {
     return get(nodeIndex, nodeId);
 }
 
-NodeBlock *NodeManager::get(unsigned int nodeIndex, std::string nodeId) {
-    NodeBlock *nodeBlockPointer = NULL;
+NodeBlock *NodeManager::get(unsigned int nodeIndex, const std::string& nodeId) {
+    NodeBlock *nodeBlockPointer = nullptr;
     const unsigned int blockAddress = nodeIndex * NodeBlock::BLOCK_SIZE;
     NodeBlock::nodesDB->seekg(blockAddress);
     unsigned int vertexId;
@@ -460,8 +460,6 @@ NodeBlock *NodeManager::get(unsigned int nodeIndex, std::string nodeId) {
     nodeBlockPointer = new NodeBlock(nodeId, vertexId, blockAddress, propRef, metaPropRef, edgeRef,
                                      centralEdgeRef, edgeRefPID, label, usage);
 
-    // node_manager_logger.debug("DEBUG: nodeBlockPointer after creating the object edgeRef " +
-    //                          std::to_string(nodeBlockPointer->edgeRef));
 
     if (nodeBlockPointer->edgeRef % RelationBlock::BLOCK_SIZE != 0) {
         node_manager_logger.error("Exception: Invalid edge reference address = " +

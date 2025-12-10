@@ -57,7 +57,7 @@ class NodeManager {
     NodeManager(GraphConfig);
 
     NodeBlock *get(std::string);
-    static NodeBlock *get(unsigned int nodeIndex, std::string nodeId);
+    static NodeBlock *get(unsigned int nodeIndex, const std::string& nodeId);
     void addNode(NodeBlock nodeBlock);
 
     void setIndexKeySize(unsigned long);
