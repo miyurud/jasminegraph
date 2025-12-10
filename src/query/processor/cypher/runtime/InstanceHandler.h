@@ -31,7 +31,7 @@ class InstanceHandler {
     Logger instance_logger;
     InstanceHandler(std::map<std::string, JasmineGraphIncrementalLocalStore *> &incrementalLocalStoreMap);
     void handleRequest(int connFd, bool *loop_exit_p, GraphConfig gc, string masterIP,
-                       std::string queryJson);
+                       std::string queryJson, const std::string& traceContext = "");
     void dataPublishToMaster(int connFd, bool *loop_exit_p, std::string message);
 
 

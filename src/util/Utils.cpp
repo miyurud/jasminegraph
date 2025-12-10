@@ -1535,7 +1535,8 @@ void Utils::assignPartitionToWorker(int graphId, int partitionIndex, string  hos
 
 
 bool Utils::sendQueryPlanToWorker(std::string host, int port, std::string masterIP,
-                                  int graphID, int partitionId, std::string message, SharedBuffer &sharedBuffer) {
+                                  int graphID, int partitionId, std::string message, SharedBuffer &sharedBuffer,
+                                  const std::string& masterTraceContext) {
     util_logger.info("Host:" + host + " Port:" + to_string(port));
     bool result = true;
     int sockfd;
@@ -1637,6 +1638,33 @@ bool Utils::sendQueryPlanToWorker(std::string host, int port, std::string master
         close(sockfd);
         return false;
     }
+
+    // Send trace context for distributed tracing
+    char ack4[ACK_MESSAGE_SIZE] = {0};
+    std::string traceContext = masterTraceContext;
+    if (traceContext.empty()) {
+        traceContext = "NO_TRACE_CONTEXT";
+    }
+    
+    message_length = traceContext.length();
+    converted_number = htonl(message_length);
+    util_logger.debug("Sending trace context length: " + to_string(converted_number));
+
+    if (!Utils::sendIntExpectResponse(sockfd, ack4,
+                                      JasmineGraphInstanceProtocol::GRAPH_STREAM_C_length_ACK.length(),
+                                      converted_number,
+                                      JasmineGraphInstanceProtocol::GRAPH_STREAM_C_length_ACK)) {
+        Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::CLOSE);
+        close(sockfd);
+        return false;
+    }
+
+    if (!Utils::send_str_wrapper(sockfd, traceContext)) {
+        close(sockfd);
+        return false;
+    }
+    util_logger.debug("Sent trace context: " + traceContext);
+
     bool end = false;
     auto startTime = std::chrono::high_resolution_clock::now();
     while (true) {

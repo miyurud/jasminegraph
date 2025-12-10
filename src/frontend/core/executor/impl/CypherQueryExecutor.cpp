@@ -21,6 +21,7 @@ limitations under the License.
 #include "../../../../../src/query/processor/cypher/runtime/AggregationFactory.h"
 #include "../../../../../src/query/processor/cypher/runtime/Aggregation.h"
 #include "../../../../../src/server/JasmineGraphServer.h"
+#include "../../../../util/telemetry/OpenTelemetryUtil.h"
 
 #include "/home/ubuntu/software/antlr/CypherLexer.h"
 #include "/home/ubuntu/software/antlr/CypherParser.h"
@@ -66,6 +67,9 @@ CypherQueryExecutor::CypherQueryExecutor(SQLiteDBInterface *db, PerformanceSQLit
 }
 
 void CypherQueryExecutor::execute() {
+    // Start automatic OpenTelemetry tracing for Cypher query execution
+    OTEL_TRACE_FUNCTION();
+    
     cypher_logger.info("Executing Cypher Query");
 
     int uniqueId = getUid();
@@ -85,37 +89,49 @@ void CypherQueryExecutor::execute() {
     bool canCalibrate = Utils::parseBoolean(canCalibrateString);
     bool autoCalibrate = Utils::parseBoolean(autoCalibrateString);
 
-    antlr4::ANTLRInputStream input(queryString);
-    // Create a lexer from the input
-    CypherLexer lexer(&input);
-    cypher_logger.info("Created lexer from input");
+    // Add query attributes for tracing
+    OpenTelemetryUtil::addSpanAttribute("graph.id", graphId);
+    OpenTelemetryUtil::addSpanAttribute("query.type", "cypher");
+    OpenTelemetryUtil::addSpanAttribute("partition.count", std::to_string(numberOfPartitions));
 
-    // Create a token stream from the lexer
-    antlr4::CommonTokenStream tokens(&lexer);
-    cypher_logger.info("Created tokens from lexer");
-
-    // Create a parser from the token stream
-    CypherParser parser(&tokens);
-    cypher_logger.info("Created parser from tokens");
-
-    ASTBuilder astBuilder;
-    auto* ast = any_cast<ASTNode*>(astBuilder.visitOC_Cypher(parser.oC_Cypher()));
-
-    SemanticAnalyzer semanticAnalyzer;
     string queryPlan;
-    if (semanticAnalyzer.analyze(ast)) {
-        cypher_logger.info("AST is successfully analyzed");
-        QueryPlanner queryPlanner;
-        Operator *executionPlan = queryPlanner.createExecutionPlan(ast);
-        queryPlan = executionPlan->execute();
-    } else {
-        cypher_logger.error("Query isn't semantically correct: " + queryString);
+    {
+        OTEL_TRACE_OPERATION("parse_and_plan_query");
+        
+        antlr4::ANTLRInputStream input(queryString);
+        // Create a lexer from the input
+        CypherLexer lexer(&input);
+        cypher_logger.info("Created lexer from input");
+
+        // Create a token stream from the lexer
+        antlr4::CommonTokenStream tokens(&lexer);
+        cypher_logger.info("Created tokens from lexer");
+
+        // Create a parser from the token stream
+        CypherParser parser(&tokens);
+        cypher_logger.info("Created parser from tokens");
+
+        ASTBuilder astBuilder;
+        auto* ast = any_cast<ASTNode*>(astBuilder.visitOC_Cypher(parser.oC_Cypher()));
+
+        SemanticAnalyzer semanticAnalyzer;
+        if (semanticAnalyzer.analyze(ast)) {
+            cypher_logger.info("AST is successfully analyzed");
+            QueryPlanner queryPlanner;
+            Operator *executionPlan = queryPlanner.createExecutionPlan(ast);
+            queryPlan = executionPlan->execute();
+        } else {
+            cypher_logger.error("Query isn't semantically correct: " + queryString);
+        }
     }
 
     std::vector<std::future<void>> intermRes;
     std::vector<std::future<int>> statResponse;
 
     auto begin = chrono::high_resolution_clock::now();
+
+    // Capture the master trace context for all workers
+    std::string masterTraceContext = OpenTelemetryUtil::getCurrentTraceContext();
 
     const auto &workerList = JasmineGraphServer::getWorkers(numberOfPartitions);
 
@@ -127,13 +143,21 @@ void CypherQueryExecutor::execute() {
 
     std::vector<std::thread> workerThreads;
     int count = 0;
-    for (auto worker : workerList) {
-        workerThreads.emplace_back(
-            doCypherQuery,
-            worker.hostname, worker.port,
-            masterIP, std::stoi(graphId), count,
-            queryPlan, std::ref(*bufferPool[count]));
-        count++;
+    {
+        OTEL_TRACE_OPERATION("distribute_to_workers");
+        
+        for (auto worker : workerList) {
+            {
+                OTEL_TRACE_OPERATION("send_to_worker_" + std::string(worker.hostname) + "_partition_" + std::to_string(count));
+                
+                workerThreads.emplace_back(
+                    doCypherQuery,
+                    worker.hostname, worker.port,
+                    masterIP, std::stoi(graphId), count,
+                    queryPlan, std::ref(*bufferPool[count]), masterTraceContext);
+            }
+            count++;
+        }
     }
 
     PerformanceUtil::init();
@@ -166,8 +190,15 @@ void CypherQueryExecutor::execute() {
     int result_wr;
     int closeFlag = 0;
     if (Operator::isAggregate) {
+        OTEL_TRACE_OPERATION("aggregate_results");
+        OpenTelemetryUtil::addSpanAttribute("aggregation.type", 
+            Operator::aggregateType == AggregationFactory::AVERAGE ? "average" :
+            Operator::aggregateType == AggregationFactory::ASC ? "ascending" :
+            Operator::aggregateType == AggregationFactory::DESC ? "descending" : "unknown");
+        
         auto startTime = std::chrono::high_resolution_clock::now();
         if (Operator::aggregateType == AggregationFactory::AVERAGE) {
+            OTEL_TRACE_OPERATION("average_aggregation");
             Aggregation* aggregation = AggregationFactory::getAggregationMethod(AggregationFactory::AVERAGE);
             while (true) {
                 if (closeFlag == numberOfPartitions) {
@@ -187,6 +218,8 @@ void CypherQueryExecutor::execute() {
             aggregation->getResult(connFd);
         } else if (Operator::aggregateType == AggregationFactory::ASC ||
                    Operator::aggregateType == AggregationFactory::DESC) {
+            OTEL_TRACE_OPERATION("order_by_aggregation");
+            
             struct BufferEntry {
                 std::string value;
                 size_t bufferIndex;
@@ -279,6 +312,8 @@ void CypherQueryExecutor::execute() {
         cypher_logger.info("Total time taken for aggregation: " + std::to_string(totalTime) + " ms");
         Operator::isAggregate = false;
     } else {
+        OTEL_TRACE_OPERATION("collect_non_aggregated_results");
+        
         int count = 0;
         while (true) {
             if (closeFlag == numberOfPartitions) {
@@ -347,8 +382,11 @@ void CypherQueryExecutor::execute() {
 }
 
 void CypherQueryExecutor::doCypherQuery(std::string host, int port, std::string masterIP, int graphID,
-                                               int PartitionId, std::string message, SharedBuffer &sharedBuffer) {
-    Utils::sendQueryPlanToWorker(host, port, masterIP, graphID, PartitionId, message, sharedBuffer);
+                                               int PartitionId, std::string message, SharedBuffer &sharedBuffer,
+                                               const std::string& masterTraceContext) {
+    OTEL_TRACE_OPERATION("worker_communication_" + host + "_partition_" + std::to_string(PartitionId));
+    
+    Utils::sendQueryPlanToWorker(host, port, masterIP, graphID, PartitionId, message, sharedBuffer, masterTraceContext);
 }
 
 
