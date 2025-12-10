@@ -33,44 +33,158 @@ std::unique_ptr<IntraPartitionParallelExecutor> OperatorExecutor::parallelExecut
 static thread_local int currentPartitionID = -1;
 static thread_local int currentGraphID = -1;
 
+// Helper function to extract node data and manage memory
+static json extractNodeDataAndCleanup(NodeBlock* node) {
+    json nodeData;
+    std::string pid(node->getMetaPropertyHead()->value);
+    nodeData["partitionID"] = pid;
+    std::map<std::string, char*> properties = node->getAllProperties();
+    for (const auto& [key, value] : properties) {
+        nodeData[key] = value;
+        delete[] value;
+    }
+    return nodeData;
+}
+
+// Helper function to extract relation data and manage memory
+static json extractRelationDataAndCleanup(RelationBlock* relation) {
+    json relationData;
+    std::map<std::string, char*> relProperties = relation->getAllProperties();
+    for (const auto& [key, value] : relProperties) {
+        relationData[key] = value;
+        delete[] value;
+    }
+    return relationData;
+}
+
+// Helper function to process batch filtering (reduce nesting complexity)
+static void processBatch(const std::vector<std::string>& batch, 
+                        FilterHelper& filterHelper,
+                        SharedBuffer& buffer,
+                        IntraPartitionParallelExecutor* parallelExecutor) {
+    if (parallelExecutor && batch.size() > 500) {
+        // Parallel filter for large batches
+        auto processor = [&filterHelper, &batch](const WorkChunk& chunk) {
+            std::vector<std::string> localResults;
+            for (long i = chunk.startIndex - 1; i < chunk.endIndex && i < (long)batch.size(); ++i) {
+                if (filterHelper.evaluate(batch[i])) {
+                    localResults.push_back(batch[i]);
+                }
+            }
+            return localResults;
+        };
+
+        try {
+            auto results = parallelExecutor->processInParallel<decltype(processor), std::vector<std::string>>(
+                static_cast<long>(batch.size()), processor);
+            for (const auto& chunkResults : results) {
+                for (const auto& item : chunkResults) {
+                    buffer.add(item);
+                }
+            }
+        } catch (const std::exception& e) {
+            // Fallback: sequential processing
+            execution_logger.warn("Parallel filter failed, using sequential: " + std::string(e.what()));
+            for (const auto& item : batch) {
+                if (filterHelper.evaluate(item)) {
+                    buffer.add(item);
+                }
+            }
+        }
+    } else {
+        // Sequential for small batches
+        for (const auto& item : batch) {
+            if (filterHelper.evaluate(item)) {
+                buffer.add(item);
+            }
+        }
+    }
+}
+
+// Helper function to process a single relationship chunk
+static std::vector<std::string> processRelationshipChunk(
+    const WorkChunk& chunk, 
+    const std::string& jsonPlan, 
+    GraphConfig gc, 
+    const std::string& masterIP,
+    long maxRelations) {
+    
+    initializeThreadLocalDBs(gc);
+    json queryJson = json::parse(jsonPlan);
+    std::vector<std::string> results;
+
+    string graphDirection = Utils::getGraphDirection(to_string(gc.graphID), masterIP);
+    bool isDirected = (graphDirection == "TRUE");
+    bool isDirectionRight = (queryJson["direction"] == "right");
+
+    for (long i = chunk.startIndex; i <= chunk.endIndex && i < maxRelations; ++i) {
+        std::unique_ptr<RelationBlock> relation(RelationBlock::getLocalRelation(i * RelationBlock::BLOCK_SIZE));
+        if (relation->getLocalRelationshipType() != queryJson["relType"]) {
+            continue;
+        }
+        
+        NodeBlock* startNode = relation->getSource();
+        NodeBlock* destNode = relation->getDestination();
+
+        json startNodeData = extractNodeDataAndCleanup(startNode);
+        json destNodeData = extractNodeDataAndCleanup(destNode);
+        json relationData = extractRelationDataAndCleanup(relation.get());
+
+        json directionData;
+        string start = queryJson["sourceVariable"];
+        string dest = queryJson["destVariable"];
+        string rel = queryJson["relVariable"];
+
+        if (isDirectionRight) {
+            directionData[start] = startNodeData;
+            directionData[dest] = destNodeData;
+        } else if (!isDirected) {
+            directionData[start] = destNodeData;
+            directionData[dest] = startNodeData;
+        }
+        directionData[rel] = relationData;
+        results.push_back(directionData.dump());
+    }
+    return results;
+}
+
 void initializeThreadLocalDBs(GraphConfig gc) {
     if (currentPartitionID == gc.partitionID && currentGraphID == gc.graphID && RelationBlock::relationsDB != nullptr) {
         return;
     }
 
-    // Close existing if any (basic cleanup)
+    // Close existing if any (basic cleanup) - using reset() to avoid manual delete
     if (NodeBlock::nodesDB) {
-        delete NodeBlock::nodesDB;
+        NodeBlock::nodesDB->close();
         NodeBlock::nodesDB = nullptr;
     }
     if (RelationBlock::relationsDB) {
-        delete RelationBlock::relationsDB;
+        RelationBlock::relationsDB->close();
         RelationBlock::relationsDB = nullptr;
     }
     if (RelationBlock::centralRelationsDB) {
-        delete RelationBlock::centralRelationsDB;
+        RelationBlock::centralRelationsDB->close();
         RelationBlock::centralRelationsDB = nullptr;
     }
     if (PropertyLink::propertiesDB) {
-        delete PropertyLink::propertiesDB;
+        PropertyLink::propertiesDB->close();
         PropertyLink::propertiesDB = nullptr;
     }
     if (MetaPropertyLink::metaPropertiesDB) {
-        delete MetaPropertyLink::metaPropertiesDB;
+        MetaPropertyLink::metaPropertiesDB->close();
         MetaPropertyLink::metaPropertiesDB = nullptr;
     }
     if (PropertyEdgeLink::edgePropertiesDB) {
-        delete PropertyEdgeLink::edgePropertiesDB;
+        PropertyEdgeLink::edgePropertiesDB->close();
         PropertyEdgeLink::edgePropertiesDB = nullptr;
     }
     if (MetaPropertyEdgeLink::metaEdgePropertiesDB) {
-        delete MetaPropertyEdgeLink::metaEdgePropertiesDB;
+        MetaPropertyEdgeLink::metaEdgePropertiesDB->close();
         MetaPropertyEdgeLink::metaEdgePropertiesDB = nullptr;
     }
 
-    Utils utils;
     std::string instanceDataFolderLocation =
-        utils.getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder");
+        Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder");
     std::string graphPrefix = instanceDataFolderLocation + "/g" + std::to_string(gc.graphID);
     std::string dbPrefix = graphPrefix + "_p" + std::to_string(gc.partitionID);
 
@@ -96,8 +210,9 @@ OperatorExecutor::OperatorExecutor(GraphConfig gc, std::string queryPlan, std::s
     if (!parallelExecutor) {
         try {
             parallelExecutor = std::make_unique<IntraPartitionParallelExecutor>();
-        } catch (...) {
+        } catch (const std::exception& e) {
             // If initialization fails, continue without parallel processing
+            execution_logger.error("Failed to initialize parallel executor: " + std::string(e.what()));
             parallelExecutor = nullptr;
         }
     }
@@ -194,8 +309,9 @@ void OperatorExecutor::AllNodeScan(SharedBuffer &buffer, std::string jsonPlan, G
         try {
             AllNodeScanParallel(buffer, jsonPlan, gc);
             return;
-        } catch (...) {
+        } catch (const std::exception& e) {
             // If parallel processing fails, fall back to sequential
+            execution_logger.warn("Parallel AllNodeScan failed, falling back to sequential: " + std::string(e.what()));
             // Continue with sequential processing below
         }
     }
@@ -237,9 +353,8 @@ void OperatorExecutor::NodeScanByLabel(SharedBuffer &buffer, std::string jsonPla
         try {
             NodeScanByLabelParallel(buffer, jsonPlan, gc);
             return;
-        } catch (...) {
-            // If parallel processing fails, fall back to sequential
-            // Continue with sequential processing below
+        } catch (const std::exception& e) {
+            execution_logger.warn("Parallel processing failed, falling back to sequential: " + std::string(e.what()));
         }
     }
 
@@ -314,43 +429,8 @@ void OperatorExecutor::Filter(SharedBuffer &buffer, std::string jsonPlan, GraphC
     while (true) {
         string raw = sharedBuffer.get();
         if (raw == "-1") {
-            // Process remaining batch
-            if (parallelExecutor && batch.size() > 500) {
-                // Parallel filter for large batches
-                auto processor = [&filterHelper, &batch](const WorkChunk& chunk) -> std::vector<std::string> {
-                    std::vector<std::string> localResults;
-                    for (long i = chunk.startIndex - 1; i < chunk.endIndex && i < (long)batch.size(); ++i) {
-                        if (filterHelper.evaluate(batch[i])) {
-                            localResults.push_back(batch[i]);
-                        }
-                    }
-                    return localResults;
-                };
-
-                try {
-                    auto results = parallelExecutor->processInParallel<decltype(processor), std::vector<std::string>>(
-                        static_cast<long>(batch.size()), processor);
-                    for (const auto& chunkResults : results) {
-                        for (const auto& item : chunkResults) {
-                            buffer.add(item);
-                        }
-                    }
-                } catch (...) {
-                    // Fallback: sequential processing
-                    for (const auto& item : batch) {
-                        if (filterHelper.evaluate(item)) {
-                            buffer.add(item);
-                        }
-                    }
-                }
-            } else {
-                // Sequential for small batches
-                for (const auto& item : batch) {
-                    if (filterHelper.evaluate(item)) {
-                        buffer.add(item);
-                    }
-                }
-            }
+            // Process remaining batch using helper function
+            processBatch(batch, filterHelper, buffer, parallelExecutor.get());
             buffer.add(raw);
             result.join();
             break;
@@ -358,12 +438,8 @@ void OperatorExecutor::Filter(SharedBuffer &buffer, std::string jsonPlan, GraphC
 
         batch.push_back(raw);
         if (batch.size() >= 100) {
-            // Process and flush batch
-            for (const auto& item : batch) {
-                if (filterHelper.evaluate(item)) {
-                    buffer.add(item);
-                }
-            }
+            // Process and flush batch using helper function
+            processBatch(batch, filterHelper, buffer, parallelExecutor.get());
             batch.clear();
         }
     }
@@ -818,8 +894,8 @@ void OperatorExecutor::DirectedAllRelationshipScan(SharedBuffer &buffer, std::st
         try {
             DirectedAllRelationshipScanParallel(buffer, jsonPlan, gc);
             return;
-        } catch (...) {
-            // Fallback to sequential
+        } catch (const std::exception& e) {
+            execution_logger.warn("Parallel relationship scan failed, falling back to sequential: " + std::string(e.what()));
         }
     }
 
@@ -1631,11 +1707,6 @@ void OperatorExecutor::OrderBy(SharedBuffer &buffer, std::string jsonPlan, Graph
     }
 }
 
-// ===============================
-// PARALLEL PROCESSING IMPLEMENTATIONS
-// Minimal additions for intra-partition parallelism
-// ===============================
-
 void OperatorExecutor::AllNodeScanParallel(SharedBuffer &buffer, std::string jsonPlan, GraphConfig gc) {
     // Use thread pool executor with deterministic merge
     try {
@@ -1647,12 +1718,12 @@ void OperatorExecutor::AllNodeScanParallel(SharedBuffer &buffer, std::string jso
         std::vector<std::pair<std::string, unsigned int>> nodeIndices;
         nodeIndices.reserve(nodeManager.nodeIndex.size());
 
-        for (auto it : nodeManager.nodeIndex) {
-            nodeIndices.emplace_back(it.first, it.second);
+        for (const auto& [nodeId, addressIdx] : nodeManager.nodeIndex) {
+            nodeIndices.emplace_back(nodeId, addressIdx);
         }
 
         // Define processor
-        auto processor = [&nodeIndices, &variable, gc](const WorkChunk& chunk) -> std::vector<std::string> {
+        auto processor = [&nodeIndices, &variable, gc](const WorkChunk& chunk) {
             initializeThreadLocalDBs(gc);  // Initialize DBs for this thread
 
             std::vector<std::string> results;
@@ -1666,7 +1737,7 @@ void OperatorExecutor::AllNodeScanParallel(SharedBuffer &buffer, std::string jso
                 std::string nodeId = pair.first;
                 unsigned int addressIndex = pair.second;
 
-                NodeBlock* node = NodeManager::get(addressIndex, nodeId);
+                std::unique_ptr<NodeBlock> node(NodeManager::get(addressIndex, nodeId));
                 if (node == nullptr) continue;
 
                 std::string value(node->getMetaPropertyHead()->value);
@@ -1674,11 +1745,11 @@ void OperatorExecutor::AllNodeScanParallel(SharedBuffer &buffer, std::string jso
                     json nodeData;
                     nodeData["partitionID"] = value;
                     std::map<std::string, char*> properties = node->getAllProperties();
-                    for (auto property : properties) {
+                    for (const auto& property : properties) {
                         nodeData[property.first] = property.second;
                     }
-                    for (auto& [key, value] : properties) {
-                        delete[] value;  // Free each allocated char* array
+                    for (auto& [key, val] : properties) {
+                        delete[] val;  // Free each allocated char* array
                     }
                     properties.clear();
 
@@ -1686,7 +1757,6 @@ void OperatorExecutor::AllNodeScanParallel(SharedBuffer &buffer, std::string jso
                     data[variable] = nodeData;
                     results.push_back(data.dump());
                 }
-                delete node;
             }
             return results;
         };
@@ -1704,26 +1774,27 @@ void OperatorExecutor::AllNodeScanParallel(SharedBuffer &buffer, std::string jso
             }
         }
         buffer.add("-1");
-    } catch (...) {
+    } catch (const std::exception& e) {
+        execution_logger.error("AllNodeScanParallel failed: " + std::string(e.what()));
         buffer.add("-1");
     }
 }
 
 void OperatorExecutor::NodeScanByLabelParallel(SharedBuffer &buffer, std::string jsonPlan, GraphConfig gc) {
     try {
-        json query = json::parse(jsonPlan);
+        json queryJson = json::parse(jsonPlan);
         NodeManager nodeManager(gc);
-        string targetLabel = query["Label"].get<std::string>();
+        string targetLabel = queryJson["Label"].get<std::string>();
 
         // Collect node indices (ID, AddressIndex)
         std::vector<std::pair<std::string, unsigned int>> nodeIndices;
         nodeIndices.reserve(nodeManager.nodeIndex.size());
 
-        for (auto it : nodeManager.nodeIndex) {
-            nodeIndices.emplace_back(it.first, it.second);
+        for (const auto& [nodeId, addressIdx] : nodeManager.nodeIndex) {
+            nodeIndices.emplace_back(nodeId, addressIdx);
         }
 
-        auto processor = [&nodeIndices, &targetLabel, gc](const WorkChunk& chunk) -> std::vector<std::string> {
+        auto processor = [&nodeIndices, &targetLabel, gc](const WorkChunk& chunk) {
             initializeThreadLocalDBs(gc);
 
             std::vector<std::string> results;
@@ -1737,7 +1808,7 @@ void OperatorExecutor::NodeScanByLabelParallel(SharedBuffer &buffer, std::string
                 std::string nodeId = pair.first;
                 unsigned int addressIndex = pair.second;
 
-                NodeBlock* node = NodeManager::get(addressIndex, nodeId);
+                std::unique_ptr<NodeBlock> node(NodeManager::get(addressIndex, nodeId));
                 if (node == nullptr) continue;
 
                 string label = node->getLabel();
@@ -1747,17 +1818,16 @@ void OperatorExecutor::NodeScanByLabelParallel(SharedBuffer &buffer, std::string
                     json nodeData;
                     nodeData["partitionID"] = partitionValue;
                     std::map<std::string, char*> properties = node->getAllProperties();
-                    for (auto property : properties) {
+                    for (const auto& property : properties) {
                         nodeData[property.first] = property.second;
                     }
-                    for (auto& [key, value] : properties) {
-                        delete[] value;
+                    for (auto& [key, val] : properties) {
+                        delete[] val;
                     }
                     properties.clear();
 
                     results.push_back(nodeData.dump());
                 }
-                delete node;
             }
             return results;
         };
@@ -1772,85 +1842,22 @@ void OperatorExecutor::NodeScanByLabelParallel(SharedBuffer &buffer, std::string
             }
         }
         buffer.add("-1");
-    } catch (...) {
+    } catch (const std::exception& e) {
+        execution_logger.error("NodeScanByLabelParallel failed: " + std::string(e.what()));
         buffer.add("-1");
     }
 }
 
 void OperatorExecutor::DirectedAllRelationshipScanParallel(SharedBuffer &buffer, std::string jsonPlan, GraphConfig gc) {
-    json query = json::parse(jsonPlan);
+    json queryJson = json::parse(jsonPlan);
     NodeManager nodeManager(gc);
     const std::string& dbPrefix = nodeManager.getDbPrefix();
-    long localRelationCount = nodeManager.dbSize(dbPrefix + "_relations.db") / RelationBlock::BLOCK_SIZE;
+    long localRelationCount = NodeManager::dbSize(dbPrefix + "_relations.db") / RelationBlock::BLOCK_SIZE;
 
     if (parallelExecutor && localRelationCount > 0) {
-        auto processor = [jsonPlan, gc, masterIP = this->masterIP](const WorkChunk& chunk) -> std::vector<std::string> {
-            initializeThreadLocalDBs(gc);
-            json query = json::parse(jsonPlan);
-            std::vector<std::string> results;
-
-            string graphDirection = Utils::getGraphDirection(to_string(gc.graphID), masterIP);
-            bool isDirected = (graphDirection == "TRUE");
-            bool isDirectionRight = (query["direction"] == "right");
-
-            for (long i = chunk.startIndex; i <= chunk.endIndex; ++i) {
-                RelationBlock* relation = RelationBlock::getLocalRelation(i * RelationBlock::BLOCK_SIZE);
-                if (relation->getLocalRelationshipType() != query["relType"]) {
-                    delete relation;
-                    continue;
-                }
-                NodeBlock* startNode = relation->getSource();
-                NodeBlock* destNode = relation->getDestination();
-
-                json startNodeData;
-                std::string startPid(startNode->getMetaPropertyHead()->value);
-                startNodeData["partitionID"] = startPid;
-                std::map<std::string, char*> startProperties = startNode->getAllProperties();
-                for (auto property : startProperties) {
-                    startNodeData[property.first] = property.second;
-                }
-                for (auto& [key, value] : startProperties) {
-                    delete[] value;
-                }
-
-                json destNodeData;
-                std::string destPid(destNode->getMetaPropertyHead()->value);
-                destNodeData["partitionID"] = destPid;
-                std::map<std::string, char*> destProperties = destNode->getAllProperties();
-                for (auto property : destProperties) {
-                    destNodeData[property.first] = property.second;
-                }
-                for (auto& [key, value] : destProperties) {
-                    delete[] value;
-                }
-
-                json relationData;
-                std::map<std::string, char*> relProperties = relation->getAllProperties();
-                for (auto property : relProperties) {
-                    relationData[property.first] = property.second;
-                }
-                for (auto& [key, value] : relProperties) {
-                    delete[] value;
-                }
-
-                json directionData;
-                string start = query["sourceVariable"];
-                string dest = query["destVariable"];
-                string rel = query["relVariable"];
-
-                if (isDirectionRight) {
-                    directionData[start] = startNodeData;
-                    directionData[dest] = destNodeData;
-                } else if (!isDirected) {
-                    directionData[start] = destNodeData;
-                    directionData[dest] = startNodeData;
-                }
-                directionData[rel] = relationData;
-                results.push_back(directionData.dump());
-
-                delete relation;
-            }
-            return results;
+        // Use helper function instead of large lambda
+        auto processor = [jsonPlan, gc, masterIP = this->masterIP, localRelationCount](const WorkChunk& chunk) {
+            return processRelationshipChunk(chunk, jsonPlan, gc, masterIP, localRelationCount);
         };
 
         std::vector<std::vector<std::string>> chunkResults =
@@ -1867,21 +1874,19 @@ void OperatorExecutor::DirectedAllRelationshipScanParallel(SharedBuffer &buffer,
 
     // Central relations - sequential
     long centralRelationCount =
-        nodeManager.dbSize(dbPrefix + "_central_relations.db") / RelationBlock::CENTRAL_BLOCK_SIZE;
+        NodeManager::dbSize(dbPrefix + "_central_relations.db") / RelationBlock::CENTRAL_BLOCK_SIZE;
     string graphDirection = Utils::getGraphDirection(to_string(gc.graphID), masterIP);
     bool isDirected = (graphDirection == "TRUE");
-    bool isDirectionRight = (query["direction"] == "right");
+    bool isDirectionRight = (queryJson["direction"] == "right");
 
     for (long i = 1; i < centralRelationCount; i++) {
-        RelationBlock* relation = RelationBlock::getCentralRelation(i*RelationBlock::CENTRAL_BLOCK_SIZE);
-        if (relation->getCentralRelationshipType() != query["relType"]) {
-            delete relation;
+        std::unique_ptr<RelationBlock> relation(RelationBlock::getCentralRelation(i*RelationBlock::CENTRAL_BLOCK_SIZE));
+        if (relation->getCentralRelationshipType() != queryJson["relType"]) {
             continue;
         }
 
         std::string pid(relation->getMetaPropertyHead()->value);
         if (pid != to_string(gc.partitionID)) {
-            delete relation;
             continue;
         }
 
@@ -1890,56 +1895,27 @@ void OperatorExecutor::DirectedAllRelationshipScanParallel(SharedBuffer &buffer,
 
         std::string startPid(startNode->getMetaPropertyHead()->value);
         if (startPid != to_string(gc.partitionID)) {
-            delete relation;
             continue;
         }
 
-        json startNodeData;
-        startNodeData["partitionID"] = startPid;
-        std::map<std::string, char*> startProperties = startNode->getAllProperties();
-        for (auto property : startProperties) {
-            startNodeData[property.first] = property.second;
-        }
-        for (auto& [key, value] : startProperties) {
-            delete[] value;
-        }
-
-        json destNodeData;
-        std::string destPid(destNode->getMetaPropertyHead()->value);
-        destNodeData["partitionID"] = destPid;
-        std::map<std::string, char*> destProperties = destNode->getAllProperties();
-        for (auto property : destProperties) {
-            destNodeData[property.first] = property.second;
-        }
-        for (auto& [key, value] : destProperties) {
-            delete[] value;
-        }
-
-        json relationData;
-        std::map<std::string, char*> relProperties = relation->getAllProperties();
-        for (auto property : relProperties) {
-            relationData[property.first] = property.second;
-        }
-        for (auto& [key, value] : relProperties) {
-            delete[] value;
-        }
+        json startNodeData = extractNodeDataAndCleanup(startNode);
+        json destNodeData = extractNodeDataAndCleanup(destNode);
+        json relationData = extractRelationDataAndCleanup(relation.get());
 
         json directionData;
-        string start = query["sourceVariable"];
-        string dest = query["destVariable"];
-        string rel = query["relVariable"];
+        string startVar = queryJson["sourceVariable"];
+        string destVar = queryJson["destVariable"];
+        string relVar = queryJson["relVariable"];
 
         if (isDirectionRight) {
-            directionData[start] = startNodeData;
-            directionData[dest] = destNodeData;
+            directionData[startVar] = startNodeData;
+            directionData[destVar] = destNodeData;
         } else if (!isDirected) {
-            directionData[start] = destNodeData;
-            directionData[dest] = startNodeData;
+            directionData[startVar] = destNodeData;
+            directionData[destVar] = startNodeData;
         }
-        directionData[rel] = relationData;
+        directionData[relVar] = relationData;
         buffer.add(directionData.dump());
-
-        delete relation;
     }
     buffer.add("-1");
 }
