@@ -169,7 +169,7 @@ class RelationBlock {
     std::string getCentralRelationshipType();
     PropertyEdgeLink *getPropertyHead();
     MetaPropertyEdgeLink *getMetaPropertyHead();
-    std::map<std::string, char *> getAllProperties();
+    std::map<std::string, std::string, std::less<>> getAllProperties();
 };
 
 #endif

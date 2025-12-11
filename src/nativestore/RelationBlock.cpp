@@ -849,14 +849,11 @@ MetaPropertyEdgeLink *RelationBlock::getMetaPropertyHead() {
     return MetaPropertyEdgeLink::get(this->metaPropertyAddress);
 }
 
-std::map<std::string, char*> RelationBlock::getAllProperties() {
-    std::map<std::string, char*> allProperties;
+std::map<std::string, std::string, std::less<>> RelationBlock::getAllProperties() {
+    std::map<std::string, std::string, std::less<>> allProperties;
     PropertyEdgeLink* current = this->getPropertyHead();
     while (current) {
-        // don't forget to free the allocated memory after using this method
-        char* copiedValue = new char[PropertyEdgeLink::MAX_VALUE_SIZE];
-        std::strncpy(copiedValue, current->value, PropertyEdgeLink::MAX_VALUE_SIZE);
-        allProperties.insert({current->name, copiedValue});
+        allProperties.insert({current->name, std::string(current->value)});
         PropertyEdgeLink* temp = current->next();
         delete current;  // To prevent memory leaks
         current = temp;

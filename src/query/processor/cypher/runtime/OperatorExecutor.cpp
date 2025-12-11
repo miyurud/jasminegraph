@@ -34,12 +34,10 @@ static json extractNodeDataAndCleanup(NodeBlock* node) {
     json nodeData;
     std::string pid(node->getMetaPropertyHead()->value);
     nodeData["partitionID"] = pid;
-    std::map<std::string, char*> rawProps = node->getAllProperties();
+    std::map<std::string, std::string, std::less<>> rawProps = node->getAllProperties();
     
-    // Convert to std::string immediately and cleanup raw pointers
     for (const auto& [key, value] : rawProps) {
-        nodeData[key] = std::string(value);
-        delete[] value;  // Free memory allocated by getAllProperties
+        nodeData[key] = value;
     }
     return nodeData;
 }
@@ -47,12 +45,10 @@ static json extractNodeDataAndCleanup(NodeBlock* node) {
 // Helper function to extract relation data and manage memory
 static json extractRelationDataAndCleanup(RelationBlock* relation) {
     json relationData;
-    std::map<std::string, char*> rawProps = relation->getAllProperties();
+    std::map<std::string, std::string, std::less<>> rawProps = relation->getAllProperties();
     
-    // Convert to std::string immediately and cleanup raw pointers
     for (const auto& [key, value] : rawProps) {
-        relationData[key] = std::string(value);
-        delete[] value;  // Free memory allocated by getAllProperties
+        relationData[key] = value;
     }
     return relationData;
 }
@@ -354,12 +350,11 @@ void OperatorExecutor::AllNodeScan(SharedBuffer &buffer, std::string jsonPlan, G
         std::string value(node->getMetaPropertyHead()->value);
         if (value == to_string(gc.partitionID)) {
             nodeData["partitionID"] = value;
-            std::map<std::string, char*> properties = node->getAllProperties();
+            std::map<std::string, std::string, std::less<>> properties = node->getAllProperties();
             for (auto property : properties) {
                 nodeData[property.first] = property.second;
             }
             for (auto& [key, value] : properties) {
-                delete[] value;  // Free each allocated char* array
             }
             properties.clear();
 
@@ -401,12 +396,11 @@ void OperatorExecutor::NodeScanByLabel(SharedBuffer &buffer, std::string jsonPla
         std::string value(node->getMetaPropertyHead()->value);
         if (value == to_string(gc.partitionID) && label == query["Label"]) {
             nodeData["partitionID"] = value;
-            std::map<std::string, char*> properties = node->getAllProperties();
+            std::map<std::string, std::string, std::less<>> properties = node->getAllProperties();
             for (auto property : properties) {
                 nodeData[property.first] = property.second;
             }
             for (auto& [key, value] : properties) {
-                delete[] value;  // Free each allocated char* array
             }
             properties.clear();
 
@@ -508,34 +502,22 @@ void OperatorExecutor::UndirectedRelationshipTypeScan(SharedBuffer &buffer, std:
 
         std::string startPid(startNode->getMetaPropertyHead()->value);
         startNodeData["partitionID"] = startPid;
-        std::map<std::string, char*> startProperties = startNode->getAllProperties();
+        std::map<std::string, std::string, std::less<>> startProperties = startNode->getAllProperties();
         for (auto property : startProperties) {
             startNodeData[property.first] = property.second;
         }
-        for (auto& [key, value] : startProperties) {
-            delete[] value;  // Free each allocated char* array
-        }
-        startProperties.clear();
 
         std::string destPid(destNode->getMetaPropertyHead()->value);
         destNodeData["partitionID"] = destPid;
-        std::map<std::string, char*> destProperties = destNode->getAllProperties();
+        std::map<std::string, std::string, std::less<>> destProperties = destNode->getAllProperties();
         for (auto property : destProperties) {
             destNodeData[property.first] = property.second;
         }
-        for (auto& [key, value] : destProperties) {
-            delete[] value;  // Free each allocated char* array
-        }
-        destProperties.clear();
 
-        std::map<std::string, char*> relProperties = relation->getAllProperties();
+        std::map<std::string, std::string, std::less<>> relProperties = relation->getAllProperties();
         for (auto property : relProperties) {
             relationData[property.first] = property.second;
         }
-        for (auto& [key, value] : relProperties) {
-            delete[] value;  // Free each allocated char* array
-        }
-        relProperties.clear();
 
         json rightDirectionData;
         string start = query["sourceVariable"];
@@ -581,35 +563,23 @@ void OperatorExecutor::UndirectedRelationshipTypeScan(SharedBuffer &buffer, std:
             continue;
         }
         startNodeData["partitionID"] = startPid;
-        std::map<std::string, char*> startProperties = startNode->getAllProperties();
+        std::map<std::string, std::string, std::less<>> startProperties = startNode->getAllProperties();
         for (auto property : startProperties) {
             startNodeData[property.first] = property.second;
         }
-        for (auto& [key, value] : startProperties) {
-            delete[] value;  // Free each allocated char* array
-        }
-        startProperties.clear();
 
         std::string destPid(destNode->getMetaPropertyHead()->value);
         destNodeData["partitionID"] = destPid;
 
-        std::map<std::string, char*> destProperties = destNode->getAllProperties();
+        std::map<std::string, std::string, std::less<>> destProperties = destNode->getAllProperties();
         for (auto property : destProperties) {
             destNodeData[property.first] = property.second;
         }
-        for (auto& [key, value] : destProperties) {
-            delete[] value;  // Free each allocated char* array
-        }
-        destProperties.clear();
 
-        std::map<std::string, char*> relProperties = relation->getAllProperties();
+        std::map<std::string, std::string, std::less<>> relProperties = relation->getAllProperties();
         for (auto property : relProperties) {
             relationData[property.first] = property.second;
         }
-        for (auto& [key, value] : relProperties) {
-            delete[] value;  // Free each allocated char* array
-        }
-        relProperties.clear();
 
         json rightDirectionData;
         string start = query["sourceVariable"];
@@ -658,34 +628,22 @@ void OperatorExecutor::UndirectedAllRelationshipScan(SharedBuffer &buffer, std::
 
         std::string startPid(startNode->getMetaPropertyHead()->value);
         startNodeData["partitionID"] = startPid;
-        std::map<std::string, char*> startProperties = startNode->getAllProperties();
+        std::map<std::string, std::string, std::less<>> startProperties = startNode->getAllProperties();
         for (auto property : startProperties) {
             startNodeData[property.first] = property.second;
         }
-        for (auto& [key, value] : startProperties) {
-            delete[] value;  // Free each allocated char* array
-        }
-        startProperties.clear();
 
         std::string destPid(destNode->getMetaPropertyHead()->value);
         destNodeData["partitionID"] = destPid;
-        std::map<std::string, char*> destProperties = destNode->getAllProperties();
+        std::map<std::string, std::string, std::less<>> destProperties = destNode->getAllProperties();
         for (auto property : destProperties) {
             destNodeData[property.first] = property.second;
         }
-        for (auto& [key, value] : destProperties) {
-            delete[] value;  // Free each allocated char* array
-        }
-        destProperties.clear();
 
-        std::map<std::string, char*> relProperties = relation->getAllProperties();
+        std::map<std::string, std::string, std::less<>> relProperties = relation->getAllProperties();
         for (auto property : relProperties) {
             relationData[property.first] = property.second;
         }
-        for (auto& [key, value] : relProperties) {
-            delete[] value;  // Free each allocated char* array
-        }
-        relProperties.clear();
 
         json rightDirectionData;
         string start = query["sourceVariable"];
@@ -723,34 +681,22 @@ void OperatorExecutor::UndirectedAllRelationshipScan(SharedBuffer &buffer, std::
 
         std::string startPid(startNode->getMetaPropertyHead()->value);
         startNodeData["partitionID"] = startPid;
-        std::map<std::string, char*> startProperties = startNode->getAllProperties();
+        std::map<std::string, std::string, std::less<>> startProperties = startNode->getAllProperties();
         for (auto property : startProperties) {
             startNodeData[property.first] = property.second;
         }
-        for (auto& [key, value] : startProperties) {
-            delete[] value;  // Free each allocated char* array
-        }
-        startProperties.clear();
 
         std::string destPid(destNode->getMetaPropertyHead()->value);
         destNodeData["partitionID"] = destPid;
-        std::map<std::string, char*> destProperties = destNode->getAllProperties();
+        std::map<std::string, std::string, std::less<>> destProperties = destNode->getAllProperties();
         for (auto property : destProperties) {
             destNodeData[property.first] = property.second;
         }
-        for (auto& [key, value] : destProperties) {
-            delete[] value;  // Free each allocated char* array
-        }
-        destProperties.clear();
 
-        std::map<std::string, char*> relProperties = relation->getAllProperties();
+        std::map<std::string, std::string, std::less<>> relProperties = relation->getAllProperties();
         for (auto property : relProperties) {
             relationData[property.first] = property.second;
         }
-        for (auto& [key, value] : relProperties) {
-            delete[] value;  // Free each allocated char* array
-        }
-        relProperties.clear();
 
         json rightDirectionData;
         string start = query["sourceVariable"];
@@ -802,34 +748,22 @@ void OperatorExecutor::DirectedRelationshipTypeScan(SharedBuffer &buffer, std::s
 
         std::string startPid(startNode->getMetaPropertyHead()->value);
         startNodeData["partitionID"] = startPid;
-        std::map<std::string, char*> startProperties = startNode->getAllProperties();
+        std::map<std::string, std::string, std::less<>> startProperties = startNode->getAllProperties();
         for (auto property : startProperties) {
             startNodeData[property.first] = property.second;
         }
-        for (auto& [key, value] : startProperties) {
-            delete[] value;  // Free each allocated char* array
-        }
-        startProperties.clear();
 
         std::string destPid(destNode->getMetaPropertyHead()->value);
         destNodeData["partitionID"] = destPid;
-        std::map<std::string, char*> destProperties = destNode->getAllProperties();
+        std::map<std::string, std::string, std::less<>> destProperties = destNode->getAllProperties();
         for (auto property : destProperties) {
             destNodeData[property.first] = property.second;
         }
-        for (auto& [key, value] : destProperties) {
-            delete[] value;  // Free each allocated char* array
-        }
-        destProperties.clear();
 
-        std::map<std::string, char*> relProperties = relation->getAllProperties();
+        std::map<std::string, std::string, std::less<>> relProperties = relation->getAllProperties();
         for (auto property : relProperties) {
             relationData[property.first] = property.second;
         }
-        for (auto& [key, value] : relProperties) {
-            delete[] value;  // Free each allocated char* array
-        }
-        relProperties.clear();
 
         json directionData;
         string start = query["sourceVariable"];
@@ -868,34 +802,22 @@ void OperatorExecutor::DirectedRelationshipTypeScan(SharedBuffer &buffer, std::s
 
         std::string startPid(startNode->getMetaPropertyHead()->value);
         startNodeData["partitionID"] = startPid;
-        std::map<std::string, char*> startProperties = startNode->getAllProperties();
+        std::map<std::string, std::string, std::less<>> startProperties = startNode->getAllProperties();
         for (auto property : startProperties) {
             startNodeData[property.first] = property.second;
         }
-        for (auto& [key, value] : startProperties) {
-            delete[] value;  // Free each allocated char* array
-        }
-        startProperties.clear();
 
         std::string destPid(destNode->getMetaPropertyHead()->value);
         destNodeData["partitionID"] = destPid;
-        std::map<std::string, char*> destProperties = destNode->getAllProperties();
+        std::map<std::string, std::string, std::less<>> destProperties = destNode->getAllProperties();
         for (auto property : destProperties) {
             destNodeData[property.first] = property.second;
         }
-        for (auto& [key, value] : destProperties) {
-            delete[] value;  // Free each allocated char* array
-        }
-        destProperties.clear();
 
-        std::map<std::string, char*> relProperties = relation->getAllProperties();
+        std::map<std::string, std::string, std::less<>> relProperties = relation->getAllProperties();
         for (auto property : relProperties) {
             relationData[property.first] = property.second;
         }
-        for (auto& [key, value] : relProperties) {
-            delete[] value;  // Free each allocated char* array
-        }
-        relProperties.clear();
 
         json directionData;
         string start = query["sourceVariable"];
@@ -964,34 +886,22 @@ void OperatorExecutor::DirectedAllRelationshipScan(SharedBuffer &buffer, std::st
 
         std::string startPid(startNode->getMetaPropertyHead()->value);
         startNodeData["partitionID"] = startPid;
-        std::map<std::string, char*> startProperties = startNode->getAllProperties();
+        std::map<std::string, std::string, std::less<>> startProperties = startNode->getAllProperties();
         for (auto property : startProperties) {
             startNodeData[property.first] = property.second;
         }
-        for (auto& [key, value] : startProperties) {
-            delete[] value;  // Free each allocated char* array
-        }
-        startProperties.clear();
 
         std::string destPid(destNode->getMetaPropertyHead()->value);
         destNodeData["partitionID"] = destPid;
-        std::map<std::string, char*> destProperties = destNode->getAllProperties();
+        std::map<std::string, std::string, std::less<>> destProperties = destNode->getAllProperties();
         for (auto property : destProperties) {
             destNodeData[property.first] = property.second;
         }
-        for (auto& [key, value] : destProperties) {
-            delete[] value;  // Free each allocated char* array
-        }
-        destProperties.clear();
 
-        std::map<std::string, char*> relProperties = relation->getAllProperties();
+        std::map<std::string, std::string, std::less<>> relProperties = relation->getAllProperties();
         for (auto property : relProperties) {
             relationData[property.first] = property.second;
         }
-        for (auto& [key, value] : relProperties) {
-            delete[] value;  // Free each allocated char* array
-        }
-        relProperties.clear();
 
         json directionData;
         string start = query["sourceVariable"];
@@ -1026,34 +936,22 @@ void OperatorExecutor::DirectedAllRelationshipScan(SharedBuffer &buffer, std::st
 
         std::string startPid(startNode->getMetaPropertyHead()->value);
         startNodeData["partitionID"] = startPid;
-        std::map<std::string, char*> startProperties = startNode->getAllProperties();
+        std::map<std::string, std::string, std::less<>> startProperties = startNode->getAllProperties();
         for (auto property : startProperties) {
             startNodeData[property.first] = property.second;
         }
-        for (auto& [key, value] : startProperties) {
-            delete[] value;  // Free each allocated char* array
-        }
-        startProperties.clear();
 
         std::string destPid(destNode->getMetaPropertyHead()->value);
         destNodeData["partitionID"] = destPid;
-        std::map<std::string, char*> destProperties = destNode->getAllProperties();
+        std::map<std::string, std::string, std::less<>> destProperties = destNode->getAllProperties();
         for (auto property : destProperties) {
             destNodeData[property.first] = property.second;
         }
-        for (auto& [key, value] : destProperties) {
-            delete[] value;  // Free each allocated char* array
-        }
-        destProperties.clear();
 
-        std::map<std::string, char*> relProperties = relation->getAllProperties();
+        std::map<std::string, std::string, std::less<>> relProperties = relation->getAllProperties();
         for (auto property : relProperties) {
             relationData[property.first] = property.second;
         }
-        for (auto& [key, value] : relProperties) {
-            delete[] value;  // Free each allocated char* array
-        }
-        relProperties.clear();
 
         json directionData;
         string start = query["sourceVariable"];
@@ -1083,7 +981,7 @@ void OperatorExecutor::NodeByIdSeek(SharedBuffer &buffer, std::string jsonPlan, 
         json nodeData;
         std::string value(node->getMetaPropertyHead()->value);
         if (value == to_string(gc.partitionID)) {
-            std::map<std::string, char*> properties = node->getAllProperties();
+            std::map<std::string, std::string, std::less<>> properties = node->getAllProperties();
             nodeData["partitionID"] = value;
             for (auto property : properties) {
                 nodeData[property.first] = property.second;
@@ -1153,7 +1051,7 @@ void OperatorExecutor::ExpandAll(SharedBuffer &buffer, std::string jsonPlan, Gra
 
                         json relationData;
                         json destNodeData;
-                        std::map<std::string, char*> relProperties = nextRelation->getAllProperties();
+                        std::map<std::string, std::string, std::less<>> relProperties = nextRelation->getAllProperties();
                         for (auto property : relProperties) {
                             relationData[property.first] = property.second;
                         }
@@ -1170,10 +1068,6 @@ void OperatorExecutor::ExpandAll(SharedBuffer &buffer, std::string jsonPlan, Gra
                             nextRelation = nextRelation->nextLocalDestination();
                             continue;
                         }
-                        for (auto& [key, value] : relProperties) {
-                            delete[] value;  // Free each allocated char* array
-                        }
-                        relProperties.clear();
                         NodeBlock *destNode;
                         if (isSource) {
                             destNode = nextRelation->getDestination();
@@ -1182,14 +1076,10 @@ void OperatorExecutor::ExpandAll(SharedBuffer &buffer, std::string jsonPlan, Gra
                         }
                         std::string value(destNode->getMetaPropertyHead()->value);
                         destNodeData["partitionID"] = value;
-                        std::map<std::string, char*> destProperties = destNode->getAllProperties();
+                        std::map<std::string, std::string, std::less<>> destProperties = destNode->getAllProperties();
                         for (auto property : destProperties) {
                             destNodeData[property.first] = property.second;
                         }
-                        for (auto& [key, value] : destProperties) {
-                            delete[] value;  // Free each allocated char* array
-                        }
-                        destProperties.clear();
                         rawObj[relVariable] = relationData;
                         rawObj[destVariable] = destNodeData;
 
@@ -1216,7 +1106,7 @@ void OperatorExecutor::ExpandAll(SharedBuffer &buffer, std::string jsonPlan, Gra
 
                         json relationData;
                         json destNodeData;
-                        std::map<std::string, char*> relProperties = nextRelation->getAllProperties();
+                        std::map<std::string, std::string, std::less<>> relProperties = nextRelation->getAllProperties();
                         for (auto property : relProperties) {
                             relationData[property.first] = property.second;
                         }
@@ -1235,10 +1125,6 @@ void OperatorExecutor::ExpandAll(SharedBuffer &buffer, std::string jsonPlan, Gra
                             continue;
                         }
 
-                        for (auto& [key, value] : relProperties) {
-                            delete[] value;  // Free each allocated char* array
-                        }
-                        relProperties.clear();
                         NodeBlock *destNode;
                         if (isSource) {
                             destNode = nextRelation->getDestination();
@@ -1247,14 +1133,10 @@ void OperatorExecutor::ExpandAll(SharedBuffer &buffer, std::string jsonPlan, Gra
                         }
                         std::string value(destNode->getMetaPropertyHead()->value);
                         destNodeData["partitionID"] = value;
-                        std::map<std::string, char*> destProperties = destNode->getAllProperties();
+                        std::map<std::string, std::string, std::less<>> destProperties = destNode->getAllProperties();
                         for (auto property : destProperties) {
                             destNodeData[property.first] = property.second;
                         }
-                        for (auto& [key, value] : destProperties) {
-                            delete[] value;  // Free each allocated char* array
-                        }
-                        destProperties.clear();
                         rawObj[relVariable] = relationData;
                         rawObj[destVariable] = destNodeData;
                         buffer.add(rawObj.dump());
@@ -1774,12 +1656,10 @@ static std::vector<std::string> processNodeScanChunk(
         if (value == to_string(graphConfig.partitionID)) {
             json nodeData;
             nodeData["partitionID"] = value;
-            std::map<std::string, char*> rawProps = node->getAllProperties();
+            std::map<std::string, std::string, std::less<>> rawProps = node->getAllProperties();
             
-            // Convert to std::string immediately and cleanup raw pointers
             for (const auto& [key, val] : rawProps) {
-                nodeData[key] = std::string(val);
-                delete[] val;  // Free memory allocated by getAllProperties
+                nodeData[key] = val;
             }
 
             json data;
@@ -1817,12 +1697,10 @@ static std::vector<std::string> processNodeByLabelChunk(
         if (partitionValue == to_string(graphConfig.partitionID) && label == targetLabel) {
             json nodeData;
             nodeData["partitionID"] = partitionValue;
-            std::map<std::string, char*> rawProps = node->getAllProperties();
+            std::map<std::string, std::string, std::less<>> rawProps = node->getAllProperties();
             
-            // Convert to std::string immediately and cleanup raw pointers
             for (const auto& [key, val] : rawProps) {
-                nodeData[key] = std::string(val);
-                delete[] val;  // Free memory allocated by getAllProperties
+                nodeData[key] = val;
             }
 
             results.push_back(nodeData.dump());
