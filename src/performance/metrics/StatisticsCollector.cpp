@@ -24,26 +24,6 @@ constexpr std::size_t LINE_BUF_SIZE_LONG = 256;
 Logger stat_logger;
 static int numProcessors;
 
-// Data structures for system statistics
-struct DiskStats {
-    unsigned long reads_completed = 0;
-    unsigned long reads_merged = 0;
-    unsigned long sectors_read = 0;
-    unsigned long time_reading = 0;
-    unsigned long writes_completed = 0;
-    unsigned long writes_merged = 0;
-    unsigned long sectors_written = 0;
-    unsigned long time_writing = 0;
-    unsigned long ios_in_progress = 0;
-    unsigned long io_time = 0;
-    unsigned long weighted_io_time = 0;
-};
-
-struct NetworkStats {
-    unsigned long rx_packets = 0;
-    unsigned long tx_packets = 0;
-};
-
 // Forward declarations for internal helper functions
 static long parseLine(char *line);
 static long getSwapSpace(const char *type);
@@ -74,7 +54,7 @@ static long readProcStatValue(const char* prefix, int prefixLen) {
         std::string_view view(line);
 
         // Skip if line doesn't start with the prefix
-        if (!view.starts_with(prefixView))
+        if (view.size() < prefixView.size() || view.compare(0, prefixView.size(), prefixView) != 0)
             continue;
 
         // Find first digit
@@ -82,12 +62,12 @@ static long readProcStatValue(const char* prefix, int prefixLen) {
         if (pos == std::string_view::npos)
             return -1;
 
-        long value = -1;
-        auto [ptr, ec] = std::from_chars(view.data() + pos,
-                                         view.data() + view.size(),
-                                         value);
+        // Extract substring and convert to long
+        std::string numStr(view.data() + pos, view.size() - pos);
+        char* end = nullptr;
+        long value = strtol(numStr.c_str(), &end, 10);
 
-        if (ec != std::errc() || value < 0)
+        if (end == numStr.c_str() || value < 0)
             return -1;
 
         return value;
@@ -269,7 +249,7 @@ static bool readNetworkStats(std::map<std::string, NetworkStats, std::less<>> &o
         unsigned long tx_compressed;
 
         // Parse fast using std::istringstream (fits <20 integers)
-        std::istringstream iss(std::string(rest));
+        std::istringstream iss{std::string(rest)};
         if (!(iss >> rx_bytes >> rx_packets >> rx_errs >> rx_drop >> rx_fifo >> rx_frame
                   >> rx_compressed >> rx_multicast >> tx_bytes >> tx_packets >> tx_errs >> tx_drop
                   >> tx_fifo >> tx_colls >> tx_carrier >> tx_compressed))
@@ -347,15 +327,8 @@ static long parseLine(const char *line) {
 }
 
 static long getSwapSpace(int field) {
-    std::ifstream file("/proc/swaps");
-    if (!file.is_open()) {
-        std::string msg = "Cannot open /proc/swaps";
-        if (!errorContext.empty()) {
-            msg += " for " + errorContext;
-        }
-        stat_logger.error(msg);
-        return false;
-    }
+    FILE *file = fopen("/proc/swaps", "r");
+    if (!file) return -1;
 
     char line[LINE_BUF_SIZE];
     long result = 0;
@@ -391,6 +364,7 @@ static long getSwapSpace(int field) {
         hasValue = true;
     }
 
+    fclose(file);
     return hasValue ? result : -1;
 }
 

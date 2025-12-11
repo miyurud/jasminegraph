@@ -39,6 +39,25 @@ limitations under the License.
 #include "string.h"
 #include "sys/times.h"
 
+struct DiskStats {
+    unsigned long reads_completed = 0;
+    unsigned long reads_merged = 0;
+    unsigned long sectors_read = 0;
+    unsigned long time_reading = 0;
+    unsigned long writes_completed = 0;
+    unsigned long writes_merged = 0;
+    unsigned long sectors_written = 0;
+    unsigned long time_writing = 0;
+    unsigned long ios_in_progress = 0;
+    unsigned long io_time = 0;
+    unsigned long weighted_io_time = 0;
+};
+
+struct NetworkStats {
+    unsigned long rx_packets = 0;
+    unsigned long tx_packets = 0;
+};
+
 class StatisticsCollector {
  private:
     static const int BUFFER_SIZE = 128;
@@ -67,9 +86,14 @@ class StatisticsCollector {
     static std::map<std::string, double, std::less<>> getDiskBusyPercentage();
     static std::map<std::string, std::pair<double, double>, std::less<>> getDiskReadWriteKBPerSecond();
     static std::map<std::string, double, std::less<>> getDiskBlockSizeKB();
-    static std::map<std::string, double, std::less<>> getDiskTransfersPerSecond();
+    static std::unordered_map<std::string, double, std::less<>> getDiskTransfersPerSecond();
     static void logLoadAverage(std::string name);
     static double getMemoryUsagePercentage();
+    static std::pair<std::map<std::string, DiskStats>, std::map<std::string, DiskStats>> getTwoDiskReadings(double &elapsedTime);
+    static std::map<std::string, std::pair<double, double>, std::less<>> calculateDiskRates(
+        const std::map<std::string, DiskStats> &firstReading,
+        const std::map<std::string, DiskStats> &secondReading,
+        double elapsedTime);
 };
 
 #endif  // JASMINEGRAPH_STATISTICSCOLLECTOR_H
