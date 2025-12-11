@@ -35,7 +35,7 @@ static json extractNodeDataAndCleanup(NodeBlock* node) {
     std::string pid(node->getMetaPropertyHead()->value);
     nodeData["partitionID"] = pid;
     std::map<std::string, std::string, std::less<>> rawProps = node->getAllProperties();
-    
+
     for (const auto& [key, value] : rawProps) {
         nodeData[key] = value;
     }
@@ -46,7 +46,7 @@ static json extractNodeDataAndCleanup(NodeBlock* node) {
 static json extractRelationDataAndCleanup(RelationBlock* relation) {
     json relationData;
     std::map<std::string, std::string, std::less<>> rawProps = relation->getAllProperties();
-    
+
     for (const auto& [key, value] : rawProps) {
         relationData[key] = value;
     }
@@ -78,10 +78,10 @@ void initializeThreadLocalDBs(const GraphConfig& gc) {
     // Use function-local static variables (thread-safe in C++11+)
     static thread_local int currentPartitionID = -1;
     static thread_local int currentGraphID = -1;
-    
+
     // Check if already initialized for this partition
-    if (bool needsInit = (currentPartitionID != gc.partitionID || 
-                          currentGraphID != gc.graphID || 
+    if (bool needsInit = (currentPartitionID != gc.partitionID ||
+                          currentGraphID != gc.graphID ||
                           RelationBlock::relationsDB == nullptr); !needsInit) {
         return;
     }
@@ -97,7 +97,7 @@ void initializeThreadLocalDBs(const GraphConfig& gc) {
 
     std::string instanceDataFolderLocation =
         Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder");
-    std::string dbPrefix = instanceDataFolderLocation + "/g" + std::to_string(gc.graphID) + 
+    std::string dbPrefix = instanceDataFolderLocation + "/g" + std::to_string(gc.graphID) +
                           "_p" + std::to_string(gc.partitionID);
 
     openDatabaseFiles(dbPrefix);
@@ -116,7 +116,7 @@ static void addFilteredResults(const std::vector<std::vector<std::string>>& resu
 }
 
 // Helper to process batch sequentially
-static void processSequentially(const std::vector<std::string>& batch, 
+static void processSequentially(const std::vector<std::string>& batch,
                                 FilterHelper& filterHelper,
                                 SharedBuffer& buffer) {
     for (const auto& item : batch) {
@@ -148,26 +148,26 @@ static bool tryProcessInParallel(const std::vector<std::string>& batch,
 }
 
 // Helper function to process batch filtering (reduce nesting complexity)
-static void processBatch(const std::vector<std::string>& batch, 
+static void processBatch(const std::vector<std::string>& batch,
                         FilterHelper& filterHelper,
                         SharedBuffer& buffer,
                         IntraPartitionParallelExecutor* parallelExecutor) {
-    if (bool useParallel = parallelExecutor && batch.size() > 500; 
+    if (bool useParallel = parallelExecutor && batch.size() > 500;
         useParallel && tryProcessInParallel(batch, filterHelper, buffer, parallelExecutor)) {
         return;
     }
-    
+
     processSequentially(batch, filterHelper, buffer);
 }
 
 // Helper function to process a single relationship chunk
 static std::vector<std::string> processRelationshipChunk(
-    const WorkChunk& chunk, 
-    const std::string& jsonPlan, 
-    const GraphConfig& gc, 
+    const WorkChunk& chunk,
+    const std::string& jsonPlan,
+    const GraphConfig& gc,
     const std::string& masterIP,
     long maxRelations) {
-    
+
     initializeThreadLocalDBs(gc);
     json queryJson = json::parse(jsonPlan);
     std::vector<std::string> results;
@@ -181,7 +181,7 @@ static std::vector<std::string> processRelationshipChunk(
         if (relation->getLocalRelationshipType() != queryJson["relType"]) {
             continue;
         }
-        
+
         NodeBlock* startNode = relation->getSource();
         NodeBlock* destNode = relation->getDestination();
 
@@ -302,12 +302,14 @@ void OperatorExecutor::AllNodeScan(SharedBuffer &buffer, std::string jsonPlan, G
     NodeManager nodeManager(gc);
 
     // Use parallel processing for datasets with 1000+ nodes
-    if (size_t nodeCount = nodeManager.nodeIndex.size(); parallelExecutor && nodeCount > 1000 && parallelExecutor->shouldUseParallelProcessing(nodeCount)) {
+    if (size_t nodeCount = nodeManager.nodeIndex.size();
+        parallelExecutor && nodeCount > 1000 && parallelExecutor->shouldUseParallelProcessing(nodeCount)) {
         try {
             AllNodeScanParallel(buffer, jsonPlan, gc);
             return;
         } catch (const std::exception& e) {
-            execution_logger.warn("Parallel AllNodeScan failed, falling back to sequential: " + std::string(e.what()));
+            execution_logger.warn("Parallel AllNodeScan failed, falling back to sequential: " +
+                                  std::string(e.what()));
         }
     }
 
@@ -345,7 +347,8 @@ void OperatorExecutor::NodeScanByLabel(SharedBuffer &buffer, std::string jsonPla
             NodeScanByLabelParallel(buffer, jsonPlan, gc);
             return;
         } catch (const std::exception& e) {
-            execution_logger.warn("Parallel NodeScanByLabel failed, falling back to sequential: " + std::string(e.what()));
+            execution_logger.warn("Parallel NodeScanByLabel failed, falling back to sequential: " +
+                                  std::string(e.what()));
         }
     }
 
@@ -812,7 +815,8 @@ void OperatorExecutor::DirectedAllRelationshipScan(SharedBuffer &buffer, std::st
             DirectedAllRelationshipScanParallel(buffer, jsonPlan, gc);
             return;
         } catch (const std::exception& e) {
-            execution_logger.warn("Parallel relationship scan failed, falling back to sequential: " + std::string(e.what()));
+            execution_logger.warn("Parallel relationship scan failed, falling back to sequential: " +
+                                  std::string(e.what()));
         }
     }
 
@@ -1004,7 +1008,8 @@ void OperatorExecutor::ExpandAll(SharedBuffer &buffer, std::string jsonPlan, Gra
 
                         json relationData;
                         json destNodeData;
-                        std::map<std::string, std::string, std::less<>> relProperties = nextRelation->getAllProperties();
+                        std::map<std::string, std::string, std::less<>> relProperties =
+                            nextRelation->getAllProperties();
                         for (auto property : relProperties) {
                             relationData[property.first] = property.second;
                         }
@@ -1059,7 +1064,8 @@ void OperatorExecutor::ExpandAll(SharedBuffer &buffer, std::string jsonPlan, Gra
 
                         json relationData;
                         json destNodeData;
-                        std::map<std::string, std::string, std::less<>> relProperties = nextRelation->getAllProperties();
+                        std::map<std::string, std::string, std::less<>> relProperties =
+                            nextRelation->getAllProperties();
                         for (auto property : relProperties) {
                             relationData[property.first] = property.second;
                         }
@@ -1590,7 +1596,7 @@ static std::vector<std::string> processNodeScanChunk(
     const std::vector<std::pair<std::string, unsigned int>>& nodeIndices,
     const std::string& variable,
     const GraphConfig& graphConfig) {
-    
+
     initializeThreadLocalDBs(graphConfig);  // Initialize DBs for this thread
 
     std::vector<std::string> results;
@@ -1610,7 +1616,7 @@ static std::vector<std::string> processNodeScanChunk(
             json nodeData;
             nodeData["partitionID"] = value;
             std::map<std::string, std::string, std::less<>> rawProps = node->getAllProperties();
-            
+
             for (const auto& [key, val] : rawProps) {
                 nodeData[key] = val;
             }
@@ -1629,7 +1635,7 @@ static std::vector<std::string> processNodeByLabelChunk(
     const std::vector<std::pair<std::string, unsigned int>>& nodeIndices,
     std::string_view targetLabel,
     const GraphConfig& graphConfig) {
-    
+
     initializeThreadLocalDBs(graphConfig);
 
     std::vector<std::string> results;
@@ -1651,7 +1657,7 @@ static std::vector<std::string> processNodeByLabelChunk(
             json nodeData;
             nodeData["partitionID"] = partitionValue;
             std::map<std::string, std::string, std::less<>> rawProps = node->getAllProperties();
-            
+
             for (const auto& [key, val] : rawProps) {
                 nodeData[key] = val;
             }
@@ -1696,7 +1702,8 @@ void OperatorExecutor::AllNodeScanParallel(SharedBuffer &buffer, std::string jso
         buffer.add("-1");
 }
 
-void OperatorExecutor::NodeScanByLabelParallel(SharedBuffer &buffer, std::string jsonPlan, const GraphConfig& graphConfig) {
+void OperatorExecutor::NodeScanByLabelParallel(SharedBuffer &buffer, std::string jsonPlan,
+                                               const GraphConfig& graphConfig) {
     json queryParsed = json::parse(jsonPlan);
     NodeManager nodeManager(graphConfig);
     string targetLabel = queryParsed["Label"].get<std::string>();
@@ -1733,7 +1740,8 @@ void OperatorExecutor::DirectedAllRelationshipScanParallel(SharedBuffer &buffer,
 
     if (parallelExecutor && localRelationCount > 0) {
         // Use helper function instead of large lambda
-        auto processor = [jsonPlan, graphConfig, masterIP = this->masterIP, localRelationCount](const WorkChunk& chunk) {
+        auto processor = [jsonPlan, graphConfig, masterIP = this->masterIP, localRelationCount]
+                         (const WorkChunk& chunk) {
             return processRelationshipChunk(chunk, jsonPlan, graphConfig, masterIP, localRelationCount);
         };
 
