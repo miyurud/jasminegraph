@@ -35,9 +35,14 @@ static json extractNodeDataAndCleanup(NodeBlock* node) {
     std::string pid(node->getMetaPropertyHead()->value);
     nodeData["partitionID"] = pid;
     std::map<std::string, char*> rawProps = node->getAllProperties();
+    
+    // Use RAII to automatically cleanup allocated memory
+    std::vector<std::unique_ptr<char[]>> cleanup;
+    cleanup.reserve(rawProps.size());
+    
     for (const auto& [key, value] : rawProps) {
         nodeData[key] = value;
-        delete[] value;
+        cleanup.emplace_back(value);
     }
     return nodeData;
 }
@@ -46,9 +51,14 @@ static json extractNodeDataAndCleanup(NodeBlock* node) {
 static json extractRelationDataAndCleanup(RelationBlock* relation) {
     json relationData;
     std::map<std::string, char*> rawProps = relation->getAllProperties();
+    
+    // Use RAII to automatically cleanup allocated memory
+    std::vector<std::unique_ptr<char[]>> cleanup;
+    cleanup.reserve(rawProps.size());
+    
     for (const auto& [key, value] : rawProps) {
         relationData[key] = std::string(value);
-        delete[] value;
+        cleanup.emplace_back(value);
     }
     return relationData;
 }
@@ -1728,9 +1738,14 @@ static std::vector<std::string> processNodeScanChunk(
             json nodeData;
             nodeData["partitionID"] = value;
             std::map<std::string, char*> rawProps = node->getAllProperties();
+            
+            // Use RAII to automatically cleanup allocated memory
+            std::vector<std::unique_ptr<char[]>> cleanup;
+            cleanup.reserve(rawProps.size());
+            
             for (const auto& [key, val] : rawProps) {
                 nodeData[key] = std::string(val);
-                delete[] val;
+                cleanup.emplace_back(val);
             }
 
             json data;
@@ -1818,9 +1833,14 @@ void OperatorExecutor::NodeScanByLabelParallel(SharedBuffer &buffer, std::string
                     json nodeData;
                     nodeData["partitionID"] = partitionValue;
                     std::map<std::string, char*> rawProps = node->getAllProperties();
+                    
+                    // Use RAII to automatically cleanup allocated memory
+                    std::vector<std::unique_ptr<char[]>> cleanup;
+                    cleanup.reserve(rawProps.size());
+                    
                     for (const auto& [key, val] : rawProps) {
                         nodeData[key] = std::string(val);
-                        delete[] val;
+                        cleanup.emplace_back(val);
                     }
 
                     results.push_back(nodeData.dump());
