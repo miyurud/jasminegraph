@@ -89,10 +89,10 @@ class StatisticsCollector {
     static std::unordered_map<std::string, double, std::less<>> getDiskTransfersPerSecond();
     static void logLoadAverage(std::string name);
     static double getMemoryUsagePercentage();
-    static std::pair<std::map<std::string, DiskStats>, std::map<std::string, DiskStats>> getTwoDiskReadings(double &elapsedTime);
+    static std::pair<std::map<std::string, DiskStats, std::less<>>, std::map<std::string, DiskStats, std::less<>>> getTwoDiskReadings(double &elapsedTime);
     static std::map<std::string, std::pair<double, double>, std::less<>> calculateDiskRates(
-        const std::map<std::string, DiskStats> &firstReading,
-        const std::map<std::string, DiskStats> &secondReading,
+        const std::map<std::string, DiskStats, std::less<>> &firstReading,
+        const std::map<std::string, DiskStats, std::less<>> &secondReading,
         double elapsedTime);
 };
 

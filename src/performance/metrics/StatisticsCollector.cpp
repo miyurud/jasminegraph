@@ -24,6 +24,26 @@ constexpr std::size_t LINE_BUF_SIZE_LONG = 256;
 Logger stat_logger;
 static int numProcessors;
 
+// Data structures for system statistics
+struct DiskStats {
+    unsigned long reads_completed = 0;
+    unsigned long reads_merged = 0;
+    unsigned long sectors_read = 0;
+    unsigned long time_reading = 0;
+    unsigned long writes_completed = 0;
+    unsigned long writes_merged = 0;
+    unsigned long sectors_written = 0;
+    unsigned long time_writing = 0;
+    unsigned long ios_in_progress = 0;
+    unsigned long io_time = 0;
+    unsigned long weighted_io_time = 0;
+};
+
+struct NetworkStats {
+    unsigned long rx_packets = 0;
+    unsigned long tx_packets = 0;
+};
+
 // Forward declarations for internal helper functions
 static long parseLine(char *line);
 static long getSwapSpace(const char *type);
@@ -249,7 +269,8 @@ static bool readNetworkStats(std::map<std::string, NetworkStats, std::less<>> &o
         unsigned long tx_compressed;
 
         // Parse fast using std::istringstream (fits <20 integers)
-        std::istringstream iss{std::string(rest)};
+        std::string restStr(rest);
+        std::istringstream iss(restStr);
         if (!(iss >> rx_bytes >> rx_packets >> rx_errs >> rx_drop >> rx_fifo >> rx_frame
                   >> rx_compressed >> rx_multicast >> tx_bytes >> tx_packets >> tx_errs >> tx_drop
                   >> tx_fifo >> tx_colls >> tx_carrier >> tx_compressed))
@@ -327,8 +348,11 @@ static long parseLine(const char *line) {
 }
 
 static long getSwapSpace(int field) {
-    FILE *file = fopen("/proc/swaps", "r");
-    if (!file) return -1;
+    std::ifstream file("/proc/swaps");
+    if (!file.is_open()) {
+        std::string msg = "Cannot open /proc/swaps";
+        return -1;
+    }
 
     char line[LINE_BUF_SIZE];
     long result = 0;
@@ -364,7 +388,6 @@ static long getSwapSpace(int field) {
         hasValue = true;
     }
 
-    fclose(file);
     return hasValue ? result : -1;
 }
 
@@ -843,12 +866,12 @@ std::map<std::string, std::pair<double, double>, std::less<>> StatisticsCollecto
 }
 
 // Take two readings with a 1-second interval
-std::pair<std::map<std::string, DiskStats>, std::map<std::string, DiskStats>>
+std::pair<std::map<std::string, DiskStats, std::less<>>, std::map<std::string, DiskStats, std::less<>>>
 StatisticsCollector::getTwoDiskReadings(double &elapsedTime) {
     struct timespec startTime, endTime;
     clock_gettime(CLOCK_MONOTONIC, &startTime);
 
-    std::map<std::string, DiskStats> firstReading;
+    std::map<std::string, DiskStats, std::less<>> firstReading;
     if (!readDiskStats(firstReading, "first reading")) return {{}, {}};
 
     if (firstReading.empty()) {
@@ -858,7 +881,7 @@ StatisticsCollector::getTwoDiskReadings(double &elapsedTime) {
 
     nanosleep(&(struct timespec{1, 0}), nullptr);
 
-    std::map<std::string, DiskStats> secondReading;
+    std::map<std::string, DiskStats, std::less<>> secondReading;
     if (!readDiskStats(secondReading, "second reading")) return {{}, {}};
 
     clock_gettime(CLOCK_MONOTONIC, &endTime);
@@ -925,8 +948,8 @@ std::map<std::string, double, std::less<>> StatisticsCollector::getDiskBlockSize
     return diskBlockSizes;
 }
 
-std::unordered_map<std::string, double> StatisticsCollector::getDiskTransfersPerSecond() {
-    std::unordered_map<std::string, double> diskTransferRates;
+std::unordered_map<std::string, double, std::less<>> StatisticsCollector::getDiskTransfersPerSecond() {
+    std::unordered_map<std::string, double, std::less<>> diskTransferRates;
 
     struct timespec startTime;
     struct timespec endTime;
@@ -935,7 +958,7 @@ std::unordered_map<std::string, double> StatisticsCollector::getDiskTransfersPer
     clock_gettime(CLOCK_MONOTONIC, &startTime);
 
     // First reading - store total transfers (dk_xfers = dk_reads + dk_writes) for each device
-    std::unordered_map<std::string, DiskStats> firstReading;
+    std::map<std::string, DiskStats, std::less<>> firstReading;
     if (!readDiskStats(firstReading, "first reading") || firstReading.empty()) {
         stat_logger.error("No valid disk devices found in first reading");
         return diskTransferRates;
@@ -945,7 +968,7 @@ std::unordered_map<std::string, double> StatisticsCollector::getDiskTransfersPer
     nanosleep(&(struct timespec){1, 0}, nullptr);
 
     // Second reading
-    std::unordered_map<std::string, DiskStats> secondReading;
+    std::map<std::string, DiskStats, std::less<>> secondReading;
     if (!readDiskStats(secondReading, "second reading")) {
         return diskTransferRates;
     }
