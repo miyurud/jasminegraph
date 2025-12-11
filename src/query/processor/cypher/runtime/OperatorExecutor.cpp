@@ -1732,7 +1732,8 @@ void OperatorExecutor::NodeScanByLabelParallel(SharedBuffer &buffer, std::string
     buffer.add("-1");
 }
 
-void OperatorExecutor::DirectedAllRelationshipScanParallel(SharedBuffer &buffer, std::string jsonPlan, const GraphConfig& graphConfig) {
+void OperatorExecutor::DirectedAllRelationshipScanParallel(SharedBuffer &buffer, std::string jsonPlan,
+                                                           const GraphConfig& graphConfig) {
     json queryParsed = json::parse(jsonPlan);
     NodeManager nodeManager(graphConfig);
     const std::string& dbPrefix = nodeManager.getDbPrefix();
