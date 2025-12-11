@@ -156,7 +156,7 @@ static bool tryProcessInParallel(const std::vector<std::string>& batch,
             static_cast<long>(batch.size()), processor);
         addFilteredResults(results, buffer);
         return true;
-    } catch (const std::exception& e) {
+    } catch (const std::runtime_error& e) {
         execution_logger.warn("Parallel filter failed, using sequential: " + std::string(e.what()));
         return false;
     }
@@ -231,8 +231,10 @@ OperatorExecutor::OperatorExecutor(GraphConfig gc, std::string queryPlan, std::s
     if (!parallelExecutor) {
         try {
             parallelExecutor = std::make_unique<IntraPartitionParallelExecutor>();
-        } catch (const std::exception& e) {
-            // If initialization fails, continue without parallel processing
+        } catch (const std::bad_alloc& e) {
+            execution_logger.error("Failed to allocate parallel executor: " + std::string(e.what()));
+            parallelExecutor = nullptr;
+        } catch (const std::runtime_error& e) {
             execution_logger.error("Failed to initialize parallel executor: " + std::string(e.what()));
             parallelExecutor = nullptr;
         }
@@ -913,7 +915,7 @@ void OperatorExecutor::DirectedAllRelationshipScan(SharedBuffer &buffer, std::st
         try {
             DirectedAllRelationshipScanParallel(buffer, jsonPlan, gc);
             return;
-        } catch (const std::exception& e) {
+        } catch (const std::runtime_error& e) {
             execution_logger.warn("Parallel relationship scan failed, falling back to sequential: " + std::string(e.what()));
         }
     }
@@ -1772,6 +1774,50 @@ static std::vector<std::string> processNodeScanChunk(
     return results;
 }
 
+// Helper function to process node scan by label chunk
+static std::vector<std::string> processNodeByLabelChunk(
+    const WorkChunk& chunk,
+    const std::vector<std::pair<std::string, unsigned int>>& nodeIndices,
+    const std::string& targetLabel,
+    const GraphConfig& graphConfig) {
+    
+    initializeThreadLocalDBs(graphConfig);
+
+    std::vector<std::string> results;
+    results.reserve(chunk.endIndex - chunk.startIndex + 1);
+
+    long start = std::max(0L, chunk.startIndex - 1);
+    long end = std::min<long>(static_cast<long>(nodeIndices.size()) - 1, chunk.endIndex - 1);
+
+    for (long i = start; i <= end; ++i) {
+        const auto& [nodeId, addressIndex] = nodeIndices[static_cast<size_t>(i)];
+
+        std::unique_ptr<NodeBlock> node(NodeManager::get(addressIndex, nodeId));
+        if (node == nullptr) continue;
+
+        string label = node->getLabel();
+        std::string partitionValue(node->getMetaPropertyHead()->value);
+
+        if (partitionValue == to_string(graphConfig.partitionID) && label == targetLabel) {
+            json nodeData;
+            nodeData["partitionID"] = partitionValue;
+            std::map<std::string, char*> rawProps = node->getAllProperties();
+            
+            // Use RAII to automatically cleanup allocated memory
+            std::vector<std::unique_ptr<char[]>> cleanup;
+            cleanup.reserve(rawProps.size());
+            
+            for (const auto& [key, val] : rawProps) {
+                nodeData[key] = std::string(val);
+                cleanup.emplace_back(val);
+            }
+
+            results.push_back(nodeData.dump());
+        }
+    }
+    return results;
+}
+
 void OperatorExecutor::AllNodeScanParallel(SharedBuffer &buffer, std::string jsonPlan, GraphConfig graphConfig) {
     // Use thread pool executor with deterministic merge
     try {
@@ -1805,8 +1851,11 @@ void OperatorExecutor::AllNodeScanParallel(SharedBuffer &buffer, std::string jso
             }
         }
         buffer.add("-1");
-    } catch (const std::exception& e) {
+    } catch (const std::runtime_error& e) {
         execution_logger.error("AllNodeScanParallel failed: " + std::string(e.what()));
+        buffer.add("-1");
+    } catch (const json::exception& e) {
+        execution_logger.error("JSON parsing failed in AllNodeScanParallel: " + std::string(e.what()));
         buffer.add("-1");
     }
 }
@@ -1826,43 +1875,7 @@ void OperatorExecutor::NodeScanByLabelParallel(SharedBuffer &buffer, std::string
         }
 
         auto processor = [&nodeIndices, &targetLabel, graphConfig](const WorkChunk& chunk) {
-            initializeThreadLocalDBs(graphConfig);
-
-            std::vector<std::string> results;
-            results.reserve(chunk.endIndex - chunk.startIndex + 1);
-
-            long start = std::max(0L, chunk.startIndex - 1);
-            long end = std::min<long>(static_cast<long>(nodeIndices.size()) - 1, chunk.endIndex - 1);
-
-            for (long i = start; i <= end; ++i) {
-                const auto& pair = nodeIndices[static_cast<size_t>(i)];
-                std::string nodeId = pair.first;
-                unsigned int addressIndex = pair.second;
-
-                std::unique_ptr<NodeBlock> node(NodeManager::get(addressIndex, nodeId));
-                if (node == nullptr) continue;
-
-                string label = node->getLabel();
-                std::string partitionValue(node->getMetaPropertyHead()->value);
-
-                if (partitionValue == to_string(graphConfig.partitionID) && label == targetLabel) {
-                    json nodeData;
-                    nodeData["partitionID"] = partitionValue;
-                    std::map<std::string, char*> rawProps = node->getAllProperties();
-                    
-                    // Use RAII to automatically cleanup allocated memory
-                    std::vector<std::unique_ptr<char[]>> cleanup;
-                    cleanup.reserve(rawProps.size());
-                    
-                    for (const auto& [key, val] : rawProps) {
-                        nodeData[key] = std::string(val);
-                        cleanup.emplace_back(val);
-                    }
-
-                    results.push_back(nodeData.dump());
-                }
-            }
-            return results;
+            return processNodeByLabelChunk(chunk, nodeIndices, targetLabel, graphConfig);
         };
 
         std::vector<std::vector<std::string>> chunkResults =
@@ -1875,8 +1888,11 @@ void OperatorExecutor::NodeScanByLabelParallel(SharedBuffer &buffer, std::string
             }
         }
         buffer.add("-1");
-    } catch (const std::exception& e) {
+    } catch (const std::runtime_error& e) {
         execution_logger.error("NodeScanByLabelParallel failed: " + std::string(e.what()));
+        buffer.add("-1");
+    } catch (const json::exception& e) {
+        execution_logger.error("JSON parsing failed in NodeScanByLabelParallel: " + std::string(e.what()));
         buffer.add("-1");
     }
 }
