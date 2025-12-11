@@ -116,48 +116,64 @@ void initializeThreadLocalDBs(const GraphConfig& gc) {
     currentGraphID = gc.graphID;
 }
 
+// Helper to add filtered results to buffer
+static void addFilteredResults(const std::vector<std::vector<std::string>>& results, SharedBuffer& buffer) {
+    for (const auto& chunkResults : results) {
+        for (const auto& item : chunkResults) {
+            buffer.add(item);
+        }
+    }
+}
+
+// Helper to process batch sequentially
+static void processSequentially(const std::vector<std::string>& batch, 
+                                FilterHelper& filterHelper,
+                                SharedBuffer& buffer) {
+    for (const auto& item : batch) {
+        if (filterHelper.evaluate(item)) {
+            buffer.add(item);
+        }
+    }
+}
+
+// Helper to process batch in parallel
+static bool tryProcessInParallel(const std::vector<std::string>& batch,
+                                 FilterHelper& filterHelper,
+                                 SharedBuffer& buffer,
+                                 IntraPartitionParallelExecutor* parallelExecutor) {
+    auto processor = [&filterHelper, &batch](const WorkChunk& chunk) {
+        std::vector<std::string> localResults;
+        for (long i = chunk.startIndex - 1; i < chunk.endIndex && i < (long)batch.size(); ++i) {
+            if (filterHelper.evaluate(batch[i])) {
+                localResults.push_back(batch[i]);
+            }
+        }
+        return localResults;
+    };
+
+    try {
+        auto results = parallelExecutor->processInParallel<decltype(processor), std::vector<std::string>>(
+            static_cast<long>(batch.size()), processor);
+        addFilteredResults(results, buffer);
+        return true;
+    } catch (const std::exception& e) {
+        execution_logger.warn("Parallel filter failed, using sequential: " + std::string(e.what()));
+        return false;
+    }
+}
+
 // Helper function to process batch filtering (reduce nesting complexity)
 static void processBatch(const std::vector<std::string>& batch, 
                         FilterHelper& filterHelper,
                         SharedBuffer& buffer,
                         IntraPartitionParallelExecutor* parallelExecutor) {
-    if (parallelExecutor && batch.size() > 500) {
-        // Parallel filter for large batches
-        auto processor = [&filterHelper, &batch](const WorkChunk& chunk) {
-            std::vector<std::string> localResults;
-            for (long i = chunk.startIndex - 1; i < chunk.endIndex && i < (long)batch.size(); ++i) {
-                if (filterHelper.evaluate(batch[i])) {
-                    localResults.push_back(batch[i]);
-                }
-            }
-            return localResults;
-        };
-
-        try {
-            auto results = parallelExecutor->processInParallel<decltype(processor), std::vector<std::string>>(
-                static_cast<long>(batch.size()), processor);
-            for (const auto& chunkResults : results) {
-                for (const auto& item : chunkResults) {
-                    buffer.add(item);
-                }
-            }
-        } catch (const std::exception& e) {
-            // Fallback: sequential processing
-            execution_logger.warn("Parallel filter failed, using sequential: " + std::string(e.what()));
-            for (const auto& item : batch) {
-                if (filterHelper.evaluate(item)) {
-                    buffer.add(item);
-                }
-            }
-        }
-    } else {
-        // Sequential for small batches
-        for (const auto& item : batch) {
-            if (filterHelper.evaluate(item)) {
-                buffer.add(item);
-            }
-        }
+    bool useParallel = parallelExecutor && batch.size() > 500;
+    
+    if (useParallel && tryProcessInParallel(batch, filterHelper, buffer, parallelExecutor)) {
+        return;
     }
+    
+    processSequentially(batch, filterHelper, buffer);
 }
 
 // Helper function to process a single relationship chunk
