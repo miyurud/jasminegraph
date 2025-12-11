@@ -167,9 +167,8 @@ static void processBatch(const std::vector<std::string>& batch,
                         FilterHelper& filterHelper,
                         SharedBuffer& buffer,
                         IntraPartitionParallelExecutor* parallelExecutor) {
-    bool useParallel = parallelExecutor && batch.size() > 500;
-    
-    if (useParallel && tryProcessInParallel(batch, filterHelper, buffer, parallelExecutor)) {
+    if (bool useParallel = parallelExecutor && batch.size() > 500; 
+        useParallel && tryProcessInParallel(batch, filterHelper, buffer, parallelExecutor)) {
         return;
     }
     
@@ -332,6 +331,8 @@ void OperatorExecutor::AllNodeScan(SharedBuffer &buffer, std::string jsonPlan, G
             return;
         } catch (const std::runtime_error& e) {
             execution_logger.warn("Parallel AllNodeScan failed, falling back to sequential: " + std::string(e.what()));
+        } catch (const json::exception& e) {
+            execution_logger.warn("JSON error in parallel AllNodeScan, falling back to sequential: " + std::string(e.what()));
         }
     }
 
@@ -917,6 +918,8 @@ void OperatorExecutor::DirectedAllRelationshipScan(SharedBuffer &buffer, std::st
             return;
         } catch (const std::runtime_error& e) {
             execution_logger.warn("Parallel relationship scan failed, falling back to sequential: " + std::string(e.what()));
+        } catch (const json::exception& e) {
+            execution_logger.warn("JSON error in parallel relationship scan, falling back to sequential: " + std::string(e.what()));
         }
     }
 
@@ -1744,9 +1747,7 @@ static std::vector<std::string> processNodeScanChunk(
     long end = std::min<long>(static_cast<long>(nodeIndices.size()) - 1, chunk.endIndex - 1);
 
     for (long i = start; i <= end; ++i) {
-        const auto& pair = nodeIndices[static_cast<size_t>(i)];
-        std::string nodeId = pair.first;
-        unsigned int addressIndex = pair.second;
+        const auto& [nodeId, addressIndex] = nodeIndices[static_cast<size_t>(i)];
 
         std::unique_ptr<NodeBlock> node(NodeManager::get(addressIndex, nodeId));
         if (node == nullptr) continue;
@@ -1818,7 +1819,7 @@ static std::vector<std::string> processNodeByLabelChunk(
     return results;
 }
 
-void OperatorExecutor::AllNodeScanParallel(SharedBuffer &buffer, std::string jsonPlan, GraphConfig graphConfig) {
+void OperatorExecutor::AllNodeScanParallel(SharedBuffer &buffer, std::string jsonPlan, const GraphConfig& graphConfig) {
     // Use thread pool executor with deterministic merge
     try {
         json queryJson = json::parse(jsonPlan);
@@ -1897,7 +1898,7 @@ void OperatorExecutor::NodeScanByLabelParallel(SharedBuffer &buffer, std::string
     }
 }
 
-void OperatorExecutor::DirectedAllRelationshipScanParallel(SharedBuffer &buffer, std::string jsonPlan, GraphConfig graphConfig) {
+void OperatorExecutor::DirectedAllRelationshipScanParallel(SharedBuffer &buffer, std::string jsonPlan, const GraphConfig& graphConfig) {
     json queryParsed = json::parse(jsonPlan);
     NodeManager nodeManager(graphConfig);
     const std::string& dbPrefix = nodeManager.getDbPrefix();
