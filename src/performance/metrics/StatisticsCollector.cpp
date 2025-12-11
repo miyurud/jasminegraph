@@ -24,29 +24,9 @@ constexpr std::size_t LINE_BUF_SIZE_LONG = 256;
 Logger stat_logger;
 static int numProcessors;
 
-// Data structures for system statistics
-struct DiskStats {
-    unsigned long reads_completed = 0;
-    unsigned long reads_merged = 0;
-    unsigned long sectors_read = 0;
-    unsigned long time_reading = 0;
-    unsigned long writes_completed = 0;
-    unsigned long writes_merged = 0;
-    unsigned long sectors_written = 0;
-    unsigned long time_writing = 0;
-    unsigned long ios_in_progress = 0;
-    unsigned long io_time = 0;
-    unsigned long weighted_io_time = 0;
-};
-
-struct NetworkStats {
-    unsigned long rx_packets = 0;
-    unsigned long tx_packets = 0;
-};
-
 // Forward declarations for internal helper functions
-static long parseLine(char *line);
-static long getSwapSpace(const char *type);
+static long parseLine(const char *line);
+static long getSwapSpace(int field);
 static void getCpuCycles(long *totalp, long *idlep);
 
 // Time calculation utilities
@@ -715,8 +695,8 @@ double StatisticsCollector::getForkCallsPerSecond() {
 }
 
 // Network operations
-std::map<std::string, std::pair<double, double>, std::less<>> StatisticsCollector::getNetworkPacketsPerSecond() {
-    std::map<std::string, std::pair<double, double>, std::less<>> packetRates;
+std::unordered_map<std::string, std::pair<double, double>> StatisticsCollector::getNetworkPacketsPerSecond() {
+    std::unordered_map<std::string, std::pair<double, double>> packetRates;
 
     // First reading of network statistics
     std::map<std::string, NetworkStats, std::less<>> firstReading;
@@ -778,8 +758,8 @@ std::map<std::string, std::pair<double, double>, std::less<>> StatisticsCollecto
 }
 
 // Disk operations
-std::map<std::string, double, std::less<>> StatisticsCollector::getDiskBusyPercentage() {
-    std::map<std::string, double, std::less<>> diskBusyRates;
+std::unordered_map<std::string, double> StatisticsCollector::getDiskBusyPercentage() {
+    std::unordered_map<std::string, double> diskBusyRates;
 
     struct timespec startTime;
     struct timespec endTime;
@@ -851,8 +831,8 @@ std::map<std::string, double, std::less<>> StatisticsCollector::getDiskBusyPerce
     return diskBusyRates;
 }
 
-std::map<std::string, std::pair<double, double>, std::less<>> StatisticsCollector::getDiskReadWriteKBPerSecond() {
-    std::map<std::string, std::pair<double, double>, std::less<>> diskRates;
+std::unordered_map<std::string, std::pair<double, double>> StatisticsCollector::getDiskReadWriteKBPerSecond() {
+    std::unordered_map<std::string, std::pair<double, double>> diskRates;
 
     double elapsedTime;
     auto [firstReading, secondReading] = getTwoDiskReadings(elapsedTime);
@@ -866,7 +846,7 @@ std::map<std::string, std::pair<double, double>, std::less<>> StatisticsCollecto
 }
 
 // Take two readings with a 1-second interval
-std::pair<std::map<std::string, DiskStats, std::less<>>, std::map<std::string, DiskStats, std::less<>>>
+std::pair<std::unordered_map<std::string, DiskStats>, std::unordered_map<std::string, DiskStats>>
 StatisticsCollector::getTwoDiskReadings(double &elapsedTime) {
     struct timespec startTime, endTime;
     clock_gettime(CLOCK_MONOTONIC, &startTime);
@@ -879,7 +859,8 @@ StatisticsCollector::getTwoDiskReadings(double &elapsedTime) {
         return {{}, {}};
     }
 
-    nanosleep(&(struct timespec{1, 0}), nullptr);
+    struct timespec sleepTime = {1, 0};
+    nanosleep(&sleepTime, nullptr);
 
     std::map<std::string, DiskStats, std::less<>> secondReading;
     if (!readDiskStats(secondReading, "second reading")) return {{}, {}};
@@ -897,12 +878,12 @@ unsigned long calculateDelta(unsigned long first, unsigned long second) {
 }
 
 // Compute read/write KB per second for each device
-std::map<std::string, std::pair<double, double>, std::less<>> StatisticsCollector::calculateDiskRates(
-    const std::map<std::string, DiskStats> &firstReading,
-    const std::map<std::string, DiskStats> &secondReading,
+std::unordered_map<std::string, std::pair<double, double>> StatisticsCollector::calculateDiskRates(
+    const std::unordered_map<std::string, DiskStats> &firstReading,
+    const std::unordered_map<std::string, DiskStats> &secondReading,
     double elapsedTime) {
 
-    std::map<std::string, std::pair<double, double>, std::less<>> diskRates;
+    std::unordered_map<std::string, std::pair<double, double>> diskRates;
 
     for (const auto& [device, diskStats] : firstReading) {
         if (secondReading.find(device) == secondReading.end()) continue;
@@ -920,8 +901,8 @@ std::map<std::string, std::pair<double, double>, std::less<>> StatisticsCollecto
     return diskRates;
 }
 
-std::map<std::string, double, std::less<>> StatisticsCollector::getDiskBlockSizeKB() {
-    std::map<std::string, double, std::less<>> diskBlockSizes;
+std::unordered_map<std::string, double> StatisticsCollector::getDiskBlockSizeKB() {
+    std::unordered_map<std::string, double> diskBlockSizes;
 
     std::map<std::string, DiskStats, std::less<>> allStats;
     if (!readDiskStats(allStats, "disk block size reading")) {
@@ -948,8 +929,8 @@ std::map<std::string, double, std::less<>> StatisticsCollector::getDiskBlockSize
     return diskBlockSizes;
 }
 
-std::unordered_map<std::string, double, std::less<>> StatisticsCollector::getDiskTransfersPerSecond() {
-    std::unordered_map<std::string, double, std::less<>> diskTransferRates;
+std::unordered_map<std::string, double> StatisticsCollector::getDiskTransfersPerSecond() {
+    std::unordered_map<std::string, double> diskTransferRates;
 
     struct timespec startTime;
     struct timespec endTime;
@@ -965,7 +946,8 @@ std::unordered_map<std::string, double, std::less<>> StatisticsCollector::getDis
     }
 
     // Sleep for a short interval to get meaningful difference
-    nanosleep(&(struct timespec){1, 0}, nullptr);
+    struct timespec sleepTime = {1, 0};
+    nanosleep(&sleepTime, nullptr);
 
     // Second reading
     std::map<std::string, DiskStats, std::less<>> secondReading;

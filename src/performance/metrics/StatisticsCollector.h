@@ -82,17 +82,17 @@ class StatisticsCollector {
     static std::vector<double> getLogicalCpuCoreThreadUsage();
     static double getProcessSwitchesPerSecond();
     static double getForkCallsPerSecond();
-    static std::map<std::string, std::pair<double, double>, std::less<>> getNetworkPacketsPerSecond();
-    static std::map<std::string, double, std::less<>> getDiskBusyPercentage();
-    static std::map<std::string, std::pair<double, double>, std::less<>> getDiskReadWriteKBPerSecond();
-    static std::map<std::string, double, std::less<>> getDiskBlockSizeKB();
-    static std::unordered_map<std::string, double, std::less<>> getDiskTransfersPerSecond();
+    static std::unordered_map<std::string, std::pair<double, double>> getNetworkPacketsPerSecond();
+    static std::unordered_map<std::string, double> getDiskBusyPercentage();
+    static std::unordered_map<std::string, std::pair<double, double>> getDiskReadWriteKBPerSecond();
+    static std::unordered_map<std::string, double> getDiskBlockSizeKB();
+    static std::unordered_map<std::string, double> getDiskTransfersPerSecond();
     static void logLoadAverage(std::string name);
     static double getMemoryUsagePercentage();
-    static std::pair<std::map<std::string, DiskStats, std::less<>>, std::map<std::string, DiskStats, std::less<>>> getTwoDiskReadings(double &elapsedTime);
-    static std::map<std::string, std::pair<double, double>, std::less<>> calculateDiskRates(
-        const std::map<std::string, DiskStats, std::less<>> &firstReading,
-        const std::map<std::string, DiskStats, std::less<>> &secondReading,
+    static std::pair<std::unordered_map<std::string, DiskStats>, std::unordered_map<std::string, DiskStats>> getTwoDiskReadings(double &elapsedTime);
+    static std::unordered_map<std::string, std::pair<double, double>> calculateDiskRates(
+        const std::unordered_map<std::string, DiskStats> &firstReading,
+        const std::unordered_map<std::string, DiskStats> &secondReading,
         double elapsedTime);
 };
 
