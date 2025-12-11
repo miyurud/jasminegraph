@@ -141,21 +141,10 @@ static bool tryProcessInParallel(const std::vector<std::string>& batch,
         return localResults;
     };
 
-    try {
-        auto results = parallelExecutor->processInParallel<decltype(processor), std::vector<std::string>>(
-            static_cast<long>(batch.size()), processor);
-        addFilteredResults(results, buffer);
-        return true;
-    } catch (const std::runtime_error& e) {
-        execution_logger.warn("Parallel filter failed, using sequential: " + std::string(e.what()));
-        return false;
-    } catch (const std::bad_alloc& e) {
-        execution_logger.warn("Memory allocation failed in parallel filter, using sequential: " + std::string(e.what()));
-        return false;
-    } catch (const std::exception& e) {
-        execution_logger.warn("Unexpected exception in parallel filter, using sequential: " + std::string(e.what()));
-        return false;
-    }
+    auto results = parallelExecutor->processInParallel<decltype(processor), std::vector<std::string>>(
+        static_cast<long>(batch.size()), processor);
+    addFilteredResults(results, buffer);
+    return true;
 }
 
 // Helper function to process batch filtering (reduce nesting complexity)
@@ -224,21 +213,7 @@ OperatorExecutor::OperatorExecutor(GraphConfig gc, std::string queryPlan, std::s
 
     // Initialize parallel executor safely
     if (!parallelExecutor) {
-        try {
-            parallelExecutor = std::make_unique<IntraPartitionParallelExecutor>();
-        } catch (const std::bad_alloc& e) {
-            execution_logger.error("Failed to allocate parallel executor: " + std::string(e.what()));
-            parallelExecutor = nullptr;
-        } catch (const std::runtime_error& e) {
-            execution_logger.error("Failed to initialize parallel executor: " + std::string(e.what()));
-            parallelExecutor = nullptr;
-        } catch (const std::logic_error& e) {
-            execution_logger.error("Logic error in parallel executor initialization: " + std::string(e.what()));
-            parallelExecutor = nullptr;
-        } catch (const std::exception& e) {
-            execution_logger.error("Unexpected exception in parallel executor initialization: " + std::string(e.what()));
-            parallelExecutor = nullptr;
-        }
+        parallelExecutor = std::make_unique<IntraPartitionParallelExecutor>();
     }
 };
 
@@ -331,14 +306,8 @@ void OperatorExecutor::AllNodeScan(SharedBuffer &buffer, std::string jsonPlan, G
         try {
             AllNodeScanParallel(buffer, jsonPlan, gc);
             return;
-        } catch (const std::runtime_error& e) {
-            execution_logger.warn("Parallel AllNodeScan failed, falling back to sequential: " + std::string(e.what()));
-        } catch (const json::exception& e) {
-            execution_logger.warn("JSON error in parallel AllNodeScan, falling back to sequential: " + std::string(e.what()));
-        } catch (const std::bad_alloc& e) {
-            execution_logger.warn("Memory allocation failed in parallel AllNodeScan, falling back to sequential: " + std::string(e.what()));
         } catch (const std::exception& e) {
-            execution_logger.warn("Unexpected exception in parallel AllNodeScan, falling back to sequential: " + std::string(e.what()));
+            execution_logger.warn("Parallel AllNodeScan failed, falling back to sequential: " + std::string(e.what()));
         }
     }
 
@@ -375,14 +344,8 @@ void OperatorExecutor::NodeScanByLabel(SharedBuffer &buffer, std::string jsonPla
         try {
             NodeScanByLabelParallel(buffer, jsonPlan, gc);
             return;
-        } catch (const std::runtime_error& e) {
-            execution_logger.warn("Parallel processing failed, falling back to sequential: " + std::string(e.what()));
-        } catch (const json::exception& e) {
-            execution_logger.warn("JSON error in parallel processing, falling back to sequential: " + std::string(e.what()));
-        } catch (const std::bad_alloc& e) {
-            execution_logger.warn("Memory allocation failed in parallel processing, falling back to sequential: " + std::string(e.what()));
         } catch (const std::exception& e) {
-            execution_logger.warn("Unexpected exception in parallel processing, falling back to sequential: " + std::string(e.what()));
+            execution_logger.warn("Parallel NodeScanByLabel failed, falling back to sequential: " + std::string(e.what()));
         }
     }
 
@@ -848,14 +811,8 @@ void OperatorExecutor::DirectedAllRelationshipScan(SharedBuffer &buffer, std::st
         try {
             DirectedAllRelationshipScanParallel(buffer, jsonPlan, gc);
             return;
-        } catch (const std::runtime_error& e) {
-            execution_logger.warn("Parallel relationship scan failed, falling back to sequential: " + std::string(e.what()));
-        } catch (const json::exception& e) {
-            execution_logger.warn("JSON error in parallel relationship scan, falling back to sequential: " + std::string(e.what()));
-        } catch (const std::bad_alloc& e) {
-            execution_logger.warn("Memory allocation failed in parallel relationship scan, falling back to sequential: " + std::string(e.what()));
         } catch (const std::exception& e) {
-            execution_logger.warn("Unexpected exception in parallel relationship scan, falling back to sequential: " + std::string(e.what()));
+            execution_logger.warn("Parallel relationship scan failed, falling back to sequential: " + std::string(e.what()));
         }
     }
 
@@ -1707,8 +1664,7 @@ static std::vector<std::string> processNodeByLabelChunk(
 
 void OperatorExecutor::AllNodeScanParallel(SharedBuffer &buffer, std::string jsonPlan, const GraphConfig& graphConfig) {
     // Use thread pool executor with deterministic merge
-    try {
-        json queryJson = json::parse(jsonPlan);
+    json queryJson = json::parse(jsonPlan);
         NodeManager nodeManager(graphConfig);
         string variable = queryJson["variables"].get<std::string>();
 
@@ -1738,62 +1694,35 @@ void OperatorExecutor::AllNodeScanParallel(SharedBuffer &buffer, std::string jso
             }
         }
         buffer.add("-1");
-    } catch (const std::runtime_error& e) {
-        execution_logger.error("AllNodeScanParallel failed: " + std::string(e.what()));
-        buffer.add("-1");
-    } catch (const json::exception& e) {
-        execution_logger.error("JSON parsing failed in AllNodeScanParallel: " + std::string(e.what()));
-        buffer.add("-1");
-    } catch (const std::bad_alloc& e) {
-        execution_logger.error("Memory allocation failed in AllNodeScanParallel: " + std::string(e.what()));
-        buffer.add("-1");
-    } catch (const std::exception& e) {
-        execution_logger.error("Unexpected exception in AllNodeScanParallel: " + std::string(e.what()));
-        buffer.add("-1");
-    }
 }
 
 void OperatorExecutor::NodeScanByLabelParallel(SharedBuffer &buffer, std::string jsonPlan, const GraphConfig& graphConfig) {
-    try {
-        json queryParsed = json::parse(jsonPlan);
-        NodeManager nodeManager(graphConfig);
-        string targetLabel = queryParsed["Label"].get<std::string>();
+    json queryParsed = json::parse(jsonPlan);
+    NodeManager nodeManager(graphConfig);
+    string targetLabel = queryParsed["Label"].get<std::string>();
 
-        // Collect node indices (ID, AddressIndex)
-        std::vector<std::pair<std::string, unsigned int>> nodeIndices;
-        nodeIndices.reserve(nodeManager.nodeIndex.size());
+    // Collect node indices (ID, AddressIndex)
+    std::vector<std::pair<std::string, unsigned int>> nodeIndices;
+    nodeIndices.reserve(nodeManager.nodeIndex.size());
 
-        for (const auto& [nodeId, addressIdx] : nodeManager.nodeIndex) {
-            nodeIndices.emplace_back(nodeId, addressIdx);
-        }
-
-        auto processor = [&nodeIndices, &targetLabel, graphConfig](const WorkChunk& chunk) {
-            return processNodeByLabelChunk(chunk, nodeIndices, targetLabel, graphConfig);
-        };
-
-        std::vector<std::vector<std::string>> chunkResults =
-            parallelExecutor->processInParallel<decltype(processor), std::vector<std::string>>(
-                static_cast<long>(nodeIndices.size()), processor);
-
-        for (const auto& chunkVec : chunkResults) {
-            for (const auto& row : chunkVec) {
-                buffer.add(row);
-            }
-        }
-        buffer.add("-1");
-    } catch (const std::runtime_error& e) {
-        execution_logger.error("NodeScanByLabelParallel failed: " + std::string(e.what()));
-        buffer.add("-1");
-    } catch (const json::exception& e) {
-        execution_logger.error("JSON parsing failed in NodeScanByLabelParallel: " + std::string(e.what()));
-        buffer.add("-1");
-    } catch (const std::bad_alloc& e) {
-        execution_logger.error("Memory allocation failed in NodeScanByLabelParallel: " + std::string(e.what()));
-        buffer.add("-1");
-    } catch (const std::exception& e) {
-        execution_logger.error("Unexpected exception in NodeScanByLabelParallel: " + std::string(e.what()));
-        buffer.add("-1");
+    for (const auto& [nodeId, addressIdx] : nodeManager.nodeIndex) {
+        nodeIndices.emplace_back(nodeId, addressIdx);
     }
+
+    auto processor = [&nodeIndices, &targetLabel, graphConfig](const WorkChunk& chunk) {
+        return processNodeByLabelChunk(chunk, nodeIndices, targetLabel, graphConfig);
+    };
+
+    std::vector<std::vector<std::string>> chunkResults =
+        parallelExecutor->processInParallel<decltype(processor), std::vector<std::string>>(
+            static_cast<long>(nodeIndices.size()), processor);
+
+    for (const auto& chunkVec : chunkResults) {
+        for (const auto& row : chunkVec) {
+            buffer.add(row);
+        }
+    }
+    buffer.add("-1");
 }
 
 void OperatorExecutor::DirectedAllRelationshipScanParallel(SharedBuffer &buffer, std::string jsonPlan, const GraphConfig& graphConfig) {
