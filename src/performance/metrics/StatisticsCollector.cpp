@@ -328,11 +328,8 @@ static long parseLine(const char *line) {
 }
 
 static long getSwapSpace(int field) {
-    std::ifstream file("/proc/swaps");
-    if (!file.is_open()) {
-        std::string msg = "Cannot open /proc/swaps";
-        return -1;
-    }
+    FILE *file = fopen("/proc/swaps", "r");
+    if (!file) return -1;
 
     char line[LINE_BUF_SIZE];
     long result = 0;
