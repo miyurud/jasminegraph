@@ -863,12 +863,14 @@ StatisticsCollector::getTwoDiskReadings(double &elapsedTime) {
     nanosleep(&sleepTime, nullptr);
 
     std::map<std::string, DiskStats, std::less<>> secondReading;
-    if (!readDiskStats(secondReading, "second reading")) return {{}, {}};
+    if (!readDiskStats(secondReading, "second reading"))
+    return std::make_pair(std::unordered_map<std::string, DiskStats>(), std::unordered_map<std::string, DiskStats>());
 
     clock_gettime(CLOCK_MONOTONIC, &endTime);
     elapsedTime = calculateElapsedTime(startTime, endTime);
 
-    return {firstReading, secondReading};
+    return std::make_pair(std::unordered_map<std::string, DiskStats>(firstReading.begin(), firstReading.end()),
+                          std::unordered_map<std::string, DiskStats>(secondReading.begin(), secondReading.end()));
 }
 
 // Calculate delta, handle counter wraparound
