@@ -24,29 +24,9 @@ constexpr std::size_t LINE_BUF_SIZE_LONG = 256;
 Logger stat_logger;
 static int numProcessors;
 
-// Data structures for system statistics
-struct DiskStats {
-    unsigned long reads_completed = 0;
-    unsigned long reads_merged = 0;
-    unsigned long sectors_read = 0;
-    unsigned long time_reading = 0;
-    unsigned long writes_completed = 0;
-    unsigned long writes_merged = 0;
-    unsigned long sectors_written = 0;
-    unsigned long time_writing = 0;
-    unsigned long ios_in_progress = 0;
-    unsigned long io_time = 0;
-    unsigned long weighted_io_time = 0;
-};
-
-struct NetworkStats {
-    unsigned long rx_packets = 0;
-    unsigned long tx_packets = 0;
-};
-
 // Forward declarations for internal helper functions
-static long parseLine(char *line);
-static long getSwapSpace(const char *type);
+static long parseLine(const char *line);
+static long getSwapSpace(int field);
 static void getCpuCycles(long *totalp, long *idlep);
 
 // Time calculation utilities
@@ -61,79 +41,73 @@ static double calculateElapsedTimeMs(const struct timespec& startTime, const str
 
 // /proc/stat operations
 static long readProcStatValue(const char* prefix, int prefixLen) {
-    FILE *file = fopen("/proc/stat", "r");
-    if (!file) {
+    std::ifstream file("/proc/stat");
+    if (!file.is_open()) {
         stat_logger.error("Cannot open /proc/stat");
         return -1;
     }
 
     std::string line;
-    std::string buffer(LINE_BUF_SIZE, '\0');
-    long value = -1;
+    std::string_view prefixView(prefix, prefixLen);
 
-    while (fgets(&buffer[0], LINE_BUF_SIZE, file) != nullptr) {
-        line = buffer.c_str();
-        std::string_view lineView(line);
-        if (std::string_view prefixView(prefix, prefixLen); lineView.substr(0, prefixLen) != prefixView) {
+    while (std::getline(file, line)) {
+        std::string_view view(line);
+
+        // Skip if line doesn't start with the prefix
+        if (view.size() < prefixView.size() || view.compare(0, prefixView.size(), prefixView) != 0)
             continue;
-        }
-        const char *p = line.c_str();
-        while (*p && (*p < '0' || *p > '9')) p++;  // Skip to first digit
-        if (*p) {
-            value = strtoll(p, nullptr, 10);
-            if (value < 0) {
-                value = -1;  // Invalid value
-            }
-        }
-        break;
+
+        // Find first digit
+        auto pos = view.find_first_of("0123456789");
+        if (pos == std::string_view::npos)
+            return -1;
+
+        // Extract substring and convert to long
+        std::string numStr(view.data() + pos, view.size() - pos);
+        char* end = nullptr;
+        long value = strtol(numStr.c_str(), &end, 10);
+
+        if (end == numStr.c_str() || value < 0)
+            return -1;
+
+        return value;
     }
 
-    fclose(file);
-    return value;
+    return -1; // Not found
 }
 
 static double measureProcStatRate(const char* prefix, int prefixLen, int sleepSeconds) {
     // First reading
-    long firstValue = readProcStatValue(prefix, prefixLen);
-    if (firstValue == -1) {
+    const long firstValue = readProcStatValue(prefix, prefixLen);
+    if (firstValue < 0) {
         stat_logger.error(std::string("Could not read initial ") + prefix + " value");
         return -1.0;
     }
 
     // Record start time
-    struct timespec startTime;
-    struct timespec endTime;
-    clock_gettime(CLOCK_MONOTONIC, &startTime);
-
-    // Sleep for measurement interval
+    const auto start = std::chrono::steady_clock::now();
     sleep(sleepSeconds);
 
-    // Second reading
-    long secondValue = readProcStatValue(prefix, prefixLen);
-    if (secondValue == -1) {
+    const long secondValue = readProcStatValue(prefix, prefixLen);
+    if (secondValue < 0) {
         stat_logger.error(std::string("Could not read final ") + prefix + " value");
         return -1.0;
     }
 
-    // Record end time
-    clock_gettime(CLOCK_MONOTONIC, &endTime);
-
     // Calculate elapsed time in seconds
-    double elapsedTime = calculateElapsedTime(startTime, endTime);
-
-    if (elapsedTime <= 0.0) {
+    const std::chrono::duration<double> elapsed = std::chrono::steady_clock::now() - start;
+    if (elapsed.count() <= 0.0) {
         stat_logger.error(std::string("Invalid elapsed time for ") + prefix + " calculation");
         return -1.0;
     }
 
-    // Calculate rate per second
-    long valueDiff = secondValue - firstValue;
+    const long valueDiff = secondValue - firstValue;
     if (valueDiff < 0) {
         stat_logger.error(std::string(prefix) + " counter wrapped or invalid");
         return -1.0;
     }
 
-    return (double)valueDiff / elapsedTime;
+    return valueDiff / elapsed.count();
 }
 
 // CPU statistics operations
@@ -186,33 +160,31 @@ static bool readCpuStats(std::vector<std::vector<long>> &readings, const std::st
 static void getCpuCycles(long *totalp, long *idlep) {
     *totalp = 0;
     *idlep = 0;
-    FILE *fp = fopen("/proc/stat", "r");
-    if (!fp) return;
-    char line[1024];
-    fscanf(fp, "%[^\r\n]%*c", line);
-    fclose(fp);
 
-    char *p = line;
-    while (*p < '0' || *p > '9') p++;
-    long total = 0;
-    long idle = 0;
-    char *end_ptr = p;
-    for (int field = 1; field <= 10; field++) {
-        while (*p < '0' || *p > '9') {
-            if (!(*p)) break;
-            p++;
-        }
-        if (!(*p)) break;
-        long value = strtoll(p, &end_ptr, 10);
-        p = end_ptr;
-        if (value < 0) {
-            stat_logger.error("Value is " + to_string(value) + " for line " + string(line));
-        }
-        if (field == 4) {
-            idle += value;
-        }
-        total += value;
+    std::ifstream file("/proc/stat");
+    if (!file.is_open()) return;
+
+    std::string cpu;
+    long user;
+    long nice;
+    long system;
+    long idle;
+    long iowait;
+    long irq;
+    long softirq;
+    long steal;
+    long guest;
+    long guest_nice;
+
+    file >> cpu;
+    if (cpu != "cpu") return;
+
+    if (!(file >> user >> nice >> system >> idle >> iowait >> irq >> softirq >> steal >> guest >> guest_nice)) {
+        return;
     }
+
+    long total = user + nice + system + idle + iowait + irq + softirq + steal + guest + guest_nice;
+
     *totalp = total;
     *idlep = idle;
 }
@@ -220,8 +192,8 @@ static void getCpuCycles(long *totalp, long *idlep) {
 // Network statistics operations
 static bool readNetworkStats(std::map<std::string, NetworkStats, std::less<>> &out,
                 const std::string& errorContext = "") {
-    FILE *file = fopen("/proc/net/dev", "r");
-    if (!file) {
+    std::ifstream file("/proc/net/dev");
+    if (!file.is_open()) {
         std::string msg = "Cannot open /proc/net/dev";
         if (!errorContext.empty()) {
             msg += " for " + errorContext;
@@ -231,23 +203,34 @@ static bool readNetworkStats(std::map<std::string, NetworkStats, std::less<>> &o
     }
 
     std::string line;
-    std::string buffer(LINE_BUF_SIZE_LONG, '\0');
+
     // Skip header lines
-    if (fgets(&buffer[0], LINE_BUF_SIZE_LONG, file) == nullptr || fgets(&buffer[0], LINE_BUF_SIZE_LONG, file)
-                    == nullptr) {
+    if (!std::getline(file, line) || !std::getline(file, line)) {
         std::string msg = "Cannot read header lines from /proc/net/dev";
         if (!errorContext.empty()) {
             msg += " in " + errorContext;
         }
         stat_logger.error(msg);
-        fclose(file);
         return false;
     }
 
-    // Read network interface statistics
-    while (fgets(&buffer[0], LINE_BUF_SIZE_LONG, file) != nullptr) {
-        line = buffer.c_str();
-        std::string interface;
+    while (std::getline(file, line)) {
+        std::string_view sv(line);
+
+        // Trim leading spaces
+        while (!sv.empty() && (sv.front() == ' ' || sv.front() == '\t'))
+            sv.remove_prefix(1);
+
+        // Find interface name (before ':')
+        size_t pos = sv.find(':');
+        if (pos == std::string_view::npos)
+            continue;
+
+        std::string interface(sv.substr(0, pos));
+
+        // Remainder has the counters
+        std::string_view rest = sv.substr(pos + 1);
+
         unsigned long rx_bytes;
         unsigned long rx_packets;
         unsigned long rx_errs;
@@ -265,33 +248,29 @@ static bool readNetworkStats(std::map<std::string, NetworkStats, std::less<>> &o
         unsigned long tx_carrier;
         unsigned long tx_compressed;
 
-        // Strip spaces and parse the line
-        const char *p = line.c_str();
-        while (*p == ' ' || *p == '\t') p++;  // Skip leading whitespace
-
-        std::string interfaceBuffer(32, '\0');
-        int ret = sscanf(p, "%31[^:]: %llu %llu %llu %llu %llu %llu %llu %llu %llu %llu %llu %llu %llu %llu %llu %llu",
-            &interfaceBuffer[0],
-            &rx_bytes, &rx_packets, &rx_errs, &rx_drop, &rx_fifo, &rx_frame, &rx_compressed, &rx_multicast,
-            &tx_bytes, &tx_packets, &tx_errs, &tx_drop, &tx_fifo, &tx_colls, &tx_carrier, &tx_compressed);
-
-        if (ret == 17) {
-            interface = interfaceBuffer.c_str();
-            NetworkStats ns;
-            ns.rx_packets = rx_packets;
-            ns.tx_packets = tx_packets;
-            out[interface] = ns;
+        // Parse fast using std::istringstream (fits <20 integers)
+        std::string restStr(rest);
+        std::istringstream iss(restStr);
+        if (!(iss >> rx_bytes >> rx_packets >> rx_errs >> rx_drop >> rx_fifo >> rx_frame
+                  >> rx_compressed >> rx_multicast >> tx_bytes >> tx_packets >> tx_errs >> tx_drop
+                  >> tx_fifo >> tx_colls >> tx_carrier >> tx_compressed))
+        {
+            continue; // skip malformed line
         }
-    }
 
-    fclose(file);
+        NetworkStats stats;
+        stats.rx_packets = rx_packets;
+        stats.tx_packets = tx_packets;
+
+        out[interface] = stats;
+    }
     return true;
 }
 
 // Disk statistics operations
 static bool readDiskStats(std::map<std::string, DiskStats, std::less<>> &out, const std::string& errorContext = "") {
-    FILE *file = fopen("/proc/diskstats", "r");
-    if (!file) {
+    std::ifstream file("/proc/diskstats");
+    if (!file.is_open()) {
         std::string msg = "Cannot open /proc/diskstats";
         if (!errorContext.empty()) {
             msg += " for " + errorContext;
@@ -301,79 +280,92 @@ static bool readDiskStats(std::map<std::string, DiskStats, std::less<>> &out, co
     }
 
     std::string line;
-    std::string buffer(LINE_BUF_SIZE_LONG, '\0');
-    while (fgets(&buffer[0], LINE_BUF_SIZE_LONG, file) != nullptr) {
-        line = buffer.c_str();
+    while (std::getline(file, line)) {
+        std::istringstream iss(line);
         int major = 0;
         int minor = 0;
         std::string device;
         DiskStats ds;
 
-        // Parse up to 14 fields; sscanf will fill available values.
-        std::string deviceBuffer(32, '\0');
-        int ret = sscanf(line.c_str(), "%d %d %31s %llu %llu %llu %llu %llu %llu %llu %llu %llu %llu %llu",
-                         &major, &minor, &deviceBuffer[0],
-                         &ds.reads_completed, &ds.reads_merged, &ds.sectors_read, &ds.time_reading,
-                         &ds.writes_completed, &ds.writes_merged, &ds.sectors_written, &ds.time_writing,
-                         &ds.ios_in_progress, &ds.io_time, &ds.weighted_io_time);
+        // Parse fields; /proc/diskstats has at least 3 fields always.
+        if (!(iss >> major >> minor >> device))
+            continue;
 
-        if (ret >= 3) {
-            device = deviceBuffer.c_str();
-            // Skip loop and ram devices
-            if (device.compare(0, 4, "loop") != 0 && device.compare(0, 3, "ram") != 0) {
-                out[device] = ds;
-            }
-        }
+        // Skip loop and ram devices
+        if (device.rfind("loop", 0) == 0 || device.rfind("ram", 0) == 0)
+            continue;
+
+        // Now parse the remaining fields if available
+        iss >> ds.reads_completed >> ds.reads_merged >> ds.sectors_read >> ds.time_reading
+            >> ds.writes_completed >> ds.writes_merged >> ds.sectors_written >> ds.time_writing
+            >> ds.ios_in_progress >> ds.io_time >> ds.weighted_io_time;
+
+        out[device] = ds;
     }
 
-    fclose(file);
     return true;
 }
 
 // Memory and process utilities
-static long parseLine(char *line) {
-    int i = strlen(line);
+static long parseLine(const char *line) {
+    if (!line) return -1;
+
+    // Skip until we find first digit
     const char *p = line;
-    while (*p < '0' || *p > '9') p++;
-    line[i - 3] = '\0';
-    long val = strtol(p, nullptr, 10);
-    if (val < 0 || val > 0xfffffffffffffffL) return -1;
+    while (*p && (*p < '0' || *p > '9'))
+        p++;
+
+    if (!*p)   // no digits found
+        return -1;
+
+    // Parse number
+    char *end = nullptr;
+    long val = strtol(p, &end, 10);
+    if (end == p || val < 0)
+        return -1;
+
     return val;
 }
 
 static long getSwapSpace(int field) {
     FILE *file = fopen("/proc/swaps", "r");
-    long result = -1;
+    if (!file) return -1;
+
     char line[LINE_BUF_SIZE];
+    long result = 0;
+    bool hasValue = false;
 
-    fgets(line, LINE_BUF_SIZE, file);
+    // skip header
+    fgets(line, sizeof(line), file);
 
-    while (fgets(line, LINE_BUF_SIZE, file) != nullptr) {
-        const char *value = nullptr;
-        char *save = nullptr;
-        for (int i = 0; i < field; i++) {
-            if (i == 0) {
-                value = strtok_r(line, " ", &save);
-            } else {
-                value = strtok_r(nullptr, "\t", &save);
-            }
+    while (fgets(line, sizeof(line), file)) {
+        const char* p = line;
+        int current = 0;
+
+        // skip leading spaces/tabs
+        while (*p == ' ' || *p == '\t') p++;
+
+        // iterate over whitespace-separated fields
+        while (*p && current < field) {
+            // skip token
+            while (*p && *p != ' ' && *p != '\t') p++;
+            // skip whitespace
+            while (*p == ' ' || *p == '\t') p++;
+            current++;
         }
-        if (value == nullptr) {
-            continue;
-        }
-        long used = strtol(value, nullptr, 10);
-        if (used < 0 || used > 0xfffffffffffffffL) {
-            continue;
-        }
-        if (result >= 0) {
-            result += used;
-        } else {
-            result = used;
-        }
+
+        if (current != field || !*p) continue;
+
+        // parse value
+        char* end = nullptr;
+        long value = strtol(p, &end, 10);
+        if (end == p || value < 0) continue;
+
+        result += value;
+        hasValue = true;
     }
-    fclose(file);
 
-    return result;
+    return hasValue ? result : -1;
 }
 
 int StatisticsCollector::init() {
@@ -531,21 +523,31 @@ int StatisticsCollector::getSocketCount() {
         puts("Error opening directory /proc/self/fd");
         return -1;
     }
-    const struct dirent *dir;
+
+    struct dirent *dir;
     char path[64];
     char link_buf[1024];
     int count = 0;
+
     while ((dir = readdir(d)) != nullptr) {
         const char *filename = dir->d_name;
-        if (filename[0] < '0' || '9' < filename[0]) continue;
-        sprintf(path, "/proc/self/fd/%s", filename);
-        size_t len = readlink(path, link_buf, sizeof(link_buf) - 1);
-        link_buf[len] = 0;
-        if (len > 0 && strncmp("socket:", link_buf, 7) == 0) {
+
+        // Skip non-numeric entries
+        if (!isdigit((unsigned char)filename[0])) continue;
+
+        int n = snprintf(path, sizeof(path), "/proc/self/fd/%s", filename);
+        if (n < 0 || n >= (int)sizeof(path)) continue;  // skip if path too long
+
+        ssize_t len = readlink(path, link_buf, sizeof(link_buf) - 1);
+        if (len <= 0) continue;
+
+        link_buf[len] = '\0';
+        if (strncmp(link_buf, "socket:", 7) == 0) {
             count++;
         }
     }
-    (void)closedir(d);
+
+    closedir(d);
     return count;
 }
 
@@ -690,8 +692,8 @@ double StatisticsCollector::getForkCallsPerSecond() {
 }
 
 // Network operations
-std::map<std::string, std::pair<double, double>, std::less<>> StatisticsCollector::getNetworkPacketsPerSecond() {
-    std::map<std::string, std::pair<double, double>, std::less<>> packetRates;
+std::unordered_map<std::string, std::pair<double, double>> StatisticsCollector::getNetworkPacketsPerSecond() {
+    std::unordered_map<std::string, std::pair<double, double>> packetRates;
 
     // First reading of network statistics
     std::map<std::string, NetworkStats, std::less<>> firstReading;
@@ -753,8 +755,8 @@ std::map<std::string, std::pair<double, double>, std::less<>> StatisticsCollecto
 }
 
 // Disk operations
-std::map<std::string, double, std::less<>> StatisticsCollector::getDiskBusyPercentage() {
-    std::map<std::string, double, std::less<>> diskBusyRates;
+std::unordered_map<std::string, double> StatisticsCollector::getDiskBusyPercentage() {
+    std::unordered_map<std::string, double> diskBusyRates;
 
     struct timespec startTime;
     struct timespec endTime;
@@ -826,88 +828,80 @@ std::map<std::string, double, std::less<>> StatisticsCollector::getDiskBusyPerce
     return diskBusyRates;
 }
 
-std::map<std::string, std::pair<double, double>, std::less<>> StatisticsCollector::getDiskReadWriteKBPerSecond() {
-    std::map<std::string, std::pair<double, double>, std::less<>> diskRates;
+std::unordered_map<std::string, std::pair<double, double>> StatisticsCollector::getDiskReadWriteKBPerSecond() {
+    std::unordered_map<std::string, std::pair<double, double>> diskRates;
 
-    struct timespec startTime;
-    struct timespec endTime;
-
-    // Record start time
-    clock_gettime(CLOCK_MONOTONIC, &startTime);
-
-    // First reading - store sectors_read and sectors_written for each device
-    std::map<std::string, DiskStats, std::less<>> firstReading;
-    if (!readDiskStats(firstReading, "first reading")) {
-        return diskRates;
-    }
-
-    if (firstReading.empty()) {
-        stat_logger.error("No valid disk devices found in first reading");
-        return diskRates;
-    }
-
-    // Sleep for a short interval to get meaningful difference
-    struct timespec sleepTime = {1, 0};  // 1 second
-    nanosleep(&sleepTime, nullptr);
-
-    // Second reading
-    std::map<std::string, DiskStats, std::less<>> secondReading;
-    if (!readDiskStats(secondReading, "second reading")) {
-        return diskRates;
-    }
-
-    // Record end time
-    clock_gettime(CLOCK_MONOTONIC, &endTime);
-
-    // Calculate elapsed time in seconds
-    double elapsedTime = calculateElapsedTime(startTime, endTime);
-
+    double elapsedTime;
+    auto [firstReading, secondReading] = getTwoDiskReadings(elapsedTime);
     if (elapsedTime <= 0.0) {
         stat_logger.error("Invalid elapsed time for disk read/write calculation");
         return diskRates;
     }
 
-    // Calculate read/write KB per second for each device
+    diskRates = calculateDiskRates(firstReading, secondReading, elapsedTime);
+    return diskRates;
+}
+
+// Take two readings with a 1-second interval
+std::pair<std::unordered_map<std::string, DiskStats>, std::unordered_map<std::string, DiskStats>>
+StatisticsCollector::getTwoDiskReadings(double &elapsedTime) {
+    struct timespec startTime, endTime;
+    clock_gettime(CLOCK_MONOTONIC, &startTime);
+
+    std::map<std::string, DiskStats, std::less<>> firstReading;
+    if (!readDiskStats(firstReading, "first reading")) return {{}, {}};
+
+    if (firstReading.empty()) {
+        stat_logger.error("No valid disk devices found in first reading");
+        return {{}, {}};
+    }
+
+    struct timespec sleepTime = {1, 0};
+    nanosleep(&sleepTime, nullptr);
+
+    std::map<std::string, DiskStats, std::less<>> secondReading;
+    if (!readDiskStats(secondReading, "second reading"))
+    return std::make_pair(std::unordered_map<std::string, DiskStats>(), std::unordered_map<std::string, DiskStats>());
+
+    clock_gettime(CLOCK_MONOTONIC, &endTime);
+    elapsedTime = calculateElapsedTime(startTime, endTime);
+
+    return std::make_pair(std::unordered_map<std::string, DiskStats>(firstReading.begin(), firstReading.end()),
+                          std::unordered_map<std::string, DiskStats>(secondReading.begin(), secondReading.end()));
+}
+
+// Calculate delta, handle counter wraparound
+unsigned long calculateDelta(unsigned long first, unsigned long second) {
+    if (second >= first) return second - first;
+    return (ULLONG_MAX - first) + second + 1;
+}
+
+// Compute read/write KB per second for each device
+std::unordered_map<std::string, std::pair<double, double>> StatisticsCollector::calculateDiskRates(
+    const std::unordered_map<std::string, DiskStats> &firstReading,
+    const std::unordered_map<std::string, DiskStats> &secondReading,
+    double elapsedTime) {
+
+    std::unordered_map<std::string, std::pair<double, double>> diskRates;
+
     for (const auto& [device, diskStats] : firstReading) {
-        unsigned long firstSectorsRead = diskStats.sectors_read;
-        unsigned long firstSectorsWritten = diskStats.sectors_written;
+        if (secondReading.find(device) == secondReading.end()) continue;
 
-        if (secondReading.find(device) != secondReading.end()) {
-            unsigned long secondSectorsRead = secondReading[device].sectors_read;
-            unsigned long secondSectorsWritten = secondReading[device].sectors_written;
+        unsigned long deltaRead = calculateDelta(diskStats.sectors_read, secondReading.at(device).sectors_read);
+        unsigned long deltaWritten = calculateDelta(diskStats.sectors_written,
+                                            secondReading.at(device).sectors_written);
 
-            // Calculate the deltas (handling potential counter wraparound)
-            unsigned long deltaSectorsRead;
-            unsigned long deltaSectorsWritten;
+        double readKBPerSecond = (static_cast<double>(deltaRead) / 2.0) / elapsedTime;
+        double writeKBPerSecond = (static_cast<double>(deltaWritten) / 2.0) / elapsedTime;
 
-            if (secondSectorsRead >= firstSectorsRead) {
-                deltaSectorsRead = secondSectorsRead - firstSectorsRead;
-            } else {
-                // Counter wrapped around, assume it's a 64-bit counter
-                deltaSectorsRead = (ULLONG_MAX - firstSectorsRead) + secondSectorsRead + 1;
-            }
-
-            if (secondSectorsWritten >= firstSectorsWritten) {
-                deltaSectorsWritten = secondSectorsWritten - firstSectorsWritten;
-            } else {
-                // Counter wrapped around, assume it's a 64-bit counter
-                deltaSectorsWritten = (ULLONG_MAX - firstSectorsWritten) + secondSectorsWritten + 1;
-            }
-
-            // Convert sectors to KB: sectors are 512 bytes, so divide by 2 to get KB
-            // Then divide by elapsed time to get KB per second
-            double readKBPerSecond = (static_cast<double>(deltaSectorsRead) / 2.0) / elapsedTime;
-            double writeKBPerSecond = (static_cast<double>(deltaSectorsWritten) / 2.0) / elapsedTime;
-
-            diskRates[device] = std::make_pair(readKBPerSecond, writeKBPerSecond);
-        }
+        diskRates[device] = {readKBPerSecond, writeKBPerSecond};
     }
 
     return diskRates;
 }
 
-std::map<std::string, double, std::less<>> StatisticsCollector::getDiskBlockSizeKB() {
-    std::map<std::string, double, std::less<>> diskBlockSizes;
+std::unordered_map<std::string, double> StatisticsCollector::getDiskBlockSizeKB() {
+    std::unordered_map<std::string, double> diskBlockSizes;
 
     std::map<std::string, DiskStats, std::less<>> allStats;
     if (!readDiskStats(allStats, "disk block size reading")) {
@@ -934,8 +928,8 @@ std::map<std::string, double, std::less<>> StatisticsCollector::getDiskBlockSize
     return diskBlockSizes;
 }
 
-std::map<std::string, double, std::less<>> StatisticsCollector::getDiskTransfersPerSecond() {
-    std::map<std::string, double, std::less<>> diskTransferRates;
+std::unordered_map<std::string, double> StatisticsCollector::getDiskTransfersPerSecond() {
+    std::unordered_map<std::string, double> diskTransferRates;
 
     struct timespec startTime;
     struct timespec endTime;
@@ -945,17 +939,13 @@ std::map<std::string, double, std::less<>> StatisticsCollector::getDiskTransfers
 
     // First reading - store total transfers (dk_xfers = dk_reads + dk_writes) for each device
     std::map<std::string, DiskStats, std::less<>> firstReading;
-    if (!readDiskStats(firstReading, "first reading")) {
-        return diskTransferRates;
-    }
-
-    if (firstReading.empty()) {
+    if (!readDiskStats(firstReading, "first reading") || firstReading.empty()) {
         stat_logger.error("No valid disk devices found in first reading");
         return diskTransferRates;
     }
 
     // Sleep for a short interval to get meaningful difference
-    struct timespec sleepTime = {1, 0};  // 1 second
+    struct timespec sleepTime = {1, 0};
     nanosleep(&sleepTime, nullptr);
 
     // Second reading
@@ -976,27 +966,18 @@ std::map<std::string, double, std::less<>> StatisticsCollector::getDiskTransfers
     }
 
     // Calculate transfers per second for each device
-    for (const auto& [device, diskStats] : firstReading) {
-        unsigned long firstTransfers = diskStats.reads_completed + diskStats.writes_completed;
+    for (const auto& [device, stats1] : firstReading) {
+        auto it2 = secondReading.find(device);
+        if (it2 == secondReading.end()) continue;
 
-        if (secondReading.find(device) != secondReading.end()) {
-            unsigned long secondTransfers = secondReading[device].reads_completed +
-                secondReading[device].writes_completed;
+        unsigned long transfers1 = stats1.reads_completed + stats1.writes_completed;
+        unsigned long transfers2 = it2->second.reads_completed + it2->second.writes_completed;
 
-            // Calculate the delta (handling potential counter wraparound)
-            unsigned long deltaTransfers;
-            if (secondTransfers >= firstTransfers) {
-                deltaTransfers = secondTransfers - firstTransfers;
-            } else {
-                // Counter wrapped around, assume it's a 64-bit counter
-                deltaTransfers = (ULLONG_MAX - firstTransfers) + secondTransfers + 1;
-            }
+        unsigned long deltaTransfers = (transfers2 >= transfers1)
+            ? (transfers2 - transfers1)
+            : (ULLONG_MAX - transfers1 + transfers2 + 1);
 
-            // Calculate transfers per second: DKDELTA(dk_xfers) / elapsed
-            double transfersPerSecond = static_cast<double>(deltaTransfers) / elapsedTime;
-
-            diskTransferRates[device] = transfersPerSecond;
-        }
+        diskTransferRates[device] = static_cast<double>(deltaTransfers) / elapsedTime;
     }
 
     return diskTransferRates;
