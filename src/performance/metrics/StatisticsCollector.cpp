@@ -18,7 +18,6 @@ limitations under the License.
 constexpr double THOUSAND = 1000.0;
 constexpr double BILLION = 1000000000.0;
 constexpr std::size_t LINE_BUF_SIZE = 128;
-constexpr std::size_t LINE_BUF_SIZE_LONG = 256;
 
 // Global variables
 Logger stat_logger;
@@ -73,7 +72,7 @@ static long readProcStatValue(const char* prefix, int prefixLen) {
         return value;
     }
 
-    return -1; // Not found
+    return -1;  // Not found
 }
 
 static double measureProcStatRate(const char* prefix, int prefixLen, int sleepSeconds) {
@@ -248,14 +247,11 @@ static bool readNetworkStats(std::map<std::string, NetworkStats, std::less<>> &o
         unsigned long tx_carrier;
         unsigned long tx_compressed;
 
-        // Parse fast using std::istringstream (fits <20 integers)
         std::string restStr(rest);
-        std::istringstream iss(restStr);
-        if (!(iss >> rx_bytes >> rx_packets >> rx_errs >> rx_drop >> rx_fifo >> rx_frame
-                  >> rx_compressed >> rx_multicast >> tx_bytes >> tx_packets >> tx_errs >> tx_drop
-                  >> tx_fifo >> tx_colls >> tx_carrier >> tx_compressed))
-        {
-            continue; // skip malformed line
+        if (std::istringstream iss(restStr); !(iss >> rx_bytes >> rx_packets >> rx_errs >> rx_drop >> rx_fifo 
+                  >> rx_frame >> rx_compressed >> rx_multicast >> tx_bytes >> tx_packets >> tx_errs >> tx_drop
+                  >> tx_fifo >> tx_colls >> tx_carrier >> tx_compressed)) {
+            continue;  // skip malformed line
         }
 
         NetworkStats stats;
@@ -365,6 +361,7 @@ static long getSwapSpace(int field) {
         hasValue = true;
     }
 
+    fclose(file);
     return hasValue ? result : -1;
 }
 
@@ -524,7 +521,7 @@ int StatisticsCollector::getSocketCount() {
         return -1;
     }
 
-    struct dirent *dir;
+    const struct dirent *dir;
     char path[64];
     char link_buf[1024];
     int count = 0;
@@ -535,8 +532,8 @@ int StatisticsCollector::getSocketCount() {
         // Skip non-numeric entries
         if (!isdigit((unsigned char)filename[0])) continue;
 
-        int n = snprintf(path, sizeof(path), "/proc/self/fd/%s", filename);
-        if (n < 0 || n >= (int)sizeof(path)) continue;  // skip if path too long
+        if (int n = snprintf(path, sizeof(path), "/proc/self/fd/%s", filename); 
+            n < 0 || n >= (int)sizeof(path)) continue;  // skip if path too long
 
         ssize_t len = readlink(path, link_buf, sizeof(link_buf) - 1);
         if (len <= 0) continue;
@@ -845,7 +842,8 @@ std::unordered_map<std::string, std::pair<double, double>> StatisticsCollector::
 // Take two readings with a 1-second interval
 std::pair<std::unordered_map<std::string, DiskStats>, std::unordered_map<std::string, DiskStats>>
 StatisticsCollector::getTwoDiskReadings(double &elapsedTime) {
-    struct timespec startTime, endTime;
+    struct timespec startTime;
+    struct timespec endTime;
     clock_gettime(CLOCK_MONOTONIC, &startTime);
 
     std::map<std::string, DiskStats, std::less<>> firstReading;
@@ -860,8 +858,9 @@ StatisticsCollector::getTwoDiskReadings(double &elapsedTime) {
     nanosleep(&sleepTime, nullptr);
 
     std::map<std::string, DiskStats, std::less<>> secondReading;
-    if (!readDiskStats(secondReading, "second reading"))
-    return std::make_pair(std::unordered_map<std::string, DiskStats>(), std::unordered_map<std::string, DiskStats>());
+    if (!readDiskStats(secondReading, "second reading")) {
+     return std::make_pair(std::unordered_map<std::string, DiskStats>(), std::unordered_map<std::string, DiskStats>());
+    }
 
     clock_gettime(CLOCK_MONOTONIC, &endTime);
     elapsedTime = calculateElapsedTime(startTime, endTime);
