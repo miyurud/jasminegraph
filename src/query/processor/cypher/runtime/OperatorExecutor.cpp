@@ -354,9 +354,6 @@ void OperatorExecutor::AllNodeScan(SharedBuffer &buffer, std::string jsonPlan, G
             for (auto property : properties) {
                 nodeData[property.first] = property.second;
             }
-            for (auto& [key, value] : properties) {
-            }
-            properties.clear();
 
             json data;
             string variable = query["variables"];
@@ -400,9 +397,6 @@ void OperatorExecutor::NodeScanByLabel(SharedBuffer &buffer, std::string jsonPla
             for (auto property : properties) {
                 nodeData[property.first] = property.second;
             }
-            for (auto& [key, value] : properties) {
-            }
-            properties.clear();
 
             json data;
             string variable = query["variable"];
