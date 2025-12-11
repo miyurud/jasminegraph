@@ -152,8 +152,8 @@ static bool tryProcessInParallel(const std::vector<std::string>& batch,
     } catch (const std::bad_alloc& e) {
         execution_logger.warn("Memory allocation failed in parallel filter, using sequential: " + std::string(e.what()));
         return false;
-    } catch (...) {
-        execution_logger.warn("Unexpected exception in parallel filter, using sequential");
+    } catch (const std::exception& e) {
+        execution_logger.warn("Unexpected exception in parallel filter, using sequential: " + std::string(e.what()));
         return false;
     }
 }
@@ -235,8 +235,8 @@ OperatorExecutor::OperatorExecutor(GraphConfig gc, std::string queryPlan, std::s
         } catch (const std::logic_error& e) {
             execution_logger.error("Logic error in parallel executor initialization: " + std::string(e.what()));
             parallelExecutor = nullptr;
-        } catch (...) {
-            execution_logger.error("Unexpected exception in parallel executor initialization");
+        } catch (const std::exception& e) {
+            execution_logger.error("Unexpected exception in parallel executor initialization: " + std::string(e.what()));
             parallelExecutor = nullptr;
         }
     }
@@ -337,8 +337,8 @@ void OperatorExecutor::AllNodeScan(SharedBuffer &buffer, std::string jsonPlan, G
             execution_logger.warn("JSON error in parallel AllNodeScan, falling back to sequential: " + std::string(e.what()));
         } catch (const std::bad_alloc& e) {
             execution_logger.warn("Memory allocation failed in parallel AllNodeScan, falling back to sequential: " + std::string(e.what()));
-        } catch (...) {
-            execution_logger.warn("Unexpected exception in parallel AllNodeScan, falling back to sequential");
+        } catch (const std::exception& e) {
+            execution_logger.warn("Unexpected exception in parallel AllNodeScan, falling back to sequential: " + std::string(e.what()));
         }
     }
 
@@ -381,6 +381,8 @@ void OperatorExecutor::NodeScanByLabel(SharedBuffer &buffer, std::string jsonPla
             execution_logger.warn("JSON error in parallel processing, falling back to sequential: " + std::string(e.what()));
         } catch (const std::bad_alloc& e) {
             execution_logger.warn("Memory allocation failed in parallel processing, falling back to sequential: " + std::string(e.what()));
+        } catch (const std::exception& e) {
+            execution_logger.warn("Unexpected exception in parallel processing, falling back to sequential: " + std::string(e.what()));
         }
     }
 
@@ -852,8 +854,8 @@ void OperatorExecutor::DirectedAllRelationshipScan(SharedBuffer &buffer, std::st
             execution_logger.warn("JSON error in parallel relationship scan, falling back to sequential: " + std::string(e.what()));
         } catch (const std::bad_alloc& e) {
             execution_logger.warn("Memory allocation failed in parallel relationship scan, falling back to sequential: " + std::string(e.what()));
-        } catch (...) {
-            execution_logger.warn("Unexpected exception in parallel relationship scan, falling back to sequential");
+        } catch (const std::exception& e) {
+            execution_logger.warn("Unexpected exception in parallel relationship scan, falling back to sequential: " + std::string(e.what()));
         }
     }
 
@@ -1745,8 +1747,8 @@ void OperatorExecutor::AllNodeScanParallel(SharedBuffer &buffer, std::string jso
     } catch (const std::bad_alloc& e) {
         execution_logger.error("Memory allocation failed in AllNodeScanParallel: " + std::string(e.what()));
         buffer.add("-1");
-    } catch (...) {
-        execution_logger.error("Unexpected exception in AllNodeScanParallel");
+    } catch (const std::exception& e) {
+        execution_logger.error("Unexpected exception in AllNodeScanParallel: " + std::string(e.what()));
         buffer.add("-1");
     }
 }
@@ -1788,8 +1790,8 @@ void OperatorExecutor::NodeScanByLabelParallel(SharedBuffer &buffer, std::string
     } catch (const std::bad_alloc& e) {
         execution_logger.error("Memory allocation failed in NodeScanByLabelParallel: " + std::string(e.what()));
         buffer.add("-1");
-    } catch (...) {
-        execution_logger.error("Unexpected exception in NodeScanByLabelParallel");
+    } catch (const std::exception& e) {
+        execution_logger.error("Unexpected exception in NodeScanByLabelParallel: " + std::string(e.what()));
         buffer.add("-1");
     }
 }

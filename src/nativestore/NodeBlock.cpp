@@ -416,7 +416,7 @@ std::map<std::string, std::string, std::less<>> NodeBlock::getAllProperties() {
     std::map<std::string, std::string, std::less<>> allProperties;
     PropertyLink* current = this->getPropertyHead();
     while (current) {
-        allProperties.try_emplace(current->name, std::string(current->value));
+        allProperties.try_emplace(current->name, current->value);
         PropertyLink* temp = current->next();
         delete current;  // To prevent memory leaks
         current = temp;
