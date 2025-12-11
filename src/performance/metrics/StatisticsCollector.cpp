@@ -248,7 +248,7 @@ static bool readNetworkStats(std::map<std::string, NetworkStats, std::less<>> &o
         unsigned long tx_compressed;
 
         std::string restStr(rest);
-        if (std::istringstream iss(restStr); !(iss >> rx_bytes >> rx_packets >> rx_errs >> rx_drop >> rx_fifo 
+        if (std::istringstream iss(restStr); !(iss >> rx_bytes >> rx_packets >> rx_errs >> rx_drop >> rx_fifo
                   >> rx_frame >> rx_compressed >> rx_multicast >> tx_bytes >> tx_packets >> tx_errs >> tx_drop
                   >> tx_fifo >> tx_colls >> tx_carrier >> tx_compressed)) {
             continue;  // skip malformed line
@@ -532,7 +532,7 @@ int StatisticsCollector::getSocketCount() {
         // Skip non-numeric entries
         if (!isdigit((unsigned char)filename[0])) continue;
 
-        if (int n = snprintf(path, sizeof(path), "/proc/self/fd/%s", filename); 
+        if (int n = snprintf(path, sizeof(path), "/proc/self/fd/%s", filename);
             n < 0 || n >= (int)sizeof(path)) continue;  // skip if path too long
 
         ssize_t len = readlink(path, link_buf, sizeof(link_buf) - 1);
