@@ -266,7 +266,22 @@ cp -r env_init env
 
 cd "$PROJECT_ROOT"
 build_and_run_on_k8s
-docker rmi -f jasminegraph
+
+docker ps -a --filter "ancestor=grafana/grafana-enterprise" -q | xargs -r docker stop
+docker ps -a --filter "ancestor=grafana/grafana-enterprise" -q | xargs -r docker rm
+docker images | grep "grafana/grafana-enterprise" | awk '{print $3}' | xargs -r docker rmi -f
+docker images
+
+docker system prune -af
+
+# Remove dangling volumes
+docker volume prune -f
+
+# Remove unused networks
+docker network prune -f
+
+# Optional: check disk usage
+df -h
 ready_hdfs
 start_master_logs
 

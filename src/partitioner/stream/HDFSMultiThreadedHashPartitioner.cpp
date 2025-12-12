@@ -49,7 +49,7 @@ sqlite(sqllite){
     // Start consumer threads and store them
     for (int i = 0; i < numberOfPartitions; i++) {
         // print worker
-        hash_partitioner_logger.debug("Worker for partition " + std::to_string(i) + ": "
+        hash_partitioner_logger.info("Worker for partition " + std::to_string(i) + ": "
                                       + workers[i].hostname + ":" + std::to_string(workers[i].port));
         this->partitions.push_back(std::make_unique<Partition>(i, numberOfPartitions));
         localEdgeThreads.emplace_back(&HDFSMultiThreadedHashPartitioner::consumeLocalEdges, this, i, workers[i]);
@@ -172,19 +172,19 @@ void HDFSMultiThreadedHashPartitioner::consumeLocalEdges(int partitionIndex, Jas
                     masterIp, JasmineGraphInstanceProtocol::HDFS_LOCAL_STREAM_START,
                                              this->isEmbedGraph);
                 partitionMutexArray[partitionIndex].unlock();
-                // long vertices = getVertexCount();
-                // long edges = getEdgeCount();
-                //
-                // std::string sqlStatement = "UPDATE graph SET vertexcount = '" + std::to_string(vertices) +
-                //                            "', centralpartitioncount = '" + std::to_string(this->numberOfPartitions) +
-                //                            "', edgecount = '" + std::to_string(edges) +
-                //                            "', graph_status_idgraph_status = '" + std::to_string(Conts::GRAPH_STATUS::OPERATIONAL) +
-                //                            "' WHERE idgraph = '" + std::to_string(this->graphId) + "'";
-                //
-                // dbLock.lock();
-                // this->sqlite->runUpdate(sqlStatement);
-                // dbLock.unlock();
-                hash_partitioner_logger.debug("Local edge consumer " + std::to_string(partitionIndex) +
+                long vertices = getVertexCount();
+                long edges = getEdgeCount();
+
+                std::string sqlStatement = "UPDATE graph SET vertexcount = '" + std::to_string(vertices) +
+                                           "', centralpartitioncount = '" + std::to_string(this->numberOfPartitions) +
+                                           "', edgecount = '" + std::to_string(edges) +
+                                           "', graph_status_idgraph_status = '" + std::to_string(Conts::GRAPH_STATUS::OPERATIONAL) +
+                                           "' WHERE idgraph = '" + std::to_string(this->graphId) + "'";
+
+                dbLock.lock();
+                this->sqlite->runUpdate(sqlStatement);
+                dbLock.unlock();
+                hash_partitioner_logger.info("Local edge consumer " + std::to_string(partitionIndex) +
                                               " generated file of " +
                                               std::to_string(this->partitionFileEdgeThreshold) +
                                               " edges: " + filePath);

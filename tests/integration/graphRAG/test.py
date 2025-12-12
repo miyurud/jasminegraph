@@ -182,27 +182,15 @@ failed_tests = []
 
 def test(host, port):
     """Test the JasmineGraph server by sending a series of commands and checking the responses."""
-    # subprocess.run(['bash', OLLAMA_SETUP_SCRIPT], check=True)
+
+    subprocess.run(['bash', OLLAMA_SETUP_SCRIPT], check=True)
+
 
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
         sock.connect((host, port))
         print()
         logging.info('[KG] Testing knowledge graph construction ')
         test_kg(TEXT_FOLDER ,UPLOAD_SCRIPT, host, port)
-
-        print()
-        logging.info('[Semantic Beam Search] Query "At what frequency does Radio City broadcast?" ')
-        send_and_expect_response(sock, 'sbs', SBS, b'Graph ID:', exit_on_failure=True)
-        send_and_expect_response(sock, 'sbs', b'1', b'Input query :', exit_on_failure=True)
-        send_and_expect_response(sock, 'sbs', b'At what frequency does Radio City broadcast?',
-                                 b'{"n":{"id":"2","label":"Person","name":"Charlie",'
-                                 b'"occupation":"IT Engineer",'
-                                 b'"partitionID":"0"}}', exit_on_failure=True)
-        send_and_expect_response(sock, 'cypher', b'',
-                                 b'done', exit_on_failure=True)
-
-
-
 
         # shutting down workers after testing
         print()

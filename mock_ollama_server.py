@@ -27,27 +27,34 @@ AVAILABLE_MODELS = [
 async def streamer(prompt: str, model: str):
     """Stream Ollama-style NDJSON."""
 
-    response = [
-        ["Alice","knows","Bob","Person","Person"],
-        ["Bob","works_at","AcmeCorp","Person","Organization"],
-        ["AcmeCorp","located_in","London","Organization","Location"]
+    # Example array-of-arrays tuples
+    tuples = [
+        ["Radio City", "is", "India's first private FM radio station", "Organization", "Location"],
+        ["Radio City", "was started on", "3 July 2001", "Organization", "Date"],
+        ["it", "broadcasts on", "91.1", "Organization", "Frequency"]
     ]
 
-    for triple in response:
-        yield json.dumps({
-            "model": model,
-            "created_at": "2025-01-01T00:00:00Z",
-            "response": triple,
-            "done": False
-        }) + "\n"
+    # Start of response
+    for chunk in ["```", "json", "\n", "["]:
+        yield json.dumps({"model": model, "created_at": "2025-01-01T00:00:00Z", "response": chunk, "done": False}) + "\n"
         await asyncio.sleep(0.05)
 
-    yield json.dumps({
-        "model": model,
-        "created_at": "2025-01-01T00:00:00Z",
-        "response": "",
-        "done": True
-    }) + "\n"
+    # Stream each tuple as JSON array
+    for i, t in enumerate(tuples):
+        line = "  " + json.dumps(t)
+        if i < len(tuples) - 1:
+            line += ","
+        yield json.dumps({"model": model, "created_at":  "2025-01-01T00:00:00Z", "response": line, "done": False}) + "\n"
+        await asyncio.sleep(0.05)
+
+    # End of array and code block
+    for chunk in ["\n", "]", "```"]:
+        yield json.dumps({"model": model, "created_at": "2025-01-01T00:00:00Z", "response": chunk, "done": False}) + "\n"
+        await asyncio.sleep(0.05)
+
+    # Done
+    yield json.dumps({"model": model, "created_at":  "2025-01-01T00:00:00Z", "response": "", "done": True}) + "\n"
+
 
 
 @app.get("/api/tags")
@@ -77,3 +84,20 @@ async def generate(request: Request):
         streamer(prompt, model),
         media_type="application/x-ndjson"
     )
+
+
+def fake_embedding(text, dim=768):
+    """Return a deterministic mock embedding based on the text content."""
+    # Simple deterministic embedding using character codes
+    vec = [(ord(c) % 10 + 0.1 * i) for i, c in enumerate(text[:dim])]
+    # Pad to dimension
+    while len(vec) < dim:
+        vec.append(0.0)
+    return vec
+
+@app.post("/api/embeddings")
+async def single_embed(request: Request):
+    data = await request.json()
+    text = data.get("prompt") or (data.get("input")[0] if isinstance(data.get("input"), list) else "")
+    embedding = fake_embedding(text, dim=768)
+    return JSONResponse(content={"embedding": embedding})
