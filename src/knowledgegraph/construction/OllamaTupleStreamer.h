@@ -23,7 +23,7 @@ class OllamaTupleStreamer : public TupleStreamer {
   OllamaTupleStreamer(const std::string& modelName, const std::string& host);
 
   void streamChunk(const std::string& chunkKey, const std::string& chunkText,
-                   SharedBuffer& tupleBuffer);
+                   SharedBuffer& tupleBuffer) override;
 
  private:
   std::string model;

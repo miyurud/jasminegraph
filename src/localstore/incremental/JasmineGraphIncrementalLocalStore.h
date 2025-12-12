@@ -17,7 +17,7 @@ limitations under the License.
 #include "../../vectorstore/FaissIndex.h"
 #include "../../vectorstore/TextEmbedder.h"
 using json = nlohmann::json;
-
+using namespace std;
 #include "../../nativestore/NodeManager.h"
 #ifndef Incremental_LocalStore
 #define Incremental_LocalStore
@@ -33,7 +33,7 @@ class JasmineGraphIncrementalLocalStore {
     NodeManager* nm;
     FaissIndex* faissStore;
     TextEmbedder* textEmbedder;
-    std::vector<EmbeddingRequest>* embedding_requests;
+    std::unique_ptr<unordered_map<string,string>> embedding_requests;
     // batch texts to embed
 
     bool embedNode;

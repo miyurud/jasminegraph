@@ -35,12 +35,12 @@ JasmineGraphIncrementalLocalStore::JasmineGraphIncrementalLocalStore(
   gc.maxLabelSize = std::stoi(Utils::getJasmineGraphProperty(
       "org.jasminegraph.nativestore.max.label.size"));
   this->embedNode = embedNode;
-  this->embedding_requests = new std::vector<EmbeddingRequest>();
+  this->embedding_requests = std::make_unique<std::unordered_map<string,string>>();
 
   gc.openMode = openMode;
   this->nm = new NodeManager(gc);
   if (this->embedNode) {
-    incremental_localstore_logger.info("Embedding enabled for the local store");
+    incremental_localstore_logger.debug("Embedding enabled for the local store");
     this->faissStore =
         FaissIndex::getInstance(std::stoi(Utils::getJasmineGraphProperty(
                                     "org.jasminegraph.vectorstore.dimension")),
@@ -53,21 +53,59 @@ JasmineGraphIncrementalLocalStore::JasmineGraphIncrementalLocalStore(
   }
 };
 bool JasmineGraphIncrementalLocalStore::getAndStoreEmbeddings() {
-    incremental_localstore_logger.info("56 :");
 
-  std::vector<string> batch_request;
-  for (EmbeddingRequest& request : *embedding_requests) {
-    batch_request.emplace_back(request.nodeText);
-      incremental_localstore_logger.info("node Text :" + request.nodeText);
+try{
+ //
+ std::vector<string> batch_request;
+   std::vector<std::string> node_ids;
 
-  }
-  vector<vector<float>> results = textEmbedder->batch_embed(batch_request);
+ //  for (auto &it : *embedding_requests) {
+ //    batch_request.emplace_back(it.second);
+ //    node_ids.push_back(it.first);
+ //      incremental_localstore_logger.debug("node Text :" +it.second);
+ //
+ //  }
+ //  vector<vector<float>> results = textEmbedder->batch_embed(batch_request);
+ //
+ //  for (size_t i = 0; i < results.size(); ++i) {
+ //    faissStore->add(results[i], node_ids[i]);
+ //  }
+ // embedding_requests->clear();
+ // faissStore->save();
 
-  for (size_t i = 0; i < results.size(); ++i) {
-    faissStore->add(results[i], embedding_requests->at(i).nodeId);
-  }
-  embedding_requests->clear();
-  faissStore->save();
+for (auto &it : *embedding_requests) {
+    batch_request.emplace_back(it.second);
+    node_ids.push_back(it.first);
+    incremental_localstore_logger.debug("node Text :" + it.second);
+
+    const size_t BATCH_SIZE = 10;
+    if (batch_request.size() >= BATCH_SIZE) {
+        vector<vector<float>> results = textEmbedder->batch_embed(batch_request);
+        for (size_t i = 0; i < results.size(); ++i) {
+            faissStore->add(results[i], node_ids[i]);
+        }
+        batch_request.clear();
+        node_ids.clear();
+    }
+}
+
+    if (!batch_request.empty()) {
+        vector<vector<float>> results = textEmbedder->batch_embed(batch_request);
+        for (size_t i = 0; i < results.size(); ++i) {
+            faissStore->add(results[i], node_ids[i]);
+        }
+    }
+
+    embedding_requests->clear();
+    faissStore->save();
+
+
+return true;
+}
+catch ( exception& e ) {
+incremental_localstore_logger.debug("Error while processing edge data = " + std::string(e.what()) );
+}
+
 }
 
 std::pair<std::string, unsigned int> JasmineGraphIncrementalLocalStore::getIDs(
@@ -329,23 +367,24 @@ void JasmineGraphIncrementalLocalStore::addSourceProperties(
           strcpy(label, it.value().get<std::string>().c_str());
           relationBlock->getSource()->addLabel(&label[0]);
         }
-        textForEmbedding << it.key() << ":" << value << " ";
-        relationBlock->getSource()->addProperty(std::string(it.key()),
-                                                &value[0]);
+          if (it.key() != "id") {
+              textForEmbedding << value << "\n" ;
+
+          }
+          relationBlock->getSource()->addProperty(std::string(it.key()),
+                                                     &value[0]);
       }
 
       if (this->embedNode) {
         std::string nodeText = textForEmbedding.str();
         if (!nodeText.empty()) {
-          if (faissStore->getEmbeddingById(sourceJson["id"]).size() == 0) {
-            incremental_localstore_logger.error(
+          if (faissStore->isNodeEmbeddingExist(sourceJson["id"])  ||  embedding_requests->find(sourceJson["id"]) != embedding_requests->end()) {
+            incremental_localstore_logger.debug(
                 "Node with ID " + sourceJson["id"].get<std::string>() +
                 " found . Skipping ");
             return;
           }
-          EmbeddingRequest request = {sourceJson["id"].get<std::string>(),
-                                      nodeText};
-          embedding_requests->emplace_back(request);
+          embedding_requests->insert({sourceJson["id"].get<std::string>(),nodeText});
         }
       }
     }
@@ -372,24 +411,24 @@ void JasmineGraphIncrementalLocalStore::addDestinationProperties(
           strcpy(label, it.value().get<std::string>().c_str());
           relationBlock->getDestination()->addLabel(&label[0]);
         }
-        textForEmbedding << it.key() << ":" << value << " ";
+          if (it.key() != "id") {
+              textForEmbedding << value << "\n" ;
+          }
+              relationBlock->getDestination()->addProperty(std::string(it.key()),
+                                                           &value[0]);
 
-        relationBlock->getDestination()->addProperty(std::string(it.key()),
-                                                     &value[0]);
       }
       if (this->embedNode) {
         std::string nodeText = textForEmbedding.str();
         if (!nodeText.empty()) {
-          if (faissStore->getEmbeddingById(destinationJson["id"]).empty()) {
-            incremental_localstore_logger.error(
+          if (faissStore->isNodeEmbeddingExist(destinationJson["id"]) || embedding_requests->find(destinationJson["id"]) != embedding_requests->end()) {
+            incremental_localstore_logger.debug(
                 "Node with ID " + destinationJson["id"].get<std::string>() +
                 " found . Skipping ");
             return;
           }
             incremental_localstore_logger.debug(" Adding embedding request: "+ nodeText);
-          EmbeddingRequest request = {destinationJson["id"].get<std::string>(),
-                                      nodeText};
-          embedding_requests->emplace_back(request);
+          embedding_requests->insert({destinationJson["id"].get<std::string>(),nodeText});
         }
       }
     }

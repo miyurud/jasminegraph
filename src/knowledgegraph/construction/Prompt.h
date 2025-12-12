@@ -15,9 +15,9 @@ limitations under the License.
 
 namespace Prompts {
 inline const std::string KNOWLEDGE_EXTRACTION = R"(
-You MUST extract **ALL** factual triples present in the text.
+You MUST extract **ALL** named entities and construct an RDF (Resource Description Framework) graph from the text.
 Do **NOT** summarize.
-Do **NOT** skip any fact unless the subject or object is an ambiguous pronoun
+Do **NOT** skip any triples unless the subject or object is an ambiguous pronoun
 (he, she, it, they, them, this, that).
 
 Output format:
@@ -27,7 +27,7 @@ Output format:
 ]
 
 STRICT RULES:
-- Extract **every possible factual relation** in the text, even if many.
+- Extract **every possible triple representing a relationship in the RDF graph** in the text, even if many.
 - Continue until you have processed the **entire chunk** fully.
 - Do not stop early.
 - Do not guess missing types; mark unknown types as "unknown".

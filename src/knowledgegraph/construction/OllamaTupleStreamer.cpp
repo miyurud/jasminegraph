@@ -30,7 +30,7 @@ OllamaTupleStreamer::OllamaTupleStreamer(const std::string& modelName,
                                          const std::string& host)
     : model(modelName), host(host) {
   curl_global_init(CURL_GLOBAL_DEFAULT);
-  ollama_tuple_streamer_logger.info(
+  ollama_tuple_streamer_logger.debug(
       "Initialized OllamaTupleStreamer with model: " + modelName +
       ", host: " + host);
 }
@@ -95,7 +95,7 @@ size_t OllamaTupleStreamer::StreamCallback(char* ptr, size_t size, size_t nmemb,
             ctx->current_tuple.push_back(c);
 
             if (ctx->braceDepth == 1) {
-              ollama_tuple_streamer_logger.info("Current: " +
+              ollama_tuple_streamer_logger.debug("Current: " +
                                                 ctx->current_tuple);
 
               try {
@@ -149,7 +149,7 @@ size_t OllamaTupleStreamer::StreamCallback(char* ptr, size_t size, size_t nmemb,
         }
       }
     } catch (...) {
-      ollama_tuple_streamer_logger.info("Malformed/partial JSON ignored: " +
+      ollama_tuple_streamer_logger.debug("Malformed/partial JSON ignored: " +
                                         line);
       ctx->buffer->add("-1");
     }

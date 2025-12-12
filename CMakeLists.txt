@@ -112,6 +112,7 @@ set(HEADERS globals.h
         src/vectorstore/FaissIndex.h
         src/query/processor/nlp/semanticbeamsearch/SemanticBeamSearch.h
         src/frontend/core/executor/impl/SemanticBeamSearchExecutor.h
+        src/localstore/incremental/JasmineGraphIncrementalLocalStore.cpp
 
 
 )
@@ -217,7 +218,7 @@ set(SOURCES src/backend/JasmineGraphBackend.cpp
         src/frontend/core/executor/impl/SemanticBeamSearchExecutor.cpp
         src/knowledgegraph/construction/VLLMTupleStreamer.cpp
         src/knowledgegraph/construction/TupleStreamer.cpp
-
+        src/localstore/incremental/JasmineGraphIncrementalLocalStore.cpp
 
 
 )
@@ -232,11 +233,18 @@ file(GLOB GENERATED_SRC /home/ubuntu/software/antlr/*.cpp)
 if(NOT GENERATED_SRC)
     message(WARNING "No ANTLR generated files found in /home/ubuntu/software/antlr/")
     set(GENERATED_SRC ""
+            src/frontend/JasmineGraphFrontEnd.cpp
+            src/localstore/incremental/JasmineGraphIncrementalLocalStore.cpp
+            src/localstore/incremental/JasmineGraphIncrementalLocalStore.cpp
+            src/localstore/incremental/JasmineGraphIncrementalLocalStore.cpp
             src/frontend/JasmineGraphFrontEnd.cpp)
 endif()
 
-add_library(JasmineGraphLib ${HEADERS} ${SOURCES} ${GENERATED_SRC})
-add_executable(JasmineGraph main.h main.cpp)
+add_library(JasmineGraphLib ${HEADERS} ${SOURCES} ${GENERATED_SRC}
+        src/localstore/incremental/JasmineGraphIncrementalLocalStore.cpp)
+add_executable(JasmineGraph main.h main.cpp
+        src/localstore/incremental/JasmineGraphIncrementalLocalStore.cpp
+        src/localstore/incremental/JasmineGraphIncrementalLocalStore.cpp)
 
 target_compile_definitions(JasmineGraphLib PUBLIC ROOT_DIR="${CMAKE_CURRENT_SOURCE_DIR}/")
 

@@ -90,6 +90,7 @@ class Pipeline {
     bool stopFlag = false;
     std::unordered_map<std::string, long> nodeIndex;
     unsigned int nextNodeIndex = 0;
+    string currentTraceContext;
 };
 
 #endif  // JASMINEGRAPH_HDFSPIPELINE_H

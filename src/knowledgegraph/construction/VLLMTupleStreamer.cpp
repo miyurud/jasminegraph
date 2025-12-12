@@ -30,7 +30,7 @@ VLLMTupleStreamer::VLLMTupleStreamer(const std::string& modelName,
                                      const std::string& host)
     : model(modelName), host(host) {
   curl_global_init(CURL_GLOBAL_DEFAULT);
-  vllm_tuple_streamer_logger.info("Initialized VLLMTupleStreamer with model: " +
+  vllm_tuple_streamer_logger.debug("Initialized VLLMTupleStreamer with model: " +
                                   modelName + ", host: " + host);
 }
 
@@ -93,7 +93,7 @@ size_t VLLMTupleStreamer::StreamCallback(char* ptr, size_t size, size_t nmemb,
             ctx->current_tuple.push_back(c);
 
             if (ctx->braceDepth == 1) {
-              vllm_tuple_streamer_logger.info("Current tuple: " +
+              vllm_tuple_streamer_logger.debug("Current tuple: " +
                                               ctx->current_tuple);
               try {
                 auto triple = json::parse(ctx->current_tuple);
@@ -188,7 +188,7 @@ void VLLMTupleStreamer::streamChunk(const std::string& chunkKey,
     curl_easy_setopt(curl, CURLOPT_TCP_KEEPINTVL, 30L);
 
     std::string url = host + "/v1/chat/completions";
-    vllm_tuple_streamer_logger.info("Connecting to VLLM server at: " + host);
+    vllm_tuple_streamer_logger.debug("Connecting to VLLM server at: " + host);
 
     curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
     curl_easy_setopt(curl, CURLOPT_POST, 1L);
@@ -209,7 +209,7 @@ void VLLMTupleStreamer::streamChunk(const std::string& chunkKey,
     jsonRequest["max_tokens"] = 10000;
 
     std::string postFields = jsonRequest.dump();
-    vllm_tuple_streamer_logger.info("Post fields: " + postFields);
+    vllm_tuple_streamer_logger.debug("Post fields: " + postFields);
 
     curl_easy_setopt(curl, CURLOPT_POSTFIELDS, postFields.c_str());
     curl_easy_setopt(curl, CURLOPT_POSTFIELDSIZE, postFields.size());

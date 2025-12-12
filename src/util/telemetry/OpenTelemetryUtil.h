@@ -226,6 +226,7 @@ class OpenTelemetryUtil {
      * @param value Attribute value
      */
     static void addSpanAttribute(const std::string& key, const std::string& value);
+    void addSpanAttributes(const std::map<std::string, std::string>& attributes);
 
     /**
      * Flush all pending traces

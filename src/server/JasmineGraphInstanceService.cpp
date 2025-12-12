@@ -201,7 +201,7 @@ void *instanceservicesession(void *dummyPt) {
             continue;
         }
         line = Utils::trim_copy(line);
-        instance_logger.info("Received : " + line);
+        instance_logger.debug("Received : " + line);
 
         if (line.compare(JasmineGraphInstanceProtocol::HANDSHAKE) == 0) {
             handshake_command(connFd, &loop_exit);
@@ -3377,11 +3377,9 @@ static void streaming_tuple_extraction(
     streamer = std::make_unique<VLLMTupleStreamer>(llm, llmHost);
   }
 
-  SharedBuffer sharedBuffer(5);
-  SharedBuffer tupleBuffer(5);
+  SharedBuffer tupleBuffer(100);
   std::condition_variable dataBufferCV;
   std::mutex dataBufferMutex;
-
   while (true) {
     std::string command =
         Utils::read_str_trim_wrapper(connFd, data, INSTANCE_DATA_LENGTH);
@@ -3403,11 +3401,52 @@ static void streaming_tuple_extraction(
         connFd, JasmineGraphInstanceProtocol::GRAPH_STREAM_C_length_ACK);
     instance_logger.info("Received content length: " +
                          std::to_string(content_length));
-    std::string chunk(content_length, 0);
-    recv(connFd, &chunk[0], content_length, 0);
+      std::string chunk(content_length, 0);
+      size_t received = 0;
+      while (received < content_length) {
+          ssize_t ret = recv(connFd, &chunk[received], content_length - received, 0);
+          if (ret <= 0) {
+              instance_logger.error("Error receiving request string");
+              break;
+          }
+          received += ret;
+      }
+
+
     Utils::send_str_wrapper(connFd,
                             JasmineGraphInstanceProtocol::GRAPH_DATA_SUCCESS);
     instance_logger.info(chunk);
+      ScopedTracer chunkTrace(
+      "chunk_processing_with_tuples",
+      {
+          {"chunk_content_length", std::to_string(content_length)},
+          {"chunk_text", chunk}, // limit to first 4k chars
+          {"worker.id", "worker_" + std::to_string(serverPort)},
+          {"worker.port", std::to_string(serverPort)},
+          {"llm.server.endpoint", llmHost},
+          {"graph.id", graphID},
+          {"operation.type", "streaming_tuple_extraction"}
+      }
+  );
+
+      recv(connFd, &content_length, sizeof(int), 0);
+      content_length = ntohl(content_length);
+      Utils::send_str_wrapper(
+          connFd, JasmineGraphInstanceProtocol::GRAPH_STREAM_C_length_ACK);
+      instance_logger.info("Received content length: " +
+                           std::to_string(content_length));
+      std::string traceContext(content_length, 0);
+      recv(connFd, &traceContext[0], content_length, 0);
+        instance_logger.info("traceContext: " + traceContext);
+      OpenTelemetryUtil::receiveAndSetTraceContext(traceContext, "Streaming tuple extraction");
+
+      // Add worker identification attributes to distinguish workers in traces
+      OpenTelemetryUtil::addSpanAttribute("worker.id", "worker_" + std::to_string(serverPort));
+      OpenTelemetryUtil::addSpanAttribute("worker.port", std::to_string(serverPort));
+      OpenTelemetryUtil::addSpanAttribute("llm.server.endpoint",llmHost  );
+      OpenTelemetryUtil::addSpanAttribute("graph.id", graphID);
+      OpenTelemetryUtil::addSpanAttribute("operation.type", "streaming_tuple_extraction");
+
 
     // Consumer thread that prints tuples from buffer
     std::thread consumer([&]() {
@@ -3420,7 +3459,8 @@ static void streaming_tuple_extraction(
         close(connFd);
       };
       int idleTimeoutSec = 120;  // e.g., break if no tuple for 30s
-
+        int tuple_id = 0;
+        vector<string> trace_tuples;
       while (true) {
         auto optTupleData = tupleBuffer.getWithTimeout(idleTimeoutSec);
         std::string tupleData;
@@ -3436,19 +3476,30 @@ static void streaming_tuple_extraction(
         int tuple_length = tupleData.length();
         int converted_number = htonl(tuple_length);
 
-        if (!Utils::sendIntExpectResponse(
+        Utils::sendIntExpectResponse(
                 connFd, data,
                 JasmineGraphInstanceProtocol::GRAPH_STREAM_C_length_ACK
                     .length(),
                 converted_number,
-                JasmineGraphInstanceProtocol::GRAPH_STREAM_C_length_ACK)) {
-          instance_logger.error("Error in receiving GRAPH_STREAM_C_length_ACK");
-          *loop_exit_p = true;
-          close(connFd);
-          break;
-        }
+                JasmineGraphInstanceProtocol::GRAPH_STREAM_C_length_ACK);
+        //   instance_logger.error("Error in receiving GRAPH_STREAM_C_length_ACK");
+        //     instance_logger.error(data);
+        //   *loop_exit_p = true;
+        //   close(connFd);
+        //   break;
+        // }
 
         // instance_logger.debug("3208 : " + tupleData);
+
+          // ScopedTracer tupleSpan(
+          //                   "generated_tuple",
+          //                   {
+          //                       {"tuple_id", to_string(tuple_id)},
+          //                       {"tuple", tupleData}
+          //                   });
+
+          trace_tuples.push_back(tupleData);
+          tuple_id++;
         Utils::send_str_wrapper(connFd, tupleData);
         char ack1[FED_DATA_LENGTH + 1];
 
@@ -3460,6 +3511,17 @@ static void streaming_tuple_extraction(
         }
 
         if (tupleData == "-1") {
+
+            string tupleArrayString;
+            for (const string& tuple : trace_tuples) {
+                tupleArrayString += tuple;
+                tupleArrayString += ", \n";
+            }
+            chunkTrace.addAttributes({
+       {"tuple_count", std::to_string(tuple_id)},
+       {"tuples", tupleArrayString}
+   });
+
           instance_logger.info("Received end signal from producer");
           tupleBuffer.clear();
           break;
@@ -4963,7 +5025,7 @@ static void semantic_beam_search(
       faissStore, textEmbedder, textEmbedder->embed(message), 7, gc, workers);
   semanticBeamSearch->getSeedNodes();
   SharedBuffer shared(50);
-  semanticBeamSearch->semanticMultiHopBeamSearch(shared, 5, 10);
+  semanticBeamSearch->semanticMultiHopBeamSearch(shared, 3, 10);
   auto startTime = std::chrono::high_resolution_clock::now();
   int time = 0;
 
@@ -5385,15 +5447,23 @@ static void processFile(string fileName, bool isLocal,
                     std::to_string(graphId) + "_" + std::to_string(partitionIndex), isEmbedGraph);
         }
     }
-    file.close();
-    if (isEmbedGraph) {
-        JasmineGraphIncrementalLocalStore* localStore =
-            handler.incrementalLocalStoreMap[std::to_string(graphId) + "_" + std::to_string(partitionIndex)];
-        localStore->getAndStoreEmbeddings();
-    }
-
-
+ file.close();
+ if (isEmbedGraph) {
+     JasmineGraphIncrementalLocalStore* localStore =
+         handler.incrementalLocalStoreMap[std::to_string(graphId) + "_" + std::to_string(partitionIndex)];
+     std::thread embedThread([localStore]() {
+         try {
+             localStore->getAndStoreEmbeddings();
+         } catch (const std::exception &e) {
+             instance_logger.error(std::string("Embedding thread exception: ") + e.what());
+         } catch (...) {
+             instance_logger.error("Embedding thread unknown exception");
+         }
+     });
+     embedThread.detach();
+ }
     instance_logger.info("Finished processing file: " + filePath);
+
 }
 
 

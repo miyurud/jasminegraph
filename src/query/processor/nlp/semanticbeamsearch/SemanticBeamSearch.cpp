@@ -12,6 +12,8 @@ limitations under the License.
  */
 #include "SemanticBeamSearch.h"
 
+#include <float.h>
+
 #include <iostream>
 #include <queue>
 #include <string>
@@ -37,7 +39,7 @@ SemanticBeamSearch::SemanticBeamSearch(
       workerList(workerList) {
   // Constructor implementation
   this->nodeManager = new NodeManager(gc);
-  semantic_beam_search_logger.info(
+  semantic_beam_search_logger.debug(
       "SemanticBeamSearch initialized with k: " + std::to_string(k) +
       ", embedding size: " + std::to_string(emb.size()) +
       ", graph ID: " + std::to_string(gc.graphID) +
@@ -48,13 +50,12 @@ std::vector<ScoredPath> SemanticBeamSearch::getSeedNodes() {
   // check the emb
   std::vector<ScoredPath> paths;
   try {
-    auto results = faissStore->search(emb, 5);
-    std::cout << "Top " << results.size() << " nodes found:\n";
+    auto results = faissStore->search(emb, 50);
+    semantic_beam_search_logger.debug("Top " + to_string(results.size())+ " nodes found");
     for (auto& [id, dist] : results) {
-      std::cout << "ID: " << id << ", Distance: " << dist << "\n";
+
       NodeBlock* seedNode =
           nodeManager->get(faissStore->getNodeIdFromEmbeddingId((id)));
-
       if (!seedNode) continue;
 
       json initialPath;
@@ -73,6 +74,14 @@ std::vector<ScoredPath> SemanticBeamSearch::getSeedNodes() {
       float score = Utils::cosineSimilarity(
           emb, faissStore->getEmbeddingById(nodeData["id"]));
       paths.push_back({initialPath, score});
+        string displayName;
+        if (nodeData.contains("name")) {
+            displayName = nodeData["name"].get<std::string>();
+        } else {
+            displayName = nodeData["id"].get<std::string>();
+        }
+      semantic_beam_search_logger.debug ( "Seed node: " + nodeData["name"].get<std::string>() + ", Distance: " +to_string(dist));
+
     }
   } catch (std::exception& e) {
       semantic_beam_search_logger.error(std::string("getSeedNodes exception: ") + e.what());
@@ -85,13 +94,13 @@ std::vector<ScoredPath> SemanticBeamSearch::getSeedNodes() {
 void SemanticBeamSearch::semanticMultiHopBeamSearch(SharedBuffer& buffer,
                                                     int numHops,
                                                     int beamWidth) {
-  semantic_beam_search_logger.info(
+  semantic_beam_search_logger.debug(
       "Starting semantic Multi-Hop Beam Search with following number of hops : " +
       std::to_string(numHops) + ", beamWidth: " + std::to_string(beamWidth));
 
   // 1. Get seed nodes using FAISS
   std::vector<ScoredPath> paths = getSeedNodes();
-  semantic_beam_search_logger.info("Seed nodes retrieved: " +
+  semantic_beam_search_logger.debug("Seed nodes retrieved: " +
                                    std::to_string(paths.size()));
 
   // Debug: Print all seed paths
@@ -105,7 +114,7 @@ void SemanticBeamSearch::semanticMultiHopBeamSearch(SharedBuffer& buffer,
 
   // 2. Multi-hop beam search
   for (int hop = 1; hop <= numHops; ++hop) {
-    semantic_beam_search_logger.info(
+    semantic_beam_search_logger.debug(
         "Hop " + std::to_string(hop) +
         " started. Current paths: " + std::to_string(paths.size()));
     std::vector<ScoredPath> expandedPaths;
@@ -137,7 +146,7 @@ void SemanticBeamSearch::semanticMultiHopBeamSearch(SharedBuffer& buffer,
       semantic_beam_search_logger.debug("Destination partition ID: " +
                                         destPartitionId);
       if (destPartitionId != std::to_string(gc.partitionID)) {
-        semantic_beam_search_logger.info("Queueing remote node " + lastNodeId +
+        semantic_beam_search_logger.debug("Queueing remote node " + lastNodeId +
                                          " for partition " + destPartitionId);
 
         remoteFrontier[destPartitionId].push_back(sp);
@@ -147,7 +156,7 @@ void SemanticBeamSearch::semanticMultiHopBeamSearch(SharedBuffer& buffer,
       NodeBlock* lastNode = nodeManager->get(lastNodeId);
 
       if (!lastNode) {
-        semantic_beam_search_logger.info(
+        semantic_beam_search_logger.debug(
             "Last node not found for path, skipping.");
         continue;
       }
@@ -163,7 +172,7 @@ void SemanticBeamSearch::semanticMultiHopBeamSearch(SharedBuffer& buffer,
                                             std::to_string(relCount));
           NodeBlock* destNode = relation->getDestination();
           if (!destNode) {
-            semantic_beam_search_logger.info(
+            semantic_beam_search_logger.debug(
                 "Destination node not found for relation, skipping.");
             relation =
                 relation->nextLocalSource();  // or nextCentralDestination
@@ -187,7 +196,7 @@ void SemanticBeamSearch::semanticMultiHopBeamSearch(SharedBuffer& buffer,
           }
           if (relData.contains("id") &&
               relData["id"].get<std::string>() == lastRelationId) {
-            semantic_beam_search_logger.info("Skipping parent relation");
+            semantic_beam_search_logger.debug("Skipping parent relation");
             relation =
                 relation->nextLocalDestination();  // or nextCentralDestination
 
@@ -227,14 +236,14 @@ void SemanticBeamSearch::semanticMultiHopBeamSearch(SharedBuffer& buffer,
           semantic_beam_search_logger.debug("Scoring node ID: " +
                                             std::to_string(destNode->nodeId));
           newPath["pathNodes"].push_back(nodeData);
-          semantic_beam_search_logger.info(
+          semantic_beam_search_logger.debug(
               "Expanded to node ID: " + std::to_string(destNode->nodeId) +
               ", interim score: " + std::to_string(score));
           semantic_beam_search_logger.debug("Node properties: " +
                                             nodeData.dump());
           expandedPaths.push_back(
               {newPath, score + Utils::cosineSimilarity(emb, emb_)});
-          semantic_beam_search_logger.info(
+          semantic_beam_search_logger.debug(
               "Expanded path to node " + std::to_string(destNode->nodeId) +
               " with score " + std::to_string(score));
           semantic_beam_search_logger.debug("Expanded path JSON: " +
@@ -254,7 +263,7 @@ void SemanticBeamSearch::semanticMultiHopBeamSearch(SharedBuffer& buffer,
                                             std::to_string(relCount));
           NodeBlock* destNode = relation->getDestination();
           if (!destNode) {
-            semantic_beam_search_logger.info(
+            semantic_beam_search_logger.debug(
                 "Destination node not found for relation, skipping.");
             relation =
                 relation->nextCentralSource();  // or nextCentralDestination
@@ -270,7 +279,7 @@ void SemanticBeamSearch::semanticMultiHopBeamSearch(SharedBuffer& buffer,
           for (auto& [k, v] : relProps) relData[k] = v;
           if (relData.contains("id") &&
               relData["id"].get<std::string>() == lastRelationId) {
-            semantic_beam_search_logger.info("Skipping parent relation");
+            semantic_beam_search_logger.debug("Skipping parent relation");
             relation =
                 relation
                     ->nextCentralDestination();  // or nextCentralDestination
@@ -306,7 +315,7 @@ void SemanticBeamSearch::semanticMultiHopBeamSearch(SharedBuffer& buffer,
           semantic_beam_search_logger.debug("Scoring node ID: " +
                                             std::to_string(destNode->nodeId));
           newPath["pathNodes"].push_back(nodeData);
-          semantic_beam_search_logger.info(
+          semantic_beam_search_logger.debug(
               "Expanded to node ID: " + std::to_string(destNode->nodeId) +
               ", interim score: " + std::to_string(score));
 
@@ -316,7 +325,7 @@ void SemanticBeamSearch::semanticMultiHopBeamSearch(SharedBuffer& buffer,
           expandedPaths.push_back(
               {newPath, score + Utils::cosineSimilarity(emb, emb_)});
 
-          semantic_beam_search_logger.info(
+          semantic_beam_search_logger.debug(
               "Expanded path to node " + std::to_string(destNode->nodeId) +
               " with score " + std::to_string(score));
           semantic_beam_search_logger.debug("Expanded path JSON: " +
@@ -333,7 +342,7 @@ void SemanticBeamSearch::semanticMultiHopBeamSearch(SharedBuffer& buffer,
       RelationBlock* localRel =
           RelationBlock::getLocalRelation(lastNode->edgeRef);
       if (localRel) {
-        semantic_beam_search_logger.info("Expanding local relations for node " +
+        semantic_beam_search_logger.debug("Expanding local relations for node " +
                                          std::to_string(lastNode->nodeId));
         expandRelations(localRel);
       } else {
@@ -344,7 +353,7 @@ void SemanticBeamSearch::semanticMultiHopBeamSearch(SharedBuffer& buffer,
       RelationBlock* centralRel =
           RelationBlock::getCentralRelation(lastNode->centralEdgeRef);
       if (centralRel) {
-        semantic_beam_search_logger.info(
+        semantic_beam_search_logger.debug(
             "Expanding central relations for node " +
             std::to_string(lastNode->nodeId));
         expandCentralRelations(centralRel);
@@ -355,9 +364,9 @@ void SemanticBeamSearch::semanticMultiHopBeamSearch(SharedBuffer& buffer,
 
       if (expandedPaths.empty()) {
         json spJson;
-        spJson["score"] = sp.score;
+        spJson["score"] = FLT_MAX;
         spJson["pathObj"] = sp.pathObj;
-        semantic_beam_search_logger.info("Adding terminal:" + spJson.dump());
+        semantic_beam_search_logger.debug("Adding terminal:" + spJson.dump());
         buffer.add(spJson.dump());
       }
     }
@@ -380,8 +389,8 @@ void SemanticBeamSearch::semanticMultiHopBeamSearch(SharedBuffer& buffer,
     }
 
     // block this thread until all threads are done
-    semantic_beam_search_logger.info("All remote expansion threads joined.");
-    semantic_beam_search_logger.info(
+    semantic_beam_search_logger.debug("All remote expansion threads joined.");
+    semantic_beam_search_logger.debug(
         "Waiting for all remote expansion threads to complete.");
 
     // check all threads completed
@@ -429,7 +438,7 @@ void SemanticBeamSearch::semanticMultiHopBeamSearch(SharedBuffer& buffer,
               });
     if ((int)expandedPaths.size() > beamWidth) expandedPaths.resize(beamWidth);
 
-    semantic_beam_search_logger.info(
+    semantic_beam_search_logger.debug(
         "Hop " + std::to_string(hop) +
         " finished. Expanded paths: " + std::to_string(expandedPaths.size()));
     for (size_t i = 0; i < expandedPaths.size(); ++i) {
