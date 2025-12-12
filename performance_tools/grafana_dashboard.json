@@ -2614,7 +2614,24 @@
   "schemaVersion": 40,
   "tags": [],
   "templating": {
-    "list": []
+    "list": [
+      {
+        "name": "DS_PROMETHEUS",
+        "type": "datasource",
+        "label": "Prometheus",
+        "hide": 0,
+        "datasource": "Prometheus",
+        "refresh": 1,
+        "multi": false,
+        "includeAll": false,
+        "query": "prometheus",
+        "sort": 1,
+        "current": {
+          "text": "Prometheus",
+          "value": "Prometheus"
+        }
+      }
+    ]
   },
   "time": {
     "from": "now-1h",
