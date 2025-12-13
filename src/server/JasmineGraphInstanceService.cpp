@@ -4697,9 +4697,42 @@ static void query_start_command(int connFd, InstanceHandler &instanceHandler, st
         return;
     }
     instance_logger.info("Received full query: " + message);
+
+    // Receive trace context from master
+    content_length = 0;
+    instance_logger.info("Waiting for trace context length");
+    return_status = recv(connFd, &content_length, sizeof(int), 0);
+    if (return_status > 0) {
+        content_length = ntohl(content_length);
+        instance_logger.info("Received trace context length = " + std::to_string(content_length));
+    } else {
+        instance_logger.info("Error while reading trace context length");
+        *loop_exit_p = true;
+        return;
+    }
+
+    if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::GRAPH_STREAM_C_length_ACK)) {
+        *loop_exit_p = true;
+        return;
+    }
+
+    std::string traceContext(content_length, 0);
+    return_status = recv(connFd, &traceContext[0], content_length, 0);
+    if (return_status > 0) {
+        instance_logger.info("Received trace context");
+    } else {
+        instance_logger.info("Error while reading trace context");
+        *loop_exit_p = true;
+        return;
+    }
+
+    // Use utility function to validate and set trace context
+    OpenTelemetryUtil::receiveAndSetTraceContext(traceContext, "cypher query execution");
+
     instance_logger.info("connect partition id: " + partition + " with connection id: " + std::to_string(connFd));
 
-    instanceHandler.handleRequest(connFd, loop_exit_p, incrementalLocalStoreInstance->gc, masterIP, message);
+    instanceHandler.handleRequest(connFd, loop_exit_p, incrementalLocalStoreInstance->gc, masterIP, message,
+                                   traceContext);
     if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::GRAPH_STREAM_END_OF_EDGE)) {
         *loop_exit_p = true;
         return;
