@@ -1557,11 +1557,12 @@ bool Utils::sendQueryPlanToWorker(const std::string& host, int port, const std::
         return false;
     }
 
-    if (host.find('@') != std::string::npos) {
-        host = Utils::split(host, '@')[1];
+    std::string actualHost = host;
+    if (actualHost.find('@') != std::string::npos) {
+        actualHost = Utils::split(actualHost, '@')[1];
     }
 
-    server = gethostbyname(host.c_str());
+    server = gethostbyname(actualHost.c_str());
     if (server == NULL) {
         util_logger.error("ERROR, no host named " + host);
         return false;
