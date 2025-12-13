@@ -69,7 +69,7 @@ CypherQueryExecutor::CypherQueryExecutor(SQLiteDBInterface *db, PerformanceSQLit
 void CypherQueryExecutor::execute() {
     // Start automatic OpenTelemetry tracing for Cypher query execution
     OTEL_TRACE_FUNCTION();
-    
+
     cypher_logger.info("Executing Cypher Query");
 
     int uniqueId = getUid();
@@ -97,7 +97,7 @@ void CypherQueryExecutor::execute() {
     string queryPlan;
     {
         OTEL_TRACE_OPERATION("parse_and_plan_query");
-        
+
         antlr4::ANTLRInputStream input(queryString);
         // Create a lexer from the input
         CypherLexer lexer(&input);
@@ -145,11 +145,12 @@ void CypherQueryExecutor::execute() {
     int count = 0;
     {
         OTEL_TRACE_OPERATION("distribute_to_workers");
-        
+
         for (auto worker : workerList) {
             {
-                OTEL_TRACE_OPERATION("send_to_worker_" + std::string(worker.hostname) + "_partition_" + std::to_string(count));
-                
+                OTEL_TRACE_OPERATION("send_to_worker_" + std::string(worker.hostname) +
+                                     "_partition_" + std::to_string(count));
+
                 workerThreads.emplace_back(
                     doCypherQuery,
                     worker.hostname, worker.port,
@@ -191,11 +192,16 @@ void CypherQueryExecutor::execute() {
     int closeFlag = 0;
     if (Operator::isAggregate) {
         OTEL_TRACE_OPERATION("aggregate_results");
-        OpenTelemetryUtil::addSpanAttribute("aggregation.type", 
-            Operator::aggregateType == AggregationFactory::AVERAGE ? "average" :
-            Operator::aggregateType == AggregationFactory::ASC ? "ascending" :
-            Operator::aggregateType == AggregationFactory::DESC ? "descending" : "unknown");
-        
+        std::string aggregationType = "unknown";
+        if (Operator::aggregateType == AggregationFactory::AVERAGE) {
+            aggregationType = "average";
+        } else if (Operator::aggregateType == AggregationFactory::ASC) {
+            aggregationType = "ascending";
+        } else if (Operator::aggregateType == AggregationFactory::DESC) {
+            aggregationType = "descending";
+        }
+        OpenTelemetryUtil::addSpanAttribute("aggregation.type", aggregationType);
+
         auto startTime = std::chrono::high_resolution_clock::now();
         if (Operator::aggregateType == AggregationFactory::AVERAGE) {
             OTEL_TRACE_OPERATION("average_aggregation");
@@ -219,7 +225,7 @@ void CypherQueryExecutor::execute() {
         } else if (Operator::aggregateType == AggregationFactory::ASC ||
                    Operator::aggregateType == AggregationFactory::DESC) {
             OTEL_TRACE_OPERATION("order_by_aggregation");
-            
+
             struct BufferEntry {
                 std::string value;
                 size_t bufferIndex;
@@ -313,7 +319,7 @@ void CypherQueryExecutor::execute() {
         Operator::isAggregate = false;
     } else {
         OTEL_TRACE_OPERATION("collect_non_aggregated_results");
-        
+
         int count = 0;
         while (true) {
             if (closeFlag == numberOfPartitions) {
@@ -381,11 +387,11 @@ void CypherQueryExecutor::execute() {
     processStatusMutex.unlock();
 }
 
-void CypherQueryExecutor::doCypherQuery(std::string host, int port, std::string masterIP, int graphID,
-                                               int PartitionId, std::string message, SharedBuffer &sharedBuffer,
+void CypherQueryExecutor::doCypherQuery(const std::string& host, int port, const std::string& masterIP, int graphID,
+                                               int PartitionId, const std::string& message, SharedBuffer &sharedBuffer,
                                                const std::string& masterTraceContext) {
     OTEL_TRACE_OPERATION("worker_communication_" + host + "_partition_" + std::to_string(PartitionId));
-    
+
     Utils::sendQueryPlanToWorker(host, port, masterIP, graphID, PartitionId, message, sharedBuffer, masterTraceContext);
 }
 

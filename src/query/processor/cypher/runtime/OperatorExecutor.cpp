@@ -112,7 +112,7 @@ void OperatorExecutor::initializeMethodMap() {
 
 void OperatorExecutor::AllNodeScan(SharedBuffer &buffer, std::string jsonPlan, GraphConfig gc) {
     OTEL_TRACE_OPERATION("AllNodeScan");
-    
+
     json query = json::parse(jsonPlan);
     NodeManager nodeManager(gc);
     int nodeCount = 0;
@@ -145,10 +145,10 @@ void OperatorExecutor::AllNodeScan(SharedBuffer &buffer, std::string jsonPlan, G
 
 void OperatorExecutor::NodeScanByLabel(SharedBuffer &buffer, std::string jsonPlan, GraphConfig gc) {
     OTEL_TRACE_OPERATION("NodeScanByLabel");
-    
+
     json query = json::parse(jsonPlan);
     OpenTelemetryUtil::addSpanAttribute("scan.label", query["Label"].get<std::string>());
-    
+
     NodeManager nodeManager(gc);
     int nodeCount = 0;
     for (auto it : nodeManager.nodeIndex) {
@@ -181,7 +181,7 @@ void OperatorExecutor::NodeScanByLabel(SharedBuffer &buffer, std::string jsonPla
 
 void OperatorExecutor::ProduceResult(SharedBuffer &buffer, std::string jsonPlan, GraphConfig gc) {
     OTEL_TRACE_OPERATION("ProduceResult");
-    
+
     json query = json::parse(jsonPlan);
     SharedBuffer sharedBuffer(INTER_OPERATOR_BUFFER_SIZE);
     std::string nextOpt = query["NextOperator"];
@@ -209,7 +209,7 @@ void OperatorExecutor::ProduceResult(SharedBuffer &buffer, std::string jsonPlan,
 
 void OperatorExecutor::Filter(SharedBuffer &buffer, std::string jsonPlan, GraphConfig gc) {
     OTEL_TRACE_OPERATION("Filter");
-    
+
     json query = json::parse(jsonPlan);
     SharedBuffer sharedBuffer(INTER_OPERATOR_BUFFER_SIZE);
     std::string nextOpt = query["NextOperator"];
@@ -235,10 +235,10 @@ void OperatorExecutor::Filter(SharedBuffer &buffer, std::string jsonPlan, GraphC
 
 void OperatorExecutor::UndirectedRelationshipTypeScan(SharedBuffer &buffer, std::string jsonPlan, GraphConfig gc) {
     OTEL_TRACE_OPERATION("UndirectedRelationshipTypeScan");
-    
+
     json query = json::parse(jsonPlan);
     OpenTelemetryUtil::addSpanAttribute("relationship.type", query["relType"].get<std::string>());
-    
+
     NodeManager nodeManager(gc);
 
     const std::string& dbPrefix = nodeManager.getDbPrefix();

@@ -4731,7 +4731,8 @@ static void query_start_command(int connFd, InstanceHandler &instanceHandler, st
 
     instance_logger.info("connect partition id: " + partition + " with connection id: " + std::to_string(connFd));
 
-    instanceHandler.handleRequest(connFd, loop_exit_p, incrementalLocalStoreInstance->gc, masterIP, message, traceContext);
+    instanceHandler.handleRequest(connFd, loop_exit_p, incrementalLocalStoreInstance->gc, masterIP, message,
+                                   traceContext);
     if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::GRAPH_STREAM_END_OF_EDGE)) {
         *loop_exit_p = true;
         return;

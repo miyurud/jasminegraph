@@ -624,6 +624,11 @@ std::string Utils::read_str_wrapper(int connFd, char *buf, size_t len, bool allo
         util_logger.error("Read failed: recv empty string");
         return "";
     }
+    // Ensure result is within bounds before accessing buffer
+    if (static_cast<size_t>(result) >= len) {
+        util_logger.error("Read failed: result exceeds buffer length");
+        return "";
+    }
     buf[result] = 0;  // null terminator for string
     string str = buf;
     return str;
@@ -1534,9 +1539,9 @@ void Utils::assignPartitionToWorker(int graphId, int partitionIndex, string  hos
 
 
 
-bool Utils::sendQueryPlanToWorker(std::string host, int port, std::string masterIP,
-                                  int graphID, int partitionId, std::string message, SharedBuffer &sharedBuffer,
-                                  const std::string& masterTraceContext) {
+bool Utils::sendQueryPlanToWorker(const std::string& host, int port, const std::string& masterIP,
+                                  int graphID, int partitionId, const std::string& message,
+                                  SharedBuffer &sharedBuffer, const std::string& masterTraceContext) {
     util_logger.info("Host:" + host + " Port:" + to_string(port));
     bool result = true;
     int sockfd;
@@ -1640,17 +1645,17 @@ bool Utils::sendQueryPlanToWorker(std::string host, int port, std::string master
     }
 
     // Send trace context for distributed tracing
-    char ack4[ACK_MESSAGE_SIZE] = {0};
+    std::string ack4(ACK_MESSAGE_SIZE, '\0');
     std::string traceContext = masterTraceContext;
     if (traceContext.empty()) {
         traceContext = "NO_TRACE_CONTEXT";
     }
-    
+
     message_length = traceContext.length();
     converted_number = htonl(message_length);
     util_logger.debug("Sending trace context length: " + to_string(converted_number));
 
-    if (!Utils::sendIntExpectResponse(sockfd, ack4,
+    if (!Utils::sendIntExpectResponse(sockfd, ack4.data(),
                                       JasmineGraphInstanceProtocol::GRAPH_STREAM_C_length_ACK.length(),
                                       converted_number,
                                       JasmineGraphInstanceProtocol::GRAPH_STREAM_C_length_ACK)) {

@@ -22,21 +22,21 @@ InstanceHandler::InstanceHandler(std::map<std::string,
 
 
 void InstanceHandler::handleRequest(int connFd, bool *loop_exit_p,
-                                    GraphConfig gc, string masterIP,
-                                    std::string queryJson, const std::string& traceContext) {
+                                    GraphConfig gc, std::string_view masterIP,
+                                    const std::string& queryJson, [[maybe_unused]] const std::string& traceContext) {
     // Start tracing AFTER trace context is set to ensure proper parent-child relationship
     OTEL_TRACE_FUNCTION();
-    
+
     // Add worker identification attributes to distinguish workers in traces
     OpenTelemetryUtil::addSpanAttribute("worker.partition", std::to_string(gc.partitionID));
     OpenTelemetryUtil::addSpanAttribute("graph.id", std::to_string(gc.graphID));
     OpenTelemetryUtil::addSpanAttribute("operation.type", "cypher_query");
-    
-    OperatorExecutor operatorExecutor(gc, queryJson, masterIP);
+
+    OperatorExecutor operatorExecutor(gc, queryJson, std::string(masterIP));
     operatorExecutor.initializeMethodMap();
     SharedBuffer sharedBuffer(operatorExecutor.INTER_OPERATOR_BUFFER_SIZE);
     auto method = OperatorExecutor::methodMap[operatorExecutor.query["Operator"]];
-    
+
     {
         OTEL_TRACE_OPERATION("execute_operators");
         // Launch the method in a new thread
@@ -44,7 +44,7 @@ void InstanceHandler::handleRequest(int connFd, bool *loop_exit_p,
                            std::string(operatorExecutor.queryPlan), gc);
         auto startTime = std::chrono::high_resolution_clock::now();
         int time = 0;
-        
+
         {
             OTEL_TRACE_OPERATION("stream_results_to_master");
             while (true) {
