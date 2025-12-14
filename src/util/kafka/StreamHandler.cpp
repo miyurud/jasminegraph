@@ -17,6 +17,7 @@ limitations under the License.
 #include <nlohmann/json.hpp>
 #include <string>
 #include <stdlib.h>
+#include <algorithm>
 
 #include "../logger/Logger.h"
 #include "../Utils.h"
@@ -89,8 +90,12 @@ void StreamHandler::listen_to_kafka_topic() {
         string data(msg.get_payload());
         auto edgeJson = json::parse(data);
 
-        auto prop = edgeJson["properties"];
-        prop["graphId"] = to_string(this->graphId);
+    auto prop = edgeJson["properties"];
+    prop["graphId"] = to_string(this->graphId);
+    std::string operationType = resolveOperationType(edgeJson);
+    std::string operationTimestamp = resolveOperationTimestamp(edgeJson);
+    prop["operationType"] = operationType;
+    prop["operationTimestamp"] = operationTimestamp;
         auto sourceJson = edgeJson["source"];
         auto destinationJson = edgeJson["destination"];
         string sId = std::string(sourceJson["id"]);
@@ -104,6 +109,8 @@ void StreamHandler::listen_to_kafka_topic() {
         obj["source"] = sourceJson;
         obj["destination"] = destinationJson;
         obj["properties"] = prop;
+    obj["operationType"] = operationType;
+    obj["operationTimestamp"] = operationTimestamp;
         long part_s = partitionedEdge[0].second;
         long part_d = partitionedEdge[1].second;
         int n_workers = atoi((Utils::getJasmineGraphProperty("org.jasminegraph.server.nworkers")).c_str());
@@ -125,4 +132,29 @@ void StreamHandler::listen_to_kafka_topic() {
     }
     graphPartitioner.updateMetaDB();
     graphPartitioner.printStats();
+}
+
+std::string StreamHandler::resolveOperationType(const json &edgeJson) const {
+    static const std::unordered_set<std::string> allowedOps = {"ADD", "DELETE", "UPDATE"};
+    std::string defaultOp = "ADD";
+    if (!edgeJson.contains("operationType") || !edgeJson["operationType"].is_string()) {
+        return defaultOp;
+    }
+    std::string op = Utils::trim_copy(edgeJson["operationType"].get<std::string>());
+    std::transform(op.begin(), op.end(), op.begin(), ::toupper);
+    if (allowedOps.find(op) == allowedOps.end()) {
+        stream_handler_logger.warn("Unsupported operation type '" + op + "' received. Falling back to ADD");
+        return defaultOp;
+    }
+    return op;
+}
+
+std::string StreamHandler::resolveOperationTimestamp(const json &edgeJson) const {
+    if (edgeJson.contains("operationTimestamp") && edgeJson["operationTimestamp"].is_string()) {
+        return edgeJson["operationTimestamp"].get<std::string>();
+    }
+    if (edgeJson.contains("timestamp") && edgeJson["timestamp"].is_string()) {
+        return edgeJson["timestamp"].get<std::string>();
+    }
+    return Utils::getCurrentTimestamp();
 }
