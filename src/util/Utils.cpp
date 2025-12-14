@@ -625,7 +625,7 @@ std::string Utils::read_str_wrapper(int connFd, char *buf, size_t len, bool allo
         return "";
     }
     // Ensure result is within bounds before accessing buffer
-    if (static_cast<size_t>(result) >= len) {
+    if (static_cast<size_t>(result) > len) {
         util_logger.error("Read failed: result exceeds buffer length");
         return "";
     }
