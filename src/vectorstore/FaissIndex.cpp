@@ -15,6 +15,7 @@ limitations under the License.
 #include <faiss/IndexFlat.h>
 #include <faiss/IndexIDMap.h>
 #include <faiss/index_io.h>
+#include <faiss/IndexIVFPQ.h>
 
 #include <fstream>
 #include <iostream>
@@ -169,6 +170,21 @@ void FaissIndex::load(const std::string& filepath) {
     }
   } else {
     // Create a new index if file not found
+      // int nlist = 100000;         // number of clusters (IVF)
+      // int m = 64;                 // PQ number of sub-vectors
+      // int nbits = 8;              // 8-bit quantization
+      //
+      // faiss::IndexFlatL2 quantizer(dim);
+      //
+      // faiss::IndexIVFPQ* index = new faiss::IndexIVFPQ(
+      //     &quantizer,
+      //     dim,
+      //     nlist,     // IVF clusters
+      //     m,         // number of PQ subvectors
+      //     nbits      // bits per subvector
+      // );
+      // index->use_precomputed_table = 1;
+      // index->train(num_train_vectors, train_data);
     index = new faiss::IndexFlatL2(dim);
   }
 

@@ -129,9 +129,7 @@ size_t OllamaTupleStreamer::StreamCallback(char* ptr, size_t size, size_t nmemb,
                           {"name", object}}}}},
                       {"properties",
                        {{"id", edge_id},
-                        {"type", predicate},
-                        {"description",
-                         subject + " " + predicate + " " + object}}}};
+                        {"type", predicate}}}};
                   // check termination
 
                   ctx->buffer->add(formattedTriple.dump());

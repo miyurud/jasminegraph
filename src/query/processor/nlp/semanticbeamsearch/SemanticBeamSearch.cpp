@@ -110,6 +110,10 @@ void SemanticBeamSearch::semanticMultiHopBeamSearch(SharedBuffer& buffer,
         ", score: " + std::to_string(paths[i].score));
   }
 
+    set<string> visitedNodes;
+    set<string>visitedRelations;
+
+
   // Initialize paths
 
   // 2. Multi-hop beam search
@@ -140,6 +144,7 @@ void SemanticBeamSearch::semanticMultiHopBeamSearch(SharedBuffer& buffer,
                                         lastNodeJson.dump());
       if (lastNodeJson["id"].empty()) continue;
       string lastNodeId = lastNodeJson["id"].get<std::string>();
+        visitedNodes.insert(lastNodeId);
       semantic_beam_search_logger.debug("Last node ID: " + lastNodeId);
       std::string destPartitionId =
           lastNodeJson["partitionID"].get<std::string>();
@@ -170,20 +175,30 @@ void SemanticBeamSearch::semanticMultiHopBeamSearch(SharedBuffer& buffer,
           relCount++;
           semantic_beam_search_logger.debug("Expanding relation #" +
                                             std::to_string(relCount));
-          NodeBlock* destNode = relation->getDestination();
-          if (!destNode) {
+            NodeBlock* expandedNode;
+
+            if (lastNode->addr == relation->source.address) {
+                expandedNode =  relation->getDestination();
+            }else {
+                expandedNode = relation->getSource();
+            }
+          if (!expandedNode) {
             semantic_beam_search_logger.debug(
-                "Destination node not found for relation, skipping.");
-            relation =
-                relation->nextLocalSource();  // or nextCentralDestination
+                "Exapnded node not found for relation, skipping.");
+              if (lastNode->addr == relation->source.address) {
+                  relation =  relation->nextLocalSource();
+              }else {
+                  relation =  relation->nextLocalDestination();
+
+              }
             if (relation) {
               continue;
             } else {
               break;
             }
           }
-          semantic_beam_search_logger.debug("Destination node ID: " +
-                                            std::to_string(destNode->nodeId));
+          semantic_beam_search_logger.debug("Expanded node ID: " +
+                                            std::to_string(expandedNode->nodeId));
 
           // Create new path
           json newPath = currentPath;
@@ -195,14 +210,16 @@ void SemanticBeamSearch::semanticMultiHopBeamSearch(SharedBuffer& buffer,
             continue;
           }
           if (relData.contains("id") &&
-              relData["id"].get<std::string>() == lastRelationId) {
-            semantic_beam_search_logger.debug("Skipping parent relation");
+              visitedRelations.find(relData["id"].get<std::string>())!= visitedRelations.end()
+              || visitedNodes.find(to_string(expandedNode->nodeId))!= visitedNodes.end()) {
+            semantic_beam_search_logger.debug("Skipping visited relation");
             relation =
                 relation->nextLocalDestination();  // or nextCentralDestination
 
             continue;
           }
           newPath["pathRels"].push_back(relData);
+            visitedRelations.insert(relData["id"].get<std::string>());
 
           semantic_beam_search_logger.debug("Relation properties: " +
                                             relData.dump());
@@ -225,30 +242,40 @@ void SemanticBeamSearch::semanticMultiHopBeamSearch(SharedBuffer& buffer,
 
           json nodeData;
           semantic_beam_search_logger.debug("Destination 168 node ID: " +
-                                            std::to_string(destNode->nodeId));
-          auto nodeProps = destNode->getAllProperties();
+                                            std::to_string(expandedNode->nodeId));
+          auto nodeProps = expandedNode->getAllProperties();
           nodeData["partitionID"] =
-              std::string(destNode->getMetaPropertyHead()->value);
+              std::string(expandedNode->getMetaPropertyHead()->value);
           for (auto& [k, v] : nodeProps) nodeData[k] = v;
-          // nodeData["id"] = std::to_string(destNode->nodeId);
+          nodeData["id"] = std::to_string(expandedNode->nodeId);
+
           vector<float> emb_ =
-              faissStore->getEmbeddingById(std::to_string(destNode->nodeId));
+              faissStore->getEmbeddingById(std::to_string(expandedNode->nodeId));
           semantic_beam_search_logger.debug("Scoring node ID: " +
-                                            std::to_string(destNode->nodeId));
+                                            std::to_string(expandedNode->nodeId));
           newPath["pathNodes"].push_back(nodeData);
           semantic_beam_search_logger.debug(
-              "Expanded to node ID: " + std::to_string(destNode->nodeId) +
+              "Expanded to node ID: " + std::to_string(expandedNode->nodeId) +
               ", interim score: " + std::to_string(score));
           semantic_beam_search_logger.debug("Node properties: " +
                                             nodeData.dump());
           expandedPaths.push_back(
               {newPath, score + Utils::cosineSimilarity(emb, emb_)});
           semantic_beam_search_logger.debug(
-              "Expanded path to node " + std::to_string(destNode->nodeId) +
+              "Expanded path to node " + std::to_string(expandedNode->nodeId) +
               " with score " + std::to_string(score));
           semantic_beam_search_logger.debug("Expanded path JSON: " +
                                             newPath.dump());
-          relation = relation->nextLocalSource();  // or nextCentralDestination
+
+
+            visitedNodes.insert(nodeData["id"].get<std::string>());
+            visitedRelations.insert(relData["id"].get<std::string>());
+            if (lastNode->addr == relation->source.address) {
+                relation =  relation->nextLocalSource();
+            }else {
+                relation =  relation->nextLocalDestination();
+
+            }
         }
 
         semantic_beam_search_logger.debug("Total relations expanded: " +
@@ -261,24 +288,34 @@ void SemanticBeamSearch::semanticMultiHopBeamSearch(SharedBuffer& buffer,
           relCount++;
           semantic_beam_search_logger.debug("Expanding relation #" +
                                             std::to_string(relCount));
-          NodeBlock* destNode = relation->getDestination();
-          if (!destNode) {
+            NodeBlock* expandedNode;
+
+            if (lastNode->addr == relation->source.address) {
+                expandedNode =  relation->getDestination();
+            }else {
+                expandedNode = relation->getSource();
+            }          if (!expandedNode) {
             semantic_beam_search_logger.debug(
                 "Destination node not found for relation, skipping.");
-            relation =
-                relation->nextCentralSource();  // or nextCentralDestination
+                if (lastNode->addr == relation->source.address) {
+                    relation =  relation->nextLocalSource();
+                }else {
+                    relation =  relation->nextLocalDestination();
+
+                }
             continue;
           }
           semantic_beam_search_logger.debug("Destination node ID: " +
-                                            std::to_string(destNode->nodeId));
+                                            std::to_string(expandedNode->nodeId));
 
           // Create new path
           json newPath = currentPath;
           json relData;
           auto relProps = relation->getAllProperties();
           for (auto& [k, v] : relProps) relData[k] = v;
-          if (relData.contains("id") &&
-              relData["id"].get<std::string>() == lastRelationId) {
+            if (relData.contains("id") &&
+              visitedRelations.find(relData["id"].get<std::string>())!= visitedRelations.end()
+              || visitedNodes.find(to_string(expandedNode->nodeId))!= visitedNodes.end()) {
             semantic_beam_search_logger.debug("Skipping parent relation");
             relation =
                 relation
@@ -304,19 +341,19 @@ void SemanticBeamSearch::semanticMultiHopBeamSearch(SharedBuffer& buffer,
 
           json nodeData;
           semantic_beam_search_logger.debug("Destination 168 node ID: " +
-                                            std::to_string(destNode->nodeId));
+                                            std::to_string(expandedNode->nodeId));
 
-          auto nodeProps = destNode->getAllProperties();
+          auto nodeProps = expandedNode->getAllProperties();
           nodeData["partitionID"] =
-              std::string(destNode->getMetaPropertyHead()->value);
+              std::string(expandedNode->getMetaPropertyHead()->value);
           for (auto& [k, v] : nodeProps) nodeData[k] = v;
           vector<float> emb_ =
-              faissStore->getEmbeddingById(std::to_string(destNode->nodeId));
+              faissStore->getEmbeddingById(std::to_string(expandedNode->nodeId));
           semantic_beam_search_logger.debug("Scoring node ID: " +
-                                            std::to_string(destNode->nodeId));
+                                            std::to_string(expandedNode->nodeId));
           newPath["pathNodes"].push_back(nodeData);
           semantic_beam_search_logger.debug(
-              "Expanded to node ID: " + std::to_string(destNode->nodeId) +
+              "Expanded to node ID: " + std::to_string(expandedNode->nodeId) +
               ", interim score: " + std::to_string(score));
 
           semantic_beam_search_logger.debug("Node properties: " +
@@ -326,13 +363,19 @@ void SemanticBeamSearch::semanticMultiHopBeamSearch(SharedBuffer& buffer,
               {newPath, score + Utils::cosineSimilarity(emb, emb_)});
 
           semantic_beam_search_logger.debug(
-              "Expanded path to node " + std::to_string(destNode->nodeId) +
+              "Expanded path to node " + std::to_string(expandedNode->nodeId) +
               " with score " + std::to_string(score));
           semantic_beam_search_logger.debug("Expanded path JSON: " +
                                             newPath.dump());
 
-          relation =
-              relation->nextCentralSource();  // or nextCentralDestination
+            visitedNodes.insert(nodeData["id"].get<std::string>());
+            visitedRelations.insert(relData["id"].get<std::string>());
+            if (lastNode->addr == relation->source.address) {
+                relation =  relation->nextLocalSource();
+            }else {
+                relation =  relation->nextLocalDestination();
+
+            }
         }
 
         semantic_beam_search_logger.debug("Total relations expanded: " +
@@ -419,11 +462,6 @@ void SemanticBeamSearch::semanticMultiHopBeamSearch(SharedBuffer& buffer,
           float relScore = Utils::cosineSimilarity(emb, it->second);
           path.score += relScore;
 
-          semantic_beam_search_logger.debug(
-              "Updated score for path " +
-              path.pathObj["pathRels"].back()["description"].dump() +
-              " with relation score " + std::to_string(relScore) +
-              ". New score: " + std::to_string(path.score));
         } else {
           semantic_beam_search_logger.warn("No embedding found for type: " +
                                            edgeType);

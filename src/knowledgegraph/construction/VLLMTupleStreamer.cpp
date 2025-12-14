@@ -126,9 +126,7 @@ size_t VLLMTupleStreamer::StreamCallback(char* ptr, size_t size, size_t nmemb,
                           {"name", object}}}}},
                       {"properties",
                        {{"id", edge_id},
-                        {"type", predicate},
-                        {"description",
-                         subject + " " + predicate + " " + object}}}};
+                        {"type", predicate}}}};
 
                   ctx->buffer->add(formattedTriple.dump());
                   vllm_tuple_streamer_logger.debug(

@@ -44,8 +44,9 @@ bool NodeBlock::isInUse() { return this->usage == '\1'; }
 std::string NodeBlock::getLabel() { return std::string(this->label); }
 
 void NodeBlock::setLabel(const char *_label) {
-    strcpy(this->label, _label);
-}
+std::strncpy(this->label, _label, NodeBlock::LABEL_SIZE - 1);
+        this->label[NodeBlock::LABEL_SIZE - 1] = '\0';
+    }
 
 void NodeBlock::addLabel(char *label) {
     if (this->label == this->id && strlen(label) != 0) {

@@ -5025,7 +5025,7 @@ static void semantic_beam_search(
       faissStore, textEmbedder, textEmbedder->embed(message), 7, gc, workers);
   semanticBeamSearch->getSeedNodes();
   SharedBuffer shared(50);
-  semanticBeamSearch->semanticMultiHopBeamSearch(shared, 3, 10);
+  semanticBeamSearch->semanticMultiHopBeamSearch(shared, 4, 5);
   auto startTime = std::chrono::high_resolution_clock::now();
   int time = 0;
 
@@ -5382,8 +5382,30 @@ static void hdfs_start_stream_command(int connFd, bool *loop_exit_p, bool isLoca
         return;
     }
     instance_logger.debug("Sent : " + JasmineGraphInstanceProtocol::HDFS_STREAM_END_ACK);
+    // processFile(fileName, isLocalStream, instanceStreamHandler, isEmbedGraph == "1");
 
-processFile(fileName, isLocalStream, instanceStreamHandler, isEmbedGraph == "1");
+    {
+        std::atomic<bool> processing_done(false);
+        std::thread procThread([&]() {
+            processFile(fileName, isLocalStream, instanceStreamHandler, isEmbedGraph == "1");
+            processing_done.store(true);
+        });
+        procThread.detach();
+
+        while (!processing_done.load()) {
+            if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::FILE_RECV_WAIT)) {
+                *loop_exit_p = true;
+                return;
+            }
+            std::this_thread::sleep_for(std::chrono::milliseconds(1000)); // prevent busy wait
+
+            // sleep(0.1);
+        }
+        if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::FILE_ACK)) {
+            *loop_exit_p = true;
+            return;
+        }
+    }
     // delete file chunk after adding to the store
     Utils::deleteFile(fullFilePath);
 }
@@ -5447,21 +5469,13 @@ static void processFile(string fileName, bool isLocal,
                     std::to_string(graphId) + "_" + std::to_string(partitionIndex), isEmbedGraph);
         }
     }
+    instance_logger.debug("Done Uploading File");
  file.close();
- if (isEmbedGraph) {
-     JasmineGraphIncrementalLocalStore* localStore =
-         handler.incrementalLocalStoreMap[std::to_string(graphId) + "_" + std::to_string(partitionIndex)];
-     std::thread embedThread([localStore]() {
-         try {
-             localStore->getAndStoreEmbeddings();
-         } catch (const std::exception &e) {
-             instance_logger.error(std::string("Embedding thread exception: ") + e.what());
-         } catch (...) {
-             instance_logger.error("Embedding thread unknown exception");
-         }
-     });
-     embedThread.detach();
- }
+    if (isEmbedGraph) {
+        JasmineGraphIncrementalLocalStore* localStore =
+            handler.incrementalLocalStoreMap[std::to_string(graphId) + "_" + std::to_string(partitionIndex)];
+        localStore->getAndStoreEmbeddings();
+    }
     instance_logger.info("Finished processing file: " + filePath);
 
 }

@@ -171,19 +171,9 @@ void HDFSMultiThreadedHashPartitioner::consumeLocalEdges(int partitionIndex, Jas
                 Utils::sendFileChunkToWorker(worker.hostname, worker.port, worker.dataPort, filePath,
                     masterIp, JasmineGraphInstanceProtocol::HDFS_LOCAL_STREAM_START,
                                              this->isEmbedGraph);
+
                 partitionMutexArray[partitionIndex].unlock();
-                long vertices = getVertexCount();
-                long edges = getEdgeCount();
 
-                std::string sqlStatement = "UPDATE graph SET vertexcount = '" + std::to_string(vertices) +
-                                           "', centralpartitioncount = '" + std::to_string(this->numberOfPartitions) +
-                                           "', edgecount = '" + std::to_string(edges) +
-                                           "', graph_status_idgraph_status = '" + std::to_string(Conts::GRAPH_STATUS::OPERATIONAL) +
-                                           "' WHERE idgraph = '" + std::to_string(this->graphId) + "'";
-
-                dbLock.lock();
-                this->sqlite->runUpdate(sqlStatement);
-                dbLock.unlock();
                 hash_partitioner_logger.info("Local edge consumer " + std::to_string(partitionIndex) +
                                               " generated file of " +
                                               std::to_string(this->partitionFileEdgeThreshold) +

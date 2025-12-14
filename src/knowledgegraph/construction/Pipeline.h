@@ -89,7 +89,10 @@ class Pipeline {
     int64_t realtime_bytes_read_so_far = 0;
     bool stopFlag = false;
     std::unordered_map<std::string, long> nodeIndex;
+    std::unordered_map<std::string, long> edgeIndex;
+
     unsigned int nextNodeIndex = 0;
+    unsigned int nextEdgeIndex = 0;
     string currentTraceContext;
 };
 

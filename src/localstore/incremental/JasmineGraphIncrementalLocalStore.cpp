@@ -54,58 +54,46 @@ JasmineGraphIncrementalLocalStore::JasmineGraphIncrementalLocalStore(
 };
 bool JasmineGraphIncrementalLocalStore::getAndStoreEmbeddings() {
 
-try{
- //
- std::vector<string> batch_request;
-   std::vector<std::string> node_ids;
+    try {
+        const size_t BATCH_SIZE = 64;
+        std::vector<std::string> batch_request;
+        std::vector<std::string> node_ids;
 
- //  for (auto &it : *embedding_requests) {
- //    batch_request.emplace_back(it.second);
- //    node_ids.push_back(it.first);
- //      incremental_localstore_logger.debug("node Text :" +it.second);
- //
- //  }
- //  vector<vector<float>> results = textEmbedder->batch_embed(batch_request);
- //
- //  for (size_t i = 0; i < results.size(); ++i) {
- //    faissStore->add(results[i], node_ids[i]);
- //  }
- // embedding_requests->clear();
- // faissStore->save();
+        batch_request.reserve(BATCH_SIZE);
+        node_ids.reserve(BATCH_SIZE);
+        incremental_localstore_logger.debug("adding embedding of size: "+ to_string(embedding_requests->size()));
 
-for (auto &it : *embedding_requests) {
-    batch_request.emplace_back(it.second);
-    node_ids.push_back(it.first);
-    incremental_localstore_logger.debug("node Text :" + it.second);
+        for (const auto &it : *embedding_requests) {
+            batch_request.emplace_back(it.second);
+            node_ids.push_back(it.first);
+            incremental_localstore_logger.debug("node Text :" + it.second);
 
-    const size_t BATCH_SIZE = 10;
-    if (batch_request.size() >= BATCH_SIZE) {
-        vector<vector<float>> results = textEmbedder->batch_embed(batch_request);
-        for (size_t i = 0; i < results.size(); ++i) {
-            faissStore->add(results[i], node_ids[i]);
+            if (batch_request.size() >= BATCH_SIZE) {
+                std::vector<std::vector<float>> results =
+                    textEmbedder->batch_embed(batch_request);
+                for (size_t i = 0; i < results.size(); ++i) {
+                    faissStore->add(results[i], node_ids[i]);
+                }
+                batch_request.clear();
+                node_ids.clear();
+            }
         }
-        batch_request.clear();
-        node_ids.clear();
-    }
-}
 
-    if (!batch_request.empty()) {
-        vector<vector<float>> results = textEmbedder->batch_embed(batch_request);
-        for (size_t i = 0; i < results.size(); ++i) {
-            faissStore->add(results[i], node_ids[i]);
+        if (!batch_request.empty()) {
+            std::vector<std::vector<float>> results =
+                textEmbedder->batch_embed(batch_request);
+            for (size_t i = 0; i < results.size(); ++i) {
+                faissStore->add(results[i], node_ids[i]);
+            }
         }
+
+        embedding_requests->clear();
+        return true;
+    } catch (const std::exception &e) {
+        incremental_localstore_logger.debug(
+            "Error while processing embedding requests = " + std::string(e.what()));
+        return false;
     }
-
-    embedding_requests->clear();
-    faissStore->save();
-
-
-return true;
-}
-catch ( exception& e ) {
-incremental_localstore_logger.debug("Error while processing edge data = " + std::string(e.what()) );
-}
-
 }
 
 std::pair<std::string, unsigned int> JasmineGraphIncrementalLocalStore::getIDs(
@@ -217,62 +205,67 @@ void JasmineGraphIncrementalLocalStore::addEdgeFromString(
 }
 
 void JasmineGraphIncrementalLocalStore::addLocalEdge(std::string edge) {
-  auto jsonEdge = json::parse(edge);
-  auto jsonSource = jsonEdge["source"];
-  auto jsonDestination = jsonEdge["destination"];
 
-  // log the edge information
-  if (!jsonSource.contains("id") || !jsonDestination.contains("id")) {
-    incremental_localstore_logger.error(
-        "Source or destination ID missing in edge data: " + edge);
-    return;
-  }
-  if (!jsonEdge.contains("source") || !jsonEdge.contains("destination")) {
-    incremental_localstore_logger.error(
-        "Source or destination missing in edge data: " + edge);
-    return;
-  }
-  if (!jsonEdge.contains("properties")) {
-    incremental_localstore_logger.error("Properties missing in edge data: " +
-                                        edge);
-    return;
-  }
-  if (!jsonSource.contains("pid") || !jsonDestination.contains("pid")) {
-    incremental_localstore_logger.error(
-        "Partition ID missing in source or destination: " + edge);
-    return;
-  }
+    try {
+        auto jsonEdge = json::parse(edge);
+        auto jsonSource = jsonEdge["source"];
+        auto jsonDestination = jsonEdge["destination"];
 
-  std::string sId = std::string(jsonSource["id"]);
-  std::string dId = std::string(jsonDestination["id"]);
-  RelationBlock* newRelation = nullptr;
-  if (jsonEdge["properties"].contains("id")) {
-    std::string edgeId = std::string(jsonEdge["properties"]["id"]);
+        // log the edge information
+        if (!jsonSource.contains("id") || !jsonDestination.contains("id")) {
+            incremental_localstore_logger.error(
+                "Source or destination ID missing in edge data: " + edge);
+            return;
+        }
+        incremental_localstore_logger.debug("220");
+        if (!jsonEdge.contains("source") || !jsonEdge.contains("destination")) {
+            incremental_localstore_logger.error(
+                "Source or destination missing in edge data: " + edge);
+            return;
+        }
+        incremental_localstore_logger.debug("226");
 
-    if (this->nm->edgeIndex.find(edgeId) == this->nm->edgeIndex.end()) {
-      incremental_localstore_logger.debug("Edge Id not found: " + edgeId);
+        if (!jsonEdge.contains("properties")) {
+            incremental_localstore_logger.error("Properties missing in edge data: " +
+                                                edge);
+            return;
+        }
+        incremental_localstore_logger.debug("233");
 
-      newRelation = this->nm->addLocalEdge({sId, dId});
-      this->nm->edgeIndex.insert({edgeId, this->nm->nextEdgeIndex});
-    } else {
-      incremental_localstore_logger.debug("Edge Id already found: " + edgeId);
+        if (!jsonSource.contains("pid") || !jsonDestination.contains("pid")) {
+            incremental_localstore_logger.error(
+                "Partition ID missing in source or destination: " + edge);
+            return;
+        }
+        incremental_localstore_logger.debug("240");
+
+
+        std::string sId = std::string(jsonSource["id"]);
+        incremental_localstore_logger.debug("244");
+
+        std::string dId = std::string(jsonDestination["id"]);
+        RelationBlock* newRelation = nullptr;
+
+        newRelation = this->nm->addLocalEdge({sId, dId});
+
+        if (newRelation == nullptr) {
+            incremental_localstore_logger.error("Error while adding new Relation: " + edge);
+
+            return;
+        }
+        incremental_localstore_logger.debug("edge: " + jsonEdge.dump());
+
+        addLocalEdgeProperties(newRelation, jsonEdge);
+        addSourceProperties(newRelation, jsonSource);
+        addDestinationProperties(newRelation, jsonDestination);
+        delete newRelation->getSource();
+        delete newRelation->getDestination();
+        delete newRelation;
+        incremental_localstore_logger.debug("Local edge (" + sId + "-> " + dId +
+                                            " ) added successfully");
+    } catch (const std::exception&  e) {
+        incremental_localstore_logger.error(e.what());
     }
-  } else {
-    newRelation = this->nm->addLocalEdge({sId, dId});
-  }
-
-  if (newRelation == nullptr) {
-    return;
-  }
-
-  addLocalEdgeProperties(newRelation, jsonEdge);
-  addSourceProperties(newRelation, jsonSource);
-  addDestinationProperties(newRelation, jsonDestination);
-  delete newRelation->getSource();
-  delete newRelation->getDestination();
-  delete newRelation;
-  incremental_localstore_logger.debug("Local edge (" + sId + "-> " + dId +
-                                      " ) added successfully");
 }
 
 void JasmineGraphIncrementalLocalStore::addCentralEdge(std::string edge) {
@@ -356,7 +349,7 @@ void JasmineGraphIncrementalLocalStore::addSourceProperties(
   char value[PropertyLink::MAX_VALUE_SIZE] = {};
   char label[NodeBlock::LABEL_SIZE] = {0};
   std::ostringstream textForEmbedding;
-
+incremental_localstore_logger.debug("Adding source properties: " + sourceJson.dump());
   if (sourceJson.contains("properties")) {
     auto sourceProps = json(sourceJson["properties"]);
 
@@ -376,6 +369,7 @@ void JasmineGraphIncrementalLocalStore::addSourceProperties(
       }
 
       if (this->embedNode) {
+          incremental_localstore_logger.debug("Embedding node:" + textForEmbedding.str());
         std::string nodeText = textForEmbedding.str();
         if (!nodeText.empty()) {
           if (faissStore->isNodeEmbeddingExist(sourceJson["id"])  ||  embedding_requests->find(sourceJson["id"]) != embedding_requests->end()) {
@@ -389,10 +383,12 @@ void JasmineGraphIncrementalLocalStore::addSourceProperties(
       }
     }
   }
-
+incremental_localstore_logger.debug("Adding meta");
   std::string sourcePid = std::to_string(sourceJson["pid"].get<int>());
   addNodeMetaProperty(relationBlock->getSource(),
                       MetaPropertyLink::PARTITION_ID, sourcePid);
+    incremental_localstore_logger.debug("Added meta");
+
 }
 
 void JasmineGraphIncrementalLocalStore::addDestinationProperties(

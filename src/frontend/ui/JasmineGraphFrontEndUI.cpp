@@ -455,7 +455,6 @@ static void send_uploaded_bytes(int connFd, SQLiteDBInterface *sqlite, bool *loo
     while (std::getline(ss, token, delimiter)) {
         if (JasmineGraphFrontEndCommon::graphExistsByID(token, sqlite)) {
             graphIDs.push_back(token);
-            ui_frontend_logger.info("Will fetch uploaded_bytes of graph id: " + token);
         } else {
             ui_frontend_logger.warn("Graph ID " + token + " not found. Skipping.");
         }
@@ -463,7 +462,6 @@ static void send_uploaded_bytes(int connFd, SQLiteDBInterface *sqlite, bool *loo
 
     // Fetch all if none specified
     if (graphIDs.empty()) {
-        ui_frontend_logger.info("No graph IDs specified. Fetching all graphs.");
         std::string sqlAll = "SELECT idgraph FROM graph";
         auto result = sqlite->runSelect(sqlAll);
         for (const auto &row : result) {
@@ -473,7 +471,6 @@ static void send_uploaded_bytes(int connFd, SQLiteDBInterface *sqlite, bool *loo
         }
     }
 
-    ui_frontend_logger.info("Fetching uploaded_bytes for " + std::to_string(graphIDs.size()) + " graph(s).");
 
     std::string msg = "UPBYTES";
 
@@ -519,8 +516,7 @@ static void send_uploaded_bytes(int connFd, SQLiteDBInterface *sqlite, bool *loo
         } catch (...) {
             ui_frontend_logger.warn("Failed to parse upload_start_time for graph " + graphID);
         }
-        ui_frontend_logger.info("elapsed time: " + std::to_string(elapsedSeconds));
-        ui_frontend_logger.info("edge count: " + std::to_string(elapsedSeconds));
+
 
         int id = std::stoi(graphID);
         auto rate = JasmineGraphFrontEnd::kgConstructionRates[id];
@@ -540,7 +536,7 @@ static void send_uploaded_bytes(int connFd, SQLiteDBInterface *sqlite, bool *loo
     if (wr < 0) {
         ui_frontend_logger.error("Client disconnected while sending UPBYTES.");
     } else {
-        ui_frontend_logger.info("UPBYTES sent successfully.");
+        ui_frontend_logger.debug("UPBYTES sent successfully.");
     }
 }
 
