@@ -883,6 +883,11 @@ std::unordered_map<std::string, std::pair<double, double>> StatisticsCollector::
 
     std::unordered_map<std::string, std::pair<double, double>> diskRates;
 
+    if (elapsedTime <= 0.0) {
+        stat_logger.error("Invalid elapsed time");
+        return diskRates;
+    }
+
     for (const auto& [device, diskStats] : firstReading) {
         if (secondReading.find(device) == secondReading.end()) continue;
 
