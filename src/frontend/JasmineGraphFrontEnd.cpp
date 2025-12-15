@@ -90,6 +90,9 @@ static void cypherCommand(std::string masterIP, int connFd, vector<DataPublisher
 static void semanticBeamSearch(std::string masterIP, int connFd, vector<DataPublisher *> &workerClients,
                                int numberOfPartitions, bool *loop_exit, SQLiteDBInterface *sqlite,
                                PerformanceSQLiteDBInterface *perfSqlite, JobScheduler *jobScheduler);
+static void agent_plan_command(std::string masterIP, int connFd, vector<DataPublisher *> &workerClients,
+                                        int numberOfPartitions, bool *loop_exit, SQLiteDBInterface *sqlite,
+                                        PerformanceSQLiteDBInterface *perfSqlite, JobScheduler *jobScheduler);
 static void add_rdf_command(std::string masterIP, int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_p);
 static void add_graph_command(std::string masterIP, int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_p);
 static void add_graph_cust_command(std::string masterIP, int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_p);
@@ -207,6 +210,11 @@ void *frontendservicesesion(void *dummyPt) {
             workerClients = getWorkerClients(sqlite);
             workerClientsInitialized = true;
             semanticBeamSearch(masterIP, connFd, workerClients, numberOfPartitions, &loop_exit, sqlite, perfSqlite,
+                               jobScheduler);
+        } else if (line.compare(AGENT_PLAN) == 0){
+            workerClients = getWorkerClients(sqlite);
+            workerClientsInitialized = true;
+            agent_plan_command(masterIP, connFd, workerClients, numberOfPartitions, &loop_exit, sqlite, perfSqlite,
                                jobScheduler);
         } else if (line.compare(SHTDN) == 0) {
             JasmineGraphServer::shutdown_workers();
@@ -721,6 +729,91 @@ static void semanticBeamSearch(std::string masterIP, int connFd, vector<DataPubl
         *loop_exit = true;
     }
 }
+
+static void agent_plan_command(std::string masterIP, int connFd, vector<DataPublisher *> &workerClients,
+                                        int numberOfPartitions, bool *loop_exit, SQLiteDBInterface *sqlite,
+                                        PerformanceSQLiteDBInterface *perfSqlite, JobScheduler *jobScheduler) {
+    string graphIdPrompt = "Graph ID:";
+    if (write(connFd, graphIdPrompt.c_str(), graphIdPrompt.length()) < 0) {
+        frontend_logger.error("Error writing Graph ID prompt");
+        *loop_exit = true;
+        return;
+    }
+
+    write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
+
+    char graphIdResponse[FRONTEND_DATA_LENGTH + 1];
+    memset(graphIdResponse, 0, FRONTEND_DATA_LENGTH + 1);
+    read(connFd, graphIdResponse, FRONTEND_DATA_LENGTH);
+
+    frontend_logger.debug("Graph Id received" + string(graphIdResponse));
+
+    string queryPrompt = "Input natural language query:";
+    if (write(connFd, queryPrompt.c_str(), queryPrompt.length()) < 0) {
+        frontend_logger.error("Error writing query prompt");
+        *loop_exit = true;
+        return;
+    }
+    write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(),
+          Conts::CARRIAGE_RETURN_NEW_LINE.size());
+
+    char query[FRONTEND_DATA_LENGTH + 1];
+    memset(query, 0, FRONTEND_DATA_LENGTH + 1);
+    read(connFd, query, FRONTEND_DATA_LENGTH);
+
+    string queryString(query);
+    frontend_logger.debug("Agent query received: " + queryString);
+
+    auto begin = chrono::high_resolution_clock::now();
+
+    JobRequest jobDetails;
+    int uid = JasmineGraphFrontEndCommon::getUid();
+
+    jobDetails.setJobId(std::to_string(uid));
+    jobDetails.setJobType(AGENT_PLAN);
+    jobDetails.setMasterIP(masterIP);
+    jobDetails.setPriority(Conts::HIGH_PRIORITY_DEFAULT_VALUE);
+
+    jobDetails.addParameter("query", queryString);
+    jobDetails.addParameter(Conts::PARAM_KEYS::GRAPH_ID, graphIdResponse);
+    jobDetails.addParameter(Conts::PARAM_KEYS::CATEGORY, Conts::SLA_CATEGORY::LATENCY);
+    jobDetails.addParameter(Conts::PARAM_KEYS::NO_OF_PARTITIONS, std::to_string(numberOfPartitions));
+    jobDetails.addParameter(Conts::PARAM_KEYS::CONN_FILE_DESCRIPTOR, std::to_string(connFd));
+    jobDetails.addParameter(Conts::PARAM_KEYS::LOOP_EXIT_POINTER,
+                             std::to_string(reinterpret_cast<std::uintptr_t>(loop_exit)));
+    
+    long graphSLA = JasmineGraphFrontEndCommon::getSLAForGraphId(sqlite, perfSqlite, graphIdResponse,
+                                                                 AGENT_PLAN, Conts::SLA_CATEGORY::LATENCY);
+    
+    jobDetails.addParameter(Conts::PARAM_KEYS::GRAPH_SLA, std::to_string(graphSLA));
+
+    if (graphSLA == 0 && JasmineGraphFrontEnd::areRunningJobsForSameGraph()) {
+        jobDetails.addParameter(Conts::PARAM_KEYS::AUTO_CALIBRATION, canCalibrate ? "false" : "true");
+    }
+    jobDetails.addParameter(Conts::PARAM_KEYS::CAN_CALIBRATE,
+                            canCalibrate ? "true" : "false");
+
+    jobScheduler->pushJob(jobDetails);
+    frontend_logger.debug("Agent plan job pushed");
+
+    JobResponse JobResponse = jobScheduler->getResult(jobDetails);
+    std::string errorMessage = JobResponse.getParameter(Conts::PARAM_KEYS::ERROR_MESSAGE);
+
+    if (!errorMessage.empty()) {
+        *loop_exit = true;
+        write(connFd, errorMessage.c_str, errorMessage.length());
+        write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
+        return;
+    }
+
+    auto end = chrono::high_resolution_clock::now();
+    auto duration = chrono::duration_cast<chrono::milliseconds>(end - begin).count();
+    frontend_logger.info("Agent plan execution time: " + std::to_string(duration) + " ms");
+
+    write(connFd, DONE.c_str(), FRONTEND_COMMAND_LENGTH);
+    write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());                
+                                        }
+
 static void add_rdf_command(std::string masterIP, int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_p) {
     // add RDF graph
     int result_wr = write(connFd, SEND.c_str(), FRONTEND_COMMAND_LENGTH);
