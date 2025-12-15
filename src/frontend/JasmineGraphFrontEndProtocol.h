@@ -92,6 +92,7 @@ extern const string MERGE;
 extern const string INVALID_FORMAT;
 extern const string CYPHER;
 extern const string SEMANTIC_BEAM_SEARCH;
+extern const string  AGENT_PLAN;
 extern const string PROPERTIES;
 extern const string  UPDATE_PARTITION_META;
 extern const string  META;
