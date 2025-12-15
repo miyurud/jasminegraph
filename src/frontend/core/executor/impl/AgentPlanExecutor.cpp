@@ -1,4 +1,5 @@
 #include "AgentPlanExectuor.h"
+#include "../../../../src/rag/retrieval/AgentProtocol.h"
 #include "../../../../src/util/Utils.h"
 #include <nlohmann/json.hpp>
 #include <atomic>
@@ -28,7 +29,15 @@ void AgentPlanExecutor::execute() {
     int connFd = std:stoi(request.getParameter(Conts::PARAM_KEYS::CONN_FILE_DESCRIPTOR));
     bool *loop_exit = reinterpret_cast<bool*>(static_cast<std::uintptr_t>(std::stoull(
         request.getParameter(Conts::PARAM_KEYS::LOOP_EXIT_POINTER))));
+    
+    std::string planStr = AgentProtocol::getPlan(query);
+    agent_executor_logger.info("Executing Agent Plan" + planStr);
 
+    const auto& workerList = JasmineGraphServer::getWorkers(numberOfPartitions);
+    std::vector<std::unique_ptr<SharedBuffer>> bufferPool;
+    bufferPool.reserve(numberOfPartitions);
+
+    
         
 }
 
