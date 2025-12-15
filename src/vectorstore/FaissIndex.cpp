@@ -252,7 +252,7 @@ void FaissIndex::load(const std::string& filepath) {
 }
 
 
-bool FaissIndex::isNodeEmbeddingExist(std::string nodeId) {
+bool FaissIndex::isEmbeddingExist(std::string nodeId) {
     std::lock_guard<std::mutex> lock(mtx);
 
     if (!index) {
@@ -311,3 +311,37 @@ std::string FaissIndex::getNodeIdFromEmbeddingId(faiss::idx_t embeddingId) {
 
   return it->second;  // access the nodeId from the right map
 }
+
+std::vector<std::vector<float>>
+FaissIndex::getEmbeddingsByIds(const std::vector<std::string>& nodeIds) {
+    std::lock_guard<std::mutex> lock(mtx);
+
+    if (!index) {
+        throw std::runtime_error("FAISS index not initialized.");
+    }
+
+    std::vector<std::vector<float>> results;
+    results.reserve(nodeIds.size());
+
+    for (const auto& nodeId : nodeIds) {
+        auto it = nodeIdToEmbeddingIdMap.find(nodeId);
+        if (it == nodeIdToEmbeddingIdMap.end()) {
+            // push empty embedding or skip — your choice
+            results.emplace_back(dim, 0.0f);
+            continue;
+        }
+
+        faiss::idx_t id = it->second;
+        if (id < 0 || id >= index->ntotal) {
+            results.emplace_back(dim, 0.0f);
+            continue;
+        }
+
+        std::vector<float> emb(dim);
+        index->reconstruct(id, emb.data());
+        results.emplace_back(std::move(emb));
+    }
+
+    return results;
+}
+

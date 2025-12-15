@@ -31,7 +31,7 @@ STRICT RULES:
 - Continue until you have processed the **entire chunk** fully.
 - Do not stop early.
 - Do not guess missing types; mark unknown types as "unknown".
-- strict the types to one or two words
+- Extract relations aligned with schema.org where possible.”
 - Output ONLY valid JSON.
 - The array MUST contain **all triples**, not a representative sample.
 

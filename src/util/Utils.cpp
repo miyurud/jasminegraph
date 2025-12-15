@@ -1247,11 +1247,11 @@ bool Utils::sendFileChunkToWorker(std::string host, int port, int dataPort, std:
         return false;
     }
 
-    if (!Utils::performHandshake(sockfd, data, FED_DATA_LENGTH, masterIP)) {
-        Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::CLOSE);
-        close(sockfd);
-        return false;
-    }
+    // if (!Utils::performHandshake(sockfd, data, FED_DATA_LENGTH, masterIP)) {
+    //     Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::CLOSE);
+    //     close(sockfd);
+    //     return false;
+    // }
 
     if (!Utils::sendExpectResponse(sockfd, data, INSTANCE_DATA_LENGTH, uploadType,
                                    JasmineGraphInstanceProtocol::HDFS_STREAM_START_ACK)) {
@@ -1330,20 +1330,20 @@ bool Utils::sendFileChunkToWorker(std::string host, int port, int dataPort, std:
         }
     }
 
-    while (true) {
-        response = Utils::read_str_trim_wrapper(sockfd, data, FED_DATA_LENGTH);
-        if (response.compare(JasmineGraphInstanceProtocol::FILE_RECV_WAIT) == 0) {
-            util_logger.debug("Received: " + JasmineGraphInstanceProtocol::FILE_RECV_WAIT);
-            // sleep(1);
-            std::this_thread::sleep_for(std::chrono::milliseconds(3000)); // small wait
-
-            continue;
-        } else if (response.compare(JasmineGraphInstanceProtocol::FILE_ACK) == 0) {
-            util_logger.debug("Received: " + JasmineGraphInstanceProtocol::FILE_ACK);
-            util_logger.debug("File chunk upload completed: " + fileName);
-            break;
-        }
-    }
+    // while (true) {
+    //     response = Utils::read_str_trim_wrapper(sockfd, data, FED_DATA_LENGTH);
+    //     if (response.compare(JasmineGraphInstanceProtocol::FILE_RECV_WAIT) == 0) {
+    //         util_logger.debug("Received: " + JasmineGraphInstanceProtocol::FILE_RECV_WAIT);
+    //         // sleep(1);
+    //         std::this_thread::sleep_for(std::chrono::milliseconds(3000)); // small wait
+    //
+    //         continue;
+    //     } else if (response.compare(JasmineGraphInstanceProtocol::FILE_ACK) == 0) {
+    //         util_logger.debug("Received: " + JasmineGraphInstanceProtocol::FILE_ACK);
+    //         util_logger.debug("File chunk upload completed: " + fileName);
+    //         break;
+    //     }
+    // }
 
     // if (!Utils::sendExpectResponse(sockfd, data, INSTANCE_DATA_LENGTH,
     //     JasmineGraphInstanceProtocol::HDFS_FILE_CHUNK_END_CHK,

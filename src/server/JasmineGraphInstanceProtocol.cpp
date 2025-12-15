@@ -13,6 +13,8 @@ limitations under the License.
 
 #include "JasmineGraphInstanceProtocol.h"
 
+#include <vector>
+
 const string JasmineGraphInstanceProtocol::HANDSHAKE = "hske";
 const string JasmineGraphInstanceProtocol::HANDSHAKE_OK = "hske-ok";
 const string JasmineGraphInstanceProtocol::HOST_OK = "hst-ok";
@@ -108,6 +110,7 @@ const string  JasmineGraphInstanceProtocol::EXPAND_NODE_BATCH = "semantic_beam_s
 
 
 
+
 const string JasmineGraphInstanceProtocol::QUERY_START = "query-start";
 const string JasmineGraphInstanceProtocol::SUB_QUERY_START = "sub-query-start";
 const string JasmineGraphInstanceProtocol::QUERY_START_ACK = "query-start-ack";
@@ -127,3 +130,6 @@ const string JasmineGraphInstanceProtocol::HDFS_STREAM_FILE_NAME_LENGTH_ACK = "h
 const string JasmineGraphInstanceProtocol::HDFS_STREAM_FILE_SIZE_ACK = "hdfs-file-size-ack";
 const string JasmineGraphInstanceProtocol::HDFS_FILE_CHUNK_END_CHK = "hdfs-file-chunk-end-chk";
 const string JasmineGraphInstanceProtocol::HDFS_FILE_CHUNK_END_ACK = "hdfs-file-chunk-end-ack";
+
+
+const vector<string> JasmineGraphInstanceProtocol::MULT_THREADED_CMDS = {JasmineGraphInstanceProtocol:: HDFS_LOCAL_STREAM_START};

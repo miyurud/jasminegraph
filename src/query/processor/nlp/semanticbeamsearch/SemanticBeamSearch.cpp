@@ -29,9 +29,9 @@ limitations under the License.
 Logger semantic_beam_search_logger;
 
 SemanticBeamSearch::SemanticBeamSearch(
-    FaissIndex* faissStore, TextEmbedder* textEmbedder, std::vector<float> emb,
+    FaissIndex* faissStore, FaissIndex* faissEdgeStore, TextEmbedder* textEmbedder, std::vector<float> emb,
     int k, GraphConfig gc, vector<JasmineGraphServer::worker> workerList)
-    : faissStore(faissStore),
+    : faissStore(faissStore),faissEdgeStore(faissEdgeStore),
       textEmbedder(textEmbedder),
       emb(std::move(emb)),
       k(k),
@@ -440,8 +440,11 @@ void SemanticBeamSearch::semanticMultiHopBeamSearch(SharedBuffer& buffer,
 
     std::vector<std::vector<float>> newEmbeddings;
     if (!embeddingRequestsForNewlyExploredEdges.empty()) {
-      newEmbeddings =
-          textEmbedder->batch_embed(embeddingRequestsForNewlyExploredEdges);
+
+      newEmbeddings =  faissEdgeStore->getEmbeddingsByIds(embeddingRequestsForNewlyExploredEdges);
+      // newEmbeddings =
+      //
+      //     textEmbedder->batch_embed(embeddingRequestsForNewlyExploredEdges);
 
       // store embeddings in cache
       for (size_t i = 0; i < embeddingRequestsForNewlyExploredEdges.size();

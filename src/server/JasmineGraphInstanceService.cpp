@@ -174,6 +174,7 @@ void *instanceservicesession(void *dummyPt) {
     instanceservicesessionargs sessionargs = *sessionargs_p;
     delete sessionargs_p;
     int connFd = sessionargs.connFd;
+    string cmd = sessionargs.cmd;
     std::map<std::string, JasmineGraphHashMapLocalStore> *graphDBMapLocalStores = sessionargs.graphDBMapLocalStores;
     std::map<std::string, JasmineGraphHashMapCentralStore> *graphDBMapCentralStores =
         sessionargs.graphDBMapCentralStores;
@@ -195,126 +196,130 @@ void *instanceservicesession(void *dummyPt) {
     char data[DATA_BUFFER_SIZE];
     bool loop_exit = false;
     while (!loop_exit) {
-        string line = Utils::read_str_wrapper(connFd, data, INSTANCE_DATA_LENGTH, true);
-        if (line.empty()) {
-            sleep(1);
-            continue;
-        }
-        line = Utils::trim_copy(line);
-        instance_logger.debug("Received : " + line);
 
-        if (line.compare(JasmineGraphInstanceProtocol::HANDSHAKE) == 0) {
+        if (cmd.compare(JasmineGraphInstanceProtocol::HANDSHAKE) == 0) {
             handshake_command(connFd, &loop_exit);
-        } else if (line.compare(JasmineGraphInstanceProtocol::CLOSE) == 0) {
+        } else if (cmd.compare(JasmineGraphInstanceProtocol::CLOSE) == 0) {
             close_command(connFd, &loop_exit);
-        } else if (line.compare(JasmineGraphInstanceProtocol::SHUTDOWN) == 0) {
+            // break;
+        } else if (cmd.compare(JasmineGraphInstanceProtocol::SHUTDOWN) == 0) {
             shutdown_command(connFd);
-        } else if (line.compare(JasmineGraphInstanceProtocol::READY) == 0) {
+        } else if (cmd.compare(JasmineGraphInstanceProtocol::READY) == 0) {
             ready_command(connFd, &loop_exit);
-        } else if (line.compare(JasmineGraphInstanceProtocol::BATCH_UPLOAD) == 0) {
+        } else if (cmd.compare(JasmineGraphInstanceProtocol::BATCH_UPLOAD) == 0) {
             batch_upload_command(connFd, &loop_exit);
-        } else if (line.compare(JasmineGraphInstanceProtocol::BATCH_UPLOAD_CENTRAL) == 0) {
+        } else if (cmd.compare(JasmineGraphInstanceProtocol::BATCH_UPLOAD_CENTRAL) == 0) {
             batch_upload_central_command(connFd, &loop_exit);
-        } else if (line.compare(JasmineGraphInstanceProtocol::BATCH_UPLOAD_COMPOSITE_CENTRAL) == 0) {
+        } else if (cmd.compare(JasmineGraphInstanceProtocol::BATCH_UPLOAD_COMPOSITE_CENTRAL) == 0) {
             batch_upload_composite_central_command(connFd, &loop_exit);
-        } else if (line.compare(JasmineGraphInstanceProtocol::UPLOAD_RDF_ATTRIBUTES) == 0) {
+        } else if (cmd.compare(JasmineGraphInstanceProtocol::UPLOAD_RDF_ATTRIBUTES) == 0) {
             upload_rdf_attributes_command(connFd, &loop_exit);
-        } else if (line.compare(JasmineGraphInstanceProtocol::UPLOAD_RDF_ATTRIBUTES_CENTRAL) == 0) {
+        } else if (cmd.compare(JasmineGraphInstanceProtocol::UPLOAD_RDF_ATTRIBUTES_CENTRAL) == 0) {
             upload_rdf_attributes_central_command(connFd, &loop_exit);
-        } else if (line.compare(JasmineGraphInstanceProtocol::DELETE_GRAPH) == 0) {
+        } else if (cmd.compare(JasmineGraphInstanceProtocol::DELETE_GRAPH) == 0) {
             delete_graph_command(connFd, &loop_exit);
-        } else if (line.compare(JasmineGraphInstanceProtocol::DELETE_GRAPH_FRAGMENT) == 0) {
+        } else if (cmd.compare(JasmineGraphInstanceProtocol::DELETE_GRAPH_FRAGMENT) == 0) {
             delete_graph_fragment_command(connFd, &loop_exit);
-        } else if (line.compare(JasmineGraphInstanceProtocol::DP_CENTRALSTORE) == 0) {
+        } else if (cmd.compare(JasmineGraphInstanceProtocol::DP_CENTRALSTORE) == 0) {
             duplicate_centralstore_command(connFd, serverPort, &loop_exit);
-        } else if (line.compare(JasmineGraphInstanceProtocol::WORKER_IN_DEGREE_DISTRIBUTION) == 0) {
+        } else if (cmd.compare(JasmineGraphInstanceProtocol::WORKER_IN_DEGREE_DISTRIBUTION) == 0) {
             worker_in_degree_distribution_command(connFd, *graphDBMapLocalStores, *graphDBMapCentralStores, &loop_exit);
-        } else if (line.compare(JasmineGraphInstanceProtocol::IN_DEGREE_DISTRIBUTION) == 0) {
+        } else if (cmd.compare(JasmineGraphInstanceProtocol::IN_DEGREE_DISTRIBUTION) == 0) {
             in_degree_distribution_command(connFd, serverPort, *graphDBMapLocalStores, *graphDBMapCentralStores,
                                            &loop_exit);
-        } else if (line.compare(JasmineGraphInstanceProtocol::WORKER_OUT_DEGREE_DISTRIBUTION) == 0) {
+        } else if (cmd.compare(JasmineGraphInstanceProtocol::WORKER_OUT_DEGREE_DISTRIBUTION) == 0) {
             worker_out_degree_distribution_command(connFd, *graphDBMapLocalStores, *graphDBMapCentralStores,
                                                    &loop_exit);
-        } else if (line.compare(JasmineGraphInstanceProtocol::OUT_DEGREE_DISTRIBUTION) == 0) {
+        } else if (cmd.compare(JasmineGraphInstanceProtocol::OUT_DEGREE_DISTRIBUTION) == 0) {
             out_degree_distribution_command(connFd, serverPort, *graphDBMapLocalStores, *graphDBMapCentralStores,
                                             &loop_exit);
-        } else if (line.compare(JasmineGraphInstanceProtocol::PAGE_RANK) == 0) {
+        } else if (cmd.compare(JasmineGraphInstanceProtocol::PAGE_RANK) == 0) {
             page_rank_command(connFd, serverPort, *graphDBMapCentralStores, &loop_exit);
-        } else if (line.compare(JasmineGraphInstanceProtocol::WORKER_PAGE_RANK_DISTRIBUTION) == 0) {
+        } else if (cmd.compare(JasmineGraphInstanceProtocol::WORKER_PAGE_RANK_DISTRIBUTION) == 0) {
             worker_page_rank_distribution_command(connFd, serverPort, *graphDBMapCentralStores, &loop_exit);
-        } else if (line.compare(JasmineGraphInstanceProtocol::EGONET) == 0) {
+        } else if (cmd.compare(JasmineGraphInstanceProtocol::EGONET) == 0) {
             egonet_command(connFd, serverPort, *graphDBMapCentralStores, &loop_exit);
-        } else if (line.compare(JasmineGraphInstanceProtocol::WORKER_EGO_NET) == 0) {
+        } else if (cmd.compare(JasmineGraphInstanceProtocol::WORKER_EGO_NET) == 0) {
             worker_egonet_command(connFd, serverPort, *graphDBMapCentralStores, &loop_exit);
-        } else if (line.compare(JasmineGraphInstanceProtocol::TRIANGLES) == 0) {
+        } else if (cmd.compare(JasmineGraphInstanceProtocol::TRIANGLES) == 0) {
             triangles_command(connFd, serverPort, *graphDBMapLocalStores, *graphDBMapCentralStores,
                               *graphDBMapDuplicateCentralStores, &loop_exit);
-        } else if (line.compare(JasmineGraphInstanceProtocol::INITIATE_STREAMING_TRIAN) == 0) {
+        } else if (cmd.compare(JasmineGraphInstanceProtocol::INITIATE_STREAMING_TRIAN) == 0) {
             streaming_triangles_command(connFd, serverPort, incrementalLocalStoreMap, &loop_exit);
-        } else if (line.compare(JasmineGraphInstanceProtocol::INITIATE_STREAMING_KG_CONSTRUCTION) == 0) {
+        } else if (cmd.compare(JasmineGraphInstanceProtocol::INITIATE_STREAMING_KG_CONSTRUCTION) == 0) {
             streaming_kg_construction(connFd, serverPort, incrementalLocalStoreMap, &loop_exit);
-        } else if (line.compare(JasmineGraphInstanceProtocol::INITIATE_STREAMING_TUPLE_CONSTRUCTION) == 0) {
+        } else if (cmd.compare(JasmineGraphInstanceProtocol::INITIATE_STREAMING_TUPLE_CONSTRUCTION) == 0) {
             streaming_tuple_extraction(connFd, serverPort, incrementalLocalStoreMap, &loop_exit);
-        } else if (line.compare(JasmineGraphInstanceProtocol::SEMANTIC_BEAM_SEARCH) == 0) {
+        } else if (cmd.compare(JasmineGraphInstanceProtocol::SEMANTIC_BEAM_SEARCH) == 0) {
             semantic_beam_search(connFd, instanceHandler, incrementalLocalStoreMap, &loop_exit);
-        } else if (line.compare(JasmineGraphInstanceProtocol::EXPAND_NODE_BATCH) == 0) {
+        } else if (cmd.compare(JasmineGraphInstanceProtocol::EXPAND_NODE_BATCH) == 0) {
             semantic_search_expand_node_remote_batch(connFd, incrementalLocalStoreMap, &loop_exit);
-        } else if (line.compare(JasmineGraphInstanceProtocol::SEND_CENTRALSTORE_TO_AGGREGATOR) == 0) {
+        } else if (cmd.compare(JasmineGraphInstanceProtocol::SEND_CENTRALSTORE_TO_AGGREGATOR) == 0) {
             send_centralstore_to_aggregator_command(connFd, &loop_exit);
-        } else if (line.compare(JasmineGraphInstanceProtocol::SEND_COMPOSITE_CENTRALSTORE_TO_AGGREGATOR) == 0) {
+        } else if (cmd.compare(JasmineGraphInstanceProtocol::SEND_COMPOSITE_CENTRALSTORE_TO_AGGREGATOR) == 0) {
             send_composite_centralstore_to_aggregator_command(connFd, &loop_exit);
-        } else if (line.compare(JasmineGraphInstanceProtocol::AGGREGATE_CENTRALSTORE_TRIANGLES) == 0) {
+        } else if (cmd.compare(JasmineGraphInstanceProtocol::AGGREGATE_CENTRALSTORE_TRIANGLES) == 0) {
             aggregate_centralstore_triangles_command(connFd, &loop_exit);
-        } else if (line.compare(JasmineGraphInstanceProtocol::AGGREGATE_STREAMING_CENTRALSTORE_TRIANGLES) == 0) {
+        } else if (cmd.compare(JasmineGraphInstanceProtocol::AGGREGATE_STREAMING_CENTRALSTORE_TRIANGLES) == 0) {
             aggregate_streaming_centralstore_triangles_command(connFd, incrementalLocalStoreMap, &loop_exit);
-        } else if (line.compare(JasmineGraphInstanceProtocol::AGGREGATE_COMPOSITE_CENTRALSTORE_TRIANGLES) == 0) {
+        } else if (cmd.compare(JasmineGraphInstanceProtocol::AGGREGATE_COMPOSITE_CENTRALSTORE_TRIANGLES) == 0) {
             aggregate_composite_centralstore_triangles_command(connFd, &loop_exit);
-        } else if (line.compare(JasmineGraphInstanceProtocol::INITIATE_FILES) == 0) {
+        } else if (cmd.compare(JasmineGraphInstanceProtocol::INITIATE_FILES) == 0) {
             initiate_files_command(connFd, &loop_exit);
-        } else if (line.compare(JasmineGraphInstanceProtocol::INITIATE_FED_PREDICT) == 0) {
+        } else if (cmd.compare(JasmineGraphInstanceProtocol::INITIATE_FED_PREDICT) == 0) {
             initiate_fed_predict_command(connFd, &loop_exit);
-        } else if (line.compare(JasmineGraphInstanceProtocol::INITIATE_SERVER) == 0) {
+        } else if (cmd.compare(JasmineGraphInstanceProtocol::INITIATE_SERVER) == 0) {
             initiate_server_command(connFd, &loop_exit);
-        } else if (line.compare(JasmineGraphInstanceProtocol::INITIATE_ORG_SERVER) == 0) {
+        } else if (cmd.compare(JasmineGraphInstanceProtocol::INITIATE_ORG_SERVER) == 0) {
             initiate_org_server_command(connFd, &loop_exit);
-        } else if (line.compare(JasmineGraphInstanceProtocol::INITIATE_AGG) == 0) {
+        } else if (cmd.compare(JasmineGraphInstanceProtocol::INITIATE_AGG) == 0) {
             initiate_aggregator_command(connFd, &loop_exit);
-        } else if (line.compare(JasmineGraphInstanceProtocol::INITIATE_CLIENT) == 0) {
+        } else if (cmd.compare(JasmineGraphInstanceProtocol::INITIATE_CLIENT) == 0) {
             initiate_client_command(connFd, &loop_exit);
-        } else if (line.compare(JasmineGraphInstanceProtocol::MERGE_FILES) == 0) {
+        } else if (cmd.compare(JasmineGraphInstanceProtocol::MERGE_FILES) == 0) {
             initiate_merge_files_command(connFd, &loop_exit);
-        } else if (line.compare(JasmineGraphInstanceProtocol::START_STAT_COLLECTION) == 0) {
+        } else if (cmd.compare(JasmineGraphInstanceProtocol::START_STAT_COLLECTION) == 0) {
             start_stat_collection_command(connFd, &collectValid, &loop_exit);
-        } else if (line.compare(JasmineGraphInstanceProtocol::REQUEST_COLLECTED_STATS) == 0) {
+        } else if (cmd.compare(JasmineGraphInstanceProtocol::REQUEST_COLLECTED_STATS) == 0) {
             request_collected_stats_command(connFd, &collectValid, &loop_exit);
-        } else if (line.compare(JasmineGraphInstanceProtocol::INITIATE_TRAIN) == 0) {
+        } else if (cmd.compare(JasmineGraphInstanceProtocol::INITIATE_TRAIN) == 0) {
             initiate_train_command(connFd, &loop_exit);
-        } else if (line.compare(JasmineGraphInstanceProtocol::INITIATE_PREDICT) == 0) {
+        } else if (cmd.compare(JasmineGraphInstanceProtocol::INITIATE_PREDICT) == 0) {
             initiate_predict_command(connFd, &sessionargs, &loop_exit);
-        } else if (line.compare(JasmineGraphInstanceProtocol::INITIATE_MODEL_COLLECTION) == 0) {
+        } else if (cmd.compare(JasmineGraphInstanceProtocol::INITIATE_MODEL_COLLECTION) == 0) {
             initiate_model_collection_command(connFd, &loop_exit);
-        } else if (line.compare(JasmineGraphInstanceProtocol::INITIATE_FRAGMENT_RESOLUTION) == 0) {
+        } else if (cmd.compare(JasmineGraphInstanceProtocol::INITIATE_FRAGMENT_RESOLUTION) == 0) {
             initiate_fragment_resolution_command(connFd, &loop_exit);
-        } else if (line.compare(JasmineGraphInstanceProtocol::CHECK_FILE_ACCESSIBLE) == 0) {
+        } else if (cmd.compare(JasmineGraphInstanceProtocol::CHECK_FILE_ACCESSIBLE) == 0) {
             check_file_accessible_command(connFd, &loop_exit);
-        } else if (line.compare(JasmineGraphInstanceProtocol::GRAPH_STREAM_START) == 0) {
+        } else if (cmd.compare(JasmineGraphInstanceProtocol::GRAPH_STREAM_START) == 0) {
             graph_stream_start_command(connFd, streamHandler, &loop_exit);
-        } else if (line.compare(JasmineGraphInstanceProtocol::SEND_PRIORITY) == 0) {
+        } else if (cmd.compare(JasmineGraphInstanceProtocol::SEND_PRIORITY) == 0) {
             send_priority_command(connFd, &loop_exit);
-        } else if (line.compare(JasmineGraphInstanceProtocol::PUSH_PARTITION) == 0) {
+        } else if (cmd.compare(JasmineGraphInstanceProtocol::PUSH_PARTITION) == 0) {
             push_partition_command(connFd, &loop_exit);
-        } else if (line.compare(JasmineGraphInstanceProtocol::HDFS_LOCAL_STREAM_START) == 0) {
+        } else if (cmd.compare(JasmineGraphInstanceProtocol::HDFS_LOCAL_STREAM_START) == 0) {
             hdfs_start_stream_command(connFd, &loop_exit, true, streamHandler);
-        } else if (line.compare(JasmineGraphInstanceProtocol::HDFS_CENTRAL_STREAM_START) == 0) {
+        } else if (cmd.compare(JasmineGraphInstanceProtocol::HDFS_CENTRAL_STREAM_START) == 0) {
             hdfs_start_stream_command(connFd, &loop_exit, false, streamHandler);
-        } else if (line.compare(JasmineGraphInstanceProtocol::QUERY_START) == 0) {
+        } else if (cmd.compare(JasmineGraphInstanceProtocol::QUERY_START) == 0) {
             query_start_command(connFd, instanceHandler, incrementalLocalStoreMap, &loop_exit);
-        } else if (line.compare(JasmineGraphInstanceProtocol::SUB_QUERY_START) == 0) {
+        } else if (cmd.compare(JasmineGraphInstanceProtocol::SUB_QUERY_START) == 0) {
             sub_query_start_command(connFd, instanceHandler, incrementalLocalStoreMap, &loop_exit);
         } else {
             instance_logger.error("Invalid command");
             loop_exit = true;
         }
+        if (!loop_exit) {
+            cmd = Utils::read_str_wrapper(connFd, data, INSTANCE_DATA_LENGTH, true);
+            if (cmd.empty()) {
+                sleep(1);
+                continue;
+            }
+            cmd = Utils::trim_copy(cmd);
+            instance_logger.debug("Received cmd : " + cmd);
+        }
+
     }
     instance_logger.info("Closing thread " + to_string(pthread_self()));
     close(connFd);
@@ -366,6 +371,7 @@ void JasmineGraphInstanceService::run(string masterHost, string host, int server
     perfThread.detach();
 
     instance_logger.info("Worker listening on port " + to_string(serverPort));
+    bool loop_exit = false;
     while (true) {
         int connFd = accept(listenFd, (struct sockaddr *)&clntAdd, &len);
 
@@ -374,25 +380,59 @@ void JasmineGraphInstanceService::run(string masterHost, string host, int server
             continue;
         }
         instance_logger.info("Connection successful to port " + to_string(serverPort));
-
-        pid_t pid = fork();
-        if (pid == 0) {
-            close(listenFd);
-            instanceservicesessionargs *serviceArguments_p = new instanceservicesessionargs;
-            serviceArguments_p->graphDBMapLocalStores = &graphDBMapLocalStores;
-            serviceArguments_p->graphDBMapCentralStores = &graphDBMapCentralStores;
-            serviceArguments_p->graphDBMapDuplicateCentralStores = &graphDBMapDuplicateCentralStores;
-            serviceArguments_p->incrementalLocalStore = &incrementalLocalStore;
-            serviceArguments_p->masterHost = masterHost;
-            serviceArguments_p->port = serverPort;
-            serviceArguments_p->dataPort = serverDataPort;
-            serviceArguments_p->host = host;
-            serviceArguments_p->connFd = connFd;
-            instanceservicesession(serviceArguments_p);
-            break;
-        } else {
-            close(connFd);
+        char data[DATA_BUFFER_SIZE];
+        string line = Utils::read_str_wrapper(connFd, data, INSTANCE_DATA_LENGTH, true);
+        if (line.empty()) {
+            sleep(1);
+            continue;
         }
+        line = Utils::trim_copy(line);
+
+
+        if (std::find(JasmineGraphInstanceProtocol::MULT_THREADED_CMDS.begin(),
+                      JasmineGraphInstanceProtocol::MULT_THREADED_CMDS.end(),
+                      line) != JasmineGraphInstanceProtocol::MULT_THREADED_CMDS.end()) {
+
+            // Start a new thread for this command
+            std::thread t([&, connFd]() {
+                instanceservicesessionargs *serviceArguments_p = new instanceservicesessionargs;
+                serviceArguments_p->cmd = line;
+                serviceArguments_p->graphDBMapLocalStores = &graphDBMapLocalStores;
+                serviceArguments_p->graphDBMapCentralStores = &graphDBMapCentralStores;
+                serviceArguments_p->graphDBMapDuplicateCentralStores = &graphDBMapDuplicateCentralStores;
+                serviceArguments_p->incrementalLocalStore = &incrementalLocalStore;
+                serviceArguments_p->masterHost = masterHost;
+                serviceArguments_p->port = serverPort;
+                serviceArguments_p->dataPort = serverDataPort;
+                serviceArguments_p->host = host;
+                serviceArguments_p->connFd = connFd;
+
+                instanceservicesession(serviceArguments_p);
+                // close(connFd);
+            });
+
+            t.detach(); // detach thread so it runs independently
+        } else {
+            pid_t pid = fork();
+            if (pid == 0) {
+                close(listenFd);
+                instanceservicesessionargs *serviceArguments_p = new instanceservicesessionargs;
+                serviceArguments_p->cmd = line;
+                serviceArguments_p->graphDBMapLocalStores = &graphDBMapLocalStores;
+                serviceArguments_p->graphDBMapCentralStores = &graphDBMapCentralStores;
+                serviceArguments_p->graphDBMapDuplicateCentralStores = &graphDBMapDuplicateCentralStores;
+                serviceArguments_p->incrementalLocalStore = &incrementalLocalStore;
+                serviceArguments_p->masterHost = masterHost;
+                serviceArguments_p->port = serverPort;
+                serviceArguments_p->dataPort = serverDataPort;
+                serviceArguments_p->host = host;
+                serviceArguments_p->connFd = connFd;
+                instanceservicesession(serviceArguments_p);
+                break;
+            } else {
+                close(connFd);
+            }
+    }
     }
 
     pthread_mutex_destroy(&file_lock);
@@ -5010,7 +5050,10 @@ static void semantic_beam_search(
       FaissIndex::getInstance(std::stoi(Utils::getJasmineGraphProperty(
                                   "org.jasminegraph.vectorstore.dimension")),
                               dbPrefix + "_faiss.index");
-
+    FaissIndex *faissEdgeStore =
+        FaissIndex::getInstance(std::stoi(Utils::getJasmineGraphProperty(
+                                    "org.jasminegraph.vectorstore.dimension")),
+                                dbPrefix + "_faiss_edge.index");
   TextEmbedder *textEmbedder = new TextEmbedder(
       Utils::getJasmineGraphProperty("org.jasminegraph.vectorstore.embedding."
                                      "ollama.endpoint"),
@@ -5022,7 +5065,7 @@ static void semantic_beam_search(
                          ", Data Port: " + std::to_string(worker.dataPort));
   }
   SemanticBeamSearch *semanticBeamSearch = new SemanticBeamSearch(
-      faissStore, textEmbedder, textEmbedder->embed(message), 7, gc, workers);
+      faissStore, faissEdgeStore, textEmbedder, textEmbedder->embed(message), 7, gc, workers);
   semanticBeamSearch->getSeedNodes();
   SharedBuffer shared(50);
   semanticBeamSearch->semanticMultiHopBeamSearch(shared, 4, 5);
@@ -5382,30 +5425,30 @@ static void hdfs_start_stream_command(int connFd, bool *loop_exit_p, bool isLoca
         return;
     }
     instance_logger.debug("Sent : " + JasmineGraphInstanceProtocol::HDFS_STREAM_END_ACK);
-    // processFile(fileName, isLocalStream, instanceStreamHandler, isEmbedGraph == "1");
+    processFile(fileName, isLocalStream, instanceStreamHandler, isEmbedGraph == "1");
 
-    {
-        std::atomic<bool> processing_done(false);
-        std::thread procThread([&]() {
-            processFile(fileName, isLocalStream, instanceStreamHandler, isEmbedGraph == "1");
-            processing_done.store(true);
-        });
-        procThread.detach();
-
-        while (!processing_done.load()) {
-            if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::FILE_RECV_WAIT)) {
-                *loop_exit_p = true;
-                return;
-            }
-            std::this_thread::sleep_for(std::chrono::milliseconds(1000)); // prevent busy wait
-
-            // sleep(0.1);
-        }
-        if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::FILE_ACK)) {
-            *loop_exit_p = true;
-            return;
-        }
-    }
+    // {
+    //     std::atomic<bool> processing_done(false);
+    //     std::thread procThread([&]() {
+    //         processFile(fileName, isLocalStream, instanceStreamHandler, isEmbedGraph == "1");
+    //         processing_done.store(true);
+    //     });
+    //     procThread.detach();
+    //
+    //     while (!processing_done.load()) {
+    //         if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::FILE_RECV_WAIT)) {
+    //             *loop_exit_p = true;
+    //             return;
+    //         }
+    //         std::this_thread::sleep_for(std::chrono::milliseconds(1000)); // prevent busy wait
+    //
+    //         // sleep(0.1);
+    //     }
+    //     if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::FILE_ACK)) {
+    //         *loop_exit_p = true;
+    //         return;
+    //     }
+    // }
     // delete file chunk after adding to the store
     Utils::deleteFile(fullFilePath);
 }
@@ -5452,7 +5495,31 @@ static void processFile(string fileName, bool isLocal,
         return;
     }
 
+
+
+
+
+
+    string graphIdentifier = std::to_string(graphId) + "_" + std::to_string(partitionIndex);
+    if (handler.incrementalLocalStoreMap.find(graphIdentifier) == handler.incrementalLocalStoreMap.end()) {
+        handler.loadStreamingStore(std::to_string(graphId), std::to_string(partitionIndex), handler.incrementalLocalStoreMap, NodeManager::FILE_MODE, isEmbedGraph);
+        // append mode
+    }
+    JasmineGraphIncrementalLocalStore* localStore =
+            handler.incrementalLocalStoreMap[std::to_string(graphId) + "_" + std::to_string(partitionIndex)];
+    static std::vector<std::thread> processingThreads;
+    if (isEmbedGraph) {
+
+
+        localStore->processing_done.store(false);
+
+    processingThreads.emplace_back([localStore]() {
+        localStore->getAndStoreEmbeddings();
+    });
+
+    }
     std::string line;
+
     while (std::getline(file, line)) {
         instance_logger.debug("currentLine " + line);
         if (isLocal) {
@@ -5469,13 +5536,16 @@ static void processFile(string fileName, bool isLocal,
                     std::to_string(graphId) + "_" + std::to_string(partitionIndex), isEmbedGraph);
         }
     }
+    localStore->processing_done.store(true);
+
+   for ( auto &t: processingThreads) {
+       if (t.joinable()) {
+           t.join();
+       }
+   }
     instance_logger.debug("Done Uploading File");
  file.close();
-    if (isEmbedGraph) {
-        JasmineGraphIncrementalLocalStore* localStore =
-            handler.incrementalLocalStoreMap[std::to_string(graphId) + "_" + std::to_string(partitionIndex)];
-        localStore->getAndStoreEmbeddings();
-    }
+
     instance_logger.info("Finished processing file: " + filePath);
 
 }

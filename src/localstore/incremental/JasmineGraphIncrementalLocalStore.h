@@ -11,6 +11,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
  */
 
+#include <atomic>
 #include <nlohmann/json.hpp>
 #include <string>
 
@@ -31,9 +32,16 @@ class JasmineGraphIncrementalLocalStore {
  public:
     GraphConfig gc;
     NodeManager* nm;
-    FaissIndex* faissStore;
+    FaissIndex* faissNodeStore;
+    FaissIndex* faissEdgeStore;
     TextEmbedder* textEmbedder;
-    std::unique_ptr<unordered_map<string,string>> embedding_requests;
+    std::unique_ptr<unordered_map<string,string>> node_embedding_requests;
+    std::unique_ptr<set<string>> edge_embedding_requests;
+    std::atomic<bool> processing_done;
+    pthread_mutex_t embeddingQueueMutex;
+    pthread_cond_t  embeddingQueueCond;
+
+
     // batch texts to embed
 
     bool embedNode;
@@ -42,6 +50,7 @@ class JasmineGraphIncrementalLocalStore {
     JasmineGraphIncrementalLocalStore(unsigned int graphID = 0, unsigned int partitionID = 0,
                                       std::string openMode = "trunk", bool embedNode = false);
     bool getAndStoreEmbeddings();
+    bool getAndStoreEdgeEmbeddings();
     void getAndStoreEmbeddings() const;
     void addLocalEdge(std::string edge);
     void addCentralEdge(std::string edge);

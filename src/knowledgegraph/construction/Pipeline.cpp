@@ -295,7 +295,8 @@ json Pipeline::processTupleAndSaveInPartition(const std::vector<std::unique_ptr<
 
     kg_pipeline_stream_handler_logger.debug("Starting processTupleAndSaveInPartition");
     Partitioner partitioner ( numberOfPartitions,graphId,  spt::FENNEL, sqlite,  true );
-    HDFSMultiThreadedHashPartitioner partitions(numberOfPartitions, graphId, masterIP, true, workerList, true, 100, sqlite);
+    HDFSMultiThreadedHashPartitioner partitions(numberOfPartitions, graphId, masterIP, true, workerList, true, 100,
+        sqlite);
     std::hash<std::string> hasher;
     std::vector<std::thread> tupleThreads;
     for (size_t i = 0; i < tupleBuffer.size(); ++i) {

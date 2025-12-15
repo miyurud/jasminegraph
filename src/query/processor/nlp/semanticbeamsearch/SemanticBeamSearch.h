@@ -36,6 +36,7 @@ struct ScoredPath {
 class SemanticBeamSearch {
  private:
     FaissIndex *faissStore;
+    FaissIndex *faissEdgeStore;
     TextEmbedder *textEmbedder;
     const std::vector<float> emb;
     int k;  // Number of top results to return
@@ -46,7 +47,7 @@ class SemanticBeamSearch {
 
  public:
     SemanticBeamSearch(FaissIndex *faissStore, std::vector<float> emb, int k, GraphConfig gc);
-    SemanticBeamSearch(FaissIndex *faissStore, TextEmbedder *textEmbedder, std::vector<float> emb, int k,
+    SemanticBeamSearch(FaissIndex *faissStore, FaissIndex* faissEdgeStore, TextEmbedder *textEmbedder, std::vector<float> emb, int k,
                        GraphConfig gc, vector<JasmineGraphServer::worker> workerList);
     SemanticBeamSearch(FaissIndex *faissStore, std::vector<float> emb, int k, GraphConfig gc,
                        vector<JasmineGraphServer::worker> workerList);

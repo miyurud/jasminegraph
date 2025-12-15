@@ -33,9 +33,11 @@ class FaissIndex {
   void save(const std::string& filepath);
   void save();
   void load(const std::string& filepath);
+  bool isEmbeddingExist(std::string nodeId);
   bool isNodeEmbeddingExist(std::string nodeId);
   std::vector<float> getEmbeddingById(std::string id);
   std::string getNodeIdFromEmbeddingId(faiss::idx_t embeddingId);
+  std::vector<std::vector<float>> getEmbeddingsByIds(const std::vector<std::string>& nodeIds);
   std::string getNodeIdFromEmbeddingId(std::string embeddingId) const;
 
  private:
