@@ -1,11 +1,13 @@
 #include "AgentPlanExecutor.h"
-#include "../../../../src/rag/agent/AgentProtocol.h"
-#include "../../../../src/util/Utils.h"
+#include "../../../../../src/rag/agent/AgentProtocol.h"
+#include "../../../../server/JasmineGraphServer.h"
+#include "../../../../../src/util/Utils.h"
 #include <nlohmann/json.hpp>
 #include <atomic>
 #include <thread>
 
-using json = nlohmann::json
+using json = nlohmann::json;
+
 Logger agent_executor_logger;
 
 AgentPlanExecutor::AgentPlanExecutor() {}
@@ -26,7 +28,7 @@ void AgentPlanExecutor::execute() {
     std::string query = request.getParameter("query");
 
     int numberOfPartitions = std::stoi(request.getParameter(Conts::PARAM_KEYS::NO_OF_PARTITIONS));
-    int connFd = std:stoi(request.getParameter(Conts::PARAM_KEYS::CONN_FILE_DESCRIPTOR));
+    int connFd = std::stoi(request.getParameter(Conts::PARAM_KEYS::CONN_FILE_DESCRIPTOR));
     bool *loop_exit = reinterpret_cast<bool*>(static_cast<std::uintptr_t>(std::stoull(
         request.getParameter(Conts::PARAM_KEYS::LOOP_EXIT_POINTER))));
     
