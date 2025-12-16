@@ -801,7 +801,7 @@ static void agent_plan_command(std::string masterIP, int connFd, vector<DataPubl
 
     if (!errorMessage.empty()) {
         *loop_exit = true;
-        write(connFd, errorMessage.c_str, errorMessage.length());
+        write(connFd, errorMessage.c_str(), errorMessage.length());
         write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
         return;
     }
