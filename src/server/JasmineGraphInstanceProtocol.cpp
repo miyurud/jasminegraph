@@ -104,6 +104,7 @@ const string JasmineGraphInstanceProtocol::INITIATE_STREAMING_TUPLE_CONSTRUCTION
 const string JasmineGraphInstanceProtocol::SEMANTIC_BEAM_SEARCH = "initiate-semantic-beam-search";
 const string  JasmineGraphInstanceProtocol::CHUNK_STREAM_END = "chunk-stream-end";
 const string  JasmineGraphInstanceProtocol::EXPAND_NODE_BATCH = "semantic_beam_search_expand";
+const string JasmineGraphInstanceProtocol::AGENT_PLAN = "initiate-agent-plan";
 
 
 
