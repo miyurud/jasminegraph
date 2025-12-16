@@ -7,16 +7,16 @@
 
 Logger agent_protocol_logger;
 
-std::string AgentProtocol::getPlan(const std:string& query) {
+std::string AgentProtocol::getPlan(const std::string& query) {
     
     return "String from AgentProtocol";
     
-    static std::unique_ptr<Agent> agent=nullptr
+    static std::unique_ptr<Agent> agent=nullptr;
     if (!agent){
         std::string model = "";
         std::string host = "";
         agent_protocol_logger.info("Initializing Agent with model=" + model + ", host=" + host);
-        agent.reset(new agent(model, host));
+        agent.reset(new Agent(model, host));
     }
     agent_protocol_logger.debug("Generating plan for query: " + query);
 
