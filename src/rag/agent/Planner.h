@@ -13,5 +13,7 @@ private:
     std::string model;
     std::string host;
 
+    nlohmann::json buildSemanticBeamSearchPlan(const std::string& query);
+
     std::string callLLM(const std::string& prompt);
 };

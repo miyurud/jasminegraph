@@ -9,6 +9,8 @@ using json = nlohmann::json;
 
 Logger planner_logger;
 
+static const std::string SBS_PLANNER_PROMPT = "";
+
 Planner::Planner(const std::string& modelName, const std::string& host)
     : model(modelName), host(host) {
     curl_global_init(CURL_GLOBAL_DEFAULT);
@@ -23,6 +25,15 @@ Planner::~Planner() {
 static size_t CurlWriteCallback(void* contents, size_t size, size_t nmemb, void* userp) {
     ((std::string*)userp)->append((char*)contents, size * nmemb);
     return size * nmemb;
+}
+
+json Planner::build(const std::string& query) {
+
+    json semanticBeamSearchPlan = buildSemanticBeamSearchPlan(query);
+
+    return json{
+        {"sbs_plan", semanticBeamSearchPlan},
+    };
 }
 
 std::string Planner::callLLM(const std::string& prompt) {
@@ -64,8 +75,8 @@ std::string Planner::callLLM(const std::string& prompt) {
     return result;
 }
 
-json Planner::build(const std::string& query) {
-    std::string prompt = query;
+json Planner::buildSemanticBeamSearchPlan(const std::string& query) {
+    std::string prompt = SBS_PLANNER_PROMPT + std::string("\nUser Query:\n") + query;
 
     const int maxRetries = 3;
     const int baseDelaySeconds = 2;
