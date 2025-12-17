@@ -9,8 +9,6 @@ Logger agent_protocol_logger;
 
 std::string AgentProtocol::getPlan(const std::string& query) {
     
-    return "String from AgentProtocol";
-    
     static std::unique_ptr<Agent> agent=nullptr;
     if (!agent){
         std::string model = "";

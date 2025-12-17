@@ -1,0 +1,18 @@
+sudo docker run \
+  -v "/root/.ssh:/root/.ssh" \
+  -v "/var/run/docker.sock:/var/run/docker.sock:rw" \
+  -v "/root/.ssh:/home/user/.ssh" \
+  -v "/tmp:/tmp" \
+  -v "./env/config:/var/tmp/config" \
+  -v "./env/data:/var/tmp/data" \
+  -v "/var/tmp/rag/jasminegraph-localstore:/var/tmp/rag/jasminegraph-localstore/rag" \
+  -v "/var/tmp/rag/jasminegraph-aggregate:/var/tmp/rag/jasminegraph-aggregate" \
+  -v "/home/ubuntu/jasminegraph/metadb:/home/ubuntu/software/jasminegraph/metadb" \
+  -v "/home/ubuntu/jasminegraph/performancedb:/home/ubuntu/software/jasminegraph/performancedb" \
+  -p 7777:7777 -p 7778:7778 -p 8888:8888 \
+  abi/jasminegraph \
+  --MODE 1 \
+  --MASTERIP 10.8.100.22 \
+  --WORKERS 2 \
+  --WORKERIP 10.8.100.22,10.8.100.22 \
+  --ENABLE_NMON false

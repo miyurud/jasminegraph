@@ -7,6 +7,7 @@ public:
     Agent(const std::string& modelName, const std::string& host);
     ~Agent();
 
+    static int getUid();
     std::string generatePlan(const std::string &query);
 
 private:

@@ -30,6 +30,7 @@ static size_t CurlWriteCallback(void* contents, size_t size, size_t nmemb, void*
 json Planner::build(const std::string& query) {
 
     json semanticBeamSearchPlan = buildSemanticBeamSearchPlan(query);
+    planner_logger.info("At Planner::build");
 
     return json{
         {"sbs_plan", semanticBeamSearchPlan},
@@ -76,6 +77,22 @@ std::string Planner::callLLM(const std::string& prompt) {
 }
 
 json Planner::buildSemanticBeamSearchPlan(const std::string& query) {
+
+    return json{
+        {
+            "query_plan",
+            {
+                {"plan_type", "DIRECT"},
+                {"objectives", json::array({
+                    {
+                        {"id", "obj1"},
+                        {"description", query},
+                        {"search_type", "SEMANTIC_BEAM"}
+                    }
+                })}
+            }
+        }
+    };
     std::string prompt = SBS_PLANNER_PROMPT + std::string("\nUser Query:\n") + query;
 
     const int maxRetries = 3;

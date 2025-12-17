@@ -1,6 +1,7 @@
 #include "Agent.h"
 #include "Planner.h"
-#include <uuid/uuid.h>
+
+#include <atomic>
 
 using json = nlohmann::json;
 
@@ -8,12 +9,9 @@ struct Agent::Impl {
     Planner* planner;
 };
 
-static std::string make_uuid() {
-    uuid_t id;
-    uuid_generate(id);
-    char str[37];
-    uuid_unparse_lower(id, str);
-    return std::string(str);
+int Agent::getUid() {
+    static std::atomic<std::uint32_t> uid{0};
+    return ++uid;
 }
 
 Agent::Agent(const std::string& modelName, const std::string& host) 
@@ -29,6 +27,6 @@ Agent::~Agent() {
 
 std::string Agent::generatePlan(const std::string &query) {
     json plan = p->planner->build(query);
-    plan["plan_id"] = make_uuid();
+    plan["plan_id"] = getUid();
     return plan.dump();
 }
