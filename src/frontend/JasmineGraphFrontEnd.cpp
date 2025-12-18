@@ -764,6 +764,116 @@ static void agent_plan_command(std::string masterIP, int connFd, vector<DataPubl
     string queryString(query);
     frontend_logger.debug("Agent query received: " + queryString);
 
+    // -------------LLM Runner-------------
+    std::string llmRunnerMSG = "LLM runner hostname:port:";
+    write(connFd, llmRunnerMSG.c_str(), llmRunnerMSG.length());
+    write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(),
+          Conts::CARRIAGE_RETURN_NEW_LINE.size());
+
+    char llmRunnerBuf[FRONTEND_DATA_LENGTH + 1];
+    memset(llmRunnerBuf, 0, sizeof(llmRunnerBuf));
+    read(connFd, llmRunnerBuf, FRONTEND_DATA_LENGTH);
+    std::string llmRunner = Utils::trim_copy(llmRunnerBuf);
+
+    frontend_logger.info("LLM runner(s): " + llmRunner);
+
+    // --------------Inference Engine---------------
+    std::string inferenceMsg = "LLM inference engine? ollama/vllm?";
+    write(connFd, inferenceMsg.c_str(), inferenceMsg.length());
+    write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(),
+          Conts::CARRIAGE_RETURN_NEW_LINE.size());
+
+    char engineBuf[FRONTEND_DATA_LENGTH + 1];
+    memset(engineBuf, 0, sizeof(engineBuf));
+    read(connFd, engineBuf, FRONTEND_DATA_LENGTH);
+    std::string inferenceEngine = Utils::trim_copy(engineBuf);
+
+    frontend_logger.info("Inference engine: " + inferenceEngine);
+
+    // ---------------LLM Model---------------
+    std::string modelMsg = "What is the LLM you want to use?:";
+    write(connFd, modelMsg.c_str(), modelMsg.length());
+    write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(),
+          Conts::CARRIAGE_RETURN_NEW_LINE.size());
+
+    char modelBuf[FRONTEND_DATA_LENGTH + 1];
+    memset(modelBuf, 0, sizeof(modelBuf));
+    read(connFd, modelBuf, FRONTEND_DATA_LENGTH);
+    std::string llmModel = Utils::trim_copy(modelBuf);
+
+    frontend_logger.info("LLM model: " + llmModel);
+
+    // ---------------Verify Model------------
+    vector<std::string> llmServers = Utils::getUniqueLLMRunners(llmRunner);
+
+    for (auto llmServer : llmServers) {
+        std::string url;
+        bool modelFound = false;
+        std::string endpointPath;
+        if (inferenceEngine == "ollama") {
+            endpointPath = "api/tags";
+        } else if (inferenceEngine == "vllm") {
+            endpointPath = "/v1/models";
+        } else {
+            frontend_logger.error("Unknown inference engine: " + inferenceEngine);
+            std::string msg = "Unknown inference engine '" + inferenceEngine + "'";
+            write(connFd, msg.c_str(), msg.length());
+            write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
+            *loop_exit = true;
+            return;
+        }
+
+        url = Utils::normalizeURL(llmServer, endpointPath);
+        frontend_logger.info("Final LLM endpoint: " + url);
+
+        CURL *curl = curl_easy_init();
+        if (curl) {
+            std::string response;
+            curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
+            curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, WriteCallback);
+            curl_easy_setopt(curl, CURLOPT_WRITEDATA, &response);
+            curl_easy_setopt(curl, CURLOPT_TIMEOUT, 5L);
+
+            CURLcode res = curl_easy_perform(curl);
+            curl_easy_cleanup(curl);
+
+            if (res != CURLE_OK) {
+                frontend_logger.error("Failed to reach " + inferenceEngine + " server at " + llmServer);
+                std::string msg = "Could not connect to " + inferenceEngine + " server.";
+                write(connFd, msg.c_str(), msg.length());
+                write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
+                *loop_exit = true;
+                return;
+            }
+
+            // --- Check model existence ---
+            if (inferenceEngine == "ollama") {
+                // Ollama returns {"models":[{"name":"llama2"}]}
+                if (response.find("\"name\":\"" + llmModel + "\"") != std::string::npos) {
+                    modelFound = true;
+                }
+            } else if (inferenceEngine == "vllm") {
+                // vLLM returns {"data":[{"id":"mistral"}]}
+                frontend_logger.info(response);
+                if (response.find("\"id\":\"" + llmModel + "\"") != std::string::npos) {
+                    modelFound = true;
+                }
+            }
+
+            if (!modelFound) {
+                frontend_logger.error("Model '" + llmModel + "' not found on " + inferenceEngine + " server.");
+                std::string msg = "Model '" + llmModel + "' not available on " + inferenceEngine + " server.";
+                write(connFd, msg.c_str(), msg.length());
+                write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
+                *loop_exit = true;
+                return;
+            } else {
+                frontend_logger.info("Verified model '" + llmModel + "' exists on " + inferenceEngine + " server.");
+            }
+
+        }
+    }
+
     auto begin = chrono::high_resolution_clock::now();
 
     JobRequest jobDetails;
@@ -776,6 +886,9 @@ static void agent_plan_command(std::string masterIP, int connFd, vector<DataPubl
 
     jobDetails.addParameter("query", queryString);
     jobDetails.addParameter(Conts::PARAM_KEYS::GRAPH_ID, graphIdResponse);
+    jobDetails.addParameter("llm_runner", llmRunner);
+    jobDetails.addParameter("llm_engine", inferenceEngine);
+    jobDetails.addParameter("llm_model", llmModel);
     jobDetails.addParameter(Conts::PARAM_KEYS::CATEGORY, Conts::SLA_CATEGORY::LATENCY);
     jobDetails.addParameter(Conts::PARAM_KEYS::NO_OF_PARTITIONS, std::to_string(numberOfPartitions));
     jobDetails.addParameter(Conts::PARAM_KEYS::CONN_FILE_DESCRIPTOR, std::to_string(connFd));
@@ -796,8 +909,8 @@ static void agent_plan_command(std::string masterIP, int connFd, vector<DataPubl
     jobScheduler->pushJob(jobDetails);
     frontend_logger.debug("Agent plan job pushed");
 
-    JobResponse JobResponse = jobScheduler->getResult(jobDetails);
-    std::string errorMessage = JobResponse.getParameter(Conts::PARAM_KEYS::ERROR_MESSAGE);
+    JobResponse jobResponse = jobScheduler->getResult(jobDetails);
+    std::string errorMessage = jobResponse.getParameter(Conts::PARAM_KEYS::ERROR_MESSAGE);
 
     if (!errorMessage.empty()) {
         *loop_exit = true;
@@ -812,7 +925,7 @@ static void agent_plan_command(std::string masterIP, int connFd, vector<DataPubl
 
     write(connFd, DONE.c_str(), FRONTEND_COMMAND_LENGTH);
     write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());                
-                                        }
+}
 
 static void add_rdf_command(std::string masterIP, int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_p) {
     // add RDF graph
