@@ -12,38 +12,49 @@ Logger agent_executor_logger;
 
 AgentPlanExecutor::AgentPlanExecutor() {}
 
-AgentPlanExecutor::AgentPlanExecutor(SQLiteDBInterface* db, 
-                                     PerformanceSQLiteDBInterface* perfDb,
-                                     JobRequest jobRequest) {
+AgentPlanExecutor::AgentPlanExecutor(SQLiteDBInterface *db,
+                                     PerformanceSQLiteDBInterface *perfDb,
+                                     JobRequest jobRequest)
+{
     this->sqlite = db;
     this->perfDB = perfDb;
-    this->request = jobRequest;                                
+    this->request = jobRequest;
 }
 
-void AgentPlanExecutor::execute() {
-    agent_executor_logger.info("Executing Agent Plan");
-
+void AgentPlanExecutor::execute()
+{
+    AgentRequestContext agentRequestCtx;
     int uniqueId = getuid();
     std::string masterIP = request.getMasterIP();
     std::string query = request.getParameter("query");
+    std::string llmRunner = request.getParameter("llm_runner");
+    std::string inferenceEngine = request.getParameter("llm_engine");
+    std::string llmModel = request.getParameter("llm_model");
+    std::string graphId = request.getParameter(Conts::PARAM_KEYS::GRAPH_ID);
+
+    ctx.query = query;
+    ctx.llm_runner = llmRunner;
+    ctx.llm_engine = inferenceEngine;
+    ctx.llm_model = llmModel;
+    ctx.graph_id = graphId;
 
     int numberOfPartitions = std::stoi(request.getParameter(Conts::PARAM_KEYS::NO_OF_PARTITIONS));
     int connFd = std::stoi(request.getParameter(Conts::PARAM_KEYS::CONN_FILE_DESCRIPTOR));
-    bool *loop_exit = reinterpret_cast<bool*>(static_cast<std::uintptr_t>(std::stoull(
+    bool *loop_exit = reinterpret_cast<bool *>(static_cast<std::uintptr_t>(std::stoull(
         request.getParameter(Conts::PARAM_KEYS::LOOP_EXIT_POINTER))));
-    
-    std::string planStr = AgentProtocol::getPlan(query);
+
+    agent_executor_logger.info("For agent plan received: " + graphId + llmModel + inferenceEngine + llmRunner + query);
+
+    std::string planStr = AgentProtocol::getPlan(ctx);
     agent_executor_logger.info("Executing Agent Plan" + planStr);
 
     // const auto& workerList = JasmineGraphServer::getWorkers(numberOfPartitions);
     // std::vector<std::unique_ptr<SharedBuffer>> bufferPool;
     // bufferPool.reserve(numberOfPartitions);
-
-    
-        
 }
 
-int AgentPlanExecutor::getUid() {
+int AgentPlanExecutor::getUid()
+{
     static std::atomic<std::uint32_t> uid{0};
     return ++uid;
 }
