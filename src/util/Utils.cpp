@@ -624,6 +624,11 @@ std::string Utils::read_str_wrapper(int connFd, char *buf, size_t len, bool allo
         util_logger.error("Read failed: recv empty string");
         return "";
     }
+    // Ensure result is within bounds before accessing buffer
+    if (static_cast<size_t>(result) > len) {
+        util_logger.error("Read failed: result exceeds buffer length");
+        return "";
+    }
     buf[result] = 0;  // null terminator for string
     string str = buf;
     return str;
@@ -1534,8 +1539,9 @@ void Utils::assignPartitionToWorker(int graphId, int partitionIndex, string  hos
 
 
 
-bool Utils::sendQueryPlanToWorker(std::string host, int port, std::string masterIP,
-                                  int graphID, int partitionId, std::string message, SharedBuffer &sharedBuffer) {
+bool Utils::sendQueryPlanToWorker(const std::string& host, int port, const std::string& masterIP,
+                                  int graphID, int partitionId, const std::string& message,
+                                  SharedBuffer &sharedBuffer, const std::string& masterTraceContext) {
     util_logger.info("Host:" + host + " Port:" + to_string(port));
     bool result = true;
     int sockfd;
@@ -1551,11 +1557,12 @@ bool Utils::sendQueryPlanToWorker(std::string host, int port, std::string master
         return false;
     }
 
-    if (host.find('@') != std::string::npos) {
-        host = Utils::split(host, '@')[1];
+    std::string actualHost = host;
+    if (actualHost.find('@') != std::string::npos) {
+        actualHost = Utils::split(actualHost, '@')[1];
     }
 
-    server = gethostbyname(host.c_str());
+    server = gethostbyname(actualHost.c_str());
     if (server == NULL) {
         util_logger.error("ERROR, no host named " + host);
         return false;
@@ -1637,6 +1644,33 @@ bool Utils::sendQueryPlanToWorker(std::string host, int port, std::string master
         close(sockfd);
         return false;
     }
+
+    // Send trace context for distributed tracing
+    std::string ack4(ACK_MESSAGE_SIZE, '\0');
+    std::string traceContext = masterTraceContext;
+    if (traceContext.empty()) {
+        traceContext = "NO_TRACE_CONTEXT";
+    }
+
+    message_length = traceContext.length();
+    converted_number = htonl(message_length);
+    util_logger.debug("Sending trace context length: " + to_string(converted_number));
+
+    if (!Utils::sendIntExpectResponse(sockfd, ack4.data(),
+                                      JasmineGraphInstanceProtocol::GRAPH_STREAM_C_length_ACK.length(),
+                                      converted_number,
+                                      JasmineGraphInstanceProtocol::GRAPH_STREAM_C_length_ACK)) {
+        Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::CLOSE);
+        close(sockfd);
+        return false;
+    }
+
+    if (!Utils::send_str_wrapper(sockfd, traceContext)) {
+        close(sockfd);
+        return false;
+    }
+    util_logger.debug("Sent trace context: " + traceContext);
+
     bool end = false;
     auto startTime = std::chrono::high_resolution_clock::now();
     while (true) {

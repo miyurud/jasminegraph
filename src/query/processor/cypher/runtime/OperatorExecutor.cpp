@@ -15,6 +15,7 @@ limitations under the License.
 #include "InstanceHandler.h"
 #include "../util/Const.h"
 #include "../../../../util/logger/Logger.h"
+#include "../../../../util/telemetry/OpenTelemetryUtil.h"
 #include "Helpers.h"
 #include <thread>
 #include <future>
@@ -298,8 +299,11 @@ void OperatorExecutor::initializeMethodMap() {
 }
 
 void OperatorExecutor::AllNodeScan(SharedBuffer &buffer, std::string jsonPlan, GraphConfig gc) {
+    OTEL_TRACE_OPERATION("AllNodeScan");
+
     json query = json::parse(jsonPlan);
     NodeManager nodeManager(gc);
+    int nodeCount = 0;
 
     // Use parallel processing for datasets with 1000+ nodes
     if (size_t nodeCount = nodeManager.nodeIndex.size();
@@ -330,14 +334,21 @@ void OperatorExecutor::AllNodeScan(SharedBuffer &buffer, std::string jsonPlan, G
             string variable = query["variables"];
             data[variable] = nodeData;
             buffer.add(data.dump());
+            nodeCount++;
         }
     }
+    OpenTelemetryUtil::addSpanAttribute("nodes.scanned", std::to_string(nodeCount));
     buffer.add("-1");
 }
 
 void OperatorExecutor::NodeScanByLabel(SharedBuffer &buffer, std::string jsonPlan, GraphConfig gc) {
+    OTEL_TRACE_OPERATION("NodeScanByLabel");
+
     json query = json::parse(jsonPlan);
+    OpenTelemetryUtil::addSpanAttribute("scan.label", query["Label"].get<std::string>());
+
     NodeManager nodeManager(gc);
+    int nodeCount = 0;
 
     size_t nodeCount = nodeManager.nodeIndex.size();
 
@@ -370,12 +381,16 @@ void OperatorExecutor::NodeScanByLabel(SharedBuffer &buffer, std::string jsonPla
             string variable = query["variable"];
             data[variable] = nodeData;
             buffer.add(data.dump());
+            nodeCount++;
         }
     }
+    OpenTelemetryUtil::addSpanAttribute("nodes.found", std::to_string(nodeCount));
     buffer.add("-1");
 }
 
 void OperatorExecutor::ProduceResult(SharedBuffer &buffer, std::string jsonPlan, GraphConfig gc) {
+    OTEL_TRACE_OPERATION("ProduceResult");
+
     json query = json::parse(jsonPlan);
     SharedBuffer sharedBuffer(INTER_OPERATOR_BUFFER_SIZE);
     std::string nextOpt = query["NextOperator"];
@@ -402,6 +417,8 @@ void OperatorExecutor::ProduceResult(SharedBuffer &buffer, std::string jsonPlan,
 }
 
 void OperatorExecutor::Filter(SharedBuffer &buffer, std::string jsonPlan, GraphConfig gc) {
+    OTEL_TRACE_OPERATION("Filter");
+
     json query = json::parse(jsonPlan);
     SharedBuffer sharedBuffer(INTER_OPERATOR_BUFFER_SIZE);
     std::string nextOpt = query["NextOperator"];
@@ -438,7 +455,11 @@ void OperatorExecutor::Filter(SharedBuffer &buffer, std::string jsonPlan, GraphC
 }
 
 void OperatorExecutor::UndirectedRelationshipTypeScan(SharedBuffer &buffer, std::string jsonPlan, GraphConfig gc) {
+    OTEL_TRACE_OPERATION("UndirectedRelationshipTypeScan");
+
     json query = json::parse(jsonPlan);
+    OpenTelemetryUtil::addSpanAttribute("relationship.type", query["relType"].get<std::string>());
+
     NodeManager nodeManager(gc);
 
     const std::string& dbPrefix = nodeManager.getDbPrefix();
