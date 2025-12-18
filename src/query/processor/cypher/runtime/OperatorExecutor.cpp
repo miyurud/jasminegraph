@@ -348,8 +348,6 @@ void OperatorExecutor::NodeScanByLabel(SharedBuffer &buffer, std::string jsonPla
     OpenTelemetryUtil::addSpanAttribute("scan.label", query["Label"].get<std::string>());
 
     NodeManager nodeManager(gc);
-    int nodeCount = 0;
-
     size_t nodeCount = nodeManager.nodeIndex.size();
 
     // Use parallel processing for datasets with 1000+ nodes
