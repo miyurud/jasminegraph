@@ -32,11 +32,11 @@ void AgentPlanExecutor::execute()
     std::string llmModel = request.getParameter("llm_model");
     std::string graphId = request.getParameter(Conts::PARAM_KEYS::GRAPH_ID);
 
-    ctx.query = query;
-    ctx.llm_runner = llmRunner;
-    ctx.llm_engine = inferenceEngine;
-    ctx.llm_model = llmModel;
-    ctx.graph_id = graphId;
+    agentRequestCtx.query = query;
+    agentRequestCtx.llmRunner = llmRunner;
+    agentRequestCtx.llmEngine = inferenceEngine;
+    agentRequestCtx.llmModel = llmModel;
+    agentRequestCtx.graphId = graphId;
 
     int numberOfPartitions = std::stoi(request.getParameter(Conts::PARAM_KEYS::NO_OF_PARTITIONS));
     int connFd = std::stoi(request.getParameter(Conts::PARAM_KEYS::CONN_FILE_DESCRIPTOR));
@@ -45,7 +45,7 @@ void AgentPlanExecutor::execute()
 
     agent_executor_logger.info("For agent plan received: " + graphId + llmModel + inferenceEngine + llmRunner + query);
 
-    std::string planStr = AgentProtocol::getPlan(ctx);
+    std::string planStr = AgentProtocol::getPlan(agentRequestCtx);
     agent_executor_logger.info("Executing Agent Plan" + planStr);
 
     // const auto& workerList = JasmineGraphServer::getWorkers(numberOfPartitions);

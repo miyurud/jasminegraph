@@ -8,9 +8,9 @@ struct AgentRequestContext {
     std::string llmRunner;
     std::string llmEngine;
     std::string llmModel;
-}
+};
 
 class AgentProtocol {
     public:
-    static std::string getPlan(const AgentRequestContext& agnetRequestCtx);
+    static std::string getPlan(const AgentRequestContext& agentRequestCtx);
 };
