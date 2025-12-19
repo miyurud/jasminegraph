@@ -70,7 +70,7 @@ class ThreadSafeBuffer {
             buffer.pop();
             return true;
         }
-        return false; 
+        return false;
     }
 
     void setFinished() {
