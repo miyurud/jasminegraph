@@ -61,14 +61,16 @@ class ThreadSafeBuffer {
 
     bool pop(T& item, std::chrono::milliseconds timeout = std::chrono::milliseconds(100)) {
         std::unique_lock lock(bufferMutex);
-        return cv.wait_for(lock, timeout, [this, &item] {
-            if (!buffer.empty()) {
-                item = buffer.front();
-                buffer.pop();
-                return true;
-            }
-            return finished;
+        cv.wait_for(lock, timeout, [this] {
+            return !buffer.empty() || finished;
         });
+
+        if (!buffer.empty()) {
+            item = buffer.front();
+            buffer.pop();
+            return true;
+        }
+        return false; 
     }
 
     void setFinished() {
