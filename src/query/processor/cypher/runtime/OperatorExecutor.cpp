@@ -1621,8 +1621,8 @@ static std::vector<std::string> processNodeScanChunk(
     std::vector<std::string> results;
     results.reserve(chunk.endIndex - chunk.startIndex + 1);
 
-    long start = std::max(0L, chunk.startIndex - 1);
-    long end = std::min<long>(static_cast<long>(nodeIndices.size()) - 1, chunk.endIndex - 1);
+    long start = std::max(0L, chunk.startIndex);
+    long end = std::min<long>(static_cast<long>(nodeIndices.size()) - 1, chunk.endIndex);
 
     for (long i = start; i <= end; ++i) {
         const auto& [nodeId, addressIndex] = nodeIndices[static_cast<size_t>(i)];
@@ -1660,8 +1660,8 @@ static std::vector<std::string> processNodeByLabelChunk(
     std::vector<std::string> results;
     results.reserve(chunk.endIndex - chunk.startIndex + 1);
 
-    long start = std::max(0L, chunk.startIndex - 1);
-    long end = std::min<long>(static_cast<long>(nodeIndices.size()) - 1, chunk.endIndex - 1);
+    long start = std::max(0L, chunk.startIndex);
+    long end = std::min<long>(static_cast<long>(nodeIndices.size()) - 1, chunk.endIndex);
 
     for (long i = start; i <= end; ++i) {
         const auto& [nodeId, addressIndex] = nodeIndices[static_cast<size_t>(i)];

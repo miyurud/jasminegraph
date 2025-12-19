@@ -12,14 +12,27 @@
  */
 
 #include "IntraPartitionParallelExecutor.h"
+#include "../../../util/Utils.h"
 
 // DynamicThreadPool Implementation
 DynamicThreadPool::DynamicThreadPool() {
     // Auto-detect optimal worker count based on CPU cores
     optimalWorkerCount = StatisticsCollector::getTotalNumberofCores();
 
-    // Safety limits: minimum 1, maximum 32
-    optimalWorkerCount = std::max(1, std::min(32, optimalWorkerCount));
+    // Get configurable max worker count from properties (default: 32)
+    int maxWorkerCount = 32;
+    try {
+        std::string maxWorkerStr = Utils::getJasmineGraphProperty("org.jasminegraph.query.threadpool.maxworkers");
+        if (!maxWorkerStr.empty()) {
+            maxWorkerCount = std::stoi(maxWorkerStr);
+        }
+    } catch (...) {
+        // Use default if property not found or invalid
+        maxWorkerCount = 32;
+    }
+
+    // Safety limits: minimum 1, maximum from configuration
+    optimalWorkerCount = std::max(1, std::min(maxWorkerCount, optimalWorkerCount));
 
     // Create worker threads
     for (int i = 0; i < optimalWorkerCount; ++i) {
@@ -80,8 +93,8 @@ bool IntraPartitionParallelExecutor::shouldUseParallelProcessing(size_t dataSize
 std::vector<WorkChunk> IntraPartitionParallelExecutor::createWorkChunks(long totalItems, size_t chunkSize) const {
     std::vector<WorkChunk> chunks;
 
-    for (long start = 1; start <= totalItems; start += static_cast<long>(chunkSize)) {
-        long end = std::min(start + static_cast<long>(chunkSize) - 1, totalItems);
+    for (long start = 0; start < totalItems; start += static_cast<long>(chunkSize)) {
+        long end = std::min(start + static_cast<long>(chunkSize) - 1, totalItems - 1);
         chunks.emplace_back(start, end, end - start + 1);
     }
 
