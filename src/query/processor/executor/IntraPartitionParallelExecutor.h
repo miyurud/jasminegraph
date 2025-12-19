@@ -59,6 +59,13 @@ class ThreadSafeBuffer {
         cv.notify_one();
     }
 
+    /**
+     * Pop an item from the buffer with timeout.
+     * @param item Output parameter to store the popped item
+     * @param timeout Maximum time to wait for an item (default: 100ms).
+     *                Callers should handle false returns due to timeout and may need to retry.
+     * @return true if item was successfully popped, false on timeout or if buffer is finished and empty
+     */
     bool pop(T& item, std::chrono::milliseconds timeout = std::chrono::milliseconds(100)) {
         std::unique_lock lock(bufferMutex);
         cv.wait_for(lock, timeout, [this] {
