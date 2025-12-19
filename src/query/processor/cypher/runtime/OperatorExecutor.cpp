@@ -23,6 +23,29 @@ limitations under the License.
 #include <chrono>
 #include <random>
 
+// Parallel processing configuration
+// These values scale with the number of available workers to adapt to system capabilities
+static constexpr size_t NODES_PER_WORKER_THRESHOLD = 125;      
+static constexpr size_t RELATIONS_PER_WORKER_THRESHOLD = 12500; 
+static constexpr size_t FILTER_BATCH_SIZE = 100; 
+
+// Helper function to get dynamic parallel processing threshold for nodes
+static size_t getNodeParallelThreshold(const IntraPartitionParallelExecutor* executor) {
+    if (!executor) return SIZE_MAX;  // Disable parallel if no executor
+    
+    // Dynamic threshold based on worker count: scales with available parallelism
+    int workerCount = executor->getWorkerCount();
+    return NODES_PER_WORKER_THRESHOLD * workerCount;
+}
+
+// Helper function to get dynamic parallel processing threshold for relations
+static size_t getRelationParallelThreshold(const IntraPartitionParallelExecutor* executor) {
+    if (!executor) return SIZE_MAX;
+    
+    int workerCount = executor->getWorkerCount();
+    return RELATIONS_PER_WORKER_THRESHOLD * workerCount;
+}
+
 Logger execution_logger;
 std::unordered_map<std::string,
     std::function<void(OperatorExecutor&, SharedBuffer&, std::string, GraphConfig)>> OperatorExecutor::methodMap;
@@ -305,9 +328,9 @@ void OperatorExecutor::AllNodeScan(SharedBuffer &buffer, std::string jsonPlan, G
     NodeManager nodeManager(gc);
     int nodeCount = 0;
 
-    // Use parallel processing for datasets with 1000+ nodes
     if (size_t nodeCount = nodeManager.nodeIndex.size();
-        parallelExecutor && nodeCount > 1000 && parallelExecutor->shouldUseParallelProcessing(nodeCount)) {
+        parallelExecutor && nodeCount > getNodeParallelThreshold(parallelExecutor.get()) && 
+        parallelExecutor->shouldUseParallelProcessing(nodeCount)) {
         try {
             AllNodeScanParallel(buffer, jsonPlan, gc);
             return;
@@ -350,8 +373,8 @@ void OperatorExecutor::NodeScanByLabel(SharedBuffer &buffer, std::string jsonPla
     NodeManager nodeManager(gc);
     size_t nodeCount = nodeManager.nodeIndex.size();
 
-    // Use parallel processing for datasets with 1000+ nodes
-    if (parallelExecutor && nodeCount > 1000 && parallelExecutor->shouldUseParallelProcessing(nodeCount)) {
+    if (parallelExecutor && nodeCount > getNodeParallelThreshold(parallelExecutor.get()) && 
+        parallelExecutor->shouldUseParallelProcessing(nodeCount)) {
         try {
             NodeScanByLabelParallel(buffer, jsonPlan, gc);
             return;
@@ -429,7 +452,7 @@ void OperatorExecutor::Filter(SharedBuffer &buffer, std::string jsonPlan, GraphC
     FilterHelper filterHelper(condition.dump());
 
     std::vector<std::string> batch;
-    batch.reserve(100);
+    batch.reserve(FILTER_BATCH_SIZE);
 
     while (true) {
         string raw = sharedBuffer.get();
@@ -828,7 +851,7 @@ void OperatorExecutor::DirectedAllRelationshipScan(SharedBuffer &buffer, std::st
     const std::string& dbPrefix = nodeManager.getDbPrefix();
     long localRelationCount = nodeManager.dbSize(dbPrefix + "_relations.db") / RelationBlock::BLOCK_SIZE;
 
-    if (parallelExecutor && localRelationCount > 100000 &&
+    if (parallelExecutor && localRelationCount > getRelationParallelThreshold(parallelExecutor.get()) &&
         parallelExecutor->shouldUseParallelProcessing(localRelationCount)) {
         try {
             DirectedAllRelationshipScanParallel(buffer, jsonPlan, gc);
