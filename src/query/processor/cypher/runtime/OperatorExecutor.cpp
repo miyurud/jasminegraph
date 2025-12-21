@@ -27,7 +27,7 @@ limitations under the License.
 // These values scale with the number of available workers to adapt to system capabilities
 static constexpr size_t NODES_PER_WORKER_THRESHOLD = 125;
 static constexpr size_t RELATIONS_PER_WORKER_THRESHOLD = 12500;
-static constexpr size_t FILTER_BATCH_SIZE = 100; 
+static constexpr size_t FILTER_BATCH_SIZE = 100;
 
 // Helper function to get dynamic parallel processing threshold for nodes
 static size_t getNodeParallelThreshold(const IntraPartitionParallelExecutor* executor) {

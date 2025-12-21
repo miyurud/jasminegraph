@@ -21,7 +21,7 @@ using namespace std::chrono_literals;
 
 // Test fixture for ThreadSafeBuffer
 class ThreadSafeBufferTest : public ::testing::Test {
-protected:
+ protected:
     ThreadSafeBuffer<int> buffer;
 };
 
@@ -61,10 +61,10 @@ TEST_F(ThreadSafeBufferTest, SingleProducerSingleConsumer) {
 // Test 2: Finished behavior - pop returns false when buffer is empty and finished
 TEST_F(ThreadSafeBufferTest, FinishedBehaviorEmptyBuffer) {
     buffer.setFinished();
-    
+
     int item;
     bool result = buffer.pop(item, 100ms);
-    
+
     EXPECT_FALSE(result) << "pop should return false when buffer is empty and finished";
 }
 
@@ -74,21 +74,21 @@ TEST_F(ThreadSafeBufferTest, FinishedBehaviorWithItems) {
     buffer.push(1);
     buffer.push(2);
     buffer.push(3);
-    
+
     // Mark as finished
     buffer.setFinished();
-    
+
     // Should still be able to pop existing items
     int item;
     EXPECT_TRUE(buffer.pop(item, 100ms));
     EXPECT_EQ(item, 1);
-    
+
     EXPECT_TRUE(buffer.pop(item, 100ms));
     EXPECT_EQ(item, 2);
-    
+
     EXPECT_TRUE(buffer.pop(item, 100ms));
     EXPECT_EQ(item, 3);
-    
+
     // Now buffer is empty and finished, should return false
     EXPECT_FALSE(buffer.pop(item, 100ms));
 }
@@ -96,12 +96,12 @@ TEST_F(ThreadSafeBufferTest, FinishedBehaviorWithItems) {
 // Test 4: Timeout behavior - pop times out if no items available
 TEST_F(ThreadSafeBufferTest, PopTimeout) {
     auto start = std::chrono::steady_clock::now();
-    
+
     int item;
     bool result = buffer.pop(item, 50ms);
-    
+
     auto elapsed = std::chrono::steady_clock::now() - start;
-    
+
     EXPECT_FALSE(result) << "pop should return false on timeout";
     EXPECT_GE(elapsed, 50ms) << "pop should wait at least the timeout duration";
     EXPECT_LT(elapsed, 100ms) << "pop should not wait significantly longer than timeout";
@@ -138,13 +138,13 @@ TEST_F(ThreadSafeBufferTest, VaryingProducerConsumerSpeeds) {
 // Test 6: Multiple items pushed before consumption
 TEST_F(ThreadSafeBufferTest, BulkPushThenConsume) {
     const int NUM_ITEMS = 1000;
-    
+
     // Push all items
     for (int i = 0; i < NUM_ITEMS; ++i) {
         buffer.push(i);
     }
     buffer.setFinished();
-    
+
     // Consume all items
     int count = 0;
     int item;
@@ -152,24 +152,24 @@ TEST_F(ThreadSafeBufferTest, BulkPushThenConsume) {
         EXPECT_EQ(item, count);
         count++;
     }
-    
+
     EXPECT_EQ(count, NUM_ITEMS);
 }
 
 // Test 7: Size tracking
 TEST_F(ThreadSafeBufferTest, SizeTracking) {
     EXPECT_EQ(buffer.size(), 0);
-    
+
     buffer.push(1);
     EXPECT_EQ(buffer.size(), 1);
-    
+
     buffer.push(2);
     EXPECT_EQ(buffer.size(), 2);
-    
+
     int item;
     buffer.pop(item, 100ms);
     EXPECT_EQ(buffer.size(), 1);
-    
+
     buffer.pop(item, 100ms);
     EXPECT_EQ(buffer.size(), 0);
 }
@@ -177,10 +177,10 @@ TEST_F(ThreadSafeBufferTest, SizeTracking) {
 // Test 8: Empty state behavior
 TEST_F(ThreadSafeBufferTest, EmptyState) {
     EXPECT_FALSE(buffer.empty()) << "Buffer should not be empty initially (not finished)";
-    
+
     buffer.setFinished();
     EXPECT_TRUE(buffer.empty()) << "Buffer should be empty when finished with no items";
-    
+
     buffer.push(1);
     EXPECT_FALSE(buffer.empty()) << "Buffer should not be empty when it has items";
 }
@@ -189,22 +189,22 @@ TEST_F(ThreadSafeBufferTest, EmptyState) {
 TEST_F(ThreadSafeBufferTest, ConcurrentAccess) {
     const int NUM_ITEMS = 10000;
     std::atomic<int> total_consumed{0};
-    
+
     // Multiple producers
     auto producer_func = [&](int start, int count) {
         for (int i = start; i < start + count; ++i) {
             buffer.push(i);
         }
     };
-    
+
     std::thread p1(producer_func, 0, NUM_ITEMS / 2);
     std::thread p2(producer_func, NUM_ITEMS / 2, NUM_ITEMS / 2);
-    
+
     // Give producers time to add items
     p1.join();
     p2.join();
     buffer.setFinished();
-    
+
     // Consumer
     std::thread consumer([&]() {
         int item;
@@ -212,18 +212,18 @@ TEST_F(ThreadSafeBufferTest, ConcurrentAccess) {
             total_consumed++;
         }
     });
-    
+
     consumer.join();
-    
+
     EXPECT_EQ(total_consumed.load(), NUM_ITEMS);
 }
 
 // Test 10: Item uninitialized on timeout (safety check)
 TEST_F(ThreadSafeBufferTest, ItemNotSetOnTimeout) {
     int item = 999;  // Set to known value
-    
+
     bool result = buffer.pop(item, 50ms);
-    
+
     EXPECT_FALSE(result);
     // Item value is undefined on timeout (could be 999 or changed)
     // Main point is that pop returned false, so caller knows not to use item
