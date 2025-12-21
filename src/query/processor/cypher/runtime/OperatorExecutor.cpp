@@ -25,14 +25,14 @@ limitations under the License.
 
 // Parallel processing configuration
 // These values scale with the number of available workers to adapt to system capabilities
-static constexpr size_t NODES_PER_WORKER_THRESHOLD = 125;      
-static constexpr size_t RELATIONS_PER_WORKER_THRESHOLD = 12500; 
+static constexpr size_t NODES_PER_WORKER_THRESHOLD = 125;
+static constexpr size_t RELATIONS_PER_WORKER_THRESHOLD = 12500;
 static constexpr size_t FILTER_BATCH_SIZE = 100; 
 
 // Helper function to get dynamic parallel processing threshold for nodes
 static size_t getNodeParallelThreshold(const IntraPartitionParallelExecutor* executor) {
     if (!executor) return SIZE_MAX;  // Disable parallel if no executor
-    
+
     // Dynamic threshold based on worker count: scales with available parallelism
     int workerCount = executor->getWorkerCount();
     return NODES_PER_WORKER_THRESHOLD * workerCount;
@@ -41,7 +41,7 @@ static size_t getNodeParallelThreshold(const IntraPartitionParallelExecutor* exe
 // Helper function to get dynamic parallel processing threshold for relations
 static size_t getRelationParallelThreshold(const IntraPartitionParallelExecutor* executor) {
     if (!executor) return SIZE_MAX;
-    
+
     int workerCount = executor->getWorkerCount();
     return RELATIONS_PER_WORKER_THRESHOLD * workerCount;
 }
@@ -329,7 +329,7 @@ void OperatorExecutor::AllNodeScan(SharedBuffer &buffer, std::string jsonPlan, G
     int nodeCount = 0;
 
     if (size_t nodeCount = nodeManager.nodeIndex.size();
-        parallelExecutor && nodeCount > getNodeParallelThreshold(parallelExecutor.get()) && 
+        parallelExecutor && nodeCount > getNodeParallelThreshold(parallelExecutor.get()) &&
         parallelExecutor->shouldUseParallelProcessing(nodeCount)) {
         try {
             AllNodeScanParallel(buffer, jsonPlan, gc);
@@ -373,7 +373,7 @@ void OperatorExecutor::NodeScanByLabel(SharedBuffer &buffer, std::string jsonPla
     NodeManager nodeManager(gc);
     size_t nodeCount = nodeManager.nodeIndex.size();
 
-    if (parallelExecutor && nodeCount > getNodeParallelThreshold(parallelExecutor.get()) && 
+    if (parallelExecutor && nodeCount > getNodeParallelThreshold(parallelExecutor.get()) &&
         parallelExecutor->shouldUseParallelProcessing(nodeCount)) {
         try {
             NodeScanByLabelParallel(buffer, jsonPlan, gc);
