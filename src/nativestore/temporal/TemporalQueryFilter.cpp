@@ -39,6 +39,16 @@ std::string cleanTimestamp(const std::string& timestamp) {
     }
     return cleaned;
 }
+
+std::string parseTimestamp(const nlohmann::json& value) {
+    if (value.is_number()) {
+        return std::to_string(value.get<long long>());
+    }
+    if (value.is_string()) {
+        return value.get<std::string>();
+    }
+    return "";
+}
 }
 
 TemporalConstraints TemporalQueryFilter::fromJson(const nlohmann::json& plan) {
@@ -59,25 +69,27 @@ TemporalConstraints TemporalQueryFilter::fromJson(const nlohmann::json& plan) {
 
     if (mode == "RANGE" || mode == "BETWEEN" || mode == "WINDOW") {
         constraints.mode = TemporalFilterMode::RANGE;
-        if (config.contains("from") && config["from"].is_string()) {
-            constraints.rangeFrom = config["from"].get<std::string>();
-        } else if (config.contains("start") && config["start"].is_string()) {
-            constraints.rangeFrom = config["start"].get<std::string>();
+        if (config.contains("from")) {
+            constraints.rangeFrom = parseTimestamp(config["from"]);
+        } else if (config.contains("start")) {
+            constraints.rangeFrom = parseTimestamp(config["start"]);
         }
-        if (config.contains("to") && config["to"].is_string()) {
-            constraints.rangeTo = config["to"].get<std::string>();
-        } else if (config.contains("end") && config["end"].is_string()) {
-            constraints.rangeTo = config["end"].get<std::string>();
+        if (config.contains("to")) {
+            constraints.rangeTo = parseTimestamp(config["to"]);
+        } else if (config.contains("end")) {
+            constraints.rangeTo = parseTimestamp(config["end"]);
         }
     } else {
         constraints.mode = TemporalFilterMode::AS_OF;
-        if (config.contains("timestamp") && config["timestamp"].is_string()) {
-            constraints.asOf = config["timestamp"].get<std::string>();
-        } else if (config.contains("asOf") && config["asOf"].is_string()) {
-            constraints.asOf = config["asOf"].get<std::string>();
+        if (config.contains("timestamp")) {
+            constraints.asOf = parseTimestamp(config["timestamp"]);
+        } else if (config.contains("asOf")) {
+            constraints.asOf = parseTimestamp(config["asOf"]);
         }
         if (constraints.asOf.empty()) {
-            constraints.asOf = Utils::getCurrentTimestamp();
+            // Default to current time
+            constraints.asOf = TemporalConstants::epochMillisToString(
+                TemporalConstants::getCurrentEpochMillis());
         }
     }
     return constraints;
@@ -160,6 +172,18 @@ long long TemporalQueryFilter::normalizeTimestamp(const std::string& timestamp) 
     if (timestamp.empty()) {
         return kNegativeInfinity;
     }
+    // Try direct conversion first (for epoch milliseconds)
+    try {
+        long long value = std::stoll(timestamp);
+        // If value is reasonable epoch millis (between 2000 and 2100), use it
+        if (value > 946684800000LL && value < 4102444800000LL) {
+            return value;
+        }
+    } catch (...) {
+        // Fall through to cleaned version
+    }
+    
+    // Fall back to cleaning non-digit chars (for legacy format)
     std::string cleaned = cleanTimestamp(timestamp);
     if (cleaned.empty()) {
         return kNegativeInfinity;
