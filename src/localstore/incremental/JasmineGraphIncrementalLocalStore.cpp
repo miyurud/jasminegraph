@@ -280,11 +280,20 @@ std::string JasmineGraphIncrementalLocalStore::resolveOperationTimestamp(const j
         if (container.is_null()) {
             return "";
         }
-        if (container.contains("operationTimestamp") && container["operationTimestamp"].is_string()) {
-            return container["operationTimestamp"].get<std::string>();
+        // Accept both string and numeric timestamps
+        if (container.contains("operationTimestamp")) {
+            if (container["operationTimestamp"].is_string()) {
+                return container["operationTimestamp"].get<std::string>();
+            } else if (container["operationTimestamp"].is_number()) {
+                return std::to_string(container["operationTimestamp"].get<long long>());
+            }
         }
-        if (container.contains("timestamp") && container["timestamp"].is_string()) {
-            return container["timestamp"].get<std::string>();
+        if (container.contains("timestamp")) {
+            if (container["timestamp"].is_string()) {
+                return container["timestamp"].get<std::string>();
+            } else if (container["timestamp"].is_number()) {
+                return std::to_string(container["timestamp"].get<long long>());
+            }
         }
         return "";
     };
@@ -294,7 +303,8 @@ std::string JasmineGraphIncrementalLocalStore::resolveOperationTimestamp(const j
         ts = resolveFromObject(edgeJson["properties"]);
     }
     if (ts.empty()) {
-        ts = Utils::getCurrentTimestamp();
+        // Use UTC epoch milliseconds for consistency
+        ts = TemporalConstants::epochMillisToString(TemporalConstants::getCurrentEpochMillis());
     }
     return ts;
 }
@@ -310,37 +320,84 @@ void JasmineGraphIncrementalLocalStore::logTemporalEvent(const json& edgeJson, c
 
 bool JasmineGraphIncrementalLocalStore::handleNodeOperation(const json& nodeJson, const std::string& operationType,
                                                             const std::string& operationTimestamp) {
-    if (operationType != TemporalConstants::OP_ADD) {
-        incremental_localstore_logger.warn("Node operations only support ADD. Skipping operation '" +
-                                           operationType + "'.");
-        return false;
-    }
     std::string nodeId = nodeJson["id"].get<std::string>();
-    NodeBlock* newNode = this->nm->addNode(nodeId);
-    if (!newNode) {
-        incremental_localstore_logger.error("Failed to allocate node block for node " + nodeId);
+    
+    if (operationType == TemporalConstants::OP_ADD) {
+        NodeBlock* newNode = this->nm->addNode(nodeId);
+        if (!newNode) {
+            incremental_localstore_logger.error("Failed to allocate node block for node " + nodeId);
+            return false;
+        }
+
+        char value[PropertyLink::MAX_VALUE_SIZE] = {};
+        char meta[MetaPropertyLink::MAX_VALUE_SIZE] = {};
+
+        if (nodeJson.contains("properties")) {
+            auto sourceProps = nodeJson["properties"];
+            for (auto it = sourceProps.begin(); it != sourceProps.end(); it++) {
+                strcpy(value, it.value().get<std::string>().c_str());
+                newNode->addProperty(std::string(it.key()), &value[0]);
+            }
+        }
+
+        std::string sourcePid = std::to_string(nodeJson["pid"].get<int>());
+        strcpy(meta, sourcePid.c_str());
+        newNode->addMetaProperty(MetaPropertyLink::PARTITION_ID, &meta[0]);
+        addNodeMetaProperty(newNode, TemporalConstants::LAST_OPERATION, operationType);
+        addNodeMetaProperty(newNode, TemporalConstants::LAST_OPERATION_TS, operationTimestamp);
+        addNodeMetaProperty(newNode, TemporalConstants::STATUS, TemporalConstants::STATUS_ACTIVE);
+        addNodeMetaProperty(newNode, TemporalConstants::CREATED_AT, operationTimestamp);
+        addNodeMetaProperty(newNode, TemporalConstants::PROPERTY_VERSION, "1");
+        return true;
+    }
+    
+    // Handle UPDATE and DELETE operations
+    NodeBlock* existingNode = this->nm->get(nodeId);
+    if (!existingNode) {
+        incremental_localstore_logger.warn("Node " + nodeId + " not found for " + operationType + " operation");
         return false;
     }
-
-    char value[PropertyLink::MAX_VALUE_SIZE] = {};
-    char meta[MetaPropertyLink::MAX_VALUE_SIZE] = {};
-
-    if (nodeJson.contains("properties")) {
-        auto sourceProps = nodeJson["properties"];
-        for (auto it = sourceProps.begin(); it != sourceProps.end(); it++) {
-            strcpy(value, it.value().get<std::string>().c_str());
-            newNode->addProperty(std::string(it.key()), &value[0]);
+    
+    if (operationType == TemporalConstants::OP_UPDATE) {
+        // Update properties
+        if (nodeJson.contains("properties")) {
+            char value[PropertyLink::MAX_VALUE_SIZE] = {};
+            auto sourceProps = nodeJson["properties"];
+            for (auto it = sourceProps.begin(); it != sourceProps.end(); it++) {
+                strcpy(value, it.value().get<std::string>().c_str());
+                existingNode->addProperty(std::string(it.key()), &value[0]);
+            }
         }
+        
+        // Update temporal metadata
+        addNodeMetaProperty(existingNode, TemporalConstants::LAST_OPERATION, operationType);
+        addNodeMetaProperty(existingNode, TemporalConstants::LAST_OPERATION_TS, operationTimestamp);
+        addNodeMetaProperty(existingNode, TemporalConstants::UPDATED_AT, operationTimestamp);
+        addNodeMetaProperty(existingNode, TemporalConstants::STATUS, TemporalConstants::STATUS_ACTIVE);
+        
+        // Increment property version
+        auto meta = existingNode->getAllMetaProperties();
+        auto versionIt = meta.find(TemporalConstants::PROPERTY_VERSION);
+        int version = versionIt != meta.end() ? std::stoi(versionIt->second) + 1 : 1;
+        addNodeMetaProperty(existingNode, TemporalConstants::PROPERTY_VERSION, std::to_string(version));
+        
+        incremental_localstore_logger.debug("Node " + nodeId + " updated successfully");
+        return true;
     }
-
-    std::string sourcePid = std::to_string(nodeJson["pid"].get<int>());
-    strcpy(meta, sourcePid.c_str());
-    newNode->addMetaProperty(MetaPropertyLink::PARTITION_ID, &meta[0]);
-    addNodeMetaProperty(newNode, TemporalConstants::LAST_OPERATION, operationType);
-    addNodeMetaProperty(newNode, TemporalConstants::LAST_OPERATION_TS, operationTimestamp);
-    addNodeMetaProperty(newNode, TemporalConstants::STATUS, TemporalConstants::STATUS_ACTIVE);
-    addNodeMetaProperty(newNode, TemporalConstants::CREATED_AT, operationTimestamp);
-    return true;
+    
+    if (operationType == TemporalConstants::OP_DELETE) {
+        // Mark node as deleted
+        addNodeMetaProperty(existingNode, TemporalConstants::LAST_OPERATION, operationType);
+        addNodeMetaProperty(existingNode, TemporalConstants::LAST_OPERATION_TS, operationTimestamp);
+        addNodeMetaProperty(existingNode, TemporalConstants::STATUS, TemporalConstants::STATUS_DELETED);
+        addNodeMetaProperty(existingNode, TemporalConstants::DELETED_AT, operationTimestamp);
+        
+        incremental_localstore_logger.debug("Node " + nodeId + " marked as deleted");
+        return true;
+    }
+    
+    incremental_localstore_logger.warn("Unsupported node operation type: " + operationType);
+    return false;
 }
 
 bool JasmineGraphIncrementalLocalStore::handleEdgeAddition(const json& edgeJson, const std::string& operationType,
@@ -452,10 +509,18 @@ void JasmineGraphIncrementalLocalStore::attachTemporalMeta(RelationBlock* relati
     if (operationType == TemporalConstants::OP_DELETE) {
         addRelationMetaProperty(relationBlock, TemporalConstants::STATUS, TemporalConstants::STATUS_DELETED);
         addRelationMetaProperty(relationBlock, TemporalConstants::DELETED_AT, operationTimestamp);
-    } else {
+    } else if (operationType == TemporalConstants::OP_ADD) {
         addRelationMetaProperty(relationBlock, TemporalConstants::STATUS, TemporalConstants::STATUS_ACTIVE);
-        if (operationType == TemporalConstants::OP_ADD) {
-            addRelationMetaProperty(relationBlock, TemporalConstants::CREATED_AT, operationTimestamp);
-        }
+        addRelationMetaProperty(relationBlock, TemporalConstants::CREATED_AT, operationTimestamp);
+        addRelationMetaProperty(relationBlock, TemporalConstants::PROPERTY_VERSION, "1");
+    } else if (operationType == TemporalConstants::OP_UPDATE) {
+        addRelationMetaProperty(relationBlock, TemporalConstants::STATUS, TemporalConstants::STATUS_ACTIVE);
+        addRelationMetaProperty(relationBlock, TemporalConstants::UPDATED_AT, operationTimestamp);
+        
+        // Increment property version
+        auto meta = relationBlock->getAllMetaProperties();
+        auto versionIt = meta.find(TemporalConstants::PROPERTY_VERSION);
+        int version = versionIt != meta.end() ? std::stoi(versionIt->second) + 1 : 1;
+        addRelationMetaProperty(relationBlock, TemporalConstants::PROPERTY_VERSION, std::to_string(version));
     }
 }
