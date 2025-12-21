@@ -16,6 +16,7 @@ limitations under the License.
 
 #include <mutex>
 #include <string>
+#include <vector>
 
 #include <nlohmann/json.hpp>
 
@@ -34,10 +35,24 @@ class TemporalEventLogger {
     explicit TemporalEventLogger(const std::string& dbPrefix);
     void log(const TemporalEdgeEvent& event) const;
     std::string getLogFilePath() const;
+    std::string getIndexFilePath() const;
+    
+    // Event log management
+    void buildIndex();
+    void rotateLog(size_t maxSizeBytes = 100 * 1024 * 1024);  // Default 100MB
+    void compactLog(long long retentionMillis = 0);  // 0 means keep all
+    
+    // Query support
+    std::vector<TemporalEdgeEvent> queryEvents(const std::string& entityId, 
+                                                long long fromTimestamp = 0,
+                                                long long toTimestamp = 0) const;
 
  private:
     std::string logFilePath;
+    std::string indexFilePath;
     mutable std::mutex logMutex;
+    
+    void updateIndex(const std::string& entityId, long long timestamp, long long offset) const;
 };
 
 #endif  // TEMPORAL_EVENT_LOGGER_H
