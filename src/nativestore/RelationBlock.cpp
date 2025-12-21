@@ -865,6 +865,19 @@ std::map<std::string, char*> RelationBlock::getAllProperties() {
     return allProperties;
 }
 
+std::map<std::string, std::string> RelationBlock::getAllMetaProperties() {
+    std::map<std::string, std::string> allMetaProperties;
+    MetaPropertyEdgeLink* current = this->getMetaPropertyHead();
+    while (current) {
+        allMetaProperties[current->name] = std::string(current->value);
+        MetaPropertyEdgeLink* temp = current->next();
+        delete current;
+        current = temp;
+    }
+    delete current;
+    return allMetaProperties;
+}
+
 /**
  * Get the source node in the current (this) relationship
  *

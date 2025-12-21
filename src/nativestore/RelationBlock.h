@@ -13,6 +13,7 @@ limitations under the License.
 
 #include <cstring>
 #include <fstream>
+#include <map>
 #include <set>
 #include <string>
 
@@ -170,6 +171,7 @@ class RelationBlock {
     PropertyEdgeLink *getPropertyHead();
     MetaPropertyEdgeLink *getMetaPropertyHead();
     std::map<std::string, char *> getAllProperties();
+    std::map<std::string, std::string> getAllMetaProperties();
 };
 
 #endif

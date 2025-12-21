@@ -93,6 +93,9 @@ set(HEADERS globals.h
         src/query/processor/cypher/util/Const.h
         src/nativestore/MetaPropertyLink.h
         src/nativestore/MetaPropertyEdgeLink.h
+    src/nativestore/temporal/TemporalEventLogger.h
+    src/nativestore/temporal/TemporalQueryFilter.h
+    src/nativestore/temporal/TemporalConstants.h
         src/query/processor/cypher/queryplanner/Operators.h
         src/query/processor/cypher/queryplanner/QueryPlanner.h
         src/query/processor/cypher/runtime/InstanceHandler.h
@@ -190,6 +193,8 @@ set(SOURCES src/backend/JasmineGraphBackend.cpp
         src/query/processor/cypher/util/SharedBuffer.cpp
         src/nativestore/MetaPropertyLink.cpp
         src/nativestore/MetaPropertyEdgeLink.cpp
+    src/nativestore/temporal/TemporalEventLogger.cpp
+    src/nativestore/temporal/TemporalQueryFilter.cpp
         src/nativestore/MetaPropertyLink.cpp
         src/nativestore/MetaPropertyEdgeLink.cpp
         src/query/processor/cypher/runtime/Helpers.cpp

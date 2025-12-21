@@ -78,6 +78,7 @@ class NodeBlock {
     PropertyLink *getPropertyHead();
     MetaPropertyLink *getMetaPropertyHead();
     std::map<std::string, char *> getAllProperties();
+    std::map<std::string, std::string> getAllMetaProperties();
 
     bool updateLocalRelation(RelationBlock *, bool relocateHead = true);
     bool updateCentralRelation(RelationBlock *newRelation, bool relocateHead = true);

@@ -411,6 +411,19 @@ std::map<std::string, char*> NodeBlock::getAllProperties() {
     return allProperties;
 }
 
+std::map<std::string, std::string> NodeBlock::getAllMetaProperties() {
+    std::map<std::string, std::string> allMetaProperties;
+    MetaPropertyLink* current = this->getMetaPropertyHead();
+    while (current) {
+        allMetaProperties[current->name] = std::string(current->value);
+        MetaPropertyLink* temp = current->next();
+        delete current;
+        current = temp;
+    }
+    delete current;
+    return allMetaProperties;
+}
+
 NodeBlock* NodeBlock::get(unsigned int blockAddress) {
     NodeBlock* nodeBlockPointer = NULL;
     NodeBlock::nodesDB->seekg(blockAddress);

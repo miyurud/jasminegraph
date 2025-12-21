@@ -15,6 +15,9 @@ limitations under the License.
 #include "InstanceHandler.h"
 #include "../util/Const.h"
 #include "../../../../util/logger/Logger.h"
+#include "../../../../nativestore/MetaPropertyLink.h"
+#include "../../../../nativestore/MetaPropertyEdgeLink.h"
+#include "../../../../nativestore/temporal/TemporalQueryFilter.h"
 #include "Helpers.h"
 #include <thread>
 #include <queue>
@@ -22,6 +25,60 @@ limitations under the License.
 #include <random>
 
 Logger execution_logger;
+
+namespace {
+const std::string kPartitionField = "partitionID";
+
+bool populateNodeJson(NodeBlock* node, json& nodeData, const TemporalConstraints& constraints,
+                      const std::string& requiredPartition = "") {
+    if (!node) {
+        return false;
+    }
+
+    std::map<std::string, std::string> meta = node->getAllMetaProperties();
+    auto partitionIt = meta.find(MetaPropertyLink::PARTITION_ID);
+    if (partitionIt == meta.end()) {
+        return false;
+    }
+    if (!requiredPartition.empty() && partitionIt->second != requiredPartition) {
+        return false;
+    }
+    if (!TemporalQueryFilter::isNodeVisible(constraints, meta)) {
+        return false;
+    }
+    nodeData[kPartitionField] = partitionIt->second;
+
+    std::map<std::string, char*> properties = node->getAllProperties();
+    for (auto property : properties) {
+        nodeData[property.first] = property.second;
+    }
+    for (auto& [key, value] : properties) {
+        delete[] value;
+    }
+    properties.clear();
+    return true;
+}
+
+bool loadRelationMetaIfVisible(RelationBlock* relation, const TemporalConstraints& constraints,
+                               std::map<std::string, std::string>& relationMeta) {
+    if (!relation) {
+        return false;
+    }
+    relationMeta = relation->getAllMetaProperties();
+    return TemporalQueryFilter::isRelationVisible(constraints, relationMeta);
+}
+
+void populateRelationProperties(RelationBlock* relation, json& relationData) {
+    std::map<std::string, char*> relProperties = relation->getAllProperties();
+    for (auto property : relProperties) {
+        relationData[property.first] = property.second;
+    }
+    for (auto& [key, value] : relProperties) {
+        delete[] value;
+    }
+    relProperties.clear();
+}
+}  // namespace
 std::unordered_map<std::string,
     std::function<void(OperatorExecutor&, SharedBuffer&, std::string, GraphConfig)>> OperatorExecutor::methodMap;
 OperatorExecutor::OperatorExecutor(GraphConfig gc, std::string queryPlan, std::string masterIP):
@@ -111,57 +168,46 @@ void OperatorExecutor::initializeMethodMap() {
 
 void OperatorExecutor::AllNodeScan(SharedBuffer &buffer, std::string jsonPlan, GraphConfig gc) {
     json query = json::parse(jsonPlan);
+    TemporalConstraints temporalConstraints = TemporalQueryFilter::fromJson(query);
+    const std::string partitionKey = std::to_string(gc.partitionID);
     NodeManager nodeManager(gc);
     for (auto it : nodeManager.nodeIndex) {
         json nodeData;
         auto nodeId = it.first;
         NodeBlock *node = nodeManager.get(nodeId);
-        std::string value(node->getMetaPropertyHead()->value);
-        if (value == to_string(gc.partitionID)) {
-            nodeData["partitionID"] = value;
-            std::map<std::string, char*> properties = node->getAllProperties();
-            for (auto property : properties) {
-                nodeData[property.first] = property.second;
-            }
-            for (auto& [key, value] : properties) {
-                delete[] value;  // Free each allocated char* array
-            }
-            properties.clear();
-
-            json data;
-            string variable = query["variables"];
-            data[variable] = nodeData;
-            buffer.add(data.dump());
+        if (!populateNodeJson(node, nodeData, temporalConstraints, partitionKey)) {
+            continue;
         }
+
+        json data;
+        string variable = query["variables"];
+        data[variable] = nodeData;
+        buffer.add(data.dump());
     }
     buffer.add("-1");
 }
 
 void OperatorExecutor::NodeScanByLabel(SharedBuffer &buffer, std::string jsonPlan, GraphConfig gc) {
     json query = json::parse(jsonPlan);
+    TemporalConstraints temporalConstraints = TemporalQueryFilter::fromJson(query);
+    const std::string partitionKey = std::to_string(gc.partitionID);
     NodeManager nodeManager(gc);
     for (auto it : nodeManager.nodeIndex) {
         json nodeData;
         auto nodeId = it.first;
         NodeBlock *node = nodeManager.get(nodeId);
         string label = node->getLabel();
-        std::string value(node->getMetaPropertyHead()->value);
-        if (value == to_string(gc.partitionID) && label == query["Label"]) {
-            nodeData["partitionID"] = value;
-            std::map<std::string, char*> properties = node->getAllProperties();
-            for (auto property : properties) {
-                nodeData[property.first] = property.second;
-            }
-            for (auto& [key, value] : properties) {
-                delete[] value;  // Free each allocated char* array
-            }
-            properties.clear();
-
-            json data;
-            string variable = query["variable"];
-            data[variable] = nodeData;
-            buffer.add(data.dump());
+        if (label != query["Label"]) {
+            continue;
         }
+        if (!populateNodeJson(node, nodeData, temporalConstraints, partitionKey)) {
+            continue;
+        }
+
+        json data;
+        string variable = query["variable"];
+        data[variable] = nodeData;
+        buffer.add(data.dump());
     }
     buffer.add("-1");
 }
@@ -218,6 +264,7 @@ void OperatorExecutor::Filter(SharedBuffer &buffer, std::string jsonPlan, GraphC
 
 void OperatorExecutor::UndirectedRelationshipTypeScan(SharedBuffer &buffer, std::string jsonPlan, GraphConfig gc) {
     json query = json::parse(jsonPlan);
+    TemporalConstraints temporalConstraints = TemporalQueryFilter::fromJson(query);
     NodeManager nodeManager(gc);
 
     const std::string& dbPrefix = nodeManager.getDbPrefix();
@@ -229,48 +276,32 @@ void OperatorExecutor::UndirectedRelationshipTypeScan(SharedBuffer &buffer, std:
     if (direction == "TRUE") {
         isDirected = true;
     }
-    int count = 1;
+    const std::string partitionKey = std::to_string(gc.partitionID);
+
     for (long i = 1; i < localRelationCount; i++) {
-        json startNodeData;
-        json destNodeData;
-        json relationData;
-        RelationBlock* relation = RelationBlock::getLocalRelation(i*RelationBlock::BLOCK_SIZE);
-        if (relation->getLocalRelationshipType() != query["relType"]) {
+        RelationBlock* relation = RelationBlock::getLocalRelation(i * RelationBlock::BLOCK_SIZE);
+        if (!relation || relation->getLocalRelationshipType() != query["relType"]) {
             continue;
         }
+
+        std::map<std::string, std::string> relationMeta;
+        if (!loadRelationMetaIfVisible(relation, temporalConstraints, relationMeta)) {
+            continue;
+        }
+
         NodeBlock* startNode = relation->getSource();
         NodeBlock* destNode = relation->getDestination();
+        json startNodeData;
+        json destNodeData;
+        if (!populateNodeJson(startNode, startNodeData, temporalConstraints)) {
+            continue;
+        }
+        if (!populateNodeJson(destNode, destNodeData, temporalConstraints)) {
+            continue;
+        }
 
-        std::string startPid(startNode->getMetaPropertyHead()->value);
-        startNodeData["partitionID"] = startPid;
-        std::map<std::string, char*> startProperties = startNode->getAllProperties();
-        for (auto property : startProperties) {
-            startNodeData[property.first] = property.second;
-        }
-        for (auto& [key, value] : startProperties) {
-            delete[] value;  // Free each allocated char* array
-        }
-        startProperties.clear();
-
-        std::string destPid(destNode->getMetaPropertyHead()->value);
-        destNodeData["partitionID"] = destPid;
-        std::map<std::string, char*> destProperties = destNode->getAllProperties();
-        for (auto property : destProperties) {
-            destNodeData[property.first] = property.second;
-        }
-        for (auto& [key, value] : destProperties) {
-            delete[] value;  // Free each allocated char* array
-        }
-        destProperties.clear();
-
-        std::map<std::string, char*> relProperties = relation->getAllProperties();
-        for (auto property : relProperties) {
-            relationData[property.first] = property.second;
-        }
-        for (auto& [key, value] : relProperties) {
-            delete[] value;  // Free each allocated char* array
-        }
-        relProperties.clear();
+        json relationData;
+        populateRelationProperties(relation, relationData);
 
         json rightDirectionData;
         string start = query["sourceVariable"];
@@ -289,62 +320,37 @@ void OperatorExecutor::UndirectedRelationshipTypeScan(SharedBuffer &buffer, std:
             leftDirectionData[rel] = relationData;
             buffer.add(leftDirectionData.dump());
         }
-        count++;
     }
 
-    int central = 1;
     for (long i = 1; i < centralRelationCount; i++) {
-        json startNodeData;
-        json destNodeData;
-        json relationData;
         RelationBlock* relation = RelationBlock::getCentralRelation(i * RelationBlock::CENTRAL_BLOCK_SIZE);
-        if (relation->getCentralRelationshipType() != query["relType"]) {
+        if (!relation || relation->getCentralRelationshipType() != query["relType"]) {
             continue;
         }
 
-        std::string pid(relation->getMetaPropertyHead()->value);
-        if (pid != to_string(gc.partitionID)) {
+        std::map<std::string, std::string> relationMeta;
+        if (!loadRelationMetaIfVisible(relation, temporalConstraints, relationMeta)) {
+            continue;
+        }
+
+        auto relationPidIt = relationMeta.find(MetaPropertyEdgeLink::PARTITION_ID);
+        if (relationPidIt == relationMeta.end() || relationPidIt->second != partitionKey) {
             continue;
         }
 
         NodeBlock* startNode = relation->getSource();
         NodeBlock* destNode = relation->getDestination();
-
-        std::string startPid(startNode->getMetaPropertyHead()->value);
-
-        if (startPid != to_string(gc.partitionID)) {
+        json startNodeData;
+        json destNodeData;
+        if (!populateNodeJson(startNode, startNodeData, temporalConstraints, partitionKey)) {
             continue;
         }
-        startNodeData["partitionID"] = startPid;
-        std::map<std::string, char*> startProperties = startNode->getAllProperties();
-        for (auto property : startProperties) {
-            startNodeData[property.first] = property.second;
+        if (!populateNodeJson(destNode, destNodeData, temporalConstraints)) {
+            continue;
         }
-        for (auto& [key, value] : startProperties) {
-            delete[] value;  // Free each allocated char* array
-        }
-        startProperties.clear();
 
-        std::string destPid(destNode->getMetaPropertyHead()->value);
-        destNodeData["partitionID"] = destPid;
-
-        std::map<std::string, char*> destProperties = destNode->getAllProperties();
-        for (auto property : destProperties) {
-            destNodeData[property.first] = property.second;
-        }
-        for (auto& [key, value] : destProperties) {
-            delete[] value;  // Free each allocated char* array
-        }
-        destProperties.clear();
-
-        std::map<std::string, char*> relProperties = relation->getAllProperties();
-        for (auto property : relProperties) {
-            relationData[property.first] = property.second;
-        }
-        for (auto& [key, value] : relProperties) {
-            delete[] value;  // Free each allocated char* array
-        }
-        relProperties.clear();
+        json relationData;
+        populateRelationProperties(relation, relationData);
 
         json rightDirectionData;
         string start = query["sourceVariable"];
@@ -363,13 +369,13 @@ void OperatorExecutor::UndirectedRelationshipTypeScan(SharedBuffer &buffer, std:
             leftDirectionData[rel] = relationData;
             buffer.add(leftDirectionData.dump());
         }
-        central++;
     }
     buffer.add("-1");
 }
 
 void OperatorExecutor::UndirectedAllRelationshipScan(SharedBuffer &buffer, std::string jsonPlan, GraphConfig gc) {
     json query = json::parse(jsonPlan);
+    TemporalConstraints temporalConstraints = TemporalQueryFilter::fromJson(query);
     NodeManager nodeManager(gc);
 
     const std::string& dbPrefix = nodeManager.getDbPrefix();
@@ -381,111 +387,32 @@ void OperatorExecutor::UndirectedAllRelationshipScan(SharedBuffer &buffer, std::
     if (direction == "TRUE") {
         isDirected = true;
     }
-    int count = 1;
+    const std::string partitionKey = std::to_string(gc.partitionID);
+
     for (long i = 1; i < localRelationCount; i++) {
-        json startNodeData;
-        json destNodeData;
-        json relationData;
-        RelationBlock* relation = RelationBlock::getLocalRelation(i*RelationBlock::BLOCK_SIZE);
-        NodeBlock* startNode = relation->getSource();
-        NodeBlock* destNode = relation->getDestination();
-
-
-        std::string startPid(startNode->getMetaPropertyHead()->value);
-        startNodeData["partitionID"] = startPid;
-        std::map<std::string, char*> startProperties = startNode->getAllProperties();
-        for (auto property : startProperties) {
-            startNodeData[property.first] = property.second;
+        RelationBlock* relation = RelationBlock::getLocalRelation(i * RelationBlock::BLOCK_SIZE);
+        if (!relation) {
+            continue;
         }
-        for (auto& [key, value] : startProperties) {
-            delete[] value;  // Free each allocated char* array
-        }
-        startProperties.clear();
 
-        std::string destPid(destNode->getMetaPropertyHead()->value);
-        destNodeData["partitionID"] = destPid;
-        std::map<std::string, char*> destProperties = destNode->getAllProperties();
-        for (auto property : destProperties) {
-            destNodeData[property.first] = property.second;
-        }
-        for (auto& [key, value] : destProperties) {
-            delete[] value;  // Free each allocated char* array
-        }
-        destProperties.clear();
-
-        std::map<std::string, char*> relProperties = relation->getAllProperties();
-        for (auto property : relProperties) {
-            relationData[property.first] = property.second;
-        }
-        for (auto& [key, value] : relProperties) {
-            delete[] value;  // Free each allocated char* array
-        }
-        relProperties.clear();
-
-        json rightDirectionData;
-        string start = query["sourceVariable"];
-        string dest = query["destVariable"];
-        string rel = query["relVariable"];
-
-        rightDirectionData[start] = startNodeData;
-        rightDirectionData[dest] = destNodeData;
-        rightDirectionData[rel] = relationData;
-        buffer.add(rightDirectionData.dump());
-
-        if (!isDirected) {
-            json leftDirectionData;
-            leftDirectionData[start] = destNodeData;
-            leftDirectionData[dest] = startNodeData;
-            leftDirectionData[rel] = relationData;
-            buffer.add(leftDirectionData.dump());
-        }
-        count++;
-    }
-
-    int central = 1;
-    for (long i = 1; i < centralRelationCount; i++) {
-        json startNodeData;
-        json destNodeData;
-        json relationData;
-        RelationBlock* relation = RelationBlock::getCentralRelation(i*RelationBlock::CENTRAL_BLOCK_SIZE);
-        std::string pid(relation->getMetaPropertyHead()->value);
-        if (pid != to_string(gc.partitionID)) {
+        std::map<std::string, std::string> relationMeta;
+        if (!loadRelationMetaIfVisible(relation, temporalConstraints, relationMeta)) {
             continue;
         }
 
         NodeBlock* startNode = relation->getSource();
         NodeBlock* destNode = relation->getDestination();
+        json startNodeData;
+        json destNodeData;
+        if (!populateNodeJson(startNode, startNodeData, temporalConstraints)) {
+            continue;
+        }
+        if (!populateNodeJson(destNode, destNodeData, temporalConstraints)) {
+            continue;
+        }
 
-        std::string startPid(startNode->getMetaPropertyHead()->value);
-        startNodeData["partitionID"] = startPid;
-        std::map<std::string, char*> startProperties = startNode->getAllProperties();
-        for (auto property : startProperties) {
-            startNodeData[property.first] = property.second;
-        }
-        for (auto& [key, value] : startProperties) {
-            delete[] value;  // Free each allocated char* array
-        }
-        startProperties.clear();
-
-        std::string destPid(destNode->getMetaPropertyHead()->value);
-        destNodeData["partitionID"] = destPid;
-        std::map<std::string, char*> destProperties = destNode->getAllProperties();
-        for (auto property : destProperties) {
-            destNodeData[property.first] = property.second;
-        }
-        for (auto& [key, value] : destProperties) {
-            delete[] value;  // Free each allocated char* array
-        }
-        destProperties.clear();
-
-        std::map<std::string, char*> relProperties = relation->getAllProperties();
-        for (auto property : relProperties) {
-            relationData[property.first] = property.second;
-        }
-        for (auto& [key, value] : relProperties) {
-            delete[] value;  // Free each allocated char* array
-        }
-        relProperties.clear();
+        json relationData;
+        populateRelationProperties(relation, relationData);
 
         json rightDirectionData;
         string start = query["sourceVariable"];
@@ -504,13 +431,62 @@ void OperatorExecutor::UndirectedAllRelationshipScan(SharedBuffer &buffer, std::
             leftDirectionData[rel] = relationData;
             buffer.add(leftDirectionData.dump());
         }
-        central++;
+    }
+
+    for (long i = 1; i < centralRelationCount; i++) {
+        RelationBlock* relation = RelationBlock::getCentralRelation(i * RelationBlock::CENTRAL_BLOCK_SIZE);
+        if (!relation) {
+            continue;
+        }
+
+        std::map<std::string, std::string> relationMeta;
+        if (!loadRelationMetaIfVisible(relation, temporalConstraints, relationMeta)) {
+            continue;
+        }
+
+        auto relationPidIt = relationMeta.find(MetaPropertyEdgeLink::PARTITION_ID);
+        if (relationPidIt == relationMeta.end() || relationPidIt->second != partitionKey) {
+            continue;
+        }
+
+        NodeBlock* startNode = relation->getSource();
+        NodeBlock* destNode = relation->getDestination();
+        json startNodeData;
+        json destNodeData;
+        if (!populateNodeJson(startNode, startNodeData, temporalConstraints, partitionKey)) {
+            continue;
+        }
+        if (!populateNodeJson(destNode, destNodeData, temporalConstraints)) {
+            continue;
+        }
+
+        json relationData;
+        populateRelationProperties(relation, relationData);
+
+        json rightDirectionData;
+        string start = query["sourceVariable"];
+        string dest = query["destVariable"];
+        string rel = query["relVariable"];
+
+        rightDirectionData[start] = startNodeData;
+        rightDirectionData[dest] = destNodeData;
+        rightDirectionData[rel] = relationData;
+        buffer.add(rightDirectionData.dump());
+
+        if (!isDirected) {
+            json leftDirectionData;
+            leftDirectionData[start] = destNodeData;
+            leftDirectionData[dest] = startNodeData;
+            leftDirectionData[rel] = relationData;
+            buffer.add(leftDirectionData.dump());
+        }
     }
     buffer.add("-1");
 }
 
 void OperatorExecutor::DirectedRelationshipTypeScan(SharedBuffer &buffer, std::string jsonPlan, GraphConfig gc) {
     json query = json::parse(jsonPlan);
+    TemporalConstraints temporalConstraints = TemporalQueryFilter::fromJson(query);
     NodeManager nodeManager(gc);
     string direction = query["direction"];
     const std::string& dbPrefix = nodeManager.getDbPrefix();
@@ -523,48 +499,31 @@ void OperatorExecutor::DirectedRelationshipTypeScan(SharedBuffer &buffer, std::s
         isDirected = true;
     }
     bool isDirectionRight = query["direction"] == "right";
-    int count = 1;
+    const std::string partitionKey = std::to_string(gc.partitionID);
     for (long i = 1; i < localRelationCount; i++) {
-        json startNodeData;
-        json destNodeData;
-        json relationData;
-        RelationBlock* relation = RelationBlock::getLocalRelation(i*RelationBlock::BLOCK_SIZE);
-        if (relation->getLocalRelationshipType() != query["relType"]) {
+        RelationBlock* relation = RelationBlock::getLocalRelation(i * RelationBlock::BLOCK_SIZE);
+        if (!relation || relation->getLocalRelationshipType() != query["relType"]) {
             continue;
         }
+
+        std::map<std::string, std::string> relationMeta;
+        if (!loadRelationMetaIfVisible(relation, temporalConstraints, relationMeta)) {
+            continue;
+        }
+
         NodeBlock* startNode = relation->getSource();
         NodeBlock* destNode = relation->getDestination();
+        json startNodeData;
+        json destNodeData;
+        if (!populateNodeJson(startNode, startNodeData, temporalConstraints)) {
+            continue;
+        }
+        if (!populateNodeJson(destNode, destNodeData, temporalConstraints)) {
+            continue;
+        }
 
-        std::string startPid(startNode->getMetaPropertyHead()->value);
-        startNodeData["partitionID"] = startPid;
-        std::map<std::string, char*> startProperties = startNode->getAllProperties();
-        for (auto property : startProperties) {
-            startNodeData[property.first] = property.second;
-        }
-        for (auto& [key, value] : startProperties) {
-            delete[] value;  // Free each allocated char* array
-        }
-        startProperties.clear();
-
-        std::string destPid(destNode->getMetaPropertyHead()->value);
-        destNodeData["partitionID"] = destPid;
-        std::map<std::string, char*> destProperties = destNode->getAllProperties();
-        for (auto property : destProperties) {
-            destNodeData[property.first] = property.second;
-        }
-        for (auto& [key, value] : destProperties) {
-            delete[] value;  // Free each allocated char* array
-        }
-        destProperties.clear();
-
-        std::map<std::string, char*> relProperties = relation->getAllProperties();
-        for (auto property : relProperties) {
-            relationData[property.first] = property.second;
-        }
-        for (auto& [key, value] : relProperties) {
-            delete[] value;  // Free each allocated char* array
-        }
-        relProperties.clear();
+        json relationData;
+        populateRelationProperties(relation, relationData);
 
         json directionData;
         string start = query["sourceVariable"];
@@ -580,57 +539,37 @@ void OperatorExecutor::DirectedRelationshipTypeScan(SharedBuffer &buffer, std::s
         }
         directionData[rel] = relationData;
         buffer.add(directionData.dump());
-        count++;
     }
 
-    int central = 1;
     for (long i = 1; i < centralRelationCount; i++) {
-        json startNodeData;
-        json destNodeData;
-        json relationData;
-        RelationBlock* relation = RelationBlock::getCentralRelation(i*RelationBlock::CENTRAL_BLOCK_SIZE);
-        if (relation->getCentralRelationshipType() != query["relType"]) {
+        RelationBlock* relation = RelationBlock::getCentralRelation(i * RelationBlock::CENTRAL_BLOCK_SIZE);
+        if (!relation || relation->getCentralRelationshipType() != query["relType"]) {
             continue;
         }
 
-        std::string pid(relation->getMetaPropertyHead()->value);
-        if (pid != to_string(gc.partitionID)) {
+        std::map<std::string, std::string> relationMeta;
+        if (!loadRelationMetaIfVisible(relation, temporalConstraints, relationMeta)) {
+            continue;
+        }
+
+        auto relationPidIt = relationMeta.find(MetaPropertyEdgeLink::PARTITION_ID);
+        if (relationPidIt == relationMeta.end() || relationPidIt->second != partitionKey) {
             continue;
         }
 
         NodeBlock* startNode = relation->getSource();
         NodeBlock* destNode = relation->getDestination();
+        json startNodeData;
+        json destNodeData;
+        if (!populateNodeJson(startNode, startNodeData, temporalConstraints, partitionKey)) {
+            continue;
+        }
+        if (!populateNodeJson(destNode, destNodeData, temporalConstraints)) {
+            continue;
+        }
 
-        std::string startPid(startNode->getMetaPropertyHead()->value);
-        startNodeData["partitionID"] = startPid;
-        std::map<std::string, char*> startProperties = startNode->getAllProperties();
-        for (auto property : startProperties) {
-            startNodeData[property.first] = property.second;
-        }
-        for (auto& [key, value] : startProperties) {
-            delete[] value;  // Free each allocated char* array
-        }
-        startProperties.clear();
-
-        std::string destPid(destNode->getMetaPropertyHead()->value);
-        destNodeData["partitionID"] = destPid;
-        std::map<std::string, char*> destProperties = destNode->getAllProperties();
-        for (auto property : destProperties) {
-            destNodeData[property.first] = property.second;
-        }
-        for (auto& [key, value] : destProperties) {
-            delete[] value;  // Free each allocated char* array
-        }
-        destProperties.clear();
-
-        std::map<std::string, char*> relProperties = relation->getAllProperties();
-        for (auto property : relProperties) {
-            relationData[property.first] = property.second;
-        }
-        for (auto& [key, value] : relProperties) {
-            delete[] value;  // Free each allocated char* array
-        }
-        relProperties.clear();
+        json relationData;
+        populateRelationProperties(relation, relationData);
 
         json directionData;
         string start = query["sourceVariable"];
@@ -646,14 +585,13 @@ void OperatorExecutor::DirectedRelationshipTypeScan(SharedBuffer &buffer, std::s
         }
         directionData[rel] = relationData;
         buffer.add(directionData.dump());
-
-        central++;
     }
     buffer.add("-1");
 }
 
 void OperatorExecutor::DirectedAllRelationshipScan(SharedBuffer &buffer, std::string jsonPlan, GraphConfig gc) {
     json query = json::parse(jsonPlan);
+    TemporalConstraints temporalConstraints = TemporalQueryFilter::fromJson(query);
     NodeManager nodeManager(gc);
     string direction = query["direction"];
     const std::string& dbPrefix = nodeManager.getDbPrefix();
@@ -666,107 +604,31 @@ void OperatorExecutor::DirectedAllRelationshipScan(SharedBuffer &buffer, std::st
         isDirected = true;
     }
     bool isDirectionRight = query["direction"] == "right";
-    int count = 1;
+    const std::string partitionKey = std::to_string(gc.partitionID);
     for (long i = 1; i < localRelationCount; i++) {
-        json startNodeData;
-        json destNodeData;
-        json relationData;
         RelationBlock* relation = RelationBlock::getLocalRelation(i * RelationBlock::BLOCK_SIZE);
-        NodeBlock* startNode = relation->getSource();
-        NodeBlock* destNode = relation->getDestination();
+        if (!relation) {
+            continue;
+        }
 
-        std::string startPid(startNode->getMetaPropertyHead()->value);
-        startNodeData["partitionID"] = startPid;
-        std::map<std::string, char*> startProperties = startNode->getAllProperties();
-        for (auto property : startProperties) {
-            startNodeData[property.first] = property.second;
-        }
-        for (auto& [key, value] : startProperties) {
-            delete[] value;  // Free each allocated char* array
-        }
-        startProperties.clear();
-
-        std::string destPid(destNode->getMetaPropertyHead()->value);
-        destNodeData["partitionID"] = destPid;
-        std::map<std::string, char*> destProperties = destNode->getAllProperties();
-        for (auto property : destProperties) {
-            destNodeData[property.first] = property.second;
-        }
-        for (auto& [key, value] : destProperties) {
-            delete[] value;  // Free each allocated char* array
-        }
-        destProperties.clear();
-
-        std::map<std::string, char*> relProperties = relation->getAllProperties();
-        for (auto property : relProperties) {
-            relationData[property.first] = property.second;
-        }
-        for (auto& [key, value] : relProperties) {
-            delete[] value;  // Free each allocated char* array
-        }
-        relProperties.clear();
-
-        json directionData;
-        string start = query["sourceVariable"];
-        string dest = query["destVariable"];
-        string rel = query["relVariable"];
-
-        if (isDirectionRight) {
-            directionData[start] = startNodeData;
-            directionData[dest] = destNodeData;
-        } else if (!isDirected) {
-            directionData[start] = destNodeData;
-            directionData[dest] = startNodeData;
-        }
-        directionData[rel] = relationData;
-        buffer.add(directionData.dump());
-        count++;
-    }
-
-    int central = 1;
-    for (long i = 1; i < centralRelationCount; i++) {
-        json startNodeData;
-        json destNodeData;
-        json relationData;
-        RelationBlock* relation = RelationBlock::getCentralRelation(i * RelationBlock::CENTRAL_BLOCK_SIZE);
-        std::string pid(relation->getMetaPropertyHead()->value);
-        if (pid != to_string(gc.partitionID)) {
+        std::map<std::string, std::string> relationMeta;
+        if (!loadRelationMetaIfVisible(relation, temporalConstraints, relationMeta)) {
             continue;
         }
 
         NodeBlock* startNode = relation->getSource();
         NodeBlock* destNode = relation->getDestination();
+        json startNodeData;
+        json destNodeData;
+        if (!populateNodeJson(startNode, startNodeData, temporalConstraints)) {
+            continue;
+        }
+        if (!populateNodeJson(destNode, destNodeData, temporalConstraints)) {
+            continue;
+        }
 
-        std::string startPid(startNode->getMetaPropertyHead()->value);
-        startNodeData["partitionID"] = startPid;
-        std::map<std::string, char*> startProperties = startNode->getAllProperties();
-        for (auto property : startProperties) {
-            startNodeData[property.first] = property.second;
-        }
-        for (auto& [key, value] : startProperties) {
-            delete[] value;  // Free each allocated char* array
-        }
-        startProperties.clear();
-
-        std::string destPid(destNode->getMetaPropertyHead()->value);
-        destNodeData["partitionID"] = destPid;
-        std::map<std::string, char*> destProperties = destNode->getAllProperties();
-        for (auto property : destProperties) {
-            destNodeData[property.first] = property.second;
-        }
-        for (auto& [key, value] : destProperties) {
-            delete[] value;  // Free each allocated char* array
-        }
-        destProperties.clear();
-
-        std::map<std::string, char*> relProperties = relation->getAllProperties();
-        for (auto property : relProperties) {
-            relationData[property.first] = property.second;
-        }
-        for (auto& [key, value] : relProperties) {
-            delete[] value;  // Free each allocated char* array
-        }
-        relProperties.clear();
+        json relationData;
+        populateRelationProperties(relation, relationData);
 
         json directionData;
         string start = query["sourceVariable"];
@@ -782,25 +644,65 @@ void OperatorExecutor::DirectedAllRelationshipScan(SharedBuffer &buffer, std::st
         }
         directionData[rel] = relationData;
         buffer.add(directionData.dump());
+    }
 
-        central++;
+    for (long i = 1; i < centralRelationCount; i++) {
+        RelationBlock* relation = RelationBlock::getCentralRelation(i * RelationBlock::CENTRAL_BLOCK_SIZE);
+        if (!relation) {
+            continue;
+        }
+
+        std::map<std::string, std::string> relationMeta;
+        if (!loadRelationMetaIfVisible(relation, temporalConstraints, relationMeta)) {
+            continue;
+        }
+
+        auto relationPidIt = relationMeta.find(MetaPropertyEdgeLink::PARTITION_ID);
+        if (relationPidIt == relationMeta.end() || relationPidIt->second != partitionKey) {
+            continue;
+        }
+
+        NodeBlock* startNode = relation->getSource();
+        NodeBlock* destNode = relation->getDestination();
+        json startNodeData;
+        json destNodeData;
+        if (!populateNodeJson(startNode, startNodeData, temporalConstraints, partitionKey)) {
+            continue;
+        }
+        if (!populateNodeJson(destNode, destNodeData, temporalConstraints)) {
+            continue;
+        }
+
+        json relationData;
+        populateRelationProperties(relation, relationData);
+
+        json directionData;
+        string start = query["sourceVariable"];
+        string dest = query["destVariable"];
+        string rel = query["relVariable"];
+
+        if (isDirectionRight) {
+            directionData[start] = startNodeData;
+            directionData[dest] = destNodeData;
+        } else if (!isDirected) {
+            directionData[start] = destNodeData;
+            directionData[dest] = startNodeData;
+        }
+        directionData[rel] = relationData;
+        buffer.add(directionData.dump());
     }
     buffer.add("-1");
 }
 
 void OperatorExecutor::NodeByIdSeek(SharedBuffer &buffer, std::string jsonPlan, GraphConfig gc) {
     json query = json::parse(jsonPlan);
+    TemporalConstraints temporalConstraints = TemporalQueryFilter::fromJson(query);
+    const std::string partitionKey = std::to_string(gc.partitionID);
     NodeManager nodeManager(gc);
     NodeBlock* node = nodeManager.get(query["id"]);
     if (node) {
         json nodeData;
-        std::string value(node->getMetaPropertyHead()->value);
-        if (value == to_string(gc.partitionID)) {
-            std::map<std::string, char*> properties = node->getAllProperties();
-            nodeData["partitionID"] = value;
-            for (auto property : properties) {
-                nodeData[property.first] = property.second;
-            }
+        if (populateNodeJson(node, nodeData, temporalConstraints, partitionKey)) {
             json data;
             string variable = query["variable"];
             data[variable] = nodeData;
@@ -812,6 +714,7 @@ void OperatorExecutor::NodeByIdSeek(SharedBuffer &buffer, std::string jsonPlan, 
 
 void OperatorExecutor::ExpandAll(SharedBuffer &buffer, std::string jsonPlan, GraphConfig gc) {
     json query = json::parse(jsonPlan);
+    TemporalConstraints temporalConstraints = TemporalQueryFilter::fromJson(query);
     SharedBuffer sharedBuffer(INTER_OPERATOR_BUFFER_SIZE);
     std::string nextOpt = query["NextOperator"];
     json next = json::parse(nextOpt);
@@ -840,6 +743,7 @@ void OperatorExecutor::ExpandAll(SharedBuffer &buffer, std::string jsonPlan, Gra
     string queryString;
 
     NodeManager nodeManager(gc);
+    const std::string partitionKey = std::to_string(gc.partitionID);
 
     while (true) {
         string raw = sharedBuffer.get();
@@ -853,6 +757,9 @@ void OperatorExecutor::ExpandAll(SharedBuffer &buffer, std::string jsonPlan, Gra
         if (rawObj[sourceVariable]["partitionID"] == to_string(gc.partitionID)) {
             NodeBlock* node = nodeManager.get(nodeId);
             if (node) {
+                if (!TemporalQueryFilter::isNodeVisible(temporalConstraints, node->getAllMetaProperties())) {
+                    continue;
+                }
                 RelationBlock *relation = RelationBlock::getLocalRelation(node->edgeRef);
                 if (relation) {
                     RelationBlock *nextRelation = relation;
@@ -864,12 +771,18 @@ void OperatorExecutor::ExpandAll(SharedBuffer &buffer, std::string jsonPlan, Gra
                             isSource = false;
                         }
 
-                        json relationData;
-                        json destNodeData;
-                        std::map<std::string, char*> relProperties = nextRelation->getAllProperties();
-                        for (auto property : relProperties) {
-                            relationData[property.first] = property.second;
+                        std::map<std::string, std::string> relationMeta;
+                        if (!loadRelationMetaIfVisible(nextRelation, temporalConstraints, relationMeta)) {
+                            if (isSource) {
+                                nextRelation = nextRelation->nextLocalSource();
+                            } else {
+                                nextRelation = nextRelation->nextLocalDestination();
+                            }
+                            continue;
                         }
+
+                        json relationData;
+                        populateRelationProperties(nextRelation, relationData);
 
                         if (relType != "" && relationData["relationship"] != relType) {
                             if (isSource) {
@@ -883,26 +796,21 @@ void OperatorExecutor::ExpandAll(SharedBuffer &buffer, std::string jsonPlan, Gra
                             nextRelation = nextRelation->nextLocalDestination();
                             continue;
                         }
-                        for (auto& [key, value] : relProperties) {
-                            delete[] value;  // Free each allocated char* array
-                        }
-                        relProperties.clear();
                         NodeBlock *destNode;
                         if (isSource) {
                             destNode = nextRelation->getDestination();
                         } else {
                             destNode = nextRelation->getSource();
                         }
-                        std::string value(destNode->getMetaPropertyHead()->value);
-                        destNodeData["partitionID"] = value;
-                        std::map<std::string, char*> destProperties = destNode->getAllProperties();
-                        for (auto property : destProperties) {
-                            destNodeData[property.first] = property.second;
+                        json destNodeData;
+                        if (!populateNodeJson(destNode, destNodeData, temporalConstraints)) {
+                            if (isSource) {
+                                nextRelation = nextRelation->nextLocalSource();
+                            } else {
+                                nextRelation = nextRelation->nextLocalDestination();
+                            }
+                            continue;
                         }
-                        for (auto& [key, value] : destProperties) {
-                            delete[] value;  // Free each allocated char* array
-                        }
-                        destProperties.clear();
                         rawObj[relVariable] = relationData;
                         rawObj[destVariable] = destNodeData;
 
@@ -927,12 +835,28 @@ void OperatorExecutor::ExpandAll(SharedBuffer &buffer, std::string jsonPlan, Gra
                             isSource = false;
                         }
 
-                        json relationData;
-                        json destNodeData;
-                        std::map<std::string, char*> relProperties = nextRelation->getAllProperties();
-                        for (auto property : relProperties) {
-                            relationData[property.first] = property.second;
+                        std::map<std::string, std::string> relationMeta;
+                        if (!loadRelationMetaIfVisible(nextRelation, temporalConstraints, relationMeta)) {
+                            if (isSource) {
+                                nextRelation = nextRelation->nextCentralSource();
+                            } else {
+                                nextRelation = nextRelation->nextCentralDestination();
+                            }
+                            continue;
                         }
+
+                        auto relationPidIt = relationMeta.find(MetaPropertyEdgeLink::PARTITION_ID);
+                        if (relationPidIt == relationMeta.end() || relationPidIt->second != partitionKey) {
+                            if (isSource) {
+                                nextRelation = nextRelation->nextCentralSource();
+                            } else {
+                                nextRelation = nextRelation->nextCentralDestination();
+                            }
+                            continue;
+                        }
+
+                        json relationData;
+                        populateRelationProperties(nextRelation, relationData);
 
                         if (relType != "" && relationData["relationship"] != relType) {
                             if (isSource) {
@@ -948,26 +872,21 @@ void OperatorExecutor::ExpandAll(SharedBuffer &buffer, std::string jsonPlan, Gra
                             continue;
                         }
 
-                        for (auto& [key, value] : relProperties) {
-                            delete[] value;  // Free each allocated char* array
-                        }
-                        relProperties.clear();
                         NodeBlock *destNode;
                         if (isSource) {
                             destNode = nextRelation->getDestination();
                         } else {
                             destNode = nextRelation->getSource();
                         }
-                        std::string value(destNode->getMetaPropertyHead()->value);
-                        destNodeData["partitionID"] = value;
-                        std::map<std::string, char*> destProperties = destNode->getAllProperties();
-                        for (auto property : destProperties) {
-                            destNodeData[property.first] = property.second;
+                        json destNodeData;
+                        if (!populateNodeJson(destNode, destNodeData, temporalConstraints)) {
+                            if (isSource) {
+                                nextRelation = nextRelation->nextCentralSource();
+                            } else {
+                                nextRelation = nextRelation->nextCentralDestination();
+                            }
+                            continue;
                         }
-                        for (auto& [key, value] : destProperties) {
-                            delete[] value;  // Free each allocated char* array
-                        }
-                        destProperties.clear();
                         rawObj[relVariable] = relationData;
                         rawObj[destVariable] = destNodeData;
                         buffer.add(rawObj.dump());
@@ -995,6 +914,15 @@ void OperatorExecutor::ExpandAll(SharedBuffer &buffer, std::string jsonPlan, Gra
                                                                 rawObj[sourceVariable]["id"]);
             }
             string queryPlan = ExpandAllHelper::generateSubQueryPlan(queryString);
+            if (query.contains("temporal")) {
+                try {
+                    json planJson = json::parse(queryPlan);
+                    planJson["temporal"] = query["temporal"];
+                    queryPlan = planJson.dump();
+                } catch (const std::exception&) {
+                    // Ignore parsing errors and fall back to original plan
+                }
+            }
             SharedBuffer temp(INTER_OPERATOR_BUFFER_SIZE);
             std::thread t(Utils::sendDataFromWorkerToWorker,
                           masterIP,
