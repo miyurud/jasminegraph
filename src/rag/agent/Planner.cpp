@@ -9,12 +9,56 @@ using json = nlohmann::json;
 
 Logger planner_logger;
 
-static const std::string SBS_PLANNER_PROMPT = "";
+static const std::string SBS_PLANNER_PROMPT = "
+You are a Semantic Beam Search Planner in an agentic retrieval system.
+
+Your task is to analyze a user query and decide whether it should be handled as:
+1) DIRECT — a single semantic beam search
+2) DECOMPOSED — multiple semantic beam searches over smaller retrieval objectives
+
+Important constraints:
+- Semantic beam search is greedy and local.
+- Decomposition should only be used when it improves recall or reasoning.
+- Do NOT decompose simple, factual, or single-entity queries.
+- Every plan MUST produce one or more objectives with the SAME STRUCTURE.
+- Even DIRECT plans must produce exactly ONE objective.
+
+Decompose the query ONLY if one or more of the following are true:
+- The query implies causality or impact (e.g., effect, influence, outcome)
+- The query involves multiple entities or domains
+- The query requires comparison, aggregation, or reasoning across steps
+- The query cannot be answered by retrieving a single coherent document
+
+DO NOT:
+- Generate Cypher queries
+- Explain your reasoning
+- Add extra fields
+- Output markdown
+- Output anything other than valid JSON
+
+Output STRICT JSON ONLY in the following format:
+
+{
+  "plan_type": "DIRECT" | "DECOMPOSED",
+  "objectives": [
+    {
+      "id": "obj1",
+      "description": "A precise retrieval objective phrased as a standalone information need",
+      "search_type": "SEMANTIC_BEAM"
+    }
+  ]
+}
+
+Guidelines for objectives:
+- Each objective must be independently retrievable using semantic similarity
+- Objectives should be minimal and non-overlapping
+- Objectives should NOT assume answers from other objectives
+- Use clear, concrete language
+";
 
 Planner::Planner(const std::string& modelName, const std::string& host)
     : model(modelName), host(host) {
     curl_global_init(CURL_GLOBAL_DEFAULT);
-    planner_logger.info("Initialized Planner with model: " + model + ", host: " + host);
 }
 
 Planner::~Planner() {
@@ -30,7 +74,6 @@ static size_t CurlWriteCallback(void* contents, size_t size, size_t nmemb, void*
 json Planner::build(const std::string& query) {
 
     json semanticBeamSearchPlan = buildSemanticBeamSearchPlan(query);
-    planner_logger.info("At Planner::build");
 
     return json{
         {"sbs_plan", semanticBeamSearchPlan},
@@ -78,21 +121,6 @@ std::string Planner::callLLM(const std::string& prompt) {
 
 json Planner::buildSemanticBeamSearchPlan(const std::string& query) {
 
-    return json{
-        {
-            "query_plan",
-            {
-                {"plan_type", "DIRECT"},
-                {"objectives", json::array({
-                    {
-                        {"id", "obj1"},
-                        {"description", query},
-                        {"search_type", "SEMANTIC_BEAM"}
-                    }
-                })}
-            }
-        }
-    };
     std::string prompt = SBS_PLANNER_PROMPT + std::string("\nUser Query:\n") + query;
 
     const int maxRetries = 3;
@@ -102,6 +130,7 @@ json Planner::buildSemanticBeamSearchPlan(const std::string& query) {
 
     while (attempt < maxRetries) {
         llmResponse = callLLM(prompt);
+        planner_logger.info("LLM response on attempt " + std::to_string(attempt + 1) + ": " + llmResponse);
         if (!llmResponse.empty()) break;
 
         planner_logger.info("Retrying LLM call in " + std::to_string(baseDelaySeconds * (attempt + 1)) + " seconds...");
@@ -123,4 +152,20 @@ json Planner::buildSemanticBeamSearchPlan(const std::string& query) {
         fallback["merge_strategy"] = "concat";
         return fallback;
     }
+
+    return json{
+        {
+            "query_plan",
+            {
+                {"plan_type", "DIRECT"},
+                {"objectives", json::array({
+                    {
+                        {"id", "obj1"},
+                        {"description", query},
+                        {"search_type", "SEMANTIC_BEAM"}
+                    }
+                })}
+            }
+        }
+    };
 }

@@ -8,7 +8,6 @@
 Logger agent_protocol_logger;
 
 std::string AgentProtocol::getPlan(const AgentRequestContext& agentRequestCtx) {
-    
     static std::unique_ptr<Agent> agent=nullptr;
     if (!agent){
         agent_protocol_logger.info(
@@ -16,16 +15,10 @@ std::string AgentProtocol::getPlan(const AgentRequestContext& agentRequestCtx) {
             " | runner=" + agentRequestCtx.llmRunner +
             " | engine=" + agentRequestCtx.llmEngine
         );
-        //agent.reset(new Agent(model, host));
         agent.reset(new Agent(
             agentRequestCtx.llmModel,
-            agentRequestCtx.llmRunner   // host / backend selector
+            agentRequestCtx.llmRunner   
         ));
     }
-    agent_protocol_logger.debug(
-        "Generating plan for graph=" + agentRequestCtx.graphId +
-        " | query=" + agentRequestCtx.query
-    );
-
     return agent->generatePlan(agentRequestCtx.query);
 }
