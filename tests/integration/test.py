@@ -603,7 +603,9 @@ def test(host, port):
         send_and_expect_response(sock, 'rmgr', b'3', DONE, exit_on_failure=True)
 
         print()
-        logging.info('[IntraPartition] Testing getAllProperties on small graph (sequential fallback)')
+        logging.info(
+            '[IntraPartition] Testing getAllProperties on small graph (sequential fallback)'
+        )
         send_and_expect_response(sock, 'cypher', CYPHER, b'Graph ID:', exit_on_failure=True)
         send_and_expect_response(sock, 'cypher', b'2', b'Input query :', exit_on_failure=True)
         # Test that getAllProperties returns all node properties correctly
@@ -628,7 +630,8 @@ def test(host, port):
         send_and_expect_response(sock, 'cypher', CYPHER, b'Graph ID:', exit_on_failure=True)
         send_and_expect_response(sock, 'cypher', b'2', b'Input query :', exit_on_failure=True)
         # Return multiple nodes to verify no memory corruption or dangling references
-        sock.sendall(b'MATCH (n:Person) WHERE n.id < 4 RETURN n.id, n.name ORDER BY n.id ASC' + LINE_END)
+        query = b'MATCH (n:Person) WHERE n.id < 4 RETURN n.id, n.name ORDER BY n.id ASC'
+        sock.sendall(query + LINE_END)
         print('MATCH (n:Person) WHERE n.id < 4 RETURN n.id, n.name ORDER BY n.id ASC')
         # Expecting exactly 4 results - Alice (0), Bob (1), Charlie (2), David (3)
         expected_results = [
@@ -643,7 +646,9 @@ def test(host, port):
         send_and_expect_response(sock, 'cypher', b'', b'done', exit_on_failure=True)
 
         print()
-        logging.info('[IntraPartition] Testing getAllProperties on large graph (parallel execution)')
+        logging.info(
+            '[IntraPartition] Testing getAllProperties on large graph (parallel execution)'
+        )
         send_and_expect_response(sock, 'cypher', CYPHER, b'Graph ID:', exit_on_failure=True)
         send_and_expect_response(sock, 'cypher', b'4', b'Input query :', exit_on_failure=True)
         # Spot check: verify a node query works on large graph
@@ -657,11 +662,11 @@ def test(host, port):
             response += byte
             if response.endswith(b'\r\n') or response.endswith(b'\n'):
                 break
-        
+
         if b'"id":"1"' in response:
             logging.info('✓ Large graph node query returned results')
         else:
-            logging.warning(f'Large graph query unexpected response: {response[:100]}')
+            logging.warning('Large graph query unexpected response: %s', response[:100])
             failed_tests.append('[IntraPartition] Large graph getAllProperties')
         send_and_expect_response(sock, 'cypher', b'', b'done', exit_on_failure=True)
 
@@ -680,11 +685,11 @@ def test(host, port):
             response += byte
             if response.endswith(b'\r\n') or response.endswith(b'\n'):
                 break
-        
+
         if b'"n":' in response and b'"r":' in response and b'"m":' in response:
             logging.info('✓ Relationship query returned results with correct structure')
         else:
-            logging.warning(f'Relationship query unexpected response: {response[:100]}')
+            logging.warning('Relationship query unexpected response: %s', response[:100])
             failed_tests.append('[IntraPartition] Relationship structure')
         send_and_expect_response(sock, 'cypher', b'', b'done', exit_on_failure=True)
 
