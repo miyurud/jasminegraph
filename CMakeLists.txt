@@ -116,6 +116,8 @@ set(HEADERS globals.h
         src/rag/agent/Agent.h
         src/rag/agent/Planner.h
         src/rag/agent/AgentProtocol.h
+        src/rag/agent/PlanTypes.h
+        src/rag/agent/PlanDecoder.h
 
 
 )
@@ -225,6 +227,7 @@ set(SOURCES src/backend/JasmineGraphBackend.cpp
         src/rag/agent/Agent.cpp
         src/rag/agent/Planner.cpp
         src/rag/agent/AgentProtocol.cpp
+        src/rag/agent/PlanDecoder.cpp
 
 
 
