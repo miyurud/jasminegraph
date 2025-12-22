@@ -43,8 +43,6 @@ void AgentPlanExecutor::execute()
     bool *loop_exit = reinterpret_cast<bool *>(static_cast<std::uintptr_t>(std::stoull(
         request.getParameter(Conts::PARAM_KEYS::LOOP_EXIT_POINTER))));
 
-    agent_executor_logger.info("For agent plan received: " + graphId + llmModel + inferenceEngine + llmRunner + query);
-
     std::string planStr = AgentProtocol::getPlan(agentRequestCtx);
     agent_executor_logger.info("Executing Agent Plan" + planStr);
 

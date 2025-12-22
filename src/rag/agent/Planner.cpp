@@ -9,12 +9,12 @@ using json = nlohmann::json;
 
 Logger planner_logger;
 
-static const std::string SBS_PLANNER_PROMPT = "
+static const std::string SBS_PLANNER_PROMPT = R"(
 You are a Semantic Beam Search Planner in an agentic retrieval system.
 
 Your task is to analyze a user query and decide whether it should be handled as:
-1) DIRECT — a single semantic beam search
-2) DECOMPOSED — multiple semantic beam searches over smaller retrieval objectives
+1) DIRECT - a single semantic beam search
+2) DECOMPOSED - multiple semantic beam searches over smaller retrieval objectives
 
 Important constraints:
 - Semantic beam search is greedy and local.
@@ -54,24 +54,52 @@ Guidelines for objectives:
 - Objectives should be minimal and non-overlapping
 - Objectives should NOT assume answers from other objectives
 - Use clear, concrete language
-";
+)";
 
-Planner::Planner(const std::string& modelName, const std::string& host)
-    : model(modelName), host(host) {
+Planner::Planner(const std::string &modelName, const std::string &host)
+    : model(modelName), host(host)
+{
     curl_global_init(CURL_GLOBAL_DEFAULT);
 }
 
-Planner::~Planner() {
+Planner::~Planner()
+{
     curl_global_cleanup();
 }
 
 // helper to capture CURL response
-static size_t CurlWriteCallback(void* contents, size_t size, size_t nmemb, void* userp) {
-    ((std::string*)userp)->append((char*)contents, size * nmemb);
+static size_t CurlWriteCallback(void *contents, size_t size, size_t nmemb, void *userp)
+{
+    ((std::string *)userp)->append((char *)contents, size * nmemb);
     return size * nmemb;
 }
 
-json Planner::build(const std::string& query) {
+static std::string stripMarkdown(const std::string &s)
+{
+    std::string out = s;
+
+    auto start = out.find("```");
+    if (start != std::string::npos)
+    {
+        start = out.find("\n", start);
+        if (start != std::string::npos)
+        {
+            out = out.substr(start + 1);
+        }
+    }
+
+    auto end = out.rfind("```");
+    if (end != std::string::npos)
+    {
+        out = out.substr(0, end);
+    }
+
+    return out;
+}
+
+
+json Planner::build(const std::string &query)
+{
 
     json semanticBeamSearchPlan = buildSemanticBeamSearchPlan(query);
 
@@ -80,10 +108,12 @@ json Planner::build(const std::string& query) {
     };
 }
 
-std::string Planner::callLLM(const std::string& prompt) {
+std::string Planner::callLLM(const std::string &prompt)
+{
     std::string result;
-    CURL* curl = curl_easy_init();
-    if (!curl) {
+    CURL *curl = curl_easy_init();
+    if (!curl)
+    {
         planner_logger.error("Failed to initialize CURL");
         return "";
     }
@@ -99,7 +129,7 @@ std::string Planner::callLLM(const std::string& prompt) {
 
     std::string postFields = requestJson.dump();
 
-    struct curl_slist* headers = nullptr;
+    struct curl_slist *headers = nullptr;
     headers = curl_slist_append(headers, "Content-Type: application/json");
     curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
     curl_easy_setopt(curl, CURLOPT_POSTFIELDS, postFields.c_str());
@@ -109,7 +139,8 @@ std::string Planner::callLLM(const std::string& prompt) {
     curl_easy_setopt(curl, CURLOPT_WRITEDATA, &result);
 
     CURLcode res = curl_easy_perform(curl);
-    if (res != CURLE_OK) {
+    if (res != CURLE_OK)
+    {
         planner_logger.error("CURL error: " + std::string(curl_easy_strerror(res)));
     }
 
@@ -119,7 +150,8 @@ std::string Planner::callLLM(const std::string& prompt) {
     return result;
 }
 
-json Planner::buildSemanticBeamSearchPlan(const std::string& query) {
+json Planner::buildSemanticBeamSearchPlan(const std::string &query)
+{
 
     std::string prompt = SBS_PLANNER_PROMPT + std::string("\nUser Query:\n") + query;
 
@@ -128,44 +160,42 @@ json Planner::buildSemanticBeamSearchPlan(const std::string& query) {
     int attempt = 0;
     std::string llmResponse;
 
-    while (attempt < maxRetries) {
+    while (attempt < maxRetries)
+    {
         llmResponse = callLLM(prompt);
-        planner_logger.info("LLM response on attempt " + std::to_string(attempt + 1) + ": " + llmResponse);
-        if (!llmResponse.empty()) break;
+        if (!llmResponse.empty())
+            break;
 
         planner_logger.info("Retrying LLM call in " + std::to_string(baseDelaySeconds * (attempt + 1)) + " seconds...");
         std::this_thread::sleep_for(std::chrono::seconds(baseDelaySeconds * (attempt + 1)));
         attempt++;
     }
 
-    try {
-        return json::parse(llmResponse);
-    } catch (...) {
+    try
+    {
+        json raw = json::parse(llmResponse);
+
+        if (!raw.contains("response"))
+        {
+            planner_logger.error("LLM response missing 'response'");
+            return raw;
+        }
+
+        std::string responseText = stripMarkdown(raw["response"]);
+        json cleanPlan = json::parse(responseText);
+        planner_logger.info(
+            "Generated clean semantic plan: " + cleanPlan.dump());
+        return cleanPlan;
+    }
+    catch (...)
+    {
         planner_logger.error("LLM output not valid JSON, returning fallback plan.");
         // minimal fallback plan
         json fallback;
         fallback["model"] = "DEFAULT";
-        fallback["steps"] = json::array({
-            {{"step_id", "s1"}, {"op", "SCAN"}, {"params", {{"root", ""}}}},
-            {{"step_id", "s2"}, {"op", "TRAVERSE"}, {"params", {{"depth", 1}}}}
-        });
+        fallback["steps"] = json::array({{{"step_id", "s1"}, {"op", "SCAN"}, {"params", {{"root", ""}}}},
+                                         {{"step_id", "s2"}, {"op", "TRAVERSE"}, {"params", {{"depth", 1}}}}});
         fallback["merge_strategy"] = "concat";
         return fallback;
     }
-
-    return json{
-        {
-            "query_plan",
-            {
-                {"plan_type", "DIRECT"},
-                {"objectives", json::array({
-                    {
-                        {"id", "obj1"},
-                        {"description", query},
-                        {"search_type", "SEMANTIC_BEAM"}
-                    }
-                })}
-            }
-        }
-    };
 }
