@@ -72,6 +72,7 @@ class HDFSMultiThreadedHashPartitioner {
     void addLocalEdge(const std::string &edge, int index);
     void updatePartitionTable();
     json getPartitionsMeta();
+    void stopConsumerThreads();
 
  private:
     std::atomic<long> vertexCount;
@@ -82,7 +83,7 @@ class HDFSMultiThreadedHashPartitioner {
 
     void consumeLocalEdges(int partitionIndex, JasmineGraphServer::worker worker);
     void consumeEdgeCuts(int partitionIndex, JasmineGraphServer::worker worker);
-    void stopConsumerThreads();
+
 };
 
 #endif  // !JASMINEGRAPH_HASH_PARTITIONER_HEADER

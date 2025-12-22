@@ -44,8 +44,10 @@ bool NodeBlock::isInUse() { return this->usage == '\1'; }
 std::string NodeBlock::getLabel() { return std::string(this->label); }
 
 void NodeBlock::setLabel(const char *_label) {
+    node_block_logger.debug("Setting Node Label");
 std::strncpy(this->label, _label, NodeBlock::LABEL_SIZE - 1);
         this->label[NodeBlock::LABEL_SIZE - 1] = '\0';
+    node_block_logger.debug("done Setting Node label");
     }
 
 void NodeBlock::addLabel(char *label) {
@@ -61,13 +63,20 @@ void NodeBlock::addLabel(char *label) {
 
 void NodeBlock::save() {
     //    pthread_mutex_lock(&lockSaveNode);
-    char _label[PropertyLink::MAX_VALUE_SIZE] = {0};
-    std::strcpy(_label, id.c_str());
+    node_block_logger.debug("Saving Node Block");
+char _label[PropertyLink::MAX_VALUE_SIZE] = {0};
+if (!id.empty()) {
+    std::strncpy(_label, id.c_str(), PropertyLink::MAX_VALUE_SIZE - 1);
+    _label[PropertyLink::MAX_VALUE_SIZE - 1] = '\0';
+}
 
-    bool isSmallLabel = id.length() <= sizeof(label) * 2;
-        if (isSmallLabel) {
-            std::strcpy(this->label, this->id.c_str());
-        }
+    node_block_logger.debug("Copied label to buffer:");
+
+bool isSmallLabel = id.length() < sizeof(this->label);
+if (isSmallLabel) {
+    std::strncpy(this->label, this->id.c_str(), sizeof(this->label) - 1);
+    this->label[sizeof(this->label) - 1] = '\0';
+}
     NodeBlock::nodesDB->seekp(this->addr);
     NodeBlock::nodesDB->put(this->usage);                                                                       // 1
     NodeBlock::nodesDB->write(reinterpret_cast<char*>(&(this->nodeId)), sizeof(this->nodeId));                  // 4
@@ -83,6 +92,7 @@ void NodeBlock::save() {
         if (!isSmallLabel) {
             this->addProperty("label", _label);
         }
+    node_block_logger.debug("Persisted Node Block");
 }
 
 void NodeBlock::addProperty(std::string name, const char* value) {

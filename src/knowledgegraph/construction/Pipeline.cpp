@@ -488,6 +488,7 @@ json Pipeline::processTupleAndSaveInPartition(const std::vector<std::unique_ptr<
                     }
                 }
             }
+
             kg_pipeline_stream_handler_logger.debug("Tuple thread finished for partition " + std::to_string(i));
         });
     }
@@ -497,6 +498,7 @@ json Pipeline::processTupleAndSaveInPartition(const std::vector<std::unique_ptr<
         }
         // t.join();
     }
+    partitions.stopConsumerThreads();
 
 
     auto endTime = high_resolution_clock::now();

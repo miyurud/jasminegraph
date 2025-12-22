@@ -145,6 +145,8 @@ void HDFSMultiThreadedHashPartitioner::consumeLocalEdges(int partitionIndex, Jas
                                                   std::to_string(threadEdgeCount) +
                                                   " edges: " + filePath);
                     partitionMutexArray[partitionIndex].lock();
+                    hash_partitioner_logger.debug("Partition " + std::to_string(partitionIndex) +
+                        "acquired Lock");
                     Utils::sendFileChunkToWorker(worker.hostname, worker.port, worker.dataPort, filePath,
                         masterIp,
                                                  JasmineGraphInstanceProtocol::HDFS_LOCAL_STREAM_START,
@@ -173,12 +175,12 @@ void HDFSMultiThreadedHashPartitioner::consumeLocalEdges(int partitionIndex, Jas
                                                            " generated file of " +
                                                            std::to_string(this->partitionFileEdgeThreshold) +
                                                            " edges: " + filePath);
-                partitionMutexArray[partitionIndex].lock();
-                Utils::sendFileChunkToWorker(worker.hostname, worker.port, worker.dataPort, filePath,
-                    masterIp, JasmineGraphInstanceProtocol::HDFS_LOCAL_STREAM_START,
-                                             this->isEmbedGraph);
-
-                partitionMutexArray[partitionIndex].unlock();
+                {
+                    std::lock_guard<std::mutex> lock(partitionMutexArray[partitionIndex]);
+                    Utils::sendFileChunkToWorker(worker.hostname, worker.port, worker.dataPort, filePath,
+                        masterIp, JasmineGraphInstanceProtocol::HDFS_LOCAL_STREAM_START,
+                                                 this->isEmbedGraph);
+                }
 
                 hash_partitioner_logger.info("Local edge consumer " + std::to_string(partitionIndex) +
                                               " sent file of " +
@@ -270,10 +272,11 @@ void HDFSMultiThreadedHashPartitioner::consumeEdgeCuts(int partitionIndex, Jasmi
                 threadEdgeCount = 0;
                 edgeCutsFile.close();
 
-                partitionMutexArray[partitionIndex].lock();
-                Utils::sendFileChunkToWorker(worker.hostname, worker.port, worker.dataPort, filePath,
-                    masterIp, JasmineGraphInstanceProtocol::HDFS_CENTRAL_STREAM_START, this->isEmbedGraph);
-                partitionMutexArray[partitionIndex].unlock();
+                {
+                    std::lock_guard<std::mutex> lock(partitionMutexArray[partitionIndex]);
+                    Utils::sendFileChunkToWorker(worker.hostname, worker.port, worker.dataPort, filePath,
+                        masterIp, JasmineGraphInstanceProtocol::HDFS_CENTRAL_STREAM_START, this->isEmbedGraph);
+                }
 
                 hash_partitioner_logger.debug("Central edge consumer " + std::to_string(partitionIndex) +
                                               " generated file of " +

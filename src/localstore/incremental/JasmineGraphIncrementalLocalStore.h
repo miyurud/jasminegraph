@@ -37,7 +37,7 @@ class JasmineGraphIncrementalLocalStore {
     TextEmbedder* textEmbedder;
     std::unique_ptr<unordered_map<string,string>> node_embedding_requests;
     std::unique_ptr<set<string>> edge_embedding_requests;
-    std::atomic<bool> processing_done;
+    bool processing_done = false;
     pthread_mutex_t embeddingQueueMutex;
     pthread_cond_t  embeddingQueueCond;
 
@@ -49,7 +49,8 @@ class JasmineGraphIncrementalLocalStore {
     static std::pair<std::string, unsigned int> getIDs(std::string edgeString);
     JasmineGraphIncrementalLocalStore(unsigned int graphID = 0, unsigned int partitionID = 0,
                                       std::string openMode = "trunk", bool embedNode = false);
-    bool getAndStoreEmbeddings();
+    void setNodeManger(NodeManager* node_manager);
+    void getAndStoreEmbeddings();
     bool getAndStoreEdgeEmbeddings();
     void getAndStoreEmbeddings() const;
     void addLocalEdge(std::string edge);

@@ -217,23 +217,19 @@ void SemanticBeamSearchExecutor::doSemanticBeamSearch(
   }
   semantic_beam_search_logger_executor.debug("Connected to worker");
 
-  // --- Step 1: Send command ---
-  std::string command = "initiate-semantic-beam-search\r\n";
-  semantic_beam_search_logger_executor.debug("Sending command: " + command);
-  if (send(sockfd, command.c_str(), command.size(), 0) <= 0) {
-    semantic_beam_search_logger_executor.error("Failed to send command");
-    close(sockfd);
-    return;
-  }
+    char data[FED_DATA_LENGTH + 1];
 
-  bzero(ack, ACK_MESSAGE_SIZE);
-  semantic_beam_search_logger_executor.debug("Waiting for ACK after command");
-  if (recv(sockfd, ack, strlen("stream-c-length-ack"), 0) <= 0) {
-    semantic_beam_search_logger_executor.error(
-        "Failed to receive ACK after command");
-    close(sockfd);
-    return;
-  }
+  // --- Step 1: Send command ---
+  std::string command =  JasmineGraphInstanceProtocol::SEMANTIC_BEAM_SEARCH;
+  semantic_beam_search_logger_executor.debug("Sending command: " + command);
+    if (!Utils::sendExpectResponse(sockfd, data, INSTANCE_DATA_LENGTH,
+                                   JasmineGraphInstanceProtocol::SEMANTIC_BEAM_SEARCH,
+                                   JasmineGraphInstanceProtocol::QUERY_START_ACK)) {
+        Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::CLOSE);
+        close(sockfd);
+        return ;
+                                   }
+
   semantic_beam_search_logger_executor.debug("Received ACK after command");
 
   // --- Step 2: Send graphID ---

@@ -27,6 +27,7 @@ limitations under the License.
 #include <regex>
 #include <sstream>
 #include <vector>
+#include <random>
 
 #include "../../globals.h"
 #include "../k8s/K8sInterface.h"
@@ -585,6 +586,8 @@ std::string Utils::checkFlag(std::string flagPath) {
 
 int Utils::connect_wrapper(int sock, const sockaddr *addr, socklen_t slen) {
     int retry = 0;
+    const int maxRetries = 4;
+    const int baseDelayMs = 500; // base delay 0.5s
 
     struct timeval tv = {1, 0};
 
@@ -596,24 +599,39 @@ int Utils::connect_wrapper(int sock, const sockaddr *addr, socklen_t slen) {
         util_logger.error("Failed to set receive timeout option for socket");
     }
 
+    std::random_device rd;
+    std::mt19937 gen(rd());
+
     do {
-        if (retry) sleep(retry * 2);
-        util_logger.info("Trying to connect to [" + to_string(retry) +
-                         "]: " + string(inet_ntoa(((const struct sockaddr_in *)addr)->sin_addr)) + ":" +
-                         to_string(ntohs(((const struct sockaddr_in *)addr)->sin_port)));
+        if (retry > 0) {
+            int maxDelay = baseDelayMs * (1 << retry); // exponential
+            std::uniform_int_distribution<> dist(0, maxDelay);
+            int delayMs = dist(gen);
+
+            util_logger.info("Retry " + std::to_string(retry) +
+                             ", sleeping for " + std::to_string(delayMs) + " ms");
+            std::this_thread::sleep_for(std::chrono::milliseconds(delayMs));
+        }
+
+        util_logger.info("Trying to connect [" + std::to_string(retry) + "]: " +
+                         std::string(inet_ntoa(((const struct sockaddr_in *)addr)->sin_addr)) + ":" +
+                         std::to_string(ntohs(((const struct sockaddr_in *)addr)->sin_port)));
+
         if (connect(sock, addr, slen) == 0) {
+            // Connected successfully
             tv = {0, 0};
             if (setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, (char *)&tv, sizeof(tv)) == -1) {
-                util_logger.error("Failed to set receive timeout option for socket after successful connection");
+                util_logger.error("Failed to set receive timeout after successful connection");
             }
             return 0;
         }
-    } while (retry++ < 4);
-    util_logger.error("Error connecting to " + string(inet_ntoa(((const struct sockaddr_in *)addr)->sin_addr)) + ":" +
-                      to_string(ntohs(((const struct sockaddr_in *)addr)->sin_port)));
+    } while (++retry <= maxRetries);
+
+    util_logger.error("Error connecting to " +
+                      std::string(inet_ntoa(((const struct sockaddr_in *)addr)->sin_addr)) + ":" +
+                      std::to_string(ntohs(((const struct sockaddr_in *)addr)->sin_port)));
     return -1;
 }
-
 std::string Utils::read_str_wrapper(int connFd, char *buf, size_t len, bool allowEmpty) {
     ssize_t result = recv(connFd, buf, len, 0);
     if (result < 0) {
@@ -1330,20 +1348,20 @@ bool Utils::sendFileChunkToWorker(std::string host, int port, int dataPort, std:
         }
     }
 
-    // while (true) {
-    //     response = Utils::read_str_trim_wrapper(sockfd, data, FED_DATA_LENGTH);
-    //     if (response.compare(JasmineGraphInstanceProtocol::FILE_RECV_WAIT) == 0) {
-    //         util_logger.debug("Received: " + JasmineGraphInstanceProtocol::FILE_RECV_WAIT);
-    //         // sleep(1);
-    //         std::this_thread::sleep_for(std::chrono::milliseconds(3000)); // small wait
-    //
-    //         continue;
-    //     } else if (response.compare(JasmineGraphInstanceProtocol::FILE_ACK) == 0) {
-    //         util_logger.debug("Received: " + JasmineGraphInstanceProtocol::FILE_ACK);
-    //         util_logger.debug("File chunk upload completed: " + fileName);
-    //         break;
-    //     }
-    // }
+    while (true) {
+        response = Utils::read_str_trim_wrapper(sockfd, data, FED_DATA_LENGTH);
+        if (response.compare(JasmineGraphInstanceProtocol::FILE_RECV_WAIT) == 0) {
+            util_logger.debug("Received: " + JasmineGraphInstanceProtocol::FILE_RECV_WAIT);
+            // sleep(1);
+            // std::this_thread::sleep_for(std::chrono::milliseconds(3000)); // small wait
+
+            continue;
+        } else if (response.compare(JasmineGraphInstanceProtocol::FILE_ACK) == 0) {
+            util_logger.debug("Received: " + JasmineGraphInstanceProtocol::FILE_ACK);
+            util_logger.debug("File chunk upload completed: " + fileName);
+            break;
+        }
+    }
 
     // if (!Utils::sendExpectResponse(sockfd, data, INSTANCE_DATA_LENGTH,
     //     JasmineGraphInstanceProtocol::HDFS_FILE_CHUNK_END_CHK,
@@ -1584,11 +1602,11 @@ bool Utils::sendQueryPlanToWorker(std::string host, int port, std::string master
         return false;
     }
 
-    if (!Utils::performHandshake(sockfd, data, FED_DATA_LENGTH, masterIP)) {
-        Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::CLOSE);
-        close(sockfd);
-        return false;
-    }
+    // if (!Utils::performHandshake(sockfd, data, FED_DATA_LENGTH, masterIP)) {
+    //     Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::CLOSE);
+    //     close(sockfd);
+    //     return false;
+    // }
 
     if (!Utils::sendExpectResponse(sockfd, data, INSTANCE_DATA_LENGTH,
                                    JasmineGraphInstanceProtocol::QUERY_START,

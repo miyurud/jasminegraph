@@ -132,4 +132,6 @@ const string JasmineGraphInstanceProtocol::HDFS_FILE_CHUNK_END_CHK = "hdfs-file-
 const string JasmineGraphInstanceProtocol::HDFS_FILE_CHUNK_END_ACK = "hdfs-file-chunk-end-ack";
 
 
-const vector<string> JasmineGraphInstanceProtocol::MULT_THREADED_CMDS = {JasmineGraphInstanceProtocol:: HDFS_LOCAL_STREAM_START};
+const vector<string> JasmineGraphInstanceProtocol::MULT_THREADED_CMDS = {JasmineGraphInstanceProtocol::
+    HDFS_LOCAL_STREAM_START, JasmineGraphInstanceProtocol::SEMANTIC_BEAM_SEARCH, JasmineGraphInstanceProtocol::QUERY_START
+};
