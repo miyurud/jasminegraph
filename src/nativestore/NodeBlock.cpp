@@ -412,14 +412,11 @@ std::list<std::pair<NodeBlock*, RelationBlock*>> NodeBlock::getAllEdgeNodes() {
     return allEdges;
 }
 
-std::map<std::string, char*> NodeBlock::getAllProperties() {
-    std::map<std::string, char*> allProperties;
+std::map<std::string, std::string, std::less<>> NodeBlock::getAllProperties() {
+    std::map<std::string, std::string, std::less<>> allProperties;
     PropertyLink* current = this->getPropertyHead();
     while (current) {
-        // don't forget to free the allocated memory after using this method
-        char* copiedValue = new char[PropertyLink::MAX_VALUE_SIZE];
-        std::strncpy(copiedValue, current->value, PropertyLink::MAX_VALUE_SIZE);
-        allProperties.insert({current->name, copiedValue});
+        allProperties.try_emplace(current->name, current->value);
         PropertyLink* temp = current->next();
         delete current;  // To prevent memory leaks
         current = temp;
@@ -486,8 +483,8 @@ NodeBlock* NodeBlock::get(unsigned int blockAddress) {
         new NodeBlock(id, nodeId, blockAddress, propRef, metaPropRef, edgeRef,
                       centralEdgeRef, edgeRefPID, label, usage);
     if (nodeBlockPointer->id.length() == 0) {  // if label not found in node block look in the properties
-        std::map<std::string, char*> props = nodeBlockPointer->getAllProperties();
-        if (props["label"]) {
+        std::map<std::string, std::string, std::less<>> props = nodeBlockPointer->getAllProperties();
+        if (!props["label"].empty()) {
             nodeBlockPointer->id = props["label"];
         } else {
             node_block_logger.error("Could not find node ID/Label for node with block address = " +
