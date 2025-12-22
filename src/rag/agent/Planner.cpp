@@ -44,7 +44,7 @@ Output STRICT JSON ONLY in the following format:
     {
       "id": "obj1",
       "query": "A precise retrieval objective phrased as a standalone information need",
-      "search_type": "SEMANTIC_BEAM"
+      "search_type": "SEMANTIC_BEAM_SEARCH"
     }
   ]
 }
