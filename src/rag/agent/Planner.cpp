@@ -43,7 +43,7 @@ Output STRICT JSON ONLY in the following format:
   "objectives": [
     {
       "id": "obj1",
-      "description": "A precise retrieval objective phrased as a standalone information need",
+      "query": "A precise retrieval objective phrased as a standalone information need",
       "search_type": "SEMANTIC_BEAM"
     }
   ]
