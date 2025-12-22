@@ -1,4 +1,4 @@
-#include <PlanDecoder.h>
+#include "PlanDecoder.h"
 #include "../../util/logger/Logger.h"
 
 using json = nlohmann::json;
@@ -35,7 +35,7 @@ DecodedPlan PlanDecoder::decode(const json &jsonPlan)
             planObj.query = obj.value("query", "");
             planObj.searchType = obj.value("search_type", "SEMANTIC_BEAM_SEARCH");
 
-            if (planObj.id.empty() || planObj.description.empty())
+            if (planObj.id.empty() || planObj.query.empty())
             {
                 plan_decoder_logger.warn("Skipping invalid SBS objective");
                 continue;

@@ -54,7 +54,7 @@ void AgentPlanExecutor::execute()
     if (decodedPlan.sbsPlan) {
         for (const auto& obj : decodedPlan.sbsPlan->objectives) {
             agent_executor_logger.info(
-                "Executing SBS objective: " + obj.id + " -> " + obj.description
+                "Executing SBS objective: " + obj.id + " -> " + obj.query
             );
             // dispatch SEMANTIC_BEAM_SEARCH job here
         }
