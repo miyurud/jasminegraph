@@ -191,7 +191,7 @@ def send_and_expect_response_file(conn, test_name, send, expected_file, exit_on_
 passed_all = True
 failed_tests = []
 
-def test(host, port):
+def test(host, port):  # pylint: disable=too-many-branches
     """Test the JasmineGraph server by sending a series of commands and checking the responses."""
 
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
