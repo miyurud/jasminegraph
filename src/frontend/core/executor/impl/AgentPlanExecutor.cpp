@@ -1,6 +1,7 @@
 #include "AgentPlanExecutor.h"
 #include "../../../../../src/rag/agent/AgentProtocol.h"
 #include "../../../../server/JasmineGraphServer.h"
+#include "../../../../../src/rag/agent/PlanDecoder.h"
 #include "../../../../../src/util/Utils.h"
 #include <nlohmann/json.hpp>
 #include <atomic>
@@ -46,6 +47,18 @@ void AgentPlanExecutor::execute()
     std::string planStr = AgentProtocol::getPlan(agentRequestCtx);
     agent_executor_logger.info("Executing Agent Plan" + planStr);
 
+    json jsonPlan = json::parse(planStr);
+    DecodedPlan decodedPlan = PlanDecoder::decode(jsonPlan);
+    
+    // ---- Execute SBS objectives ----
+    if (decodedPlan.sbsPlan) {
+        for (const auto& obj : decodedPlan.sbsPlan->objectives) {
+            agent_executor_logger.info(
+                "Executing SBS objective: " + obj.id + " -> " + obj.description
+            );
+            // dispatch SEMANTIC_BEAM_SEARCH job here
+        }
+    }
     // const auto& workerList = JasmineGraphServer::getWorkers(numberOfPartitions);
     // std::vector<std::unique_ptr<SharedBuffer>> bufferPool;
     // bufferPool.reserve(numberOfPartitions);
