@@ -78,7 +78,7 @@ void JasmineGraphIncrementalLocalStore::getAndStoreEmbeddings() {
         while (true) {
 
             if (processing_done) {
-                pthread_mutex_unlock(&embeddingQueueMutex);
+                // pthread_mutex_unlock(&embeddingQueueMutex);
                 break;
             }
             node_ids.clear();

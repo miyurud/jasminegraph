@@ -171,6 +171,7 @@ void SemanticBeamSearch::semanticMultiHopBeamSearch(SharedBuffer& buffer,
       // Expand local + central relations
       auto expandRelations = [&](RelationBlock* relation) {
         int relCount = 0;
+          string direction;
         while (relation) {
           relCount++;
           semantic_beam_search_logger.debug("Expanding relation #" +
@@ -179,8 +180,10 @@ void SemanticBeamSearch::semanticMultiHopBeamSearch(SharedBuffer& buffer,
 
             if (lastNode->addr == relation->source.address) {
                 expandedNode =  relation->getDestination();
+                direction = "right";
             }else {
                 expandedNode = relation->getSource();
+                direction = "left";
             }
           if (!expandedNode) {
             semantic_beam_search_logger.debug(
@@ -203,6 +206,7 @@ void SemanticBeamSearch::semanticMultiHopBeamSearch(SharedBuffer& buffer,
           // Create new path
           json newPath = currentPath;
           json relData;
+            relData["direction"] = direction;
           auto relProps = relation->getAllProperties();
           for (auto& [k, v] : relProps) relData[k] = v;
           if (relProps.empty()) {
@@ -284,6 +288,8 @@ void SemanticBeamSearch::semanticMultiHopBeamSearch(SharedBuffer& buffer,
 
       auto expandCentralRelations = [&](RelationBlock* relation) {
         int relCount = 0;
+          string direction;
+
         while (relation) {
           relCount++;
           semantic_beam_search_logger.debug("Expanding relation #" +
@@ -292,6 +298,8 @@ void SemanticBeamSearch::semanticMultiHopBeamSearch(SharedBuffer& buffer,
 
             if (lastNode->addr == relation->source.address) {
                 expandedNode =  relation->getDestination();
+                direction = "right";
+
             }else {
                 expandedNode = relation->getSource();
             }          if (!expandedNode) {
@@ -299,8 +307,12 @@ void SemanticBeamSearch::semanticMultiHopBeamSearch(SharedBuffer& buffer,
                 "Destination node not found for relation, skipping.");
                 if (lastNode->addr == relation->source.address) {
                     relation =  relation->nextLocalSource();
-                }else {
+                    direction = "right";
+
+                } else {
                     relation =  relation->nextLocalDestination();
+                    direction = "left";
+
 
                 }
             continue;
@@ -311,6 +323,7 @@ void SemanticBeamSearch::semanticMultiHopBeamSearch(SharedBuffer& buffer,
           // Create new path
           json newPath = currentPath;
           json relData;
+            relData["direction"] = direction;
           auto relProps = relation->getAllProperties();
           for (auto& [k, v] : relProps) relData[k] = v;
             if (relData.contains("id") &&
@@ -340,7 +353,7 @@ void SemanticBeamSearch::semanticMultiHopBeamSearch(SharedBuffer& buffer,
                                             relData.dump());
 
           json nodeData;
-          semantic_beam_search_logger.debug("Destination 168 node ID: " +
+          semantic_beam_search_logger.debug("Destination  node ID: " +
                                             std::to_string(expandedNode->nodeId));
 
           auto nodeProps = expandedNode->getAllProperties();
@@ -372,8 +385,10 @@ void SemanticBeamSearch::semanticMultiHopBeamSearch(SharedBuffer& buffer,
             visitedRelations.insert(relData["id"].get<std::string>());
             if (lastNode->addr == relation->source.address) {
                 relation =  relation->nextLocalSource();
+
             }else {
                 relation =  relation->nextLocalDestination();
+
 
             }
         }

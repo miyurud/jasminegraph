@@ -152,7 +152,8 @@ void Pipeline::streamFromHDFSIntoBuffer() {
 
         // Split into complete lines and leftover partial line
         std::string full_lines_chunk = chunk_text.substr(0, last_newline + 1);
-        size_t overlap_start = (full_lines_chunk.size() > OVERLAP_BYTES) ? full_lines_chunk.size() - OVERLAP_BYTES : 0;
+        size_t overlap_start = (full_lines_chunk.size() > std::stod(chunkSize)*0.3) ? full_lines_chunk.size() -
+            std::stod(chunkSize)*0.3 : 0;
 
         // make sure leftover starts at a newline
         size_t newline_pos = full_lines_chunk.find('\n', overlap_start);
@@ -412,12 +413,17 @@ json Pipeline::processTupleAndSaveInPartition(const std::vector<std::unique_ptr<
                     }
                     try {
                         auto jsonEdge = json::parse(line);
-                        auto source = jsonEdge["source"];
-                        auto destination = jsonEdge["destination"];
-                        auto edge = jsonEdge["properties"];;
+                        // auto source = jsonEdge["source"];
+                        // auto destination = jsonEdge["destination"];
+                        // auto edge = jsonEdge["properties"];;
+                        auto& source = jsonEdge["source"];
+                      auto& destination = jsonEdge["destination"];
+                      auto& edge = jsonEdge["properties"];
                         std::string sourceId = source["id"].get<std::string>();
                         std::string destinationId = destination["id"].get<std::string>();
                         std::string edgeId = edge["id"].get<std::string>();
+                        std::unique_lock<std::mutex> lock(    entityResolutionMutex);
+
 
                         if (nodeIndex.find(sourceId) == nodeIndex.end()) {
                             nodeIndex.insert({sourceId, nextNodeIndex});
@@ -447,11 +453,14 @@ json Pipeline::processTupleAndSaveInPartition(const std::vector<std::unique_ptr<
                      } else {
                          edge["id"]= to_string(edgeIndex[edgeId]);
                      }
+
                         jsonEdge["properties"] = edge;
+                        lock.unlock();
                         kg_pipeline_stream_handler_logger.debug("Thread " + std::to_string(i) + " sourceId: " +
-                                                                sourceId + ", destinationId: " + destinationId);
+                                                                source["id"].get<std::string>() + ", destinationId: " + destination["id"].get<std::string>());
                         if (!sourceId.empty() && !destinationId.empty()) {
-                            partitionedEdge partitioned_edge = partitioner.addEdge({sourceId, destinationId});
+                            partitionedEdge partitioned_edge = partitioner.addEdge({ source["id"].get<std::string>(),
+    destination["id"].get<std::string>()});
                             int sourceIndex =  partitioned_edge[0].second;
                             int destIndex =  partitioned_edge[1].second;
                             source["pid"] = sourceIndex;

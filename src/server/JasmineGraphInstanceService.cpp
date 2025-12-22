@@ -3456,7 +3456,6 @@ static void streaming_tuple_extraction(
 
     Utils::send_str_wrapper(connFd,
                             JasmineGraphInstanceProtocol::GRAPH_DATA_SUCCESS);
-    instance_logger.info(chunk);
       ScopedTracer chunkTrace(
       "chunk_processing_with_tuples",
       {
@@ -3564,6 +3563,10 @@ static void streaming_tuple_extraction(
    });
 
           instance_logger.info("Received end signal from producer");
+            instance_logger.info(chunk);
+
+            instance_logger.info(tupleArrayString);
+
           tupleBuffer.clear();
           break;
         }
