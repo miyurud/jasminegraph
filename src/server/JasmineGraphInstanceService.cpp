@@ -104,6 +104,9 @@ static void streaming_triangles_command(
 static void streaming_kg_construction(
     int connFd, int serverPort, std::map<std::string, JasmineGraphIncrementalLocalStore *> &incrementalLocalStoreMap,
     bool *loop_exit_p);
+static void streaming_kg_construction_local(
+    int connFd,
+    bool *loop_exit_p);
 static void streaming_tuple_extraction(
     int connFd, int serverPort, std::map<std::string, JasmineGraphIncrementalLocalStore *> &incrementalLocalStoreMap,
     bool *loop_exit_p);
@@ -168,6 +171,7 @@ char *converter(const std::string &s) {
 
 static void semantic_search_expand_node_remote_batch(int conn_fd,  map<std::string,
     JasmineGraphIncrementalLocalStore*>& map, bool* loop_exit);
+
 
 void *instanceservicesession(void *dummyPt) {
     instanceservicesessionargs *sessionargs_p = (instanceservicesessionargs *)dummyPt;
@@ -249,7 +253,14 @@ void *instanceservicesession(void *dummyPt) {
             streaming_triangles_command(connFd, serverPort, incrementalLocalStoreMap, &loop_exit);
         } else if (cmd.compare(JasmineGraphInstanceProtocol::INITIATE_STREAMING_KG_CONSTRUCTION) == 0) {
             streaming_kg_construction(connFd, serverPort, incrementalLocalStoreMap, &loop_exit);
-        } else if (cmd.compare(JasmineGraphInstanceProtocol::INITIATE_STREAMING_TUPLE_CONSTRUCTION) == 0) {
+
+
+        }
+        else if (cmd.compare(JasmineGraphInstanceProtocol::INITIATE_LOCAL_STREAMING_KG_CONSTRUCTION) == 0) {
+            streaming_kg_construction_local(connFd, &loop_exit);
+
+
+        }else if (cmd.compare(JasmineGraphInstanceProtocol::INITIATE_STREAMING_TUPLE_CONSTRUCTION) == 0) {
             streaming_tuple_extraction(connFd, serverPort, incrementalLocalStoreMap, &loop_exit);
         } else if (cmd.compare(JasmineGraphInstanceProtocol::SEMANTIC_BEAM_SEARCH) == 0) {
             semantic_beam_search(connFd, instanceHandler, incrementalLocalStoreMap, &loop_exit);
@@ -3382,6 +3393,288 @@ static void streaming_kg_construction(
   close(connFd);
 }
 
+
+static void streaming_kg_construction_local(
+        int connFd,
+        bool* loop_exit_p) {
+
+  if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::OK)) {
+    *loop_exit_p = true;
+    return;
+  }
+  instance_logger.info("Sent : " + JasmineGraphInstanceProtocol::OK);
+
+  char data[DATA_BUFFER_SIZE];
+  string graphID =
+      Utils::read_str_trim_wrapper(connFd, data, INSTANCE_DATA_LENGTH);
+  instance_logger.info("Received Graph ID: " + graphID);
+
+  if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::OK)) {
+    *loop_exit_p = true;
+    return;
+  }
+  instance_logger.info("Sent : " + JasmineGraphInstanceProtocol::OK);
+
+  string isResume =
+      Utils::read_str_trim_wrapper(connFd, data, INSTANCE_DATA_LENGTH);
+  instance_logger.info("Received isResume: " + isResume);
+
+  if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::OK)) {
+    *loop_exit_p = true;
+    return;
+  }
+  instance_logger.info("Sent : " + JasmineGraphInstanceProtocol::OK);
+
+  long startFromBytes;
+  if (isResume == "y") {
+    startFromBytes = std::stol(
+        Utils::read_str_trim_wrapper(connFd, data, INSTANCE_DATA_LENGTH));
+    instance_logger.info("Received uploadedBytes: " +
+                         std::to_string(startFromBytes));
+
+    if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::OK)) {
+      *loop_exit_p = true;
+      return;
+    }
+    instance_logger.info("Sent : " + JasmineGraphInstanceProtocol::OK);
+  } else {
+    startFromBytes = 0;
+  }
+
+  string llm_runner =
+      Utils::read_str_trim_wrapper(connFd, data, INSTANCE_LONG_DATA_LENGTH);
+  instance_logger.info("Received LLM Runner: " + llm_runner);
+
+  if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::OK)) {
+    *loop_exit_p = true;
+    return;
+  }
+  instance_logger.info("Sent : " + JasmineGraphInstanceProtocol::OK);
+
+  string llm_inference_engine =
+      Utils::read_str_trim_wrapper(connFd, data, INSTANCE_LONG_DATA_LENGTH);
+  instance_logger.info("Received LLM Inference Engine: " +
+                       llm_inference_engine);
+
+  if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::OK)) {
+    *loop_exit_p = true;
+    return;
+  }
+  instance_logger.info("Sent : " + JasmineGraphInstanceProtocol::OK);
+
+  string llm =
+      Utils::read_str_trim_wrapper(connFd, data, INSTANCE_LONG_DATA_LENGTH);
+  instance_logger.info("Received LLM : " + llm);
+
+  if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::OK)) {
+    *loop_exit_p = true;
+    return;
+  }
+  instance_logger.info("Sent : " + JasmineGraphInstanceProtocol::OK);
+
+  string chunkSize =
+      Utils::read_str_trim_wrapper(connFd, data, INSTANCE_LONG_DATA_LENGTH);
+  instance_logger.info("Received Chunk Size : " + chunkSize);
+
+  if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::OK)) {
+    *loop_exit_p = true;
+    return;
+  }
+  instance_logger.info("Sent : " + JasmineGraphInstanceProtocol::OK);
+
+  string chunksPerBatch =
+      Utils::read_str_trim_wrapper(connFd, data, INSTANCE_LONG_DATA_LENGTH);
+  instance_logger.info("Received chunksPerBatch : " + chunksPerBatch);
+
+  if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::OK)) {
+    *loop_exit_p = true;
+    return;
+  }
+  instance_logger.info("Sent : " + JasmineGraphInstanceProtocol::OK);
+
+  int noOfPartitions =
+      stoi(Utils::read_str_trim_wrapper(connFd, data, INSTANCE_DATA_LENGTH));
+  instance_logger.info("Received Number of Partitions: " +
+                       to_string(noOfPartitions));
+  if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::OK)) {
+    *loop_exit_p = true;
+    return;
+  }
+  instance_logger.info("Sent : " + JasmineGraphInstanceProtocol::OK);
+
+
+  masterIP = Utils::read_str_trim_wrapper(connFd, data, INSTANCE_DATA_LENGTH);
+  instance_logger.info("Received MasterIP: " + masterIP);
+  if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::OK)) {
+    *loop_exit_p = true;
+    return;
+  }
+    // Parse workerIP:port:replicationCount (comma separated)
+    string workersIP =
+        Utils::read_str_trim_wrapper(connFd, data, INSTANCE_LONG_DATA_LENGTH);
+
+    instance_logger.info("Received Worker IP: " + workersIP);
+
+    if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::OK)) {
+        *loop_exit_p = true;
+        return;
+    }
+
+    std::vector<std::string> workerSockets;
+    std::stringstream ss(workersIP);
+    std::string token;
+
+    // Split by comma
+    while (std::getline(ss, token, ',')) {
+        if (!token.empty()) {
+            workerSockets.push_back(token);
+        }
+    }
+
+    std::vector<JasmineGraphServer::worker> workers;
+
+    for (const auto &socketStr : workerSockets) {
+        std::stringstream ss2(socketStr);
+        std::vector<std::string> parts;
+        std::string part;
+
+        // Split by ":"
+        while (std::getline(ss2, part, ':')) {
+            parts.push_back(part);
+        }
+
+        if (parts.size() != 3) {
+            instance_logger.error("Invalid worker socket format (expected host:port:count): " + socketStr);
+            *loop_exit_p = true;
+            return;
+        }
+
+        std::string hostname = parts[0];
+        int port = std::stoi(parts[1]);
+        int replicationCount = std::stoi(parts[2]);
+
+        // Push the worker replicationCount times
+        for (int i = 0; i < replicationCount; i++) {
+            JasmineGraphServer::worker worker;
+            worker.hostname = hostname;
+            worker.port = port;
+            worker.dataPort =
+         worker.port +
+         1;
+            workers.push_back(worker);
+        }
+    }
+
+    std::vector<std::string> llmRunnerSockets;
+    std::stringstream llm_runner_ss(llm_runner);
+    std::string entry;
+
+    while (std::getline(llm_runner_ss, entry, ',')) {
+        // Trim spaces
+        entry.erase(0, entry.find_first_not_of(" \t\r\n"));
+        entry.erase(entry.find_last_not_of(" \t\r\n") + 1);
+        if (entry.empty()) continue;
+
+        // Find last colon
+        size_t lastColon = entry.rfind(':');
+        if (lastColon == std::string::npos) {
+            continue; // Invalid format (must have a count)
+        }
+
+        std::string lastPart = entry.substr(lastColon + 1);
+
+        // Check if last part is numeric (chunk count)
+        bool isNumber = !lastPart.empty() &&
+                        std::all_of(lastPart.begin(), lastPart.end(), ::isdigit);
+
+        if (!isNumber) {
+            continue; // No count → skip
+        }
+
+        int count = std::stoi(lastPart);
+
+        // Base URL without the chunk count
+        std::string baseURL = entry.substr(0, lastColon);
+
+        // Replicate 'count' times
+        for (int i = 0; i < count; i++) {
+            llmRunnerSockets.push_back(baseURL);
+        }
+    }
+
+
+  string localFilePath =
+      Utils::read_str_trim_wrapper(connFd, data, INSTANCE_DATA_LENGTH);
+  instance_logger.info("Received HDFS Path: " + localFilePath);
+  if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::OK)) {
+    *loop_exit_p = true;
+    return;
+  }
+    string size =
+    Utils::read_str_trim_wrapper(connFd, data, INSTANCE_DATA_LENGTH);
+    instance_logger.info("Received HDFS Path: " + localFilePath);
+    if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::OK)) {
+        *loop_exit_p = true;
+        return;
+    }
+
+    int fileSize = stoi(size);
+
+    string fileName = Utils::getFileName(localFilePath);
+
+    string line;
+    string fullFilePath =
+            Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder") + "/" + fileName;
+
+    while (!Utils::fileExists(fullFilePath)) {
+        instance_logger.error("Instance data file " + fullFilePath + " does not exist");
+        sleep(1);
+    }
+    instance_logger.info("Instance data file " + fullFilePath + " exist");
+
+    while (Utils::getFileSize(fullFilePath) < fileSize) {
+        line = Utils::read_str_wrapper(connFd, data, INSTANCE_DATA_LENGTH, false);
+        if (line.compare(JasmineGraphInstanceProtocol::FILE_RECV_CHK) != 0) {
+            instance_logger.error("Incorrect response. Expected: " + JasmineGraphInstanceProtocol::FILE_RECV_CHK +
+                                  " ; Received: " + line);
+            close(connFd);
+            return;
+        }
+        if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::FILE_RECV_WAIT)) {
+            *loop_exit_p = true;
+            return;
+        }
+    }
+
+    line = Utils::read_str_wrapper(connFd, data, INSTANCE_DATA_LENGTH, false);
+    if (line.compare(JasmineGraphInstanceProtocol::FILE_RECV_CHK) != 0) {
+        instance_logger.error("Incorrect response. Expected: " + JasmineGraphInstanceProtocol::FILE_RECV_CHK +
+                              " ; Received: " + line);
+        close(connFd);
+        return;
+    }
+    instance_logger.debug("Received : " + line);
+
+    if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::FILE_ACK)) {
+        *loop_exit_p = true;
+        return;
+    }
+    instance_logger.debug("Sent : " + JasmineGraphInstanceProtocol::FILE_ACK);
+
+
+  Pipeline *streamHandler = new Pipeline(
+      connFd,  fullFilePath, noOfPartitions,
+      std::stoi(graphID), masterIP, workers, llmRunnerSockets,
+      llm_inference_engine, llm, chunkSize, chunksPerBatch, startFromBytes);
+  instance_logger.info("Started listening to " + fullFilePath);
+
+  streamHandler->init();
+  *loop_exit_p = true;
+
+  close(connFd);
+}
+
+
 static void streaming_tuple_extraction(
     int connFd, int serverPort,
     std::map<std::string, JasmineGraphIncrementalLocalStore *>
@@ -3456,7 +3749,6 @@ static void streaming_tuple_extraction(
 
     Utils::send_str_wrapper(connFd,
                             JasmineGraphInstanceProtocol::GRAPH_DATA_SUCCESS);
-    instance_logger.info(chunk);
       ScopedTracer chunkTrace(
       "chunk_processing_with_tuples",
       {
@@ -3562,6 +3854,9 @@ static void streaming_tuple_extraction(
        {"tuple_count", std::to_string(tuple_id)},
        {"tuples", tupleArrayString}
    });
+            instance_logger.info(chunk);
+            instance_logger.info(tupleArrayString);
+
 
           instance_logger.info("Received end signal from producer");
           tupleBuffer.clear();

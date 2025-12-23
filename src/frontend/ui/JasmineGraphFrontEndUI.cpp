@@ -182,6 +182,9 @@ void *uifrontendservicesesion(void *dummyPt) {
         } else if (line.compare(CONSTRUCT_KG) == 0) {
             JasmineGraphFrontEnd::constructKGStreamHDFSCommand(masterIP, connFd, numberOfPartitions,
                 sqlite, &loop_exit);
+        } else if (line.compare(CONSTRUCT_KG_LOCAL) == 0) {
+            JasmineGraphFrontEnd::constructKGStreamLocalTXTCommand(masterIP, connFd, numberOfPartitions,
+                sqlite, &loop_exit);
         } else if (line.compare(STOP_CONSTRUCT_KG) == 0) {
             JasmineGraphFrontEnd::stop_graph_streaming(connFd, &loop_exit);
         } else if (token.compare("UPBYTES") == 0) {
