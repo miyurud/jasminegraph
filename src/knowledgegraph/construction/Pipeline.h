@@ -115,6 +115,8 @@ class Pipeline {
 
     unsigned int nextNodeIndex = 0;
     unsigned int nextEdgeIndex = 0;
+    std::mutex entityResolutionMutex;
+
     string currentTraceContext;
 };
 

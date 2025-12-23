@@ -20,5 +20,6 @@ inline const std::string KNOWLEDGE_EXTRACTION = R"(
 - The predicates must be from the schema.org and in canonical form
 - Return only a JSON array of arrays in the form:
     [subject, predicate, object, subject_type, object_type].
+
 )";
 }

@@ -175,12 +175,12 @@ void HDFSMultiThreadedHashPartitioner::consumeLocalEdges(int partitionIndex, Jas
                                                            " generated file of " +
                                                            std::to_string(this->partitionFileEdgeThreshold) +
                                                            " edges: " + filePath);
-                {
-                    std::lock_guard<std::mutex> lock(partitionMutexArray[partitionIndex]);
+
+                partitionMutexArray[partitionIndex].lock();
                     Utils::sendFileChunkToWorker(worker.hostname, worker.port, worker.dataPort, filePath,
                         masterIp, JasmineGraphInstanceProtocol::HDFS_LOCAL_STREAM_START,
                                                  this->isEmbedGraph);
-                }
+                partitionMutexArray[partitionIndex].unlock();
 
                 hash_partitioner_logger.info("Local edge consumer " + std::to_string(partitionIndex) +
                                               " sent file of " +
@@ -202,9 +202,10 @@ void HDFSMultiThreadedHashPartitioner::consumeLocalEdges(int partitionIndex, Jas
             auto jsonEdge = json::parse(edge);
             string sourceId = std::string(jsonEdge["source"]["id"]);
             string destinationId = std::string(jsonEdge["destination"]["id"]);
-
-            std::lock_guard<std::mutex> partitionLock(partitionLocks[partitionIndex]);
-            partitions[partitionIndex]->addEdge({sourceId, destinationId}, isDirected);
+            {
+                std::lock_guard<std::mutex> partitionLock(partitionLocks[partitionIndex]);
+                partitions[partitionIndex]->addEdge({sourceId, destinationId}, isDirected);
+            }
         }
 
         // Reset the flag after processing the current batch of edges
@@ -272,11 +273,11 @@ void HDFSMultiThreadedHashPartitioner::consumeEdgeCuts(int partitionIndex, Jasmi
                 threadEdgeCount = 0;
                 edgeCutsFile.close();
 
-                {
-                    std::lock_guard<std::mutex> lock(partitionMutexArray[partitionIndex]);
+                partitionMutexArray[partitionIndex].lock();
                     Utils::sendFileChunkToWorker(worker.hostname, worker.port, worker.dataPort, filePath,
                         masterIp, JasmineGraphInstanceProtocol::HDFS_CENTRAL_STREAM_START, this->isEmbedGraph);
-                }
+                partitionMutexArray[partitionIndex].unlock();
+
 
                 hash_partitioner_logger.debug("Central edge consumer " + std::to_string(partitionIndex) +
                                               " generated file of " +

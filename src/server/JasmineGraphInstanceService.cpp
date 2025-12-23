@@ -3859,6 +3859,10 @@ static void streaming_tuple_extraction(
 
 
           instance_logger.info("Received end signal from producer");
+            instance_logger.info(chunk);
+
+            instance_logger.info(tupleArrayString);
+
           tupleBuffer.clear();
           break;
         }
