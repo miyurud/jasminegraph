@@ -142,6 +142,8 @@ class JasmineGraphInstanceProtocol {
     static const string HDFS_FILE_CHUNK_END_CHK;
     static const string HDFS_FILE_CHUNK_END_ACK;
     static const string INITIATE_STREAMING_KG_CONSTRUCTION;
+    static const string  INITIATE_LOCAL_STREAMING_KG_CONSTRUCTION;
+
     static  const string INITIATE_STREAMING_TUPLE_CONSTRUCTION;
     static  const string  CHUNK_STREAM_END;
     static const string SEMANTIC_BEAM_SEARCH;

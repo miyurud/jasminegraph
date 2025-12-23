@@ -15,22 +15,11 @@ limitations under the License.
 
 namespace Prompts {
 inline const std::string KNOWLEDGE_EXTRACTION = R"(
-You MUST extract **ALL** named entities and construct an RDF (Resource Description Framework) graph from the text.
-Do **NOT** skip any triples unless the subject or object is an ambiguous pronoun
-(he, she, it, they, them, this, that).
+-  Extract subgraphs with many meaningful, non-duplicate RDF (resource Description framework) triples
+- Omit triples where subject/object is an ambiguous pronoun (he, she, it, they).
+- The predicates must be from the schema.org and in canonical form
+- Return only a JSON array of arrays in the form:
+    [subject, predicate, object, subject_type, object_type].
 
-Output format:
-[
-  [subject, predicate, object, subject_type, object_type],
-  ...
-]
-
-STRICT RULES:
-- Continue until you have processed the **entire chunk** fully.
-- Do not stop early.
-- Extract relations aligned with schema.org where possible.”
-- Output ONLY valid JSON.
-
-Now extract ALL triples from the text:
 )";
 }

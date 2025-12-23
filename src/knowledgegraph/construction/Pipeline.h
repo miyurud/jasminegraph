@@ -36,8 +36,23 @@ class Pipeline {
              std::string masterIP, vector<JasmineGraphServer::worker>& workerList, std::vector<std::string> llmRunners,
              std::string llmInferenceEngine, std::string llm, string chunkSize, std::string chunksPerBatch,
              long startFromBytes);
+    Pipeline(int connFd,
+               const std::string& filePath,
+               int numberOfPartitions,
+               int graphId,
+               const std::string& masterIP,
+               std::vector<JasmineGraphServer::worker>& workerList,
+               const std::vector<std::string>& llmRunners,
+               const std::string& llmInferenceEngine,
+               const std::string& llm,
+               const std::string& chunkSize,
+               const std::string& chunksPerBatch,
+               long startFromBytes);
+
+
     void init();
     void startStreamingFromBufferToPartitions();
+
 
     static bool streamGraphToDesignatedWorker(std::string host, int port, std::string masterIP, std::string graphId,
                                               int numberOfPartitions, std::string hdfsServerIp, std::string hdfsPort,
@@ -46,10 +61,17 @@ class Pipeline {
                                               bool continueKGConstruction, SQLiteDBInterface* sqlite,
                                               shared_ptr<atomic<bool>>& stopFlag,
                                               shared_ptr<KGConstructionRate>& kgConstructionRates);
+     static bool streamLocalGraphToDesignatedWorker(string host, int port, int dataPort, string masterIP, string graphId,
+                                                   int numberOfPartitions, string hostnamePort,
+                                                   string llmInferenceEngine, string llm, string chunkSize,
+                                                   string localFilePath, bool continueKGConstruction,
+                                                   SQLiteDBInterface* sqlite, shared_ptr<atomic<bool>>& stopFlag,
+                                                   shared_ptr<KGConstructionRate>& kgConstructionRates);
 
- private:
+    private:
     void streamFromHDFSIntoBuffer();
-    void streamChunckToWorker(const std::string& chunk, int partitionId);
+     void streamFromLocalFileIntoBuffer();
+     void streamChunckToWorker(const std::string& chunk, int partitionId);
     void startStreamingFromBufferToWorkers();
     json processTupleAndSaveInPartition(const std::vector<std::unique_ptr<SharedBuffer>>& tupleBuffer);
     void extractTuples(std::string host, int port, std::string masterIP, int graphID, int partitionId,

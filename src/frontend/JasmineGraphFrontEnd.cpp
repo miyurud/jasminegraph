@@ -233,7 +233,11 @@ void *frontendservicesesion(void *dummyPt) {
         } else if (line.compare(CONSTRUCT_KG) == 0) {
             JasmineGraphFrontEnd::constructKGStreamHDFSCommand(masterIP, connFd, numberOfPartitions, sqlite,
                                                                &loop_exit);
-        } else if (line.compare(STOP_CONSTRUCT_KG) == 0) {
+        }
+        else if (line.compare(CONSTRUCT_KG_LOCAL) == 0) {
+            JasmineGraphFrontEnd::constructKGStreamLocalTXTCommand(masterIP, connFd, numberOfPartitions, sqlite,
+                                                               &loop_exit);
+        }else if (line.compare(STOP_CONSTRUCT_KG) == 0) {
             JasmineGraphFrontEnd::stop_graph_streaming(connFd, &loop_exit);
         } else if (line.compare(STOP_STREAM_KAFKA) == 0) {
             stop_stream_kafka_command(connFd, kstream, &loop_exit);
@@ -2149,6 +2153,189 @@ bool JasmineGraphFrontEnd::constructKGStreamHDFSCommand(std::string masterIP, in
     }
     return true;
 }
+bool JasmineGraphFrontEnd::constructKGStreamLocalTXTCommand(
+        std::string masterIP,
+        int connFd,
+        int numberOfPartitions,
+        SQLiteDBInterface *sqlite,
+        bool *loop_exit_p) {
+
+    /* =========================
+     * 1. Ask for local file path
+     * ========================= */
+    std::string msg = "Local TXT file absolute path/downloadable URI:";
+    if (write(connFd, msg.c_str(), msg.length()) < 0) return  false;
+    write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(),
+          Conts::CARRIAGE_RETURN_NEW_LINE.size());
+
+
+
+
+    char filePathBuf[FRONTEND_DATA_LENGTH + 1];
+    memset(filePathBuf, 0, sizeof(filePathBuf));
+    read(connFd, filePathBuf, FRONTEND_DATA_LENGTH);
+
+    std::string localFilePath = Utils::trim_copy(std::string(filePathBuf));
+    frontend_logger.info("Received local file path: " + localFilePath);
+
+
+    static const std::regex urlRegex(
+        R"(^(https?|ftp)://[^\s/$.?#].[^\s]*$)",
+        std::regex::icase
+    );
+    if (std::regex_match(localFilePath, urlRegex)) {
+        std::string instanceFolder = Utils::getJasmineGraphProperty("org.jasminegraph.server.instance");
+
+       string savedFilePath = Utils::downloadFile(localFilePath, instanceFolder+"/"+ Utils::getFileName
+           (localFilePath));
+        localFilePath =  instanceFolder+"/"+ Utils::getFileName(localFilePath);
+
+        if (!savedFilePath.empty()) {
+            frontend_logger.info("File downloaded and saved as "+ savedFilePath);
+        } else {
+            frontend_logger.info("Failed to download the file.");
+        }
+    }
+    /* =========================
+     * 2. Validate local file
+     * ========================= */
+    struct stat st {};
+    if (stat(localFilePath.c_str(), &st) != 0 || !S_ISREG(st.st_mode)) {
+        std::string err = "Invalid local file path.";
+        write(connFd, err.c_str(), err.length());
+        write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(),
+              Conts::CARRIAGE_RETURN_NEW_LINE.size());
+        *loop_exit_p = true;
+        return false;
+    }
+
+    double_t total_file_size = st.st_size;
+    std::string uploadPath = "file:" + localFilePath;
+
+    /* =========================
+     * 3. Upload start time
+     * ========================= */
+    std::time_t now = std::chrono::system_clock::to_time_t(
+            std::chrono::system_clock::now());
+    std::string uploadStartTime = ctime(&now);
+    uploadStartTime.erase(uploadStartTime.find_last_not_of(
+            Conts::CARRIAGE_RETURN_NEW_LINE) + 1);
+
+    /* =========================
+     * 4. LLM runner + engine
+     * ========================= */
+    std::string llmRunnerMSG = "LLM runner hostname:port:";
+    write(connFd, llmRunnerMSG.c_str(), llmRunnerMSG.length());
+    write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(),
+          Conts::CARRIAGE_RETURN_NEW_LINE.size());
+
+    char hostnamePort[FRONTEND_DATA_LENGTH + 1];
+    memset(hostnamePort, 0, sizeof(hostnamePort));
+    read(connFd, hostnamePort, FRONTEND_DATA_LENGTH);
+    std::string hostnamePortS = Utils::trim_copy(hostnamePort);
+
+    std::string llmEngineMSG = "LLM inference engine? ollama/vllm?";
+    write(connFd, llmEngineMSG.c_str(), llmEngineMSG.length());
+    write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(),
+          Conts::CARRIAGE_RETURN_NEW_LINE.size());
+
+    char llmEngine[FRONTEND_DATA_LENGTH + 1];
+    memset(llmEngine, 0, sizeof(llmEngine));
+    read(connFd, llmEngine, FRONTEND_DATA_LENGTH);
+    std::string llmEngineS = Utils::trim_copy(llmEngine);
+
+    std::string llmMSG = "LLM model name:";
+    write(connFd, llmMSG.c_str(), llmMSG.length());
+    write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(),
+          Conts::CARRIAGE_RETURN_NEW_LINE.size());
+
+    char llm[FRONTEND_DATA_LENGTH + 1];
+    memset(llm, 0, sizeof(llm));
+    read(connFd, llm, FRONTEND_DATA_LENGTH);
+    std::string llmS = Utils::trim_copy(llm);
+
+    /* =========================
+     * 5. Chunk size
+     * ========================= */
+    std::string chunkMSG = "Chunk size (Bytes):";
+    write(connFd, chunkMSG.c_str(), chunkMSG.length());
+    write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(),
+          Conts::CARRIAGE_RETURN_NEW_LINE.size());
+
+    char chunkSize[FRONTEND_DATA_LENGTH + 1];
+    memset(chunkSize, 0, sizeof(chunkSize));
+    read(connFd, chunkSize, FRONTEND_DATA_LENGTH);
+    std::string chunkSizeS = Utils::trim_copy(chunkSize);
+
+    /* =========================
+     * 6. DB: create or resume graph
+     * ========================= */
+    int newGraphID;
+    bool graphExists = false;
+
+    std::string checkQuery =
+        "SELECT idgraph FROM graph WHERE upload_path = \"" + uploadPath + "\";";
+    auto result = sqlite->runSelect(checkQuery);
+
+    if (!result.empty()) {
+        newGraphID = stoi(result[0][0].second);
+        graphExists = true;
+        frontend_logger.info("Resuming existing graph ID: " +
+                             std::to_string(newGraphID));
+    } else {
+        std::string insertQuery =
+            "INSERT INTO graph (name, upload_path, upload_start_time, "
+            "upload_end_time, graph_status_idgraph_status, "
+            "vertexcount, centralpartitioncount, edgecount, is_directed , "
+            "file_size_bytes ) VALUES(\"" +
+            localFilePath + "\", \"" + uploadPath + "\", \"" + uploadStartTime + "\", \"\", \"" +
+            std::to_string(Conts::GRAPH_STATUS::NONOPERATIONAL) + "\", \"\", \"\", \"\", \"TRUE\", \"" +
+            to_string(total_file_size) + "\");";
+        frontend_logger.info("Constructing new Knowledge Graph with new GraphID: " + to_string(newGraphID));
+
+
+        newGraphID = sqlite->runInsert(insertQuery);
+        frontend_logger.info("Created new graph ID: " +
+                             std::to_string(newGraphID));
+    }
+
+    /* =========================
+     * 7. Launch async streaming
+     * ========================= */
+    JasmineGraphServer::worker worker =
+        JasmineGraphServer::getDesignatedWorker();
+
+    auto stopFlag = std::make_shared<std::atomic<bool>>(false);
+    {
+        std::lock_guard<std::mutex> lock(threadMapMutex);
+        stopFlags[newGraphID] = stopFlag;
+    }
+    std::thread streamingThread([=]() mutable {
+        kgConstructionRates[newGraphID] = std::make_shared<KGConstructionRate>();
+kgConstructionRates[newGraphID]->bytesPerSecond = 0.0;
+kgConstructionRates[newGraphID]->triplesPerSecond = 0.0;
+        Pipeline::streamLocalGraphToDesignatedWorker(worker.hostname, worker.port, worker.dataPort, masterIP,
+                                             std::to_string(newGraphID), numberOfPartitions, hostnamePortS, llmEngineS,
+                                             llmS, chunkSizeS, localFilePath, graphExists, sqlite, stopFlag,
+                                             kgConstructionRates[newGraphID]);
+    });
+
+    streamingThread.detach();
+
+    std::string finalMsg = "Graph Id: " + std::to_string(newGraphID);
+    write(connFd, finalMsg.c_str(), finalMsg.length());
+    write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(),
+          Conts::CARRIAGE_RETURN_NEW_LINE.size());
+
+    return true;
+
+socket_error:
+    frontend_logger.error("Socket write failed");
+    *loop_exit_p = true;
+    return false;
+}
+
+
 
 static void stop_stream_kafka_command(int connFd, KafkaConnector *kstream, bool *loop_exit_p) {
     frontend_logger.info("Started serving `" + STOP_STREAM_KAFKA + "` command");
