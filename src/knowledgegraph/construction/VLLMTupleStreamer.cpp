@@ -93,7 +93,7 @@ size_t VLLMTupleStreamer::StreamCallback(char* ptr, size_t size, size_t nmemb,
             ctx->current_tuple.push_back(c);
 
             if (ctx->braceDepth == 1) {
-              vllm_tuple_streamer_logger.debug("Current tuple: " +
+              vllm_tuple_streamer_logger.info("Current tuple: " +
                                               ctx->current_tuple);
               try {
                 auto triple = json::parse(ctx->current_tuple);
@@ -129,7 +129,7 @@ size_t VLLMTupleStreamer::StreamCallback(char* ptr, size_t size, size_t nmemb,
                         {"type", predicate}}}};
 
                   ctx->buffer->add(formattedTriple.dump());
-                  vllm_tuple_streamer_logger.debug(
+                  vllm_tuple_streamer_logger.info(
                       "✅ Added formatted triple: " + formattedTriple.dump());
                 }
               } catch (const std::exception& ex) {

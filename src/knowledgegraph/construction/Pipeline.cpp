@@ -597,12 +597,13 @@ json Pipeline::processTupleAndSaveInPartition(const std::vector<std::unique_ptr<
                      }
 
                         jsonEdge["properties"] = edge;
-                        lock.unlock();
+
                         kg_pipeline_stream_handler_logger.debug("Thread " + std::to_string(i) + " sourceId: " +
                                                                 source["id"].get<std::string>() + ", destinationId: " + destination["id"].get<std::string>());
                         if (!sourceId.empty() && !destinationId.empty()) {
                             partitionedEdge partitioned_edge = partitioner.addEdge({ source["id"].get<std::string>(),
     destination["id"].get<std::string>()});
+                            lock.unlock();
                             int sourceIndex =  partitioned_edge[0].second;
                             int destIndex =  partitioned_edge[1].second;
                             source["pid"] = sourceIndex;
@@ -623,6 +624,7 @@ json Pipeline::processTupleAndSaveInPartition(const std::vector<std::unique_ptr<
                                 partitions.addEdgeCut(obj.dump(), sourceIndex);
                             }
                         } else {
+                            lock.unlock();
                             kg_pipeline_stream_handler_logger.error("Malformed line: missing source/destination ID: " +
                                                                     line);
                         }

@@ -39,11 +39,13 @@ class InstanceStreamHandler {
                    std::string graphId, std::string partitionId, std::map<std::string,
                    JasmineGraphIncrementalLocalStore *> &graphDBMapStreamingStores,
                    std::string dbFilesOpenMode = "trunk", bool isEmbed = false);
+    std::map<std::string, std::mutex> queue_mutexes;
+    std::mutex map_mutex;
  private:
     std::map<std::string, std::thread> threads;
     std::map<std::string, std::queue<std::string>> queues;
     std::map<std::string, std::condition_variable> cond_vars;
-    std::map<std::string, std::mutex> queue_mutexes;
+
     std::atomic<bool> terminateThreads{false};
 
         void threadFunction(const std::string& nodeString);

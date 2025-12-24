@@ -3830,7 +3830,7 @@ static void streaming_tuple_extraction(
           //                       {"tuple_id", to_string(tuple_id)},
           //                       {"tuple", tupleData}
           //                   });
-
+            instance_logger.info(tupleData);
           trace_tuples.push_back(tupleData);
           tuple_id++;
         Utils::send_str_wrapper(connFd, tupleData);
@@ -5077,6 +5077,35 @@ static void query_start_command(int connFd, InstanceHandler &instanceHandler, st
         return;
     }
 
+    std::string masterIp(content_length, 0);
+    return_status = recv(connFd, &masterIp[0], content_length, 0);
+    if (return_status > 0) {
+        instance_logger.info("Received graph id: "+masterIp);
+    } else {
+        instance_logger.info("Error while reading content length");
+        *loop_exit_p = true;
+        return;
+    }
+    masterIP = masterIp;
+
+
+     content_length = 0 ;
+    instance_logger.info("Waiting for content length");
+     return_status = recv(connFd, &content_length, sizeof(int), 0);
+    if (return_status > 0) {
+        content_length = ntohl(content_length);
+        instance_logger.info("Received content_length = " + std::to_string(content_length));
+    } else {
+        instance_logger.info("Error while reading content length");
+        *loop_exit_p = true;
+        return;
+    }
+
+    if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::GRAPH_STREAM_C_length_ACK)) {
+        *loop_exit_p = true;
+        return;
+    }
+
     std::string graphId(content_length, 0);
     return_status = recv(connFd, &graphId[0], content_length, 0);
     if (return_status > 0) {
@@ -5806,9 +5835,12 @@ static void processFile(string fileName, bool isLocal,
 
     NodeManager* nm ;
     JasmineGraphIncrementalLocalStore* localStore;
+
+
     string graphIdentifier = std::to_string(graphId) + "_" + std::to_string(partitionIndex);
+    std::unique_lock<std::mutex> lock(handler.map_mutex);
     if (handler.incrementalLocalStoreMap.find(graphIdentifier) == handler.incrementalLocalStoreMap.end()) {
-        handler.loadStreamingStore(std::to_string(graphId), std::to_string(partitionIndex), handler.incrementalLocalStoreMap, NodeManager::FILE_MODE, isEmbedGraph);
+        InstanceStreamHandler::loadStreamingStore(std::to_string(graphId), std::to_string(partitionIndex), handler.incrementalLocalStoreMap, NodeManager::FILE_MODE, isEmbedGraph);
         // append mode
         instance_logger.debug("[Instance Service] Initiated Increamental LocalStore");
         localStore = handler.incrementalLocalStoreMap[std::to_string(graphId) + "_" + std::to_string(partitionIndex)];
@@ -5828,6 +5860,7 @@ static void processFile(string fileName, bool isLocal,
 
         localStore->setNodeManger(nm);
     }
+    lock.unlock();
 
 std::thread embeddingThread;
     if (isEmbedGraph) {
@@ -5872,7 +5905,7 @@ std::thread embeddingThread;
     }
     instance_logger.debug("Done Uploading File 5562");
 // nm->close();
-    delete nm;
+    // delete nm;
  file.close();
 
     instance_logger.info("Finished processing file: " + filePath);

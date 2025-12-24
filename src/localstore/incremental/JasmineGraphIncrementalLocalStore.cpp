@@ -67,141 +67,108 @@ void JasmineGraphIncrementalLocalStore::setNodeManger(NodeManager* node_manager)
 }
 void JasmineGraphIncrementalLocalStore::getAndStoreEmbeddings() {
     try {
-        incremental_localstore_logger.debug("Starting ne thread for embedding generation and indexing for Partition: "
-            + to_string(gc.partitionID) );
+        incremental_localstore_logger.debug(
+            "Starting thread for embedding generation and indexing for Partition: " +
+            std::to_string(gc.partitionID));
+
         std::vector<std::string> node_ids;
         std::vector<std::string> node_texts;
+        std::vector<std::string> edge_texts;
 
         node_ids.reserve(BATCH_SIZE);
         node_texts.reserve(BATCH_SIZE);
-        std::vector<std::string> edge_texts;
-        while (true) {
+        edge_texts.reserve(BATCH_SIZE);
 
-            if (processing_done) {
-                // pthread_mutex_unlock(&embeddingQueueMutex);
-                break;
-            }
+        while (true) {
             node_ids.clear();
             node_texts.clear();
             edge_texts.clear();
-            /* ==================================
-             * 1️⃣ NODE EMBEDDINGS (MAP)
-             * ================================== */
-            incremental_localstore_logger.debug("83");
 
+            /* ==============================
+             * WAIT FOR WORK OR SHUTDOWN
+             * ============================== */
             pthread_mutex_lock(&embeddingQueueMutex);
-            incremental_localstore_logger.debug("86");
 
-            while (node_embedding_requests->empty()) {
-                incremental_localstore_logger.debug("90");
-
+            while (!processing_done &&
+                   node_embedding_requests->empty() &&
+                   edge_embedding_requests->empty()) {
                 pthread_cond_wait(&embeddingQueueCond, &embeddingQueueMutex);
-                incremental_localstore_logger.debug("92");
-
             }
 
+            /* Shutdown condition:
+             * - processing_done is set
+             * - no pending work
+             */
+            if (processing_done &&
+                node_embedding_requests->empty() &&
+                edge_embedding_requests->empty()) {
+                pthread_mutex_unlock(&embeddingQueueMutex);
+                break;
+            }
 
-            incremental_localstore_logger.debug("102");
-
+            /* ==============================
+             * COLLECT NODE BATCH
+             * ============================== */
             auto nit = node_embedding_requests->begin();
-            for (size_t i = 0; i < BATCH_SIZE && nit != node_embedding_requests->end(); ++i) {
+            for (size_t i = 0;
+                 i < BATCH_SIZE && nit != node_embedding_requests->end();
+                 ++i) {
                 node_ids.emplace_back(nit->first);
                 node_texts.emplace_back(nit->second);
                 nit = node_embedding_requests->erase(nit);
             }
 
-            pthread_mutex_unlock(&embeddingQueueMutex);
-
-            incremental_localstore_logger.debug(
-                "Node embedding batch size: " + std::to_string(node_texts.size()));
-
-            auto node_vectors = textEmbedder->batch_embed(node_texts);
-
-            for (size_t i = 0; i < node_vectors.size(); ++i) {
-                faissNodeStore->add(node_vectors[i], node_ids[i]);
-            }
-
-            /* ==================================
-             * 2️⃣ EDGE EMBEDDINGS (SET)
-             * ================================== */
-
-            edge_texts.reserve(BATCH_SIZE);
-
-            pthread_mutex_lock(&embeddingQueueMutex);
-
-            while (edge_embedding_requests->empty() ) {
-                pthread_cond_wait(&embeddingQueueCond, &embeddingQueueMutex);
-            }
-
-
-
+            /* ==============================
+             * COLLECT EDGE BATCH
+             * ============================== */
             auto eit = edge_embedding_requests->begin();
-            for (size_t i = 0; i < BATCH_SIZE && eit != edge_embedding_requests->end(); ++i) {
+            for (size_t i = 0;
+                 i < BATCH_SIZE && eit != edge_embedding_requests->end();
+                 ++i) {
                 edge_texts.emplace_back(*eit);
                 eit = edge_embedding_requests->erase(eit);
             }
 
             pthread_mutex_unlock(&embeddingQueueMutex);
 
-            incremental_localstore_logger.debug(
-                "Edge embedding batch size: " + std::to_string(edge_texts.size()));
+            /* ==============================
+             * NODE EMBEDDINGS
+             * ============================== */
+            if (!node_texts.empty()) {
+                incremental_localstore_logger.debug(
+                    "Node embedding batch size: " +
+                    std::to_string(node_texts.size()));
 
-            auto edge_vectors = textEmbedder->batch_embed(edge_texts);
+                auto node_vectors = textEmbedder->batch_embed(node_texts);
 
-            for (size_t i = 0; i < edge_vectors.size(); ++i) {
-                faissEdgeStore->add(edge_vectors[i], edge_texts[i]);
+                for (size_t i = 0; i < node_vectors.size(); ++i) {
+                    faissNodeStore->add(node_vectors[i], node_ids[i]);
+                }
             }
 
+            /* ==============================
+             * EDGE EMBEDDINGS
+             * ============================== */
+            if (!edge_texts.empty()) {
+                incremental_localstore_logger.debug(
+                    "Edge embedding batch size: " +
+                    std::to_string(edge_texts.size()));
 
+                auto edge_vectors = textEmbedder->batch_embed(edge_texts);
+
+                for (size_t i = 0; i < edge_vectors.size(); ++i) {
+                    faissEdgeStore->add(edge_vectors[i], edge_texts[i]);
+                }
+            }
         }
-
-        incremental_localstore_logger.debug("157");
-
-        // pthread_mutex_lock(&embeddingQueueMutex);
-        incremental_localstore_logger.debug("160");
-
-        auto nit = node_embedding_requests->begin();
-        for (size_t i = 0; i < node_embedding_requests->size() && nit != node_embedding_requests->end(); ++i) {
-            node_ids.emplace_back(nit->first);
-            node_texts.emplace_back(nit->second);
-            nit = node_embedding_requests->erase(nit);
-        }
-
-        // pthread_mutex_unlock(&embeddingQueueMutex);
 
         incremental_localstore_logger.debug(
-      "Node embedding batch size: " + std::to_string(node_texts.size()));
-
-        auto node_vectors = textEmbedder->batch_embed(node_texts);
-
-        for (size_t i = 0; i < node_vectors.size(); ++i) {
-            faissNodeStore->add(node_vectors[i], node_ids[i]);
-        }
-
-
-        // pthread_mutex_lock(&embeddingQueueMutex);
-
-        auto eit = edge_embedding_requests->begin();
-        for (size_t i = 0; i < edge_embedding_requests->size() && eit != edge_embedding_requests->end(); ++i) {
-            edge_texts.emplace_back(*eit);
-            eit = edge_embedding_requests->erase(eit);
-        }
-
-        // pthread_mutex_unlock(&embeddingQueueMutex);
-        incremental_localstore_logger.debug(
-                       "Edge embedding batch size: " + std::to_string(edge_texts.size()));
-
-        auto edge_vectors = textEmbedder->batch_embed(edge_texts);
-
-        for (size_t i = 0; i < edge_vectors.size(); ++i) {
-            faissEdgeStore->add(edge_vectors[i], edge_texts[i]);
-        }
-
+            "Embedding thread exiting cleanly for Partition: " +
+            std::to_string(gc.partitionID));
 
     } catch (const std::exception &e) {
         incremental_localstore_logger.debug(
             "Error while processing embeddings = " + std::string(e.what()));
-
     }
 }
 

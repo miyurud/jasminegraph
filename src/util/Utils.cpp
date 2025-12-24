@@ -1615,9 +1615,28 @@ bool Utils::sendQueryPlanToWorker(std::string host, int port, std::string master
         close(sockfd);
         return false;
     }
-    char ack1[ACK_MESSAGE_SIZE] = {0};
-    int message_length = std::to_string(graphID).length();
+
+    char ack0[ACK_MESSAGE_SIZE] = {0};
+    int message_length = masterIP.length();
     int converted_number = htonl(message_length);
+    util_logger.debug("Sending content length: "+ to_string(converted_number));
+    if (!Utils::sendIntExpectResponse(sockfd, ack0,
+                                      JasmineGraphInstanceProtocol::GRAPH_STREAM_C_length_ACK.length(),
+                                   converted_number,
+                                   JasmineGraphInstanceProtocol::GRAPH_STREAM_C_length_ACK)) {
+        Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::CLOSE);
+        close(sockfd);
+        return false;
+                                   }
+
+    if (!Utils::send_str_wrapper(sockfd, masterIP)) {
+        close(sockfd);
+        return false;
+    }
+
+    char ack1[ACK_MESSAGE_SIZE] = {0};
+     message_length = std::to_string(graphID).length();
+     converted_number = htonl(message_length);
     util_logger.debug("Sending content length: "+ to_string(converted_number));
     if (!Utils::sendIntExpectResponse(sockfd, ack1,
                                       JasmineGraphInstanceProtocol::GRAPH_STREAM_C_length_ACK.length(),
