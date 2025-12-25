@@ -24,6 +24,7 @@ AgentPlanExecutor::AgentPlanExecutor(SQLiteDBInterface *db,
 
 void AgentPlanExecutor::execute()
 {
+    agent_executor_logger.info("[AGENT EXECUTOR] Starting");
     AgentRequestContext agentRequestCtx;
     int uniqueId = getuid();
     std::string masterIP = request.getMasterIP();
@@ -44,7 +45,8 @@ void AgentPlanExecutor::execute()
     bool *loop_exit = reinterpret_cast<bool *>(static_cast<std::uintptr_t>(std::stoull(
         request.getParameter(Conts::PARAM_KEYS::LOOP_EXIT_POINTER))));
 
-    JasmineGraphServer::worker designatedWorker = JasmineGraphServer::getDesignatedWorker();
+    // JasmineGraphServer::worker designatedWorker = JasmineGraphServer::getDesignatedWorker();
+    JasmineGraphServer::worker designatedWorker{"10.8.100.22", 7780, 7781};
 
     // Open Socket
     int sockfd = socket(AF_INET, SOCK_STREAM, 0);
@@ -55,14 +57,14 @@ void AgentPlanExecutor::execute()
 
     if (designatedWorker.hostname.find('@') != std::string::npos)
     {
-        worker.hostname = Utils::split(worker.hostname, '@')[1];
+        designatedWorker.hostname = Utils::split(designatedWorker.hostname, '@')[1];
     }
 
-    struct hostent *server = gethostbyname(worker.hostname.c_str());
+    struct hostent *server = gethostbyname(designatedWorker.hostname.c_str());
     if (!server)
     {
         close(sockfd);
-        throw std::runtime_error("Unknown host: " + worker.hostname);
+        throw std::runtime_error("Unknown host: " + designatedWorker.hostname);
     }
 
     struct sockaddr_in serv_addr{};
@@ -71,9 +73,9 @@ void AgentPlanExecutor::execute()
         (char *)server->h_addr,
         (char *)&serv_addr.sin_addr.s_addr,
         server->h_length);
-    serv_addr.sin_port = htons(worker.port);
+    serv_addr.sin_port = htons(designatedWorker.port);
 
-    agent_executor_logger.info("[AGENT EXECUTOR] Connecting to " + host + ":" + std::to_string(port));
+    agent_executor_logger.info("[AGENT EXECUTOR] Connecting to " + designatedWorker.hostname + ":" + std::to_string(designatedWorker.port));
 
     if (Utils::connect_wrapper(
             sockfd,
@@ -84,8 +86,6 @@ void AgentPlanExecutor::execute()
         throw std::runtime_error("Connection to worker failed");
     }
 
-    agent_executor_logger.debug("[AGENT EXECUTOR] Connected to worker");
-
     // Handshake
     char buffer[FED_DATA_LENGTH + 1];
     if (!Utils::performHandshake(sockfd, buffer, FED_DATA_LENGTH, masterIP))
@@ -95,29 +95,43 @@ void AgentPlanExecutor::execute()
         throw std::runtime_error("Handshake failed");
     }
 
-    agent_executor_logger.info("[Agent Plan Executor] Handshake successful");
-
-    auto sendAndExpectOk = [&](const std::string &msg)
+    auto sendField = [&](const std::string &fieldName,
+                         const std::string &value)
     {
-        agent_executor_logger.info("[AGENT EXECUTOR → DESIGNATED WORKER] Sending: '" + msg + "'");
-        if (!Utils::send_str_wrapper(sockfd, msg))
+        agent_executor_logger.info(
+            "Sending " + fieldName + " length=" + std::to_string(value.size()));
+
+        int32_t len = htonl(value.size());
+
+        if (send(sockfd, &len, sizeof(len), 0) != sizeof(len))
         {
-            throw std::runtime_error("Send failed: " + msg);
+            throw std::runtime_error("Failed to send length for " + fieldName);
         }
-        char resp[128]{0};
-        int n = recv(sockfd, resp, sizeof(resp), 0);
-        if (n <= 0 || Utils::trim_copy(resp) != "ok")
+
+        char ack[64]{0};
+        int n = recv(sockfd, ack, sizeof(ack), 0);
+        if (n <= 0)
         {
-            throw std::runtime_error("Unexpected response for: " + msg);
+            throw std::runtime_error("No ACK for " + fieldName);
+        }
+
+        agent_executor_logger.info(
+            "ACK received for " + fieldName + ": " +
+            Utils::trim_copy(ack));
+
+        if (send(sockfd, value.data(), value.size(), 0) != (ssize_t)value.size())
+        {
+            throw std::runtime_error("Failed to send value for " + fieldName);
         }
     };
 
     // Protocol sequence
-    sendAndExpectOk("initiate-agent-plan");
-    sendAndExpectOk(query);
-    sendAndExpectOk(graphId);
-    sendAndExpectOk(inferenceEngine);
-    sendAndExpectOk(llmModel);
+    Utils::send_str_wrapper(sockfd, "initiate-agent-plan");
+    sendField("graphId", graphId);
+    sendField("query", query);
+    sendField("llmRunner", llmRunner);
+    sendField("llmEngine", inferenceEngine);
+    sendField("llmModel", llmModel);
 
     // Receive plan JSON
     char planBuf[64 * 1024];
@@ -131,12 +145,10 @@ void AgentPlanExecutor::execute()
     std::string planJson(planBuf, bytes);
     planJson = Utils::trim_copy(planJson);
 
-    agent_executor_logger.info("[DESIGNATED WORKER → AGENT PLAN EXECUTOR] Raw message: '" + msg + "'");
+    agent_executor_logger.info("[DESIGNATED WORKER → AGENT PLAN EXECUTOR] Raw message: '" + planJson + "'");
 
     Utils::send_str_wrapper(sockfd, "ok");
     close(sockfd);
-
-    
 
     // std::string planStr = AgentProtocol::getPlan(agentRequestCtx);
     // agent_executor_logger.info("Executing Agent Plan" + planStr);
