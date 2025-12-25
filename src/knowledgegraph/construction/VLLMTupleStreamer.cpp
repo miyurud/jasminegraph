@@ -117,9 +117,9 @@ size_t VLLMTupleStreamer::StreamCallback(char* ptr, size_t size, size_t nmemb,
                   std::string object_type = triple[4].get<std::string>();
 
                   std::string subject_id =
-                      Utils::canonicalize(subject + "_" + subject_type);
+                      Utils::canonicalize(subject );
                   std::string object_id =
-                      Utils::canonicalize(object + "_" + object_type);
+                      Utils::canonicalize(object);
                   std::string edge_id = Utils::canonicalize(
                       subject_id + "_" + predicate + "_" + object_id);
 

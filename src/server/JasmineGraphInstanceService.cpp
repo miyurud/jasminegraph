@@ -3859,9 +3859,9 @@ static void streaming_tuple_extraction(
 
 
           instance_logger.info("Received end signal from producer");
-            // instance_logger.info(chunk);
+            instance_logger.info(chunk);
 
-            // instance_logger.info(tupleArrayString);
+            instance_logger.info(tupleArrayString);
 
           tupleBuffer.clear();
           break;
@@ -5153,6 +5153,14 @@ static void query_start_command(int connFd, InstanceHandler &instanceHandler, st
                     "app", false);
     } else {
         incrementalLocalStoreInstance = incrementalLocalStoreMap[graphIdentifier];
+        GraphConfig gc;
+        gc.graphID = stoi(graphId);
+        gc.partitionID = stoi(partition);
+        gc.maxLabelSize = std::stoi(Utils::getJasmineGraphProperty(
+            "org.jasminegraph.nativestore.max.label.size"));
+        gc.openMode = "app";
+
+        incrementalLocalStoreInstance->nm =new NodeManager (gc);
     }
 
     content_length = 0;
@@ -5275,6 +5283,7 @@ static void semantic_beam_search(
             graphId, partition, incrementalLocalStoreMap, "app", true);
   } else {
     incrementalLocalStoreInstance = incrementalLocalStoreMap[graphIdentifier];
+
   }
 
   content_length = 0;
@@ -5400,7 +5409,7 @@ static void semantic_beam_search(
       workers);
   semanticBeamSearch->getSeedNodes();
   SharedBuffer shared(50);
-  semanticBeamSearch->semanticMultiHopBeamSearch(shared, 4, 5);
+  semanticBeamSearch->semanticMultiHopBeamSearch(shared, 4, 10);
   auto startTime = std::chrono::high_resolution_clock::now();
   int time = 0;
 
@@ -5842,7 +5851,7 @@ static void processFile(string fileName, bool isLocal,
     if (handler.incrementalLocalStoreMap.find(graphIdentifier) == handler.incrementalLocalStoreMap.end()) {
         InstanceStreamHandler::loadStreamingStore(std::to_string(graphId), std::to_string(partitionIndex), handler.incrementalLocalStoreMap, NodeManager::FILE_MODE, isEmbedGraph);
         // append mode
-        instance_logger.debug("[Instance Service] Initiated Increamental LocalStore");
+        instance_logger.info("[Instance Service] Initiated Increamental LocalStore");
         localStore = handler.incrementalLocalStoreMap[std::to_string(graphId) + "_" + std::to_string(partitionIndex)];
         if (localStore == nullptr) {
             instance_logger.error("Failed to initialize incremental local store for: " + graphIdentifier);
@@ -5865,7 +5874,7 @@ static void processFile(string fileName, bool isLocal,
         gc.partitionID = partitionIndex;
         gc.maxLabelSize = std::stoi(Utils::getJasmineGraphProperty(
             "org.jasminegraph.nativestore.max.label.size"));
-
+        gc.openMode = "app";
          nm = new NodeManager (gc);
 
         localStore->setNodeManger(nm);
@@ -5916,6 +5925,7 @@ std::thread embeddingThread;
     instance_logger.debug("Done Uploading File 5562");
 // nm->close();
     // delete nm;
+    delete NodeBlock::nodesDB;
  file.close();
 
     instance_logger.info("Finished processing file: " + filePath);

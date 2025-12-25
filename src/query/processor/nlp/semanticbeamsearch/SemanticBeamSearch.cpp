@@ -50,7 +50,7 @@ std::vector<ScoredPath> SemanticBeamSearch::getSeedNodes() {
   // check the emb
   std::vector<ScoredPath> paths;
   try {
-    auto results = faissStore->search(emb, 50);
+    auto results = faissStore->search(emb, 10);
     semantic_beam_search_logger.debug("Top " + to_string(results.size())+ " nodes found");
     for (auto& [id, dist] : results) {
 

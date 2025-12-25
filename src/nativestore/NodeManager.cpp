@@ -179,6 +179,7 @@ std::unordered_map<std::string, unsigned int> NodeManager::readNodeIndex() {
     std::ifstream index_db(indexDBPath, std::ios::app | std::ios::binary);
     std::unordered_map<std::string, unsigned int> _nodeIndex;  // temporary node index data holder
     if (index_db.is_open()) {
+        node_manager_logger.info("Node Manager Reading Index");
         int iSize = dbSize(indexDBPath);
         unsigned long dataWidth = NodeManager::INDEX_KEY_SIZE + sizeof(unsigned int);
         if (iSize % dataWidth != 0) {
