@@ -73,6 +73,8 @@ void AgentPlanExecutor::execute()
         server->h_length);
     serv_addr.sin_port = htons(worker.port);
 
+    agent_executor_logger.info("[AGENT EXECUTOR] Connecting to " + host + ":" + std::to_string(port));
+
     if (Utils::connect_wrapper(
             sockfd,
             (struct sockaddr *)&serv_addr,
@@ -81,6 +83,8 @@ void AgentPlanExecutor::execute()
         close(sockfd);
         throw std::runtime_error("Connection to worker failed");
     }
+
+    agent_executor_logger.debug("[AGENT EXECUTOR] Connected to worker");
 
     // Handshake
     char buffer[FED_DATA_LENGTH + 1];
@@ -91,8 +95,11 @@ void AgentPlanExecutor::execute()
         throw std::runtime_error("Handshake failed");
     }
 
+    agent_executor_logger.info("[Agent Plan Executor] Handshake successful");
+
     auto sendAndExpectOk = [&](const std::string &msg)
     {
+        agent_executor_logger.info("[AGENT EXECUTOR → DESIGNATED WORKER] Sending: '" + msg + "'");
         if (!Utils::send_str_wrapper(sockfd, msg))
         {
             throw std::runtime_error("Send failed: " + msg);
@@ -124,10 +131,12 @@ void AgentPlanExecutor::execute()
     std::string planJson(planBuf, bytes);
     planJson = Utils::trim_copy(planJson);
 
+    agent_executor_logger.info("[DESIGNATED WORKER → AGENT PLAN EXECUTOR] Raw message: '" + msg + "'");
+
     Utils::send_str_wrapper(sockfd, "ok");
     close(sockfd);
 
-    agent_executor_logger.info("Received AgentExecutionPlan");
+    
 
     // std::string planStr = AgentProtocol::getPlan(agentRequestCtx);
     // agent_executor_logger.info("Executing Agent Plan" + planStr);
