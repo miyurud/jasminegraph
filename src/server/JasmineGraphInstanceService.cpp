@@ -378,7 +378,7 @@ void JasmineGraphInstanceService::run(string masterHost, string host, int server
     std::map<std::string, JasmineGraphHashMapLocalStore> graphDBMapLocalStores;
     std::map<std::string, JasmineGraphHashMapCentralStore> graphDBMapCentralStores;
     std::map<std::string, JasmineGraphHashMapDuplicateCentralStore> graphDBMapDuplicateCentralStores;
-    std::map<std::string, JasmineGraphIncrementalLocalStore *> incrementalLocalStore;
+    std::map<std::string, JasmineGraphIncrementalLocalStore *> incrementalLocalStore ;
     std::thread perfThread = std::thread(&PerformanceUtil::collectPerformanceStatistics);
     perfThread.detach();
 
@@ -3733,7 +3733,7 @@ static void streaming_tuple_extraction(
     content_length = ntohl(content_length);
     Utils::send_str_wrapper(
         connFd, JasmineGraphInstanceProtocol::GRAPH_STREAM_C_length_ACK);
-    instance_logger.info("Received content length: " +
+    instance_logger.debug("Received content length: " +
                          std::to_string(content_length));
       std::string chunk(content_length, 0);
       size_t received = 0;
@@ -3766,7 +3766,7 @@ static void streaming_tuple_extraction(
       content_length = ntohl(content_length);
       Utils::send_str_wrapper(
           connFd, JasmineGraphInstanceProtocol::GRAPH_STREAM_C_length_ACK);
-      instance_logger.info("Received content length: " +
+      instance_logger.debug("Received content length: " +
                            std::to_string(content_length));
       std::string traceContext(content_length, 0);
       recv(connFd, &traceContext[0], content_length, 0);
@@ -3791,7 +3791,7 @@ static void streaming_tuple_extraction(
         *loop_exit_p = true;
         close(connFd);
       };
-      int idleTimeoutSec = 120;  // e.g., break if no tuple for 30s
+      int idleTimeoutSec = 300;  // e.g., break if no tuple for 30s
         int tuple_id = 0;
         vector<string> trace_tuples;
       while (true) {
@@ -3830,7 +3830,7 @@ static void streaming_tuple_extraction(
           //                       {"tuple_id", to_string(tuple_id)},
           //                       {"tuple", tupleData}
           //                   });
-            instance_logger.info(tupleData);
+            // instance_logger.info(tupleData);
           trace_tuples.push_back(tupleData);
           tuple_id++;
         Utils::send_str_wrapper(connFd, tupleData);
@@ -3854,14 +3854,14 @@ static void streaming_tuple_extraction(
        {"tuple_count", std::to_string(tuple_id)},
        {"tuples", tupleArrayString}
    });
-            instance_logger.info(chunk);
-            instance_logger.info(tupleArrayString);
+            // instance_logger.info(chunk);
+            // instance_logger.info(tupleArrayString);
 
 
           instance_logger.info("Received end signal from producer");
-            instance_logger.info(chunk);
+            // instance_logger.info(chunk);
 
-            instance_logger.info(tupleArrayString);
+            // instance_logger.info(tupleArrayString);
 
           tupleBuffer.clear();
           break;
@@ -5833,8 +5833,8 @@ static void processFile(string fileName, bool isLocal,
     }
 
 
-    NodeManager* nm ;
-    JasmineGraphIncrementalLocalStore* localStore;
+    NodeManager* nm = nullptr ;
+    JasmineGraphIncrementalLocalStore* localStore = nullptr ;
 
 
     string graphIdentifier = std::to_string(graphId) + "_" + std::to_string(partitionIndex);
@@ -5844,9 +5844,19 @@ static void processFile(string fileName, bool isLocal,
         // append mode
         instance_logger.debug("[Instance Service] Initiated Increamental LocalStore");
         localStore = handler.incrementalLocalStoreMap[std::to_string(graphId) + "_" + std::to_string(partitionIndex)];
-        instance_logger.debug("5516");
+        if (localStore == nullptr) {
+            instance_logger.error("Failed to initialize incremental local store for: " + graphIdentifier);
+            lock.unlock();
+            return;
+        }
+        instance_logger.info("5516");
         nm = localStore->nm;
-        instance_logger.debug("5518");
+        if (nm == nullptr ) {
+            instance_logger.error("Failed to initialize node manager for: " + graphIdentifier);
+            lock.unlock();
+            return;
+        }
+        instance_logger.info("5518");
 
     } else {
         localStore = handler.incrementalLocalStoreMap[std::to_string(graphId) + "_" + std::to_string(partitionIndex)];

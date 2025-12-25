@@ -29,7 +29,7 @@ async def streamer(prompt: str, model: str):
 
     # Example array-of-arrays tuples
     tuples = [
-        ["Radio City", "is", "India's first private FM radio station", "Organization", "Location"],
+        ["Radio City", "is", "India's first private FM radio station"],
         ["Radio City", "was started on", "3 July 2001", "Organization", "Date"],
         ["it", "broadcasts on", "91.1", "Organization", "Frequency"]
     ]

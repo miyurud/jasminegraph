@@ -28,14 +28,23 @@ limitations under the License.
 std::unique_ptr<FaissIndex> FaissIndex::instance = nullptr;
 std::once_flag FaissIndex::initFlag;
 Logger faiss_index_logger;
+std::unordered_map<std::string,
+    std::unique_ptr<FaissIndex>> FaissIndex::instances;
+
+std::mutex FaissIndex::instancesMutex;
 FaissIndex* FaissIndex::getInstance(int embeddingDim,
                                     const std::string& filepath) {
-  std::call_once(initFlag, [&]() {
-    instance.reset(new FaissIndex(embeddingDim, filepath));
-  });
-  return instance.get();
-}
+    std::lock_guard<std::mutex> lock(instancesMutex);
 
+    auto it = instances.find(filepath);
+    if (it != instances.end()) {
+        return it->second.get();
+    }
+
+    FaissIndex* index = new FaissIndex (embeddingDim, filepath);
+    instances.emplace(filepath, index);
+    return index;
+}
 FaissIndex::FaissIndex(int embeddingDim, const std::string& filepath)
     : dim(embeddingDim), filePath(filepath) {
   load(filepath);

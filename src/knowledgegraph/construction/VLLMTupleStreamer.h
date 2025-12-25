@@ -15,18 +15,21 @@ limitations under the License.
 #include <mutex>
 #include <stack>
 #include <string>
+#include <vector>
 
 #include "../../query/processor/cypher/util/SharedBuffer.h"
 #include "TupleStreamer.cpp"
-
+using namespace std;
 // ---------------- Stream Context ----------------
 struct StreamContext {
   std::string chunkKey;       // key/ID for this chunk
   SharedBuffer* buffer;       // shared buffer to push tuples
   std::string current_tuple;  // accumulate partial tuple text
   bool isSuccess;             // track success/failure
+    bool retryChunk;
   std::stack<char> braceStack;
   int braceDepth = 0;
+    std::vector<string> recorrectionTuples;
 };
 
 // ---------------- VLLMTupleStreamer ----------------

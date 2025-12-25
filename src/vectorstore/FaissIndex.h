@@ -53,4 +53,7 @@ class FaissIndex {
 
   static std::unique_ptr<FaissIndex> instance;
   static std::once_flag initFlag;
+       static std::unordered_map<std::string,
+        std::unique_ptr<FaissIndex>> instances;
+    static std::mutex instancesMutex;
 };

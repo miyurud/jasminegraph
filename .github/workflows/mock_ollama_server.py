@@ -14,7 +14,7 @@ AVAILABLE_MODELS = [
 async def streamer(prompt: str):
     """Simulate streaming a JSON array of arrays."""
     response = [
-        ["Alice","knows","Bob","Person","Person"],
+        ["Alice","knows","Bob","Person"],
         ["Bob","works_at","AcmeCorp","Person","Organization"],
         ["AcmeCorp","located_in","London","Organization","Location"]
     ]

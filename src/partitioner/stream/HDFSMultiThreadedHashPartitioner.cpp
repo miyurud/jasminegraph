@@ -171,7 +171,7 @@ void HDFSMultiThreadedHashPartitioner::consumeLocalEdges(int partitionIndex, Jas
                 threadEdgeCount = 0;
                 partitionFile.close();  // Close the file after reaching the threshold
 
-                hash_partitioner_logger.info("Local edge consumer " + std::to_string(partitionIndex) +
+                hash_partitioner_logger.debug("Local edge consumer " + std::to_string(partitionIndex) +
                                                            " generated file of " +
                                                            std::to_string(this->partitionFileEdgeThreshold) +
                                                            " edges: " + filePath);
@@ -182,7 +182,7 @@ void HDFSMultiThreadedHashPartitioner::consumeLocalEdges(int partitionIndex, Jas
                                                  this->isEmbedGraph);
                 partitionMutexArray[partitionIndex].unlock();
 
-                hash_partitioner_logger.info("Local edge consumer " + std::to_string(partitionIndex) +
+                hash_partitioner_logger.debug("Local edge consumer " + std::to_string(partitionIndex) +
                                               " sent file of " +
                                               std::to_string(this->partitionFileEdgeThreshold) +
                                               " edges: " + filePath);

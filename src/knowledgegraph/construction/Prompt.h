@@ -30,6 +30,7 @@ STRICT RULES:
 - Do NOT skip any triples unless subject or object is an ambiguous pronoun
 - Predicates MUST be from schema.org (canonical form only)
  -Every triple MUST contain exactly five fields: subject, predicate, object, subject_type, object_type.
+ - Every field must be a string
 - Output ONLY valid JSON
 - NEVER leave any field empty, null, or omitted
 
@@ -55,6 +56,5 @@ Correct output:
   ["Tim Cook", "worksFor", "Apple Inc.", "Person", "Organization"]
 ]
 
-NOW EXTRACT ALL RDF TRIPLES FROM THE FOLLOWING TEXT:t:
 )";
 }

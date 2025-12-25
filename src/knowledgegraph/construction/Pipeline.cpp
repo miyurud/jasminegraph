@@ -674,279 +674,305 @@ json Pipeline::processTupleAndSaveInPartition(const std::vector<std::unique_ptr<
 
 void Pipeline::extractTuples(std::string host, int port, std::string masterIP, int graphID, int partitionId,
                              std::queue<Chunk>& dataBuffer, SharedBuffer& sharedBuffer) {
-    kg_pipeline_stream_handler_logger.debug("Starting extractTuples for host: " + host + ", port: " +
-                                           std::to_string(port) + ", partitionId: " + std::to_string(partitionId));
-    char data[FED_DATA_LENGTH + 1];
-    struct sockaddr_in serv_addr;
-    struct hostent* server;
 
-    int sockfd = socket(AF_INET, SOCK_STREAM, 0);
-    if (sockfd < 0) {
-        kg_pipeline_stream_handler_logger.error("Cannot create socket");
-        return;
-    }
-    kg_pipeline_stream_handler_logger.debug("Socket created successfully");
-
-    if (host.find('@') != std::string::npos) {
-        host = Utils::split(host, '@')[1];
-        kg_pipeline_stream_handler_logger.debug("Host after split: " + host);
-    }
-
-    server = gethostbyname(host.c_str());
-    if (!server) {
-        kg_pipeline_stream_handler_logger.error("ERROR, no host named " + host);
-        return;
-    }
-    kg_pipeline_stream_handler_logger.debug("Host resolved: " + host);
-
-    bzero((char*)&serv_addr, sizeof(serv_addr));
-    serv_addr.sin_family = AF_INET;
-    bcopy((char*)server->h_addr, (char*)&serv_addr.sin_addr.s_addr, server->h_length);
-    serv_addr.sin_port = htons(port);
-
-    if (Utils::connect_wrapper(sockfd, (struct sockaddr*)&serv_addr, sizeof(serv_addr)) < 0) {
-        kg_pipeline_stream_handler_logger.error("Failed to connect to host: " + host +
-                                                " on port: " + std::to_string(port));
-        return;
-    }
-    kg_pipeline_stream_handler_logger.debug("Connected to host: " + host + " on port: " + std::to_string(port));
-
-    // 1. Perform handshake
-    kg_pipeline_stream_handler_logger.debug("Performing handshake with masterIP: " + masterIP);
-    if (!Utils::performHandshake(sockfd, data, FED_DATA_LENGTH, masterIP)) {
-        kg_pipeline_stream_handler_logger.error("Handshake failed");
-        Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::CLOSE);
-        close(sockfd);
-        return;
-    }
-    kg_pipeline_stream_handler_logger.debug("Handshake successful");
-
-    // 2. Send INITIATE_STREAMING_TUPLE_CONSTRUCTION
-    kg_pipeline_stream_handler_logger.debug("Sending INITIATE_STREAMING_TUPLE_CONSTRUCTION");
-    if (!Utils::sendExpectResponse(sockfd, data, INSTANCE_DATA_LENGTH,
-                                   JasmineGraphInstanceProtocol::INITIATE_STREAMING_TUPLE_CONSTRUCTION,
-                                   JasmineGraphInstanceProtocol::OK)) {
-        kg_pipeline_stream_handler_logger.error("Failed to initiate streaming tuple construction");
-        Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::CLOSE);
-        close(sockfd);
-        return;
-    }
-    kg_pipeline_stream_handler_logger.debug("INITIATE_STREAMING_TUPLE_CONSTRUCTION successful");
-
-    // 3. Send graph ID
-    kg_pipeline_stream_handler_logger.debug("Sending graphID: " + std::to_string(graphID));
-    if (!Utils::sendExpectResponse(sockfd, data, INSTANCE_DATA_LENGTH, std::to_string(graphID),
-                                   JasmineGraphInstanceProtocol::OK)) {
-        kg_pipeline_stream_handler_logger.error("Failed to send graphID");
-        Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::CLOSE);
-        close(sockfd);
-        return;
-    }
-    kg_pipeline_stream_handler_logger.debug("GraphID sent successfully");
-
-    // 3. Send LLM runner debug
-    if (!Utils::sendExpectResponse(sockfd, data, INSTANCE_DATA_LENGTH, llmRunners[partitionId],
-                                   JasmineGraphInstanceProtocol::OK)) {
-        kg_pipeline_stream_handler_logger.error("Failed to send LLM runner info");
-        Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::CLOSE);
-        close(sockfd);
-        return;
-    }
-    if (!Utils::sendExpectResponse(sockfd, data, INSTANCE_DATA_LENGTH, llmInferenceEngine,
-                                   JasmineGraphInstanceProtocol::OK)) {
-        kg_pipeline_stream_handler_logger.error("Failed to send LLM runner info");
-        Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::CLOSE);
-        close(sockfd);
-        return;
-    }
-    kg_pipeline_stream_handler_logger.debug("LLM runner sent successfully");
-
-    // 3. Send LLM  info
-    if (!Utils::sendExpectResponse(sockfd, data, INSTANCE_DATA_LENGTH, llm, JasmineGraphInstanceProtocol::OK)) {
-        kg_pipeline_stream_handler_logger.error("Failed to send LLM runner info");
-        Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::CLOSE);
-        close(sockfd);
-        return;
-    }
-    kg_pipeline_stream_handler_logger.info("LLM  sent successfully");
-    // Streaming loop
+    bool retry  = false;
+    Chunk* retryChunk = nullptr;
     while (true) {
-        if (stopFlag) {
-            kg_pipeline_stream_handler_logger.info("Received END_OF_STREAM_MARKER for partitionId: " +
-                                                   std::to_string(partitionId));
-            if (!Utils::sendExpectResponse(sockfd, data, INSTANCE_DATA_LENGTH,
-                                           JasmineGraphInstanceProtocol::CHUNK_STREAM_END,
-                                           JasmineGraphInstanceProtocol::OK)) {
-                kg_pipeline_stream_handler_logger.error("Failed to send END_OF_STREAM");
-            }
-            Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::CLOSE);
-            kg_pipeline_stream_handler_logger.info("Closed connection for partitionId: " + std::to_string(partitionId));
-            sharedBuffer.add(END_OF_STREAM_MARKER);
-            close(sockfd);
-            break;
+        kg_pipeline_stream_handler_logger.debug("Starting extractTuples for host: " + host + ", port: " +
+                                               std::to_string(port) + ", partitionId: " + std::to_string(partitionId));
+        char data[FED_DATA_LENGTH + 1];
+        struct sockaddr_in serv_addr;
+        struct hostent* server;
+
+        int sockfd = socket(AF_INET, SOCK_STREAM, 0);
+        if (sockfd < 0) {
+            kg_pipeline_stream_handler_logger.error("Cannot create socket");
+            return;
         }
-        std::string chunk;
+        kg_pipeline_stream_handler_logger.debug("Socket created successfully");
 
-        std::unique_lock<std::mutex> lock(dataBufferMutex);
-        dataBufferCV.wait(lock, [this, &dataBuffer] { return !dataBuffer.empty() || !this->isReading; });
-
-        Chunk chunkData = dataBuffer.front();
-        chunk = chunkData.text;
-
-        dataBuffer.pop();
-
-        kg_pipeline_stream_handler_logger.info("Processing chunk for partitionId: " + std::to_string(partitionId));
-        lock.unlock();
-        dataBufferCV.notify_all();
-
-        if (chunk == END_OF_STREAM_MARKER) {
-            kg_pipeline_stream_handler_logger.info("Received END_OF_STREAM_MARKER for partitionId: " +
-                                                   std::to_string(partitionId));
-            if (!Utils::sendExpectResponse(sockfd, data, INSTANCE_DATA_LENGTH,
-                                           JasmineGraphInstanceProtocol::CHUNK_STREAM_END,
-                                           JasmineGraphInstanceProtocol::OK)) {
-                kg_pipeline_stream_handler_logger.error("Failed to send END_OF_STREAM");
-            }
-            Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::CLOSE);
-            kg_pipeline_stream_handler_logger.info("Closed connection for partitionId: " + std::to_string(partitionId));
-            sharedBuffer.add(END_OF_STREAM_MARKER);
-            close(sockfd);
-            break;  // Exit loop if end of stream marker is received
+        if (host.find('@') != std::string::npos) {
+            host = Utils::split(host, '@')[1];
+            kg_pipeline_stream_handler_logger.debug("Host after split: " + host);
         }
-        // Send chunk
-        kg_pipeline_stream_handler_logger.info("Sending QUERY_DATA_START for chunk of size: " +
-                                               std::to_string(chunk.length()));
+
+        server = gethostbyname(host.c_str());
+        if (!server) {
+            kg_pipeline_stream_handler_logger.error("ERROR, no host named " + host);
+            return;
+        }
+        kg_pipeline_stream_handler_logger.debug("Host resolved: " + host);
+
+        bzero((char*)&serv_addr, sizeof(serv_addr));
+        serv_addr.sin_family = AF_INET;
+        bcopy((char*)server->h_addr, (char*)&serv_addr.sin_addr.s_addr, server->h_length);
+        serv_addr.sin_port = htons(port);
+
+        if (Utils::connect_wrapper(sockfd, (struct sockaddr*)&serv_addr, sizeof(serv_addr)) < 0) {
+            kg_pipeline_stream_handler_logger.error("Failed to connect to host: " + host +
+                                                    " on port: " + std::to_string(port));
+            return;
+        }
+        kg_pipeline_stream_handler_logger.debug("Connected to host: " + host + " on port: " + std::to_string(port));
+
+        // 1. Perform handshake
+        kg_pipeline_stream_handler_logger.debug("Performing handshake with masterIP: " + masterIP);
+        if (!Utils::performHandshake(sockfd, data, FED_DATA_LENGTH, masterIP)) {
+            kg_pipeline_stream_handler_logger.error("Handshake failed");
+            Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::CLOSE);
+            close(sockfd);
+            return;
+        }
+        kg_pipeline_stream_handler_logger.debug("Handshake successful");
+
+        // 2. Send INITIATE_STREAMING_TUPLE_CONSTRUCTION
+        kg_pipeline_stream_handler_logger.debug("Sending INITIATE_STREAMING_TUPLE_CONSTRUCTION");
         if (!Utils::sendExpectResponse(sockfd, data, INSTANCE_DATA_LENGTH,
-                                       JasmineGraphInstanceProtocol::QUERY_DATA_START,
+                                       JasmineGraphInstanceProtocol::INITIATE_STREAMING_TUPLE_CONSTRUCTION,
                                        JasmineGraphInstanceProtocol::OK)) {
-            kg_pipeline_stream_handler_logger.error("Failed to send QUERY_DATA_START");
-            break;
+            kg_pipeline_stream_handler_logger.error("Failed to initiate streaming tuple construction");
+            Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::CLOSE);
+            close(sockfd);
+            return;
+                                       }
+        kg_pipeline_stream_handler_logger.debug("INITIATE_STREAMING_TUPLE_CONSTRUCTION successful");
+
+        // 3. Send graph ID
+        kg_pipeline_stream_handler_logger.debug("Sending graphID: " + std::to_string(graphID));
+        if (!Utils::sendExpectResponse(sockfd, data, INSTANCE_DATA_LENGTH, std::to_string(graphID),
+                                       JasmineGraphInstanceProtocol::OK)) {
+            kg_pipeline_stream_handler_logger.error("Failed to send graphID");
+            Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::CLOSE);
+            close(sockfd);
+            return;
+                                       }
+        kg_pipeline_stream_handler_logger.debug("GraphID sent successfully");
+
+        // 3. Send LLM runner debug
+        if (!Utils::sendExpectResponse(sockfd, data, INSTANCE_DATA_LENGTH, llmRunners[partitionId],
+                                       JasmineGraphInstanceProtocol::OK)) {
+            kg_pipeline_stream_handler_logger.error("Failed to send LLM runner info");
+            Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::CLOSE);
+            close(sockfd);
+            return;
+                                       }
+        if (!Utils::sendExpectResponse(sockfd, data, INSTANCE_DATA_LENGTH, llmInferenceEngine,
+                                       JasmineGraphInstanceProtocol::OK)) {
+            kg_pipeline_stream_handler_logger.error("Failed to send LLM runner info");
+            Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::CLOSE);
+            close(sockfd);
+            return;
+                                       }
+        kg_pipeline_stream_handler_logger.debug("LLM runner sent successfully");
+
+        // 3. Send LLM  info
+        if (!Utils::sendExpectResponse(sockfd, data, INSTANCE_DATA_LENGTH, llm, JasmineGraphInstanceProtocol::OK)) {
+            kg_pipeline_stream_handler_logger.error("Failed to send LLM runner info");
+            Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::CLOSE);
+            close(sockfd);
+            return;
         }
-
-        char ack3[ACK_MESSAGE_SIZE] = {0};
-        int converted_number = htonl(chunk.length());
-        kg_pipeline_stream_handler_logger.info("Sending chunk length: " + std::to_string(chunk.length()));
-        if (!Utils::sendIntExpectResponse(sockfd, ack3,
-                                          JasmineGraphInstanceProtocol::GRAPH_STREAM_C_length_ACK.length(),
-                                          converted_number, JasmineGraphInstanceProtocol::GRAPH_STREAM_C_length_ACK)) {
-            kg_pipeline_stream_handler_logger.error("Failed to send chunk length");
-            break;
-        }
-
-        kg_pipeline_stream_handler_logger.info("Sending chunk data");
-        if (!Utils::send_str_wrapper(sockfd, chunk)) {
-            kg_pipeline_stream_handler_logger.error("Failed to send chunk data");
-            break;
-        }
-        Utils::expect_str_wrapper(sockfd, JasmineGraphInstanceProtocol::GRAPH_DATA_SUCCESS);
-
-
-        char ack4[ACK_MESSAGE_SIZE] = {0};
-        converted_number = htonl(currentTraceContext.length());
-        kg_pipeline_stream_handler_logger.debug("Sending currentTraceContext length: " + std::to_string
-            (currentTraceContext.length()));
-        if (!Utils::sendIntExpectResponse(sockfd, ack3,
-                                          JasmineGraphInstanceProtocol::GRAPH_STREAM_C_length_ACK.length(),
-                                          converted_number, JasmineGraphInstanceProtocol::GRAPH_STREAM_C_length_ACK)) {
-            kg_pipeline_stream_handler_logger.error("Failed to send chunk length");
-            break;
-                                          }
-
-        kg_pipeline_stream_handler_logger.debug("Sending currentTraceContext data");
-        if (!Utils::send_str_wrapper(sockfd, currentTraceContext)) {
-            kg_pipeline_stream_handler_logger.error("Failed to send chunk data");
-            break;
-        }
-
-        // Receive tuple from server
-        kg_pipeline_stream_handler_logger.debug("Waiting for QUERY_DATA_START from server");
-        if (!Utils::expect_str_wrapper(sockfd, JasmineGraphInstanceProtocol::QUERY_DATA_START)) {
-            kg_pipeline_stream_handler_logger.error("Did not receive QUERY_DATA_START from server");
-            break;
-        }
-        Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::OK);
-
-
-        int tuple_count = 0;  // to provide realtime updates
+        kg_pipeline_stream_handler_logger.info("LLM  sent successfully");
+        // Streaming loop
         while (true) {
-            int tuple_length_net;
-            ssize_t ret = recv(sockfd, &tuple_length_net, sizeof(int), 0);
-            if (ret <= 0) {
-                kg_pipeline_stream_handler_logger.error("Failed to receive tuple length, closing stream");
+            if (stopFlag) {
+                kg_pipeline_stream_handler_logger.info("Received END_OF_STREAM_MARKER for partitionId: " +
+                                                       std::to_string(partitionId));
+                if (!Utils::sendExpectResponse(sockfd, data, INSTANCE_DATA_LENGTH,
+                                               JasmineGraphInstanceProtocol::CHUNK_STREAM_END,
+                                               JasmineGraphInstanceProtocol::OK)) {
+                    kg_pipeline_stream_handler_logger.error("Failed to send END_OF_STREAM");
+                                               }
+                Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::CLOSE);
+                kg_pipeline_stream_handler_logger.info("Closed connection for partitionId: " + std::to_string(partitionId));
+                sharedBuffer.add(END_OF_STREAM_MARKER);
+                close(sockfd);
+                break;
+            }
+            std::string chunk;
+
+            std::unique_lock<std::mutex> lock(dataBufferMutex);
+            dataBufferCV.wait(lock, [this, &dataBuffer] { return !dataBuffer.empty() || !this->isReading; });
+
+            Chunk chunkData = dataBuffer.front();
+            chunk = chunkData.text;
+
+            dataBuffer.pop();
+
+            kg_pipeline_stream_handler_logger.info("Processing chunk for partitionId: " + std::to_string(partitionId));
+            lock.unlock();
+            dataBufferCV.notify_all();
+
+            if (chunk == END_OF_STREAM_MARKER) {
+                kg_pipeline_stream_handler_logger.info("Received END_OF_STREAM_MARKER for partitionId: " +
+                                                       std::to_string(partitionId));
+                if (!Utils::sendExpectResponse(sockfd, data, INSTANCE_DATA_LENGTH,
+                                               JasmineGraphInstanceProtocol::CHUNK_STREAM_END,
+                                               JasmineGraphInstanceProtocol::OK)) {
+                    kg_pipeline_stream_handler_logger.error("Failed to send END_OF_STREAM");
+                                               }
+                Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::CLOSE);
+                kg_pipeline_stream_handler_logger.info("Closed connection for partitionId: " + std::to_string(partitionId));
+                sharedBuffer.add(END_OF_STREAM_MARKER);
+                close(sockfd);
+                break;  // Exit loop if end of stream marker is received
+            }
+            // Send chunk
+            kg_pipeline_stream_handler_logger.info("Sending QUERY_DATA_START for chunk of size: " +
+                                                   std::to_string(chunk.length()));
+            if (!Utils::sendExpectResponse(sockfd, data, INSTANCE_DATA_LENGTH,
+                                           JasmineGraphInstanceProtocol::QUERY_DATA_START,
+                                           JasmineGraphInstanceProtocol::OK)) {
+                kg_pipeline_stream_handler_logger.error("Failed to send QUERY_DATA_START");
+                retry = true;
+                retryChunk = &chunkData;
+                break;
+                                           }
+
+            char ack3[ACK_MESSAGE_SIZE] = {0};
+            int converted_number = htonl(chunk.length());
+            kg_pipeline_stream_handler_logger.info("Sending chunk length: " + std::to_string(chunk.length()));
+            if (!Utils::sendIntExpectResponse(sockfd, ack3,
+                                              JasmineGraphInstanceProtocol::GRAPH_STREAM_C_length_ACK.length(),
+                                              converted_number, JasmineGraphInstanceProtocol::GRAPH_STREAM_C_length_ACK)) {
+                kg_pipeline_stream_handler_logger.error("Failed to send chunk length");
+                retry = true;
+                retryChunk = &chunkData;
+                break;
+                                              }
+
+            kg_pipeline_stream_handler_logger.info("Sending chunk data");
+            if (!Utils::send_str_wrapper(sockfd, chunk)) {
+                kg_pipeline_stream_handler_logger.error("Failed to send chunk data");
+                retry = true;
+                retryChunk = &chunkData;
+                break;
+            }
+            Utils::expect_str_wrapper(sockfd, JasmineGraphInstanceProtocol::GRAPH_DATA_SUCCESS);
+
+
+            char ack4[ACK_MESSAGE_SIZE] = {0};
+            converted_number = htonl(currentTraceContext.length());
+            kg_pipeline_stream_handler_logger.debug("Sending currentTraceContext length: " + std::to_string
+                (currentTraceContext.length()));
+            if (!Utils::sendIntExpectResponse(sockfd, ack3,
+                                              JasmineGraphInstanceProtocol::GRAPH_STREAM_C_length_ACK.length(),
+                                              converted_number, JasmineGraphInstanceProtocol::GRAPH_STREAM_C_length_ACK)) {
+                kg_pipeline_stream_handler_logger.error("Failed to send chunk length");
+                retry = true;
+                retryChunk = &chunkData;
+                break;
+                                              }
+
+            kg_pipeline_stream_handler_logger.info("Sending currentTraceContext data:" +currentTraceContext);
+            if (!Utils::send_str_wrapper(sockfd, currentTraceContext)) {
+                kg_pipeline_stream_handler_logger.error("Failed to send chunk data");
+                retry = true;
+                retryChunk = &chunkData;
                 break;
             }
 
-            int tuple_length = ntohl(tuple_length_net);
-
-            // ✅ Sanity checks
-            if (tuple_length <= 0 || tuple_length > 10 * 1024 * 1024) {
-                // limit to 10MB
-                kg_pipeline_stream_handler_logger.error("Invalid tuple length: " + std::to_string(tuple_length));
+            // Receive tuple from server
+            kg_pipeline_stream_handler_logger.debug("Waiting for QUERY_DATA_START from server");
+            if (!Utils::expect_str_wrapper(sockfd, JasmineGraphInstanceProtocol::QUERY_DATA_START)) {
+                kg_pipeline_stream_handler_logger.error("Did not receive QUERY_DATA_START from server");
+                retry = true;
+                retryChunk = &chunkData;
                 break;
             }
+            Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::OK);
 
-            kg_pipeline_stream_handler_logger.debug("Received tuple length: " + std::to_string(tuple_length) +
-                                                   " from: " + std::to_string(partitionId));
-            Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::GRAPH_STREAM_C_length_ACK);
 
-            std::string tuple(tuple_length, 0);
-            size_t received = 0;
-            while (received < static_cast<size_t>(tuple_length)) {
-                ret = recv(sockfd, &tuple[received], tuple_length - received, 0);
+            int tuple_count = 0;  // to provide realtime updates
+            while (true) {
+                int tuple_length_net;
+                ssize_t ret = recv(sockfd, &tuple_length_net, sizeof(int), 0);
                 if (ret <= 0) {
-                    kg_pipeline_stream_handler_logger.error("Error receiving tuple data");
+                    kg_pipeline_stream_handler_logger.error("Failed to receive tuple length, closing stream");
                     break;
                 }
-                received += ret;
+
+                int tuple_length = ntohl(tuple_length_net);
+
+                // ✅ Sanity checks
+                if (tuple_length <= 0 || tuple_length > 10 * 1024 * 1024) {
+                    // limit to 10MB
+                    kg_pipeline_stream_handler_logger.error("Invalid tuple length: " + std::to_string(tuple_length));
+                    retry = true;
+                    retryChunk = &chunkData;
+                    break;
+                }
+
+                kg_pipeline_stream_handler_logger.debug("Received tuple length: " + std::to_string(tuple_length) +
+                                                       " from: " + std::to_string(partitionId));
+                Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::GRAPH_STREAM_C_length_ACK);
+
+                std::string tuple(tuple_length, 0);
+                size_t received = 0;
+                while (received < static_cast<size_t>(tuple_length)) {
+                    ret = recv(sockfd, &tuple[received], tuple_length - received, 0);
+                    if (ret <= 0) {
+                        kg_pipeline_stream_handler_logger.error("Error receiving tuple data");
+                        retry = true;
+                        retryChunk = &chunkData;
+                        break;
+                    }
+                    received += ret;
+                }
+
+                if (received != static_cast<size_t>(tuple_length)) {
+                    kg_pipeline_stream_handler_logger.error("Incomplete tuple received, expected " +
+                                                            std::to_string(tuple_length) + " but got " +
+                                                            std::to_string(received));
+                    break;
+                }
+                if (stopFlag) {
+                    Utils::send_str_wrapper(sockfd, "stop");
+                } else {
+                    Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::GRAPH_DATA_SUCCESS);
+                }
+
+                if (tuple == END_OF_STREAM_MARKER) {
+                    kg_pipeline_stream_handler_logger.debug("Received END_OF_STREAM_MARKER 700");
+                    realTimeBytesMutex.lock();
+                    bytes_read_so_far += chunkData.chunk_size;
+                    realtime_bytes_read_so_far = bytes_read_so_far;
+                    realTimeBytesMutex.unlock();
+
+
+                    break;
+                }
+
+                tuple_count++;
+                // if (tuple_count % 100 == 0) {
+                //     realTimeBytesMutex.lock();
+                //     realtime_bytes_read_so_far += (static_cast<long>(std::stod(chunkSize) * 0.2));
+                //     realTimeBytesMutex.unlock();
+                // }
+                // Check for non-UTF8 safely
+                // if (!std::regex_search(tuple, std::regex(R"([^\x20-\x7E])"))) {
+                //     // Log only if it looks printable ASCII
+                //     kg_pipeline_stream_handler_logger.debug("Tuple: " + tuple);
+                // } else {
+                //     // Hex dump instead of logging raw binary
+                //     std::ostringstream hexStream;
+                //     for (unsigned char c : tuple) {
+                //         hexStream << std::hex << std::setw(2) << std::setfill('0') << (int)c;
+                //     }
+                //     kg_pipeline_stream_handler_logger.error("Tuple contains non-printable data (hex): " + tuple);
+                // }
+
+                sharedBuffer.add(tuple);
             }
+        }
 
-            if (received != static_cast<size_t>(tuple_length)) {
-                kg_pipeline_stream_handler_logger.error("Incomplete tuple received, expected " +
-                                                        std::to_string(tuple_length) + " but got " +
-                                                        std::to_string(received));
-                break;
-            }
-            if (stopFlag) {
-                Utils::send_str_wrapper(sockfd, "stop");
-            } else {
-                Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::GRAPH_DATA_SUCCESS);
-            }
-
-            if (tuple == END_OF_STREAM_MARKER) {
-                kg_pipeline_stream_handler_logger.debug("Received END_OF_STREAM_MARKER 700");
-                realTimeBytesMutex.lock();
-                bytes_read_so_far += chunkData.chunk_size;
-                realtime_bytes_read_so_far = bytes_read_so_far;
-                realTimeBytesMutex.unlock();
-
-
-                break;
-            }
-
-            tuple_count++;
-            // if (tuple_count % 100 == 0) {
-            //     realTimeBytesMutex.lock();
-            //     realtime_bytes_read_so_far += (static_cast<long>(std::stod(chunkSize) * 0.2));
-            //     realTimeBytesMutex.unlock();
-            // }
-            // Check for non-UTF8 safely
-            // if (!std::regex_search(tuple, std::regex(R"([^\x20-\x7E])"))) {
-            //     // Log only if it looks printable ASCII
-            //     kg_pipeline_stream_handler_logger.debug("Tuple: " + tuple);
-            // } else {
-            //     // Hex dump instead of logging raw binary
-            //     std::ostringstream hexStream;
-            //     for (unsigned char c : tuple) {
-            //         hexStream << std::hex << std::setw(2) << std::setfill('0') << (int)c;
-            //     }
-            //     kg_pipeline_stream_handler_logger.error("Tuple contains non-printable data (hex): " + tuple);
-            // }
-
-            sharedBuffer.add(tuple);
+        kg_pipeline_stream_handler_logger.debug("Closing connection for partitionId: " + std::to_string(partitionId));
+        if (!retry) {
+            kg_pipeline_stream_handler_logger.warn("Tuple Extraction process terminated unexpectedly, Retrying "
+                                                   "Again");
+            break;
         }
     }
-
-    kg_pipeline_stream_handler_logger.debug("Closing connection for partitionId: " + std::to_string(partitionId));
 }
 
 bool Pipeline::streamGraphToDesignatedWorker(std::string host, int port, std::string masterIP, std::string graphId,

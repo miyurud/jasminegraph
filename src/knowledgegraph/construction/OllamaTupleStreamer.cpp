@@ -60,8 +60,11 @@ size_t OllamaTupleStreamer::StreamCallback(char* ptr, size_t size, size_t nmemb,
 
       // Completed tuple
       if (jsonLine.value("done", false)) {
-        ctx->buffer->add("-1");
-        ctx->current_tuple.clear();
+
+          if (!ctx->retryChunk) {
+              ctx->buffer->add("-1");  // Signal end
+          }
+          ctx->current_tuple.clear();
         break;
       }
 
@@ -95,11 +98,19 @@ size_t OllamaTupleStreamer::StreamCallback(char* ptr, size_t size, size_t nmemb,
             ctx->current_tuple.push_back(c);
 
             if (ctx->braceDepth == 1) {
-              ollama_tuple_streamer_logger.debug("Current: " +
+              ollama_tuple_streamer_logger.info("Current: " +
                                                 ctx->current_tuple);
 
               try {
                 auto triple = json::parse(ctx->current_tuple);
+                  if (!triple.is_array() || triple.size() != 5) {
+                      ollama_tuple_streamer_logger.error(
+                          "Invalid tuple size detected. Retrying entire chunk.");
+
+                      ctx->isSuccess = false;
+                      ctx->retryChunk = true;
+                      return 0;   // IMMEDIATE ABORT of curl_easy_perform
+                  }
                 if (triple.is_array() && triple.size() == 5) {
                   std::string subject = triple[0].get<std::string>();
                   std::string predicate = triple[1].get<std::string>();
@@ -171,6 +182,11 @@ void OllamaTupleStreamer::streamChunk(const std::string& chunkKey,
   StreamContext ctx{chunkKey, &tupleBuffer, "", true};
 
   do {
+      tupleBuffer.clear();   // avoid mixing partial results
+      ctx.braceDepth = 0;
+      ctx.retryChunk = false;
+      ctx.isSuccess = true;
+      ctx.current_tuple = "";
     ollama_tuple_streamer_logger.debug("Attempt: " + std::to_string(attempt));
 
     CURL* curl = curl_easy_init();
@@ -229,15 +245,15 @@ void OllamaTupleStreamer::streamChunk(const std::string& chunkKey,
 
     res = curl_easy_perform(curl);
 
-    if (res != CURLE_OK) {
-      ollama_tuple_streamer_logger.error("Curl error: " +
-                                         std::string(curl_easy_strerror(res)));
-    }
 
     curl_slist_free_all(headers);
     curl_easy_cleanup(curl);
-
-    if (res != CURLE_OK && attempt < maxRetries - 1) {
+      if (res == CURLE_WRITE_ERROR && ! ctx.retryChunk) {
+          // ✅ Expected: aborted by callback for immediate retry
+          ollama_tuple_streamer_logger.warn(
+              "Stream aborted by callback due to invalid tuple. Retrying immediately.");
+      }
+      else if (res != CURLE_OK && attempt < maxRetries - 1) {
       int waitTime = baseDelaySeconds * attempt;  // exponential backoff
       ollama_tuple_streamer_logger.error(
           "Retrying in " + std::to_string(waitTime) + " seconds...");

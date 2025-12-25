@@ -52,11 +52,14 @@ size_t VLLMTupleStreamer::StreamCallback(char* ptr, size_t size, size_t nmemb,
 
     // End of stream
     if (line == "data: [DONE]") {
+        ctx->isSuccess = true;
       if (!ctx->current_tuple.empty()) {
         ctx->buffer->add(ctx->current_tuple);
         ctx->current_tuple.clear();
       }
-      ctx->buffer->add("-1");  // Signal end
+        if (!ctx->retryChunk) {
+            ctx->buffer->add("-1");  // Signal end
+        }
       break;
     }
 
@@ -93,10 +96,19 @@ size_t VLLMTupleStreamer::StreamCallback(char* ptr, size_t size, size_t nmemb,
             ctx->current_tuple.push_back(c);
 
             if (ctx->braceDepth == 1) {
-              vllm_tuple_streamer_logger.info("Current tuple: " +
+              vllm_tuple_streamer_logger.debug("Current tuple: " +
                                               ctx->current_tuple);
               try {
                 auto triple = json::parse(ctx->current_tuple);
+
+                  if (!triple.is_array() || triple.size() != 5) {
+                      vllm_tuple_streamer_logger.error(
+                          "Invalid tuple size detected. Retrying entire chunk.");
+
+                      ctx->isSuccess = false;
+                      ctx->retryChunk = true;
+                        return 0;   // IMMEDIATE ABORT of curl_easy_perform
+                  }
                 if (triple.is_array() && triple.size() == 5) {
                   std::string subject = triple[0].get<std::string>();
                   std::string predicate = triple[1].get<std::string>();
@@ -129,12 +141,19 @@ size_t VLLMTupleStreamer::StreamCallback(char* ptr, size_t size, size_t nmemb,
                         {"type", predicate}}}};
 
                   ctx->buffer->add(formattedTriple.dump());
-                  vllm_tuple_streamer_logger.info(
+                  vllm_tuple_streamer_logger.debug(
                       "✅ Added formatted triple: " + formattedTriple.dump());
                 }
               } catch (const std::exception& ex) {
                 vllm_tuple_streamer_logger.error(
-                    "❌ JSON array parse failed: " + std::string(ex.what()));
+                    "❌ JSON array parse failed: " + std::string(ex.what()) + "Invalid Tuple: " + std::string
+                    (ctx->current_tuple));
+                  vllm_tuple_streamer_logger.error(
+                         "Invalid tuple  detected. Retrying entire chunk.");
+
+                  ctx->isSuccess = false;
+                  ctx->retryChunk = true;
+                  return 0;   // IMMEDIATE ABORT of curl_easy_perform
               }
               ctx->current_tuple.clear();
             }
@@ -143,7 +162,7 @@ size_t VLLMTupleStreamer::StreamCallback(char* ptr, size_t size, size_t nmemb,
         }
       }
     } catch (const std::exception& ex) {
-      vllm_tuple_streamer_logger.error("JSON parse error: " +
+      vllm_tuple_streamer_logger.debug("JSON parse error: " +
                                        std::string(ex.what()));
     }
   }
@@ -165,6 +184,11 @@ void VLLMTupleStreamer::streamChunk(const std::string& chunkKey,
   StreamContext ctx{chunkKey, &tupleBuffer, "", true};
 
   do {
+      tupleBuffer.clear();   // avoid mixing partial results
+      ctx.braceDepth = 0;
+      ctx.retryChunk = false;
+      ctx.isSuccess = true;
+
     CURL* curl = curl_easy_init();
     if (!curl) {
       vllm_tuple_streamer_logger.error("Failed to initialize CURL");
@@ -191,6 +215,32 @@ void VLLMTupleStreamer::streamChunk(const std::string& chunkKey,
     curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
     curl_easy_setopt(curl, CURLOPT_POST, 1L);
 
+      std::string userPrompt;
+
+      if (!ctx.retryChunk) {
+          // First attempt (normal extraction)
+          userPrompt =
+              Prompts::KNOWLEDGE_EXTRACTION +
+
+                                       "\nNow process the following text:\n" +
+                                       chunkText + "\n\nArray:";
+      } else {
+          // Retry attempt (corrective)
+          userPrompt =
+              Prompts::KNOWLEDGE_EXTRACTION +
+              "\n PREVIOUS OUTPUT WAS INVALID.\n"
+          +"Previous OUTPUT TUPLE : " + ctx.current_tuple+ " \n"
+              "You MUST strictly follow these rules:\n"
+              "1. Output ONLY a JSON array\n"
+              "2. Each item MUST be an array of EXACTLY 5 strings:\n"
+              "   [subject, predicate, object, subject_type, object_type]\n"
+              "3. NO explanations, NO text, NO markdown\n"
+              "4. Do NOT include incomplete or empty tuples\n"
+              "5. Use double quotes for ALL strings\n"
+              "\nNow RE-EXTRACT from the SAME text:\n" +
+              chunkText +
+              "\n\nArray:";
+      }
     // JSON request
     json jsonRequest;
     jsonRequest["model"] = model;
@@ -199,16 +249,14 @@ void VLLMTupleStreamer::streamChunk(const std::string& chunkKey,
                        "You are an expert information extractor specialized in "
                        "knowledge graph construction."}},
                      {{"role", "user"},
-                      {"content", Prompts::KNOWLEDGE_EXTRACTION +
-                                      "\nNow process the following text:\n" +
-                                      chunkText + "\n\nArray:"}}};
+                      {"content",userPrompt}}};
 
     jsonRequest["stream"] = true;
     jsonRequest["max_tokens"] = 10000;
 
     std::string postFields = jsonRequest.dump();
     vllm_tuple_streamer_logger.debug("Post fields: " + postFields);
-
+    ctx.current_tuple = "";
     curl_easy_setopt(curl, CURLOPT_POSTFIELDS, postFields.c_str());
     curl_easy_setopt(curl, CURLOPT_POSTFIELDSIZE, postFields.size());
 
@@ -223,8 +271,12 @@ void VLLMTupleStreamer::streamChunk(const std::string& chunkKey,
 
     curl_slist_free_all(headers);
     curl_easy_cleanup(curl);
-
-    if (res != CURLE_OK && attempt < maxRetries - 1) {
+      if (res == CURLE_WRITE_ERROR && ! ctx.retryChunk) {
+          // ✅ Expected: aborted by callback for immediate retry
+          vllm_tuple_streamer_logger.warn(
+              "Stream aborted by callback due to invalid tuple. Retrying immediately.");
+      }
+      else if  (res != CURLE_OK && attempt < maxRetries - 1) {
       vllm_tuple_streamer_logger.error("CURL response code: " +
                                        std::to_string(res));
       int waitTime = baseDelaySeconds * attempt;
