@@ -61,6 +61,7 @@ const string PRIORITY = "priority(>=1)";
 const string INVALID_FORMAT = "Invalid message format";
 const string CYPHER = "cypher";
 const string SEMANTIC_BEAM_SEARCH = "sbs";
+const string AGENT_PLAN = "graphrag";
 const string PROPERTIES = "prp";
 const string UPDATE_PARTITION_META = "update-partition-meta";
 const string META = "meta";

@@ -145,6 +145,8 @@ static void query_start_command(int connFd, InstanceHandler &instanceHandler, st
                                 JasmineGraphIncrementalLocalStore *> &incrementalLocalStoreMap, bool *loop_exit_p);
 static void semantic_beam_search(int connFd, InstanceHandler &instanceHandler, std::map<std::string,
                                 JasmineGraphIncrementalLocalStore *> &incrementalLocalStoreMap, bool *loop_exit_p);
+static void graphrag_command(int connFd, InstanceHandler &instanceHandler, std::map<std::string,
+                                JasmineGraphIncrementalLocalStore *> &incrementalLocalStoreMap, bool *loop_exit_p);
 
 static void sub_query_start_command(int connFd, InstanceHandler &instanceHandler, std::map<std::string,
         JasmineGraphIncrementalLocalStore *> &incrementalLocalStoreMap, bool *loop_exit_p);
@@ -264,7 +266,9 @@ void *instanceservicesession(void *dummyPt) {
             streaming_tuple_extraction(connFd, serverPort, incrementalLocalStoreMap, &loop_exit);
         } else if (cmd.compare(JasmineGraphInstanceProtocol::SEMANTIC_BEAM_SEARCH) == 0) {
             semantic_beam_search(connFd, instanceHandler, incrementalLocalStoreMap, &loop_exit);
-        } else if (cmd.compare(JasmineGraphInstanceProtocol::EXPAND_NODE_BATCH) == 0) {
+        } else if (line.compare(JasmineGraphInstanceProtocol::AGENT_PLAN) == 0) {
+            graphrag_command(connFd, instanceHandler, incrementalLocalStoreMap, &loop_exit);
+        } else if (line.compare(JasmineGraphInstanceProtocol::EXPAND_NODE_BATCH) == 0) {
             semantic_search_expand_node_remote_batch(connFd, incrementalLocalStoreMap, &loop_exit);
         } else if (cmd.compare(JasmineGraphInstanceProtocol::SEND_CENTRALSTORE_TO_AGGREGATOR) == 0) {
             send_centralstore_to_aggregator_command(connFd, &loop_exit);
@@ -5466,6 +5470,52 @@ static void semantic_beam_search(
   *loop_exit_p = true;
 
   close(connFd);
+}
+
+static void graphrag_command(
+    int connFd,
+    InstanceHandler &instanceHandler,
+    std::map<std::string, JasmineGraphIncrementalLocalStore *>
+        &incrementalLocalStoreMap,
+    bool *loop_exit_p)
+{
+    instance_logger.info("graphrag Command initiated");
+
+    char buffer[INSTANCE_DATA_LENGTH];
+
+    // ---- helper to read length-prefixed string ----
+    auto readField = [&](const std::string &fieldName) -> std::string {
+        int content_length = 0;
+
+        instance_logger.info("Waiting for length: " + fieldName);
+        ssize_t status = recv(connFd, &content_length, sizeof(int), 0);
+        if (status <= 0) {
+            throw std::runtime_error("Failed to read length for " + fieldName);
+        }
+
+        content_length = ntohl(content_length);
+
+        if (!Utils::send_str_wrapper(
+                connFd,
+                JasmineGraphInstanceProtocol::GRAPH_STREAM_C_length_ACK)) {
+            throw std::runtime_error("ACK failed for " + fieldName);
+        }
+
+        std::string value(content_length, 0);
+        status = recv(connFd, &value[0], content_length, 0);
+        if (status <= 0) {
+            throw std::runtime_error("Failed to read value for " + fieldName);
+        }
+
+        instance_logger.info("Received " + fieldName + ": " + value);
+        return value;
+    };
+
+    std::string graphId = readField("graphId");
+    std::string query = readField("query");
+    std::string llmRunner = readField("llmRunner");
+    std::string llmEngine = readField("llmEngine");
+    std::string llmModel = readField("llmModel");
 }
 
 static void semantic_search_expand_node_remote_batch(
