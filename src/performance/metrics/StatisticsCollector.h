@@ -20,13 +20,17 @@ limitations under the License.
 #include <sys/types.h>
 
 #include <algorithm>
+#include <climits>
 #include <cmath>
+#include <cstring>
 #include <fstream>
 #include <iomanip>
 #include <iostream>
 #include <limits>
 #include <sstream>
 #include <thread>
+#include <vector>
+#include <unordered_map>
 
 #include "../../util/Utils.h"
 #include "PerformanceUtil.h"
@@ -34,6 +38,25 @@ limitations under the License.
 #include "stdlib.h"
 #include "string.h"
 #include "sys/times.h"
+
+struct DiskStats {
+    unsigned long reads_completed = 0;
+    unsigned long reads_merged = 0;
+    unsigned long sectors_read = 0;
+    unsigned long time_reading = 0;
+    unsigned long writes_completed = 0;
+    unsigned long writes_merged = 0;
+    unsigned long sectors_written = 0;
+    unsigned long time_writing = 0;
+    unsigned long ios_in_progress = 0;
+    unsigned long io_time = 0;
+    unsigned long weighted_io_time = 0;
+};
+
+struct NetworkStats {
+    unsigned long rx_packets = 0;
+    unsigned long tx_packets = 0;
+};
 
 class StatisticsCollector {
  private:
@@ -55,8 +78,23 @@ class StatisticsCollector {
     static long getTotalMemoryUsage();
     static double getTotalCpuUsage();
     static double getLoadAverage();
+    static long getRunQueue();
+    static std::vector<double> getLogicalCpuCoreThreadUsage();
+    static double getProcessSwitchesPerSecond();
+    static double getForkCallsPerSecond();
+    static std::unordered_map<std::string, std::pair<double, double>> getNetworkPacketsPerSecond();
+    static std::unordered_map<std::string, double> getDiskBusyPercentage();
+    static std::unordered_map<std::string, std::pair<double, double>> getDiskReadWriteKBPerSecond();
+    static std::unordered_map<std::string, double> getDiskBlockSizeKB();
+    static std::unordered_map<std::string, double> getDiskTransfersPerSecond();
     static void logLoadAverage(std::string name);
     static double getMemoryUsagePercentage();
+    static std::pair<std::unordered_map<std::string, DiskStats>, std::unordered_map<std::string, DiskStats>>
+        getTwoDiskReadings(double &elapsedTime);
+    static std::unordered_map<std::string, std::pair<double, double>> calculateDiskRates(
+        const std::unordered_map<std::string, DiskStats> &firstReading,
+        const std::unordered_map<std::string, DiskStats> &secondReading,
+        double elapsedTime);
 };
 
 #endif  // JASMINEGRAPH_STATISTICSCOLLECTOR_H

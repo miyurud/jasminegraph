@@ -1,0 +1,57 @@
+FROM grafana/grafana-enterprise:12.3.0
+
+COPY ./performance_tools/grafana_dashboard.json /var/lib/grafana/dashboards/
+
+RUN <<'SCRIPT'
+set -e
+mkdir -p /etc/grafana/provisioning/datasources /etc/grafana/provisioning/dashboards
+cat >/etc/grafana/provisioning/datasources/ds.yaml <<'EOF'
+apiVersion: 1
+datasources:
+  - name: Loki
+    type: loki
+    access: proxy
+    orgId: 1
+    url: http://loki:3100
+    basicAuth: false
+    isDefault: true
+    version: 1
+    editable: true
+  - name: Tempo
+    type: tempo
+    access: proxy
+    orgId: 1
+    url: http://tempo:3200
+    basicAuth: false
+    isDefault: false
+    version: 1
+    editable: true
+    jsonData:
+      httpMethod: GET
+      serviceMap:
+        datasourceUid: prometheus
+  - name: Prometheus
+    type: prometheus
+    access: proxy
+    orgId: 1
+    url: http://prometheus:9090
+    basicAuth: false
+    isDefault: false
+    version: 1
+    editable: true
+EOF
+cat >/etc/grafana/provisioning/dashboards/dashboard.yaml <<'EOF'
+apiVersion: 1
+providers:
+  - name: auto-provisioned
+    orgId: 1
+    folder: ""
+    type: file
+    options:
+      path: /var/lib/grafana/dashboards
+EOF
+SCRIPT
+
+USER grafana
+
+ENTRYPOINT ["/run.sh"]
