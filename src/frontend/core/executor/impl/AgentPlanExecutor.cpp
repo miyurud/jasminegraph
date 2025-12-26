@@ -24,6 +24,7 @@ void AgentPlanExecutor::execute()
 {
     agent_executor_logger.info("[AGENT EXECUTOR] Starting");
     int uniqueId = getuid();
+    std::string workerListStr;
     std::string masterIP = request.getMasterIP();
     std::string query = request.getParameter("query");
     std::string llmRunner = request.getParameter("llm_runner");
@@ -116,6 +117,20 @@ void AgentPlanExecutor::execute()
         }
     };
 
+    std::vector<JasmineGraphServer::worker> workers = JasmineGraphServer::getWorkers(numberOfPartitions);
+
+    agent_executor_logger.info("Worker List Removed");
+    for (size_t i = 0; i < workers.size(); i++)
+    {
+        workerListStr += workers[i].hostname + ":" +
+                         std::to_string(workers[i].port) + ":" +
+                         std::to_string(workers[i].dataPort);
+        if (i + 1 < workers.size())
+        {
+            workerListStr += ",";
+        }
+    }
+
     // Protocol sequence
     Utils::send_str_wrapper(sockfd, "initiate-agent-plan");
     sendField("graphId", graphId);
@@ -123,6 +138,7 @@ void AgentPlanExecutor::execute()
     sendField("llmRunner", llmRunner);
     sendField("llmEngine", inferenceEngine);
     sendField("llmModel", llmModel);
+    sendField("workerList", workerListStr);
 
     // Receive plan JSON
     char planBuf[64 * 1024];

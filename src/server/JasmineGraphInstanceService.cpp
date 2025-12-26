@@ -4985,6 +4985,7 @@ static void graphrag_command(
     std::string llmRunner = readField("llmRunner");
     std::string llmEngine = readField("llmEngine");
     std::string llmModel = readField("llmModel");
+    std::string workerListStr = readField("workerList");
 
     agentRequestCtx.query = query;
     agentRequestCtx.llmRunner = llmRunner;
