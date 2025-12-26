@@ -29,6 +29,8 @@ limitations under the License.
 #include "../query/algorithms/triangles/StreamingTriangles.h"
 #include "../query/processor/cypher/runtime/InstanceHandler.h"
 #include "../query/processor/nlp/semanticbeamsearch/SemanticBeamSearch.h"
+#include "../rag/agent/AgentProtocol.h"
+#include "../rag/agent/PlanDecoder.h"
 #include "../server/JasmineGraphServer.h"
 #include "../util/hdfs/HDFSConnector.h"
 #include "../util/kafka/InstanceStreamHandler.h"
@@ -4946,6 +4948,7 @@ static void graphrag_command(
     bool *loop_exit_p)
 {
     instance_logger.info("graphrag Command initiated");
+    AgentRequestContext agentRequestCtx;
 
     char buffer[INSTANCE_DATA_LENGTH];
 
@@ -4982,6 +4985,29 @@ static void graphrag_command(
     std::string llmRunner = readField("llmRunner");
     std::string llmEngine = readField("llmEngine");
     std::string llmModel = readField("llmModel");
+
+    agentRequestCtx.query = query;
+    agentRequestCtx.llmRunner = llmRunner;
+    agentRequestCtx.llmEngine = llmEngine;
+    agentRequestCtx.llmModel = llmModel;
+    agentRequestCtx.graphId = graphId;
+
+    std::string planStr = AgentProtocol::getPlan(agentRequestCtx);
+    instance_logger.info("Executing Agent Plan" + planStr);
+
+    json jsonPlan = json::parse(planStr);
+    DecodedPlan decodedPlan = PlanDecoder::decode(jsonPlan);
+
+    // ---- Execute SBS objectives ----
+    if (decodedPlan.sbsPlan)
+    {
+        for (const auto &obj : decodedPlan.sbsPlan->objectives)
+        {
+            instance_logger.info(
+                "Executing SBS objective: " + obj.id + " -> " + obj.query);
+            // dispatch SEMANTIC_BEAM_SEARCH job here
+        }
+    }
 }
 
 static void semantic_search_expand_node_remote_batch(

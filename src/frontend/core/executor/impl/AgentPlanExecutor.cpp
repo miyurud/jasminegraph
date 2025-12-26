@@ -1,7 +1,5 @@
 #include "AgentPlanExecutor.h"
-#include "../../../../../src/rag/agent/AgentProtocol.h"
 #include "../../../../server/JasmineGraphServer.h"
-#include "../../../../../src/rag/agent/PlanDecoder.h"
 #include "../../../../../src/util/Utils.h"
 #include <nlohmann/json.hpp>
 #include <atomic>
@@ -25,7 +23,6 @@ AgentPlanExecutor::AgentPlanExecutor(SQLiteDBInterface *db,
 void AgentPlanExecutor::execute()
 {
     agent_executor_logger.info("[AGENT EXECUTOR] Starting");
-    AgentRequestContext agentRequestCtx;
     int uniqueId = getuid();
     std::string masterIP = request.getMasterIP();
     std::string query = request.getParameter("query");
@@ -33,12 +30,6 @@ void AgentPlanExecutor::execute()
     std::string inferenceEngine = request.getParameter("llm_engine");
     std::string llmModel = request.getParameter("llm_model");
     std::string graphId = request.getParameter(Conts::PARAM_KEYS::GRAPH_ID);
-
-    agentRequestCtx.query = query;
-    agentRequestCtx.llmRunner = llmRunner;
-    agentRequestCtx.llmEngine = inferenceEngine;
-    agentRequestCtx.llmModel = llmModel;
-    agentRequestCtx.graphId = graphId;
 
     int numberOfPartitions = std::stoi(request.getParameter(Conts::PARAM_KEYS::NO_OF_PARTITIONS));
     int connFd = std::stoi(request.getParameter(Conts::PARAM_KEYS::CONN_FILE_DESCRIPTOR));
