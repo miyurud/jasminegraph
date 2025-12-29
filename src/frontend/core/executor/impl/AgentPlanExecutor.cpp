@@ -31,11 +31,18 @@ void AgentPlanExecutor::execute()
     std::string inferenceEngine = request.getParameter("llm_engine");
     std::string llmModel = request.getParameter("llm_model");
     std::string graphId = request.getParameter(Conts::PARAM_KEYS::GRAPH_ID);
+    std::string canCalibrateString = request.getParameter(Conts::PARAM_KEYS::CAN_CALIBRATE);
+    std::string autoCalibrateString = request.getParameter(Conts::PARAM_KEYS::AUTO_CALIBRATION);
 
     int numberOfPartitions = std::stoi(request.getParameter(Conts::PARAM_KEYS::NO_OF_PARTITIONS));
     int connFd = std::stoi(request.getParameter(Conts::PARAM_KEYS::CONN_FILE_DESCRIPTOR));
     bool *loop_exit = reinterpret_cast<bool *>(static_cast<std::uintptr_t>(std::stoull(
         request.getParameter(Conts::PARAM_KEYS::LOOP_EXIT_POINTER))));
+        
+    bool canCalibrate = Utils::parseBoolean(canCalibrateString);
+    bool autoCalibrate = Utils::parseBoolean(autoCalibrateString);
+
+    auto begin = chrono::high_resolution_clock::now();
 
     // JasmineGraphServer::worker designatedWorker = JasmineGraphServer::getDesignatedWorker();
     JasmineGraphServer::worker designatedWorker{"10.8.100.22", 7780, 7781};
@@ -202,8 +209,46 @@ void AgentPlanExecutor::execute()
     agent_executor_logger.info("[AGENT EXECUTOR] All results received");
 
     // Optional: ACK to worker
+
     Utils::send_str_wrapper(sockfd, "ok");
     close(sockfd);
+
+    workerResponded = true;
+    JobResponse jobResponse;
+    jobResponse.setJobId(request.getJobId());
+    responseVector.push_back(jobResponse);
+
+    responseVectorMutex.lock();
+    responseMap[request.getJobId()] = jobResponse;
+    responseVectorMutex.unlock();
+
+    auto end = chrono::high_resolution_clock::now();
+    auto dur = end - begin;
+    auto msDuration =
+        std::chrono::duration_cast<std::chrono::milliseconds>(dur).count();
+
+    std::string durationString = std::to_string(msDuration);
+
+    if (canCalibrate || autoCalibrate)
+    {
+        Utils::updateSLAInformation(perfDB, graphId, numberOfPartitions, msDuration,
+                                    CYPHER, Conts::SLA_CATEGORY::LATENCY);
+        isStatCollect = false;
+    }
+
+    processStatusMutex.lock();
+    for (auto processCompleteIterator = processData.begin();
+         processCompleteIterator != processData.end();
+         ++processCompleteIterator)
+    {
+        ProcessInfo processInformation = *processCompleteIterator;
+        if (processInformation.id == uniqueId)
+        {
+            processData.erase(processInformation);
+            break;
+        }
+    }
+    processStatusMutex.unlock();
 }
 
 int AgentPlanExecutor::getUid()
