@@ -11,24 +11,24 @@ See the License for the specific language governing permissions and
 limitations under the License.
  */
 
-#ifndef CYPHERQUERYEXECUTOR_H
-#define CYPHERQUERYEXECUTOR_H
+#ifndef AGENTPLANEXECUTOR_H
+#define AGENTPLANEXECUTOR_H
+
 #include "../AbstractExecutor.h"
 
-class CypherQueryExecutor : public AbstractExecutor{
+class AgentPlanExecutor : public AbstractExecutor {
  public:
-    CypherQueryExecutor();
+    AgentPlanExecutor();
+    AgentPlanExecutor(SQLiteDBInterface* db,
+                      PerformanceSQLiteDBInterface* perfDb,
+                      JobRequest jobRequest);
 
-    CypherQueryExecutor(SQLiteDBInterface *db, PerformanceSQLiteDBInterface *perfDb, JobRequest jobRequest);
-    static void doCypherQuery(const std::string& host, int port, const std::string& masterIP, int graphID,
-                                               int partitionId, const std::string& message, SharedBuffer &sharedBuffer,
-                                               const std::string& masterTraceContext = "");
     void execute() override;
     static int getUid();
 
  private:
-    SQLiteDBInterface *sqlite;
-    PerformanceSQLiteDBInterface *perfDB;
+    SQLiteDBInterface* sqlite;
+    PerformanceSQLiteDBInterface* perfDB;
 };
 
-#endif  // CYPHERQUERYEXECUTOR_H
+#endif 

@@ -113,6 +113,12 @@ set(HEADERS globals.h
         src/query/processor/nlp/semanticbeamsearch/SemanticBeamSearch.h
         src/frontend/core/executor/impl/SemanticBeamSearchExecutor.h
         src/localstore/incremental/JasmineGraphIncrementalLocalStore.cpp
+        src/frontend/core/executor/impl/AgentPlanExecutor.h
+        src/rag/agent/Agent.h
+        src/rag/agent/Planner.h
+        src/rag/agent/AgentProtocol.h
+        src/rag/agent/PlanTypes.h
+        src/rag/agent/PlanDecoder.h
 
 
 )
@@ -219,6 +225,12 @@ set(SOURCES src/backend/JasmineGraphBackend.cpp
         src/knowledgegraph/construction/VLLMTupleStreamer.cpp
         src/knowledgegraph/construction/TupleStreamer.cpp
         src/localstore/incremental/JasmineGraphIncrementalLocalStore.cpp
+        src/frontend/core/executor/impl/AgentPlanExecutor.cpp
+        src/rag/agent/Agent.cpp
+        src/rag/agent/Planner.cpp
+        src/rag/agent/AgentProtocol.cpp
+        src/rag/agent/PlanDecoder.cpp
+
 
 
 )
