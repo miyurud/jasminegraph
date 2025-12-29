@@ -192,7 +192,6 @@ void SemanticBeamSearchExecutor::execute()
   processStatusMutex.unlock();
 }
 
-
 void SemanticBeamSearchExecutor::doSemanticBeamSearch(
     std::string host, int port, std::string masterIP, int graphID,
     int partitionId, std::string query, SharedBuffer &sharedBuffer,

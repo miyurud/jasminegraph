@@ -140,42 +140,72 @@ void AgentPlanExecutor::execute()
     sendField("llmModel", llmModel);
     sendField("workerList", workerListStr);
 
-    // Receive plan JSON
-    char planBuf[64 * 1024];
-    int bytes = recv(sockfd, planBuf, sizeof(planBuf), 0);
-    if (bytes <= 0)
+    // --- Receive results line-by-line until -1 ---
+    std::vector<json> results;
+    std::string lineBuffer;
+    char c;
+
+    agent_executor_logger.info("[AGENT EXECUTOR] Receiving SBS results from worker");
+
+    while (true)
     {
-        close(sockfd);
-        throw std::runtime_error("No plan received from worker");
+        ssize_t bytesRead = recv(sockfd, &c, 1, 0);
+        if (bytesRead <= 0)
+        {
+            agent_executor_logger.error("[AGENT EXECUTOR] Connection closed or error while reading");
+            break;
+        }
+
+        if (c == '\n') // assuming Conts::CARRIAGE_RETURN_NEW_LINE = "\r\n"
+        {
+            std::string line = Utils::trim_copy(lineBuffer);
+            lineBuffer.clear();
+
+            if (line == "-1")
+            {
+                agent_executor_logger.info("[AGENT EXECUTOR] End-of-results signal received");
+                break;
+            }
+
+            if (!line.empty())
+            {
+                agent_executor_logger.info("[AGENT EXECUTOR] Received JSON result: " + line);
+                try
+                {
+                    json parsed = json::parse(line);
+                    results.push_back(parsed);
+                }
+                catch (const std::exception &e)
+                {
+                    agent_executor_logger.error("[AGENT EXECUTOR] JSON parse error: " + std::string(e.what()));
+                }
+            }
+        }
+        else
+        {
+            lineBuffer.push_back(c);
+        }
     }
 
-    std::string planJson(planBuf, bytes);
-    planJson = Utils::trim_copy(planJson);
+    agent_executor_logger.info("[AGENT EXECUTOR] All results received. Total: " + std::to_string(results.size()));
 
-    agent_executor_logger.info("[DESIGNATED WORKER → AGENT PLAN EXECUTOR] Raw message: '" + planJson + "'");
-
+    // --- Send ACK back to worker ---
     Utils::send_str_wrapper(sockfd, "ok");
     close(sockfd);
 
-    // std::string planStr = AgentProtocol::getPlan(agentRequestCtx);
-    // agent_executor_logger.info("Executing Agent Plan" + planStr);
-
-    // json jsonPlan = json::parse(planStr);
-    // DecodedPlan decodedPlan = PlanDecoder::decode(jsonPlan);
-
-    // // ---- Execute SBS objectives ----
-    // if (decodedPlan.sbsPlan)
+    // // Receive plan JSON
+    // char planBuf[64 * 1024];
+    // int bytes = recv(sockfd, planBuf, sizeof(planBuf), 0);
+    // if (bytes <= 0)
     // {
-    //     for (const auto &obj : decodedPlan.sbsPlan->objectives)
-    //     {
-    //         agent_executor_logger.info(
-    //             "Executing SBS objective: " + obj.id + " -> " + obj.query);
-    //         // dispatch SEMANTIC_BEAM_SEARCH job here
-    //     }
+    //     close(sockfd);
+    //     throw std::runtime_error("No plan received from worker");
     // }
-    // const auto& workerList = JasmineGraphServer::getWorkers(numberOfPartitions);
-    // std::vector<std::unique_ptr<SharedBuffer>> bufferPool;
-    // bufferPool.reserve(numberOfPartitions);
+
+    // std::string planJson(planBuf, bytes);
+    // planJson = Utils::trim_copy(planJson);
+
+
 }
 
 int AgentPlanExecutor::getUid()
