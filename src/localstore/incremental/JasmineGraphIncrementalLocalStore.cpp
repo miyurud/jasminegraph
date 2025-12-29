@@ -336,6 +336,11 @@ void JasmineGraphIncrementalLocalStore::addLocalEdge(std::string edge) {
         addLocalEdgeProperties(newRelation, jsonEdge);
         addSourceProperties(newRelation, jsonSource);
         addDestinationProperties(newRelation, jsonDestination);
+        NodeBlock* src = nm->get(sId);
+        NodeBlock* dst = nm->get(dId);
+        incremental_localstore_logger.debug("src edge ref = " + to_string(src->edgeRef));
+        incremental_localstore_logger.debug("dest edge ref = " + to_string(src->edgeRef));
+
         delete newRelation->getSource();
         delete newRelation->getDestination();
         delete newRelation;

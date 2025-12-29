@@ -64,10 +64,19 @@ HDFSMultiThreadedHashPartitioner::~HDFSMultiThreadedHashPartitioner() {
 
 void HDFSMultiThreadedHashPartitioner::addLocalEdge(const std::string &edge, int index) {
     if (index < numberOfPartitions) {
-        std::lock_guard<std::mutex> lock(localEdgeMutexes[index]);
+        hash_partitioner_logger.debug("Adding local edge, accuquring lock");
+        std::unique_lock<std::mutex> lock(localEdgeMutexes[index]);
         localEdgeArrays[index].push_back(edge);
-        edgeReady[index] = true;
-        edgeAvailableCV[index].notify_one();
+        if (localEdgeArrays[index].size() >= partitionFileEdgeThreshold) {
+
+            hash_partitioner_logger.debug("Adding local edge, releaseing lock");
+
+            edgeReady[index] = true;
+                   lock.unlock();
+            edgeAvailableCV[index].notify_one();
+            hash_partitioner_logger.debug("Adding local edge, nofiyying consumer");
+
+        }
     } else {
         hash_partitioner_logger.error(
             "Invalid partition index : " + std::to_string(index) +
@@ -127,47 +136,34 @@ void HDFSMultiThreadedHashPartitioner::consumeLocalEdges(int partitionIndex, Jas
         return;
     }
 
-    while (true) {  // Check for termination flag
-        std::unique_lock<std::mutex> lock(localEdgeMutexes[partitionIndex]);
+    while (true) {
+         std::vector<std::string> batch;// Check for termination flag
+        {
+            std::unique_lock<std::mutex> lock(localEdgeMutexes[partitionIndex]);
 
-        // Wait until there are edges available or the thread is signaled to terminate
-        edgeAvailableCV[partitionIndex].wait(lock, [this, partitionIndex] {
-            return edgeReady[partitionIndex] || terminateConsumers;
-        });
+             // Wait until there are edges available or the thread is signaled to terminate
+             edgeAvailableCV[partitionIndex].wait(lock, [this, partitionIndex] {
+                 return edgeReady[partitionIndex] || terminateConsumers;
+             });
 
-        // If the consumer is terminating, close the file and break out of the loop
-        if (terminateConsumers) {
-            if (partitionFile.is_open()) {
-                partitionFile.close();
-                if (threadEdgeCount !=0 ) {
-                    hash_partitioner_logger.debug("Local edge consumer " + std::to_string(partitionIndex) +
-                                                  " generated file of " +
-                                                  std::to_string(threadEdgeCount) +
-                                                  " edges: " + filePath);
-                    partitionMutexArray[partitionIndex].lock();
-                    hash_partitioner_logger.debug("Partition " + std::to_string(partitionIndex) +
-                        "acquired Lock");
-                    Utils::sendFileChunkToWorker(worker.hostname, worker.port, worker.dataPort, filePath,
-                        masterIp,
-                                                 JasmineGraphInstanceProtocol::HDFS_LOCAL_STREAM_START,
-                                                 this->isEmbedGraph);
-                    partitionMutexArray[partitionIndex].unlock();
-                }
-            }
-            break;
+             hash_partitioner_logger.debug("ADDING edge, bathcing");
+             batch.swap(localEdgeArrays[partitionIndex]);
+             edgeReady[partitionIndex] = false;
         }
 
+
         // Process the edges from the local array
-        while (!localEdgeArrays[partitionIndex].empty()) {
-            std::string edge = localEdgeArrays[partitionIndex].back();
-            localEdgeArrays[partitionIndex].pop_back();
+        while (!batch.empty()) {
+            hash_partitioner_logger.debug("Processing non empty");
+            std::string edge = batch.back();
+            batch.pop_back();
 
             // Write the edge to the current partition file
             partitionFile << edge << std::endl;
             threadEdgeCount++;
 
             // Check if the edge count has reached the threshold
-            if (threadEdgeCount == this->partitionFileEdgeThreshold) {
+            if (threadEdgeCount >= this->partitionFileEdgeThreshold) {
                 threadEdgeCount = 0;
                 partitionFile.close();  // Close the file after reaching the threshold
 
@@ -208,8 +204,30 @@ void HDFSMultiThreadedHashPartitioner::consumeLocalEdges(int partitionIndex, Jas
             }
         }
 
-        // Reset the flag after processing the current batch of edges
-        edgeReady[partitionIndex] = false;
+        // If the consumer is terminating, close the file and break out of the loop
+        if (terminateConsumers) {
+            if (partitionFile.is_open()) {
+                partitionFile.close();
+                if (threadEdgeCount !=0 ) {
+                    hash_partitioner_logger.debug("Local edge consumer " + std::to_string(partitionIndex) +
+                                                  " generated file of " +
+                                                  std::to_string(threadEdgeCount) +
+                                                  " edges: " + filePath);
+                    partitionMutexArray[partitionIndex].lock();
+                    hash_partitioner_logger.debug("Partition " + std::to_string(partitionIndex) +
+                        "acquired Lock");
+                    Utils::sendFileChunkToWorker(worker.hostname, worker.port, worker.dataPort, filePath,
+                        masterIp,
+                                                 JasmineGraphInstanceProtocol::HDFS_LOCAL_STREAM_START,
+                                                 this->isEmbedGraph);
+                    partitionMutexArray[partitionIndex].unlock();
+                }
+            }
+            break;
+        }
+
+
+
     }
 
     // Ensure the file is closed if it remains open

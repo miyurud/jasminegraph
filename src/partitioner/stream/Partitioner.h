@@ -14,8 +14,8 @@
 #define JASMINE_PARTITIONER_HEADER
 #include <vector>
 
-#include "./Partition.h"
 #include "../../metadb/SQLiteDBInterface.h"
+#include "./Partition.h"
 
 typedef std::vector<std::pair<std::string, long>> partitionedEdge;
 namespace spt {  // spt : Streaming Partitioner
@@ -41,19 +41,19 @@ class Partitioner {
     bool isDirect;
     spt::Algorithms algorithmInUse;
     SQLiteDBInterface *sqlite;
+    bool isDirected;
+
     // perPartitionCap is : Number of vertices that can be store in this partition, This is a dynamic shared pointer
     // containing a value depending on the whole graph size and # of partitions
 
  public:
     Partitioner(int numberOfPartitions, int graphID, spt::Algorithms alog, SQLiteDBInterface* sqlite, bool isDirect)
-            : numberOfPartitions(numberOfPartitions), graphID(graphID), algorithmInUse(alog), sqlite(sqlite) {
+            : numberOfPartitions(numberOfPartitions), graphID(graphID), algorithmInUse(alog), sqlite(sqlite), isDirect(isDirect) {
         for (size_t i = 0; i < numberOfPartitions; i++) {
             this->partitions.push_back(Partition(i, numberOfPartitions));
         };
     };
     void printStats();
-    long getTotalVertices();
-    void setAlgorithm(std::string algo);
     partitionedEdge addEdge(std::pair<std::string, std::string> edge);
     partitionedEdge hashPartitioning(std::pair<std::string, std::string> edge);
     partitionedEdge fennelPartitioning(std::pair<std::string, std::string> edge);

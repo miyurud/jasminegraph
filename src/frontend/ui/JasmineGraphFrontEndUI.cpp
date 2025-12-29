@@ -186,7 +186,7 @@ void *uifrontendservicesesion(void *dummyPt) {
             JasmineGraphFrontEnd::constructKGStreamLocalTXTCommand(masterIP, connFd, numberOfPartitions,
                 sqlite, &loop_exit);
         } else if (line.compare(STOP_CONSTRUCT_KG) == 0) {
-            JasmineGraphFrontEnd::stop_graph_streaming(connFd, &loop_exit);
+            JasmineGraphFrontEnd::stop_graph_streaming(connFd, sqlite, &loop_exit);
         } else if (token.compare("UPBYTES") == 0) {
            send_uploaded_bytes(connFd, sqlite, &loop_exit, line);
         } else {
@@ -479,7 +479,8 @@ static void send_uploaded_bytes(int connFd, SQLiteDBInterface *sqlite, bool *loo
 
     for (const auto &graphID : graphIDs) {
         std::string sql =
-            "SELECT uploaded_bytes, file_size_bytes, edgecount, upload_start_time, upload_path "
+            "SELECT uploaded_bytes, file_size_bytes, edgecount, upload_start_time, upload_path, llm_runner_string, "
+            "inference_engine, model, chunk_size_bytes, kg_construction_status, hdfs_host, hdfs_port "
             "FROM graph WHERE idgraph=" +
             graphID;
         auto result = sqlite->runSelect(sql);
@@ -491,7 +492,8 @@ static void send_uploaded_bytes(int connFd, SQLiteDBInterface *sqlite, bool *loo
 
         double uploadedBytes = 0.0, fileSizeBytes = 0.0, edgeCount = 0.0;
 
-        std::string startTimeStr;
+        std::string startTimeStr, llmRunnerString, inferenceEngine, model, chunkSizeBytes, kgConstructionStatus,
+        hdfsIp, hdfsPort;
 
         try {
             uploadedBytes = stod(result[0][0].second);
@@ -499,6 +501,13 @@ static void send_uploaded_bytes(int connFd, SQLiteDBInterface *sqlite, bool *loo
 
             if (!result[0][2].second.empty()) edgeCount = stod(result[0][2].second);
             startTimeStr = result[0][3].second;
+            llmRunnerString = result[0][4].second;
+            inferenceEngine = result[0][5].second;
+            model = result[0][6].second;
+            chunkSizeBytes = result[0][7].second;
+            kgConstructionStatus = result[0][8].second;
+            hdfsIp = result[0][9].second;
+            hdfsPort = result[0][10].second;
         } catch (std::exception &e) {
             ui_frontend_logger.error(e.what());
             continue;
@@ -529,7 +538,9 @@ static void send_uploaded_bytes(int connFd, SQLiteDBInterface *sqlite, bool *loo
         if (percent < 100.0) {
             msg += "|" + graphID + "|" + std::to_string(uploadedBytes) + "|" + std::to_string(fileSizeBytes) + "|" +
                    std::to_string(percent) + "|" + std::to_string(bytesPerSecond) + "|" +
-                   std::to_string(triplesPerSecond) + "|" + startTimeStr;
+                   std::to_string(triplesPerSecond) + "|" + startTimeStr+"|"+  llmRunnerString + "|" +
+                       inferenceEngine + "|" + model + "|" +
+                       chunkSizeBytes + "|" + kgConstructionStatus + "|" + hdfsIp + "|" + hdfsPort;
         }
     }
 

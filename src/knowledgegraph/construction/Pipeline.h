@@ -118,6 +118,13 @@ class Pipeline {
     std::mutex entityResolutionMutex;
 
     string currentTraceContext;
+
+    std::atomic<bool> metaThreadRunning{true};
+    // std::atomic<bool> stopFlag{false};
+
+    // std::atomic<long> realtime_bytes_read_so_far{0};
+    std::atomic<long> vertexCount{0};
+    std::atomic<long> edgeCount{0};
 };
 
 #endif  // JASMINEGRAPH_HDFSPIPELINE_H

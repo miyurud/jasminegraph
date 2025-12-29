@@ -16,6 +16,13 @@ create table graph
     feature_count               INTEGER(100),
     is_directed                 boolean default false,
     feature_type                VARCHAR(10),
+    llm_runner_string           VARCHAR(1000),
+    inference_engine            VARCHAR(50),
+    model                       VARCHAR(100),
+    chunk_size_bytes            BIGINT DEFAULT 0,
+    kg_construction_status     VARCHAR(20),
+    hdfs_port                   INTEGER,
+    hdfs_host                   VARCHAR(200),
     uploaded_bytes  BIGINT DEFAULT 0,
     file_size_bytes BIGINT DEFAULT 0
 );

@@ -613,7 +613,7 @@ int Utils::connect_wrapper(int sock, const sockaddr *addr, socklen_t slen) {
             std::this_thread::sleep_for(std::chrono::milliseconds(delayMs));
         }
 
-        util_logger.info("Trying to connect [" + std::to_string(retry) + "]: " +
+        util_logger.debug("Trying to connect [" + std::to_string(retry) + "]: " +
                          std::string(inet_ntoa(((const struct sockaddr_in *)addr)->sin_addr)) + ":" +
                          std::to_string(ntohs(((const struct sockaddr_in *)addr)->sin_port)));
 
@@ -2184,7 +2184,13 @@ float  Utils::cosineSimilarity(const std::vector<float>& a, const std::vector<fl
         normB += b[i] * b[i];
     }
     if (normA == 0 || normB == 0) return 0.0f;
-    return dot / (std::sqrt(normA) * std::sqrt(normB));
+    float cos = dot / (std::sqrt(normA) * std::sqrt(normB));
+    float alpha = 5.0f;
+
+    cos = std::max(-1.0f, std::min(1.0f, cos));
+
+    return std::exp(alpha * cos);
+
 }
 
 string Utils:: canonicalize(const std::string& input) {

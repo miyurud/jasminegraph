@@ -101,7 +101,7 @@ size_t VLLMTupleStreamer::StreamCallback(char* ptr, size_t size, size_t nmemb,
               try {
                 auto triple = json::parse(ctx->current_tuple);
 
-                  if (!triple.is_array() || triple.size() != 5) {
+                  if (!triple.is_array() || triple.size() < 5) {
                       vllm_tuple_streamer_logger.error(
                           "Invalid tuple size detected. Retrying entire chunk.");
 
@@ -109,12 +109,15 @@ size_t VLLMTupleStreamer::StreamCallback(char* ptr, size_t size, size_t nmemb,
                       ctx->retryChunk = true;
                         return 0;   // IMMEDIATE ABORT of curl_easy_perform
                   }
-                if (triple.is_array() && triple.size() == 5) {
+
+                if (triple.is_array() ) {
                   std::string subject = triple[0].get<std::string>();
                   std::string predicate = triple[1].get<std::string>();
                   std::string object = triple[2].get<std::string>();
                   std::string subject_type = triple[3].get<std::string>();
                   std::string object_type = triple[4].get<std::string>();
+
+
 
                   std::string subject_id =
                       Utils::canonicalize(subject );
@@ -139,6 +142,15 @@ size_t VLLMTupleStreamer::StreamCallback(char* ptr, size_t size, size_t nmemb,
                       {"properties",
                        {{"id", edge_id},
                         {"type", predicate}}}};
+
+                    if (triple.size() == 6 ) {
+                        formattedTriple["properties"]["when"] = triple[5].get<std::string>();
+                    }
+
+                    if (triple.size() == 7 ) {
+                        formattedTriple["properties"]["when"] = triple[5].get<std::string>();
+                        formattedTriple["properties"]["where"] = triple[6].get<std::string>();
+                    }
 
                   ctx->buffer->add(formattedTriple.dump());
                   vllm_tuple_streamer_logger.debug(

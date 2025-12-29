@@ -5198,6 +5198,7 @@ static void query_start_command(int connFd, InstanceHandler &instanceHandler, st
         return;
     }
     instance_logger.debug("Sent CRLF string to mark the end");
+    delete NodeBlock::nodesDB;
 }
 
 static void semantic_beam_search(
@@ -5283,7 +5284,21 @@ static void semantic_beam_search(
             graphId, partition, incrementalLocalStoreMap, "app", true);
   } else {
     incrementalLocalStoreInstance = incrementalLocalStoreMap[graphIdentifier];
+      GraphConfig gc;
+      gc.graphID = stoi(graphId);
+      gc.partitionID = stoi(partition);
+      gc.maxLabelSize = std::stoi(Utils::getJasmineGraphProperty(
 
+
+
+
+
+
+
+          "org.jasminegraph.nativestore.max.label.size"));
+      gc.openMode = "app";
+
+      incrementalLocalStoreInstance->nm =new NodeManager (gc);
   }
 
   content_length = 0;
@@ -5406,8 +5421,8 @@ static void semantic_beam_search(
 
   SemanticBeamSearch *semanticBeamSearch = new SemanticBeamSearch(
       incrementalLocalStoreInstance->faissNodeStore, incrementalLocalStoreInstance->faissEdgeStore, incrementalLocalStoreInstance->textEmbedder, incrementalLocalStoreInstance->textEmbedder->embed(message), 7, incrementalLocalStoreInstance->gc,
-      workers);
-  semanticBeamSearch->getSeedNodes();
+      workers, incrementalLocalStoreInstance->nm);
+  // semanticBeamSearch->getSeedNodes();
   SharedBuffer shared(50);
   semanticBeamSearch->semanticMultiHopBeamSearch(shared, 4, 10);
   auto startTime = std::chrono::high_resolution_clock::now();
@@ -5429,6 +5444,7 @@ static void semantic_beam_search(
     instanceHandler.dataPublishToMaster(connFd, loop_exit_p, raw);
     startTime = std::chrono::high_resolution_clock::now();
   }
+    delete NodeBlock::nodesDB;
   instance_logger.debug("Sent CRLF string to mark the end");
   *loop_exit_p = true;
 
@@ -5534,6 +5550,9 @@ static void semantic_search_expand_node_remote_batch(
             json expandedPath;
             expandedPath["pathObj"] = newPath;
             expandedPath["score"] = score + Utils::cosineSimilarity(queryEmbedding, emb_);
+            expandedPath["hopTraces"] = currentPath["hopTraces"];
+            expandedPath["pathRelIds"] = currentPath["pathRelIds"];
+
             response["expandedPaths"].push_back(expandedPath);
             instance_logger.info("Expanded node ID: " + std::to_string(neighbor.first->nodeId) +
                                  " with score: " + std::to_string(score));

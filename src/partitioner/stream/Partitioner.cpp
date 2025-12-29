@@ -22,7 +22,8 @@
 
 #include "../../util/logger/Logger.h"
 #include "../../util/Conts.h"
-
+#include <nlohmann/json.hpp>
+using namespace nlohmann;
 Logger streaming_partitioner_logger;
 
 partitionedEdge Partitioner::addEdge(std::pair<std::string, std::string> edge) {

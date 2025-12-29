@@ -165,11 +165,19 @@ void Pipeline::streamFromHDFSIntoBuffer() {
         kg_pipeline_stream_handler_logger.debug("Read chunk " + std::to_string(chunk_idx) + " with " +
                                                std::to_string(read_bytes) + " bytes");
         kg_pipeline_stream_handler_logger.debug("Current leftover size: " + std::to_string(leftover.size()));
-
+        size_t split_pos = chunk_text.rfind("\n\n");
+        if (split_pos == std::string::npos) {
+            // If no paragraph boundary, split at last newline
+            split_pos = chunk_text.find_last_of('\n');
+            // if (split_pos == std::string::npos) {
+            //     // If no newline, split at last space
+            //     split_pos = chunk_text.find_last_of(' ');
+            // }
+        }
         // Find last newline to keep only complete lines in chunk pushed to
         // dataBuffer
-        size_t last_newline = chunk_text.find_last_of('\n');
-        if (last_newline == std::string::npos) {
+        // size_t last_newline = chunk_text.find_last_of('\n');
+        if (split_pos == std::string::npos) {
             kg_pipeline_stream_handler_logger.debug("No newline found in chunk " + std::to_string(chunk_idx) +
                                                    ", storing as leftover");
             leftover = chunk_text;
@@ -178,7 +186,7 @@ void Pipeline::streamFromHDFSIntoBuffer() {
         }
 
         // Split into complete lines and leftover partial line
-        std::string full_lines_chunk = chunk_text.substr(0, last_newline + 1);
+        std::string full_lines_chunk = chunk_text.substr(0, split_pos + 1);
         size_t overlap_start = (full_lines_chunk.size() > std::stod(chunkSize)*0.3) ? full_lines_chunk.size() -
             std::stod(chunkSize)*0.3 : 0;
 
@@ -442,17 +450,18 @@ json Pipeline::processTupleAndSaveInPartition(const std::vector<std::unique_ptr<
         sqlite);
     std::hash<std::string> hasher;
     std::vector<std::thread> tupleThreads;
-    for (size_t i = 0; i < tupleBuffer.size(); ++i) {
-        SharedBuffer* tupleBufferRef = tupleBuffer[i].get();
-        kg_pipeline_stream_handler_logger.debug("Launching tuple thread for partition " + std::to_string(i));
-        tupleThreads.emplace_back([&, tupleBufferRef, i]() {
-            int realtimePartitionMetaUpdateIndicator = 0;
-            kg_pipeline_stream_handler_logger.debug("Tuple thread started for partition " + std::to_string(i));
-            while (isProcessing) {
-                if (!tupleBufferRef->empty()) {
-                    realtimePartitionMetaUpdateIndicator++;
-                    if (realtimePartitionMetaUpdateIndicator != 0 && realtimePartitionMetaUpdateIndicator % 10 == 0) {
-                        std::unique_lock<std::mutex> lock(realTimeBytesUpdateMutex);
+    std::thread metaThread([&]() {
+    using namespace std::chrono;
+
+    auto nextTick = steady_clock::now();
+
+    while (metaThreadRunning.load(std::memory_order_relaxed)) {
+        // nextTick += seconds(3);   //  META every 3 second
+        std::this_thread::sleep_for(std::chrono::milliseconds(10000));
+
+        kg_pipeline_stream_handler_logger.debug("Meta thread running");
+
+         // std::unique_lock<std::mutex> lock(realTimeBytesUpdateMutex);
 
                         json meta;
                         json graph;
@@ -496,8 +505,24 @@ json Pipeline::processTupleAndSaveInPartition(const std::vector<std::unique_ptr<
                             kg_pipeline_stream_handler_logger.info("stop request:" + response);
                             stopFlag = true;
                         }
-                        lock.unlock();
-                    }
+                        // lock.unlock();
+    }
+});
+
+    for (size_t i = 0; i < tupleBuffer.size(); ++i) {
+        SharedBuffer* tupleBufferRef = tupleBuffer[i].get();
+        kg_pipeline_stream_handler_logger.debug("Launching tuple thread for partition " + std::to_string(i));
+
+        tupleThreads.emplace_back([&, tupleBufferRef, i]() {
+            int realtimePartitionMetaUpdateIndicator = 0;
+            kg_pipeline_stream_handler_logger.debug("Tuple thread started for partition " + std::to_string(i));
+            while (isProcessing) {
+
+                // if (!tupleBufferRef->empty()) {
+                    realtimePartitionMetaUpdateIndicator++;
+                    // if (realtimePartitionMetaUpdateIndicator != 0 && realtimePartitionMetaUpdateIndicator % 10 == 0) {
+                    //
+                    // }
 
                     std::string line = tupleBufferRef->get();
                     kg_pipeline_stream_handler_logger.debug("Thread " + std::to_string(i) +
@@ -639,12 +664,19 @@ json Pipeline::processTupleAndSaveInPartition(const std::vector<std::unique_ptr<
                         kg_pipeline_stream_handler_logger.error("Unexpected exception in line: " +
                                                                 std::string(e.what()));
                     }
-                }
+                // }
+
+                // else {
+                //     std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+                //
+                // }
             }
 
             kg_pipeline_stream_handler_logger.debug("Tuple thread finished for partition " + std::to_string(i));
         });
     }
+
+
     for (auto& t : tupleThreads) {
         if (t.joinable()) {
             t.join();
@@ -653,7 +685,11 @@ json Pipeline::processTupleAndSaveInPartition(const std::vector<std::unique_ptr<
     }
     partitions.stopConsumerThreads();
 
+    metaThreadRunning.store(false, std::memory_order_relaxed);
 
+    if (metaThread.joinable()) {
+        metaThread.join();
+    }
     auto endTime = high_resolution_clock::now();
     std::chrono::duration<double> duration = endTime - startTime;
     kg_pipeline_stream_handler_logger.debug("processTupleAndSaveInPartition completed in " +
@@ -1266,9 +1302,6 @@ bool Pipeline::streamGraphToDesignatedWorker(std::string host, int port, std::st
             if (elapsed > 0.000001) { // sanity threshold to avoid tiny divisions
                 kgConstructionRates->triplesPerSecond =
                     static_cast<double>(edgeCount - previousEdgeCount) / elapsed;
-            } else {
-                // Not enough time has passed; set to 0 or keep previous value
-                kgConstructionRates->triplesPerSecond = 0.0;
             }
 
             previousEdgeCount = edgeCount;
@@ -1327,8 +1360,6 @@ bool Pipeline::streamGraphToDesignatedWorker(std::string host, int port, std::st
 
                 if (elapsed > 0.000001) {
                     kgConstructionRates->bytesPerSecond = (completedBytes - previousBytesCount) / elapsed;
-                } else {
-                    kgConstructionRates->bytesPerSecond = 0.0;
                 }
 
                 previousBytesCount = completedBytes;
@@ -1672,9 +1703,6 @@ bool Pipeline::streamLocalGraphToDesignatedWorker(std::string host, int port, in
             if (elapsed > 0.000001) { // sanity threshold to avoid tiny divisions
                 kgConstructionRates->triplesPerSecond =
                     static_cast<double>(edgeCount - previousEdgeCount) / elapsed;
-            } else {
-                // Not enough time has passed; set to 0 or keep previous value
-                kgConstructionRates->triplesPerSecond = 0.0;
             }
 
             previousEdgeCount = edgeCount;

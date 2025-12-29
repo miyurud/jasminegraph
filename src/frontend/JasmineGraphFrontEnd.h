@@ -63,7 +63,7 @@ class JasmineGraphFrontEnd {
                                              SQLiteDBInterface *sqlite, bool *loop_exit_p);
     static bool constructKGStreamLocalTXTCommand(std::string masterIP, int connFd, int numberOfPartitions,
                                           SQLiteDBInterface *sqlite, bool *loop_exit_p);
-    static void stop_graph_streaming(int connfd, bool *loop_exit_p);
+    static void stop_graph_streaming(int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_p);
     static bool strian_exit;
     std::map<std::string, std::atomic<bool>> *streamsState;
     std::map<std::string, std::thread> streamingThreads;

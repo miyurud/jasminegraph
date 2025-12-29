@@ -156,8 +156,10 @@ bool NodeBlock::updateLocalRelation(RelationBlock* newRelation, bool relocateHea
     unsigned int edgeReferenceAddress = newRelation->addr;
     unsigned int thisAddress = this->addr;
     RelationBlock* currentHead = this->getLocalRelationHead();
+
     if (relocateHead) {  // Insert new relation link to the head of the link list
         if (currentHead) {
+            node_block_logger.debug("Relocating local relation head at address: " + std::to_string(thisAddress));
             if (thisAddress == currentHead->source.address) {
                 currentHead->setLocalPreviousSource(newRelation->addr);
             } else if (thisAddress == currentHead->destination.address) {
@@ -175,6 +177,7 @@ bool NodeBlock::updateLocalRelation(RelationBlock* newRelation, bool relocateHea
                     " new relation does not contain current node in its source or destination");
             }
         }
+        node_block_logger.debug("Updated local relation at address: " + std::to_string(thisAddress));
         return this->setLocalRelationHead(*newRelation);
     }
     RelationBlock* currentRelation = currentHead;
@@ -275,8 +278,12 @@ bool NodeBlock::setLocalRelationHead(RelationBlock newRelation) {
                                 std::to_string(edgeReferenceAddress) + " for node " + std::to_string(this->addr));
         return false;
     }
+    node_block_logger.debug("Setting the Head for edge reference: " + std::to_string(newRelation.addr));
+
     NodeBlock::nodesDB->flush();  // Sync the file with in-memory stream
+
     this->edgeRef = edgeReferenceAddress;
+
     return true;
 }
 

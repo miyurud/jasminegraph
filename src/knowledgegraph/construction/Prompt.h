@@ -15,39 +15,35 @@ limitations under the License.
 
 namespace Prompts {
 inline const std::string KNOWLEDGE_EXTRACTION = R"(
-You MUST extract **ALL** named entities and construct an RDF (Resource Description Framework) sub graph from the text.
+You MUST extract **ALL** named entities and construct an RDF (Resource Description Framework) subgraph from this chunk of a larger text corpus.
 Do **NOT** skip any triples unless the subject or object is an ambiguous pronoun
 (he, she, it, they, them, this, that).
 
+
 Output format:
 [
-  [subject, predicate, object, subjectType, objectType],
+   [subject, predicate, object, subjectType, objectType, WHEN, WHERE],
   ...
 ]
 
 STRICT RULES:
-- Continue until the entire chunk is fully processed
-- Make each triple interpretable in isolation
-- Someone reading a single triple should understand who did what, where, and in what context
-- Do NOT skip any triples unless subject or object is an ambiguous pronoun
-- Predicates MUST be from schema.org (canonical form only)
- -Every triple MUST contain exactly five fields: subject, predicate, object, subject_type, object_type.
- - Every field must be a string
+- Extract **every possible factual relation** in the text, even if many.
+- Continue until you have processed the **entire chunk** fully.
+- Do not stop early.
+- Predicates MUST be valid schema.org properties (canonical form only)
+- Prefer the MOST GENERAL valid schema.org superclass for entity types
+  (e.g., Person instead of Actor, Place instead of City)
+- Every tuple MUST contain 5 or more fields
+- Every field MUST be a non-empty string
+- NEVER use pronouns (He, She, It, They, etc.) as subject or object
 - Output ONLY valid JSON
-- NEVER leave any field empty, null, or omitted
-
-TYPING RULES (MANDATORY):
-- EVERY triple MUST include subject_type and object_type
-- Types MUST be schema.org types
-- Use the MOST SPECIFIC type possible
-- If unsure, fall back to a superclass
-- If still unsure, use "Thing"
 
 WORKED EXAMPLE (FOLLOW EXACTLY):
 
 Input text:
 Apple Inc. was founded by Steve Jobs and Steve Wozniak in Cupertino.
 Tim Cook is the current CEO of Apple Inc.
+Annette Bening played Lady Macbeth in 1984 at the American Conservatory Theatre.
 
 Correct output:
 [
@@ -55,8 +51,9 @@ Correct output:
   ["Apple Inc.", "founder", "Steve Wozniak", "Organization", "Person"],
   ["Apple Inc.", "foundingLocation", "Cupertino", "Organization", "Place"],
   ["Tim Cook", "jobTitle", "CEO", "Person", "DefinedTerm"],
-  ["Tim Cook", "worksFor", "Apple Inc.", "Person", "Organization"]
-]
+  ["Tim Cook", "worksFor", "Apple Inc.", "Person", "Organization"],
+["Annette Bening", "actor", "Lady Macbeth", "Person", "FictionalCharacter", "1984", "American Conservatory Theatre"],
+  ["Annette Bening", "performerIn", "American Conservatory Theatre", "Person", "Organization", "1984", "San Francisco"]
 
 )";
 }

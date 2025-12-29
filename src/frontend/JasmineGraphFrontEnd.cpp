@@ -238,7 +238,7 @@ void *frontendservicesesion(void *dummyPt) {
             JasmineGraphFrontEnd::constructKGStreamLocalTXTCommand(masterIP, connFd, numberOfPartitions, sqlite,
                                                                &loop_exit);
         }else if (line.compare(STOP_CONSTRUCT_KG) == 0) {
-            JasmineGraphFrontEnd::stop_graph_streaming(connFd, &loop_exit);
+            JasmineGraphFrontEnd::stop_graph_streaming(connFd, sqlite, &loop_exit);
         } else if (line.compare(STOP_STREAM_KAFKA) == 0) {
             stop_stream_kafka_command(connFd, kstream, &loop_exit);
         } else if (line.compare(RMGR) == 0) {
@@ -2075,10 +2075,19 @@ bool JasmineGraphFrontEnd::constructKGStreamHDFSCommand(std::string masterIP, in
                 "INSERT INTO graph (name, upload_path, upload_start_time, "
                 "upload_end_time, graph_status_idgraph_status, "
                 "vertexcount, centralpartitioncount, edgecount, is_directed , "
-                "file_size_bytes ) VALUES(\"" +
+                "file_size_bytes, llm_runner_string, inference_engine, model, chunk_size_bytes, "
+                "kg_construction_status, hdfs_host, hdfs_port ) VALUES(\"" +
                 hdfsFilePathS + "\", \"" + path + "\", \"" + uploadStartTime + "\", \"\", \"" +
                 std::to_string(Conts::GRAPH_STATUS::NONOPERATIONAL) + "\", \"\", \"\", \"\", \"TRUE\", \"" +
-                to_string(total_file_size) + "\");";
+                    to_string(total_file_size)  + "\", \"" +
+        hostnamePortS + "\", \"" +
+        llmInferenceEngineS + "\", \"" +
+        llmS + "\", \"" +
+        chunkSizeS + "\", "
+        "\"running\", \"" +
+        hdfsServerIp + "\", \"" +
+        hdfsPort +
+        "\")";
             frontend_logger.info("Constructing new Knowledge Graph with new GraphID: " + to_string(newGraphID));
 
             newGraphID = sqlite->runInsert(insertQuery);
@@ -2089,10 +2098,20 @@ bool JasmineGraphFrontEnd::constructKGStreamHDFSCommand(std::string masterIP, in
             "INSERT INTO graph (name, upload_path, upload_start_time, "
             "upload_end_time, graph_status_idgraph_status, "
             "vertexcount, centralpartitioncount, edgecount, is_directed , "
-            "file_size_bytes ) VALUES(\"" +
+            "file_size_bytes, llm_runner_string, inference_engine, model, chunk_size_bytes, kg_construction_status, "
+            "hdfs_host, hdfs_port)"
+            " VALUES(\"" +
             hdfsFilePathS + "\", \"" + path + "\", \"" + uploadStartTime + "\", \"\", \"" +
             std::to_string(Conts::GRAPH_STATUS::NONOPERATIONAL) + "\", \"\", \"\", \"\", \"TRUE\", \"" +
-            to_string(total_file_size) + "\");";
+                to_string(total_file_size)  + "\", \"" +
+    hostnamePortS + "\", \"" +
+    llmInferenceEngineS + "\", \"" +
+    llmS + "\", \"" +
+    chunkSizeS + "\", "
+    "\"running\", \"" +
+    hdfsServerIp + "\", \"" +
+    hdfsPort +
+    "\")";
             frontend_logger.info("Constructing new Knowledge Graph with new GraphID: " + to_string(newGraphID));
 
         newGraphID = sqlite->runInsert(insertQuery);
@@ -3587,7 +3606,7 @@ static void sla_command(int connFd, SQLiteDBInterface *sqlite, PerformanceSQLite
     }
 }
 
-void JasmineGraphFrontEnd::stop_graph_streaming(int connFd, bool *loop_exit_p) {
+void JasmineGraphFrontEnd::stop_graph_streaming(int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_p) {
     std::string message1 = "Graph ID?";
     int resultWr = write(connFd, message1.c_str(), message1.length());
     if (resultWr < 0) {
@@ -3625,7 +3644,9 @@ void JasmineGraphFrontEnd::stop_graph_streaming(int connFd, bool *loop_exit_p) {
             int resultWr = write(connFd, message3.c_str(), message3.length());
         }
         int result_wr = write(connFd, DONE.c_str(), FRONTEND_COMMAND_LENGTH);
+             std::string sqlStatement = "UPDATE graph SET kg_construction_status = paused  WHERE idgraph = " + userResS;
 
+        sqlite->runUpdate(sqlStatement);
     } else {
         std::string message2 = "Graph Id not Found";
         int resultWr = write(connFd, message2.c_str(), message2.length());

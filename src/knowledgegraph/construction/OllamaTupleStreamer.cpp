@@ -111,17 +111,19 @@ size_t OllamaTupleStreamer::StreamCallback(char* ptr, size_t size, size_t nmemb,
                       ctx->retryChunk = true;
                       return 0;   // IMMEDIATE ABORT of curl_easy_perform
                   }
-                if (triple.is_array() && triple.size() == 5) {
+                 if (triple.is_array() ) {
                   std::string subject = triple[0].get<std::string>();
                   std::string predicate = triple[1].get<std::string>();
                   std::string object = triple[2].get<std::string>();
                   std::string subject_type = triple[3].get<std::string>();
                   std::string object_type = triple[4].get<std::string>();
 
+
+
                   std::string subject_id =
-                      Utils::canonicalize(subject + "_" + subject_type);
+                      Utils::canonicalize(subject );
                   std::string object_id =
-                      Utils::canonicalize(object + "_" + object_type);
+                      Utils::canonicalize(object);
                   std::string edge_id = Utils::canonicalize(
                       subject_id + "_" + predicate + "_" + object_id);
 
@@ -141,11 +143,19 @@ size_t OllamaTupleStreamer::StreamCallback(char* ptr, size_t size, size_t nmemb,
                       {"properties",
                        {{"id", edge_id},
                         {"type", predicate}}}};
-                  // check termination
+
+                    if (triple.size() == 6 ) {
+                        formattedTriple["properties"]["when"] = triple[5].get<std::string>();
+                    }
+
+                    if (triple.size() == 7 ) {
+                        formattedTriple["properties"]["when"] = triple[5].get<std::string>();
+                        formattedTriple["properties"]["where"] = triple[6].get<std::string>();
+                    }
 
                   ctx->buffer->add(formattedTriple.dump());
                   ollama_tuple_streamer_logger.debug(
-                      "Added formatted triple: " + formattedTriple.dump());
+                      "✅ Added formatted triple: " + formattedTriple.dump());
                 }
               } catch (const std::exception& ex) {
                 ollama_tuple_streamer_logger.error(
