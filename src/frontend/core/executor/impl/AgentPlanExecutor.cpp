@@ -145,8 +145,6 @@ void AgentPlanExecutor::execute()
     std::string lineBuffer;
     char c;
 
-    agent_executor_logger.info("[AGENT EXECUTOR] Receiving SBS results from worker");
-
     while (true)
     {
         ssize_t bytesRead = recv(sockfd, &c, 1, 0);
@@ -156,12 +154,16 @@ void AgentPlanExecutor::execute()
             break;
         }
 
-        if (c == '\n') // assuming Conts::CARRIAGE_RETURN_NEW_LINE = "\r\n"
+        if (c == '\n') // end of line
         {
+            // Remove trailing '\r' if present
+            if (!lineBuffer.empty() && lineBuffer.back() == '\r')
+                lineBuffer.pop_back();
+
             std::string line = Utils::trim_copy(lineBuffer);
             lineBuffer.clear();
 
-            if (line == "-1")
+            if (line == "-1") // end-of-results
             {
                 agent_executor_logger.info("[AGENT EXECUTOR] End-of-results signal received");
                 break;
@@ -172,8 +174,18 @@ void AgentPlanExecutor::execute()
                 agent_executor_logger.info("[AGENT EXECUTOR] Received JSON result: " + line);
                 try
                 {
-                    json parsed = json::parse(line);
-                    results.push_back(parsed);
+                    // Stream to frontend immediately
+                    ssize_t result_wr = write(connFd, line.c_str(), line.size());
+                    write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(),
+                          Conts::CARRIAGE_RETURN_NEW_LINE.size());
+
+                    if (result_wr < 0)
+                    {
+                        agent_executor_logger.error("[AGENT EXECUTOR] Error writing to frontend socket");
+                        *loop_exit = true;
+                        close(sockfd);
+                        return;
+                    }
                 }
                 catch (const std::exception &e)
                 {
@@ -187,25 +199,11 @@ void AgentPlanExecutor::execute()
         }
     }
 
-    agent_executor_logger.info("[AGENT EXECUTOR] All results received. Total: " + std::to_string(results.size()));
+    agent_executor_logger.info("[AGENT EXECUTOR] All results received");
 
-    // --- Send ACK back to worker ---
+    // Optional: ACK to worker
     Utils::send_str_wrapper(sockfd, "ok");
     close(sockfd);
-
-    // // Receive plan JSON
-    // char planBuf[64 * 1024];
-    // int bytes = recv(sockfd, planBuf, sizeof(planBuf), 0);
-    // if (bytes <= 0)
-    // {
-    //     close(sockfd);
-    //     throw std::runtime_error("No plan received from worker");
-    // }
-
-    // std::string planJson(planBuf, bytes);
-    // planJson = Utils::trim_copy(planJson);
-
-
 }
 
 int AgentPlanExecutor::getUid()
