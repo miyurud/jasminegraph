@@ -5957,6 +5957,7 @@ static void graphrag_command(
                 {
                     instance_logger.error("[GraphRAG][SBS] Socket write failed for result " + std::to_string(resultIndex - 1));
                     *loop_exit_p = true;
+  
                 }
             }
 
