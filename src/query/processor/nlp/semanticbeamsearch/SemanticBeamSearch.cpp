@@ -49,7 +49,7 @@ std::vector<ScoredPath> SemanticBeamSearch::getSeedNodes() {
   // check the emb
   std::vector<ScoredPath> paths;
   try {
-    auto results = faissStore->search(emb, 3);
+    auto results = faissStore->search(emb, 5);
     semantic_beam_search_logger.debug("Top " + to_string(results.size())+ " nodes found");
       int pathId = 0;
     for (auto& [id, dist] : results) {
@@ -145,11 +145,12 @@ void SemanticBeamSearch::semanticMultiHopBeamSearch(SharedBuffer& buffer,
     std::vector<string> embeddingRequestsForNewlyExploredEdges;
 
     for (size_t spIdx = 0; spIdx < paths.size(); ++spIdx) {
+        bool isPathExpanded = false;
       auto& sp = paths[spIdx];
       semantic_beam_search_logger.debug("Expanding path index " +
                                         std::to_string(spIdx) + ": " +
                                         sp.pathObj.dump());
-      auto& currentPath = sp.pathObj;
+      auto currentPath = sp.pathObj;
         int pathId = sp.pathId;
         auto pathNodeIds = sp.pathNodeIds;
         auto pathRelIds = sp.pathRelIds;
@@ -322,6 +323,7 @@ void SemanticBeamSearch::semanticMultiHopBeamSearch(SharedBuffer& buffer,
                 newScore,
                 newHopTraces
             });
+            isPathExpanded = true;
 
           semantic_beam_search_logger.debug(
               "Expanded path to node " + std::to_string(expandedNode->nodeId) +
@@ -465,6 +467,7 @@ void SemanticBeamSearch::semanticMultiHopBeamSearch(SharedBuffer& buffer,
                 newScore,
                 newHopTraces
             });
+            isPathExpanded = true;
 
           semantic_beam_search_logger.debug(
               "Expanded path to node " + std::to_string(expandedNode->nodeId) +
@@ -512,11 +515,14 @@ void SemanticBeamSearch::semanticMultiHopBeamSearch(SharedBuffer& buffer,
                                           std::to_string(lastNode->nodeId));
       }
 
-      if (expandedPaths.empty()) {
+
+      if (expandedPaths.empty() || !isPathExpanded) {
         json spJson;
-        spJson["score"] = FLT_MAX;
+          float total = hop*2 +1;
+        spJson["score"] = sp.score/total;
         spJson["pathObj"] = sp.pathObj;
-        semantic_beam_search_logger.debug("Adding terminal:" + spJson.dump());
+          spJson["hop"] = hop;
+          semantic_beam_search_logger.debug("Adding terminal:" + spJson.dump());
         buffer.add(spJson.dump());
           json entry;
           entry["rank"] = FLT_MAX ;
@@ -630,7 +636,8 @@ void SemanticBeamSearch::semanticMultiHopBeamSearch(SharedBuffer& buffer,
                                       paths[i].pathObj.dump());
     json data;
     data["pathObj"] = paths[i].pathObj;
-    data["score"] = paths[i].score;
+    data["score"] = paths[i].score/ (numHops * 2 +3);
+      data["hop"] = numHops;
     buffer.add(data.dump());
   }
 

@@ -2219,11 +2219,11 @@ float  Utils::cosineSimilarity(const std::vector<float>& a, const std::vector<fl
     }
     if (normA == 0 || normB == 0) return 0.0f;
     float cos = dot / (std::sqrt(normA) * std::sqrt(normB));
-    float alpha = 5.0f;
+    // float alpha = 5.0f;
+    //
+    // cos = std::max(-1.0f, std::min(1.0f, cos));
 
-    cos = std::max(-1.0f, std::min(1.0f, cos));
-
-    return std::exp(alpha * cos);
+    return cos;
 
 }
 

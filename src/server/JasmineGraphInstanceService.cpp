@@ -266,9 +266,9 @@ void *instanceservicesession(void *dummyPt) {
             streaming_tuple_extraction(connFd, serverPort, incrementalLocalStoreMap, &loop_exit);
         } else if (cmd.compare(JasmineGraphInstanceProtocol::SEMANTIC_BEAM_SEARCH) == 0) {
             semantic_beam_search(connFd, instanceHandler, incrementalLocalStoreMap, &loop_exit);
-        } else if (line.compare(JasmineGraphInstanceProtocol::AGENT_PLAN) == 0) {
+        } else if (cmd.compare(JasmineGraphInstanceProtocol::AGENT_PLAN) == 0) {
             graphrag_command(connFd, instanceHandler, incrementalLocalStoreMap, &loop_exit);
-        } else if (line.compare(JasmineGraphInstanceProtocol::EXPAND_NODE_BATCH) == 0) {
+        } else if (cmd.compare(JasmineGraphInstanceProtocol::EXPAND_NODE_BATCH) == 0) {
             semantic_search_expand_node_remote_batch(connFd, incrementalLocalStoreMap, &loop_exit);
         } else if (cmd.compare(JasmineGraphInstanceProtocol::SEND_CENTRALSTORE_TO_AGGREGATOR) == 0) {
             send_centralstore_to_aggregator_command(connFd, &loop_exit);
@@ -5461,7 +5461,7 @@ static void semantic_beam_search(
       workers, incrementalLocalStoreInstance->nm);
   // semanticBeamSearch->getSeedNodes();
   SharedBuffer shared(50);
-  semanticBeamSearch->semanticMultiHopBeamSearch(shared, 4, 10);
+  semanticBeamSearch->semanticMultiHopBeamSearch(shared, 3, 10);
   auto startTime = std::chrono::high_resolution_clock::now();
   int time = 0;
 

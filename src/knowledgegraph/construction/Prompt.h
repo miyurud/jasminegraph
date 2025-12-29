@@ -20,9 +20,9 @@ Do **NOT** skip any triples unless the subject or object is an ambiguous pronoun
 (he, she, it, they, them, this, that).
 
 
-Output format:
+Output format WITH relation metadata (ONLY when temporal and/or spatial information is explicitly present):
 [
-   [subject, predicate, object, subjectType, objectType, WHEN, WHERE],
+   [subject, predicate, object, subjectType, objectType, when, where],
   ...
 ]
 
