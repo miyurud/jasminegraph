@@ -20,13 +20,15 @@ SemanticBeamSearchExecutor::SemanticBeamSearchExecutor() {}
 
 SemanticBeamSearchExecutor::SemanticBeamSearchExecutor(
     SQLiteDBInterface *db, PerformanceSQLiteDBInterface *perfDb,
-    JobRequest jobRequest) {
+    JobRequest jobRequest)
+{
   this->sqlite = db;
   this->perfDB = perfDb;
   this->request = jobRequest;
 }
 
-void SemanticBeamSearchExecutor::execute() {
+void SemanticBeamSearchExecutor::execute()
+{
   int uniqueId = getUid();
   std::string masterIP = request.getMasterIP();
   std::string graphId = request.getParameter(Conts::PARAM_KEYS::GRAPH_ID);
@@ -48,12 +50,29 @@ void SemanticBeamSearchExecutor::execute() {
   bool autoCalibrate = Utils::parseBoolean(autoCalibrateString);
   std::vector<std::future<void>> intermRes;
   std::vector<std::future<int>> statResponse;
+  std::string workerListString;
 
   auto begin = chrono::high_resolution_clock::now();
 
+  int counter = 0;
+
+  for (const auto &worker : workerList)
+  {
+    counter++;
+    workerListString += worker.hostname + ":" +
+                        std::to_string(worker.port) + ":" +
+                        std::to_string(worker.dataPort);
+
+    if (counter < numberOfPartitions)
+    {
+      workerListString += ",";
+    }
+  }
+
   std::vector<std::unique_ptr<SharedBuffer>> bufferPool;
-  bufferPool.reserve(numberOfPartitions);  // Pre-allocate space for pointers
-  for (size_t i = 0; i < numberOfPartitions; ++i) {
+  bufferPool.reserve(numberOfPartitions); // Pre-allocate space for pointers
+  for (size_t i = 0; i < numberOfPartitions; ++i)
+  {
     bufferPool.emplace_back(std::make_unique<SharedBuffer>(MASTER_BUFFER_SIZE));
   }
   std::vector<std::thread> readThreads;
@@ -61,18 +80,21 @@ void SemanticBeamSearchExecutor::execute() {
 
   std::vector<std::thread> workerThreads;
   count = 0;
-  for (auto worker : workerList) {
+  for (auto worker : workerList)
+  {
     workerThreads.emplace_back(doSemanticBeamSearch, worker.hostname,
                                worker.port, masterIP, std::stoi(graphId), count,
                                queryString, std::ref(*bufferPool[count]),
-                               numberOfPartitions);
+                               numberOfPartitions, workerListString);
     count++;
   }
   vector<json> results;
   int closeFlag = 0;
   int result_wr;
-  for (size_t i = 0; i < bufferPool.size(); ++i) {
-    readThreads.emplace_back([&, i]() {
+  for (size_t i = 0; i < bufferPool.size(); ++i)
+  {
+    readThreads.emplace_back([&, i]()
+                             {
       semantic_beam_search_logger_executor.info(
           "Starting read thread for bufferPool[" + std::to_string(i) + "]");
       while (true) {
@@ -83,39 +105,44 @@ void SemanticBeamSearchExecutor::execute() {
           break;
         }
         results.push_back(json::parse(data));
-      }
-    });
+      } });
   }
-  for (auto &t : readThreads) {
-    if (t.joinable()) {
+  for (auto &t : readThreads)
+  {
+    if (t.joinable())
+    {
       t.join();
     }
   }
 
-  for (auto &thread : workerThreads) {
-    if (thread.joinable()) {
+  for (auto &thread : workerThreads)
+  {
+    if (thread.joinable())
+    {
       thread.join();
     }
   }
 
   // sort based score and trim to top k
-  std::sort(results.begin(), results.end(), [](const json &a, const json &b) {
-    return a["score"] > b["score"];
-  });
+  std::sort(results.begin(), results.end(), [](const json &a, const json &b)
+            { return a["score"] > b["score"]; });
 
   // trim to top k
   int k = 10;
-  if ((int)results.size() > k) results.resize(k);
+  if ((int)results.size() > k)
+    results.resize(k);
 
   // write to socket
   count = 0;
-  for (const auto &res : results) {
+  for (const auto &res : results)
+  {
     std::string data = res.dump();
     count++;
     result_wr = write(connFd, data.c_str(), data.length());
     result_wr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(),
                       Conts::CARRIAGE_RETURN_NEW_LINE.size());
-    if (result_wr < 0) {
+    if (result_wr < 0)
+    {
       semantic_beam_search_logger_executor.error("Error writing to socket");
       *loop_exit = true;
       break;
@@ -143,7 +170,8 @@ void SemanticBeamSearchExecutor::execute() {
 
   std::string durationString = std::to_string(msDuration);
 
-  if (canCalibrate || autoCalibrate) {
+  if (canCalibrate || autoCalibrate)
+  {
     Utils::updateSLAInformation(perfDB, graphId, numberOfPartitions, msDuration,
                                 CYPHER, Conts::SLA_CATEGORY::LATENCY);
     isStatCollect = false;
@@ -152,9 +180,11 @@ void SemanticBeamSearchExecutor::execute() {
   processStatusMutex.lock();
   for (auto processCompleteIterator = processData.begin();
        processCompleteIterator != processData.end();
-       ++processCompleteIterator) {
+       ++processCompleteIterator)
+  {
     ProcessInfo processInformation = *processCompleteIterator;
-    if (processInformation.id == uniqueId) {
+    if (processInformation.id == uniqueId)
+    {
       processData.erase(processInformation);
       break;
     }
@@ -162,10 +192,17 @@ void SemanticBeamSearchExecutor::execute() {
   processStatusMutex.unlock();
 }
 
+// void CypherQueryExecutor::doCypherQuery(std::string host, int port, std::string masterIP, int graphID,
+//                                         int PartitionId, std::string message, SharedBuffer &sharedBuffer)
+// {
+//   Utils::sendQueryPlanToWorker(host, port, masterIP, graphID, PartitionId, message, sharedBuffer);
+// }
+
 void SemanticBeamSearchExecutor::doSemanticBeamSearch(
     std::string host, int port, std::string masterIP, int graphID,
     int partitionId, std::string query, SharedBuffer &sharedBuffer,
-    int noOfPartitions) {
+    int noOfPartitions, const std::string &workerListString)
+{
   semantic_beam_search_logger_executor.info("Connecting to worker at " + host +
                                             ":" + std::to_string(port));
   semantic_beam_search_logger_executor.debug(
@@ -183,20 +220,23 @@ void SemanticBeamSearchExecutor::doSemanticBeamSearch(
   sockfd = socket(AF_INET, SOCK_STREAM, 0);
   semantic_beam_search_logger_executor.debug("Socket created, sockfd=" +
                                              std::to_string(sockfd));
-  if (sockfd < 0) {
+  if (sockfd < 0)
+  {
     semantic_beam_search_logger_executor.error("Cannot create socket");
     return;
   }
 
   // --- Resolve host ---
-  if (host.find('@') != std::string::npos) {
+  if (host.find('@') != std::string::npos)
+  {
     semantic_beam_search_logger_executor.debug(
         "Host contains '@', splitting...");
     host = Utils::split(host, '@')[1];
     semantic_beam_search_logger_executor.debug("Resolved host: " + host);
   }
   server = gethostbyname(host.c_str());
-  if (server == NULL) {
+  if (server == NULL)
+  {
     semantic_beam_search_logger_executor.error("No host named " + host);
     close(sockfd);
     return;
@@ -211,7 +251,8 @@ void SemanticBeamSearchExecutor::doSemanticBeamSearch(
   semantic_beam_search_logger_executor.debug("Attempting to connect to " +
                                              host + ":" + std::to_string(port));
   if (Utils::connect_wrapper(sockfd, (struct sockaddr *)&serv_addr,
-                             sizeof(serv_addr)) < 0) {
+                             sizeof(serv_addr)) < 0)
+  {
     semantic_beam_search_logger_executor.error("Connection failed to " + host +
                                                ":" + std::to_string(port));
     close(sockfd);
@@ -222,7 +263,8 @@ void SemanticBeamSearchExecutor::doSemanticBeamSearch(
   // --- Step 1: Send command ---
   std::string command = "initiate-semantic-beam-search\r\n";
   semantic_beam_search_logger_executor.debug("Sending command: " + command);
-  if (send(sockfd, command.c_str(), command.size(), 0) <= 0) {
+  if (send(sockfd, command.c_str(), command.size(), 0) <= 0)
+  {
     semantic_beam_search_logger_executor.error("Failed to send command");
     close(sockfd);
     return;
@@ -230,7 +272,8 @@ void SemanticBeamSearchExecutor::doSemanticBeamSearch(
 
   bzero(ack, ACK_MESSAGE_SIZE);
   semantic_beam_search_logger_executor.debug("Waiting for ACK after command");
-  if (recv(sockfd, ack, strlen("stream-c-length-ack"), 0) <= 0) {
+  if (recv(sockfd, ack, strlen("stream-c-length-ack"), 0) <= 0)
+  {
     semantic_beam_search_logger_executor.error(
         "Failed to receive ACK after command");
     close(sockfd);
@@ -246,14 +289,16 @@ void SemanticBeamSearchExecutor::doSemanticBeamSearch(
   semantic_beam_search_logger_executor.debug("Sending graphID: " +
                                              std::to_string(graphID));
   if (send(sockfd, std::to_string(graphID).c_str(),
-           std::to_string(graphID).size(), 0) <= 0) {
+           std::to_string(graphID).size(), 0) <= 0)
+  {
     semantic_beam_search_logger_executor.error("Failed to send graphID");
     close(sockfd);
     return;
   }
   bzero(ack, ACK_MESSAGE_SIZE);
   semantic_beam_search_logger_executor.debug("Waiting for ACK after graphID");
-  if (recv(sockfd, ack, strlen("stream-c-length-ack"), 0) <= 0) {
+  if (recv(sockfd, ack, strlen("stream-c-length-ack"), 0) <= 0)
+  {
     semantic_beam_search_logger_executor.error(
         "Failed to receive ACK after graphID");
     close(sockfd);
@@ -269,7 +314,8 @@ void SemanticBeamSearchExecutor::doSemanticBeamSearch(
   semantic_beam_search_logger_executor.debug("Sending partitionId: " +
                                              std::to_string(partitionId));
   if (send(sockfd, std::to_string(partitionId).c_str(),
-           std::to_string(partitionId).size(), 0) <= 0) {
+           std::to_string(partitionId).size(), 0) <= 0)
+  {
     semantic_beam_search_logger_executor.error("Failed to send partitionId");
     close(sockfd);
     return;
@@ -277,7 +323,8 @@ void SemanticBeamSearchExecutor::doSemanticBeamSearch(
   bzero(ack, ACK_MESSAGE_SIZE);
   semantic_beam_search_logger_executor.debug(
       "Waiting for ACK after partitionId");
-  if (recv(sockfd, ack, strlen("stream-c-length-ack"), 0) <= 0) {
+  if (recv(sockfd, ack, strlen("stream-c-length-ack"), 0) <= 0)
+  {
     semantic_beam_search_logger_executor.error(
         "Failed to receive ACK after partitionId");
     close(sockfd);
@@ -292,35 +339,24 @@ void SemanticBeamSearchExecutor::doSemanticBeamSearch(
                                              std::to_string(ntohl(length)));
   send(sockfd, &length, sizeof(length), 0);
   semantic_beam_search_logger_executor.debug("Sending query: " + query);
-  if (send(sockfd, query.c_str(), query.size(), 0) <= 0) {
+  if (send(sockfd, query.c_str(), query.size(), 0) <= 0)
+  {
     semantic_beam_search_logger_executor.error("Failed to send query");
     close(sockfd);
     return;
   }
   bzero(ack, ACK_MESSAGE_SIZE);
   semantic_beam_search_logger_executor.debug("Waiting for ACK after query");
-  if (recv(sockfd, ack, strlen("stream-c-length-ack"), 0) <= 0) {
+  if (recv(sockfd, ack, strlen("stream-c-length-ack"), 0) <= 0)
+  {
     semantic_beam_search_logger_executor.error(
         "Failed to receive ACK after query");
     close(sockfd);
     return;
   }
 
-  int counter = 0;
-  string workers = "";
   // --- Step 4: Send workers ---
-  for (JasmineGraphServer::worker worker :
-       JasmineGraphServer::getWorkers(noOfPartitions)) {
-    counter++;
-    semantic_beam_search_logger_executor.info("count " +
-                                              std::to_string(counter));
-    workers += worker.hostname + ":" + std::to_string(worker.port) + ":" +
-               std::to_string(worker.dataPort);
-    // append , only if not last
-    if (counter < noOfPartitions) {
-      workers += ",";
-    }
-  }
+  string workers = workerListString;
 
   semantic_beam_search_logger_executor.info("semantic beam search" + workers);
   length = htonl(workers.size());
@@ -328,14 +364,16 @@ void SemanticBeamSearchExecutor::doSemanticBeamSearch(
                                              std::to_string(ntohl(length)));
   send(sockfd, &length, sizeof(length), 0);
   semantic_beam_search_logger_executor.debug("Sending workers: " + workers);
-  if (send(sockfd, workers.c_str(), workers.size(), 0) <= 0) {
+  if (send(sockfd, workers.c_str(), workers.size(), 0) <= 0)
+  {
     semantic_beam_search_logger_executor.error("Failed to send query");
     close(sockfd);
     return;
   }
   bzero(ack, ACK_MESSAGE_SIZE);
   semantic_beam_search_logger_executor.debug("Waiting for ACK after query");
-  if (recv(sockfd, ack, strlen("stream-c-length-ack"), 0) <= 0) {
+  if (recv(sockfd, ack, strlen("stream-c-length-ack"), 0) <= 0)
+  {
     semantic_beam_search_logger_executor.info(ack);
     semantic_beam_search_logger_executor.error(
         "Failed to receive ACK after query");
@@ -344,7 +382,6 @@ void SemanticBeamSearchExecutor::doSemanticBeamSearch(
   }
 
   semantic_beam_search_logger_executor.info("Received ACK after query ");
-
 
   char start[ACK_MESSAGE_SIZE] = {0};
   recv(sockfd, &start, sizeof(start), 0);
@@ -355,11 +392,13 @@ void SemanticBeamSearchExecutor::doSemanticBeamSearch(
   semantic_beam_search_logger_executor.info(start_msg);
   semantic_beam_search_logger_executor.info(
       "Semantic Beam Search request sent successfully");
-  while (true) {
+  while (true)
+  {
     char start[ACK_MESSAGE_SIZE] = {0};
     recv(sockfd, &start, sizeof(start), 0);
     std::string start_msg(start);
-    if (JasmineGraphInstanceProtocol::QUERY_DATA_START != start_msg) {
+    if (JasmineGraphInstanceProtocol::QUERY_DATA_START != start_msg)
+    {
       semantic_beam_search_logger_executor.error(
           "Error while receiving start command: " + start_msg);
       break;
@@ -369,11 +408,14 @@ void SemanticBeamSearchExecutor::doSemanticBeamSearch(
 
     int content_length;
     ssize_t return_status = recv(sockfd, &content_length, sizeof(int), 0);
-    if (return_status > 0) {
+    if (return_status > 0)
+    {
       content_length = ntohl(content_length);
       semantic_beam_search_logger_executor.debug(
           "Received int =" + std::to_string(content_length));
-    } else {
+    }
+    else
+    {
       semantic_beam_search_logger_executor.error(
           "Error while receiving content length");
       return;
@@ -384,9 +426,11 @@ void SemanticBeamSearchExecutor::doSemanticBeamSearch(
 
     std::string data(content_length, 0);
     size_t received = 0;
-    while (received < content_length) {
+    while (received < content_length)
+    {
       ssize_t ret = recv(sockfd, &data[received], content_length - received, 0);
-      if (ret <= 0) {
+      if (ret <= 0)
+      {
         semantic_beam_search_logger_executor.error(
             "Error receiving request string");
         break;
@@ -396,11 +440,11 @@ void SemanticBeamSearchExecutor::doSemanticBeamSearch(
     send(sockfd, JasmineGraphInstanceProtocol::GRAPH_DATA_SUCCESS.c_str(),
          JasmineGraphInstanceProtocol::GRAPH_DATA_SUCCESS.length(), 0);
 
-
     semantic_beam_search_logger_executor.info("patition " +
                                               std::to_string(partitionId) +
                                               "Received graph data: " + data);
-    if (data == "-1") {
+    if (data == "-1")
+    {
       sharedBuffer.add(data);
       break;
     }
@@ -412,7 +456,8 @@ void SemanticBeamSearchExecutor::doSemanticBeamSearch(
   return;
 }
 
-int SemanticBeamSearchExecutor::getUid() {
+int SemanticBeamSearchExecutor::getUid()
+{
   static std::atomic<std::uint32_t> uid{0};
   return ++uid;
 }
