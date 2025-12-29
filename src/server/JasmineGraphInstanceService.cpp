@@ -5918,11 +5918,11 @@ static void graphrag_command(
             }
 
             // ---- Join threads ----
-            for (auto &t : readThreads)
+            for (auto &t : workerThreads)
                 if (t.joinable())
                     t.join();
 
-            for (auto &t : workerThreads)
+            for (auto &t : readThreads)
                 if (t.joinable())
                     t.join();
 
@@ -5937,25 +5937,26 @@ static void graphrag_command(
 
             int k = 10;
             if (results.size() > static_cast<size_t>(k))
+            {
                 results.resize(k);
-
+                instance_logger.info("[GraphRAG][SBS] Top-" +
+                                     std::to_string(k) + " results selected");
+            }
             instance_logger.info("[GraphRAG][SBS] Top-" +
-                                 std::to_string(k) + " results selected");
+                                 std::to_string(results.size()) + " results selected");
 
             // ---- Write to socket ----
             int resultIndex = 0;
             for (const auto &res : results)
             {
-                instance_logger.info(
-                    "[GraphRAG][SBS] Writing result " + std::to_string(resultIndex++));
-
+                instance_logger.info("[GraphRAG][SBS] Writing result " + std::to_string(resultIndex++));
                 std::string data = res.dump() + Conts::CARRIAGE_RETURN_NEW_LINE;
 
-                if (write(connFd, data.c_str(), data.size()) < 0)
+                ssize_t n = write(connFd, data.c_str(), data.size());
+                if (n < 0)
                 {
-                    instance_logger.error("[GraphRAG][SBS] Socket write failed");
+                    instance_logger.error("[GraphRAG][SBS] Socket write failed for result " + std::to_string(resultIndex - 1));
                     *loop_exit_p = true;
-                    break;
                 }
             }
 
