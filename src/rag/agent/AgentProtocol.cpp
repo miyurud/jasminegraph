@@ -23,7 +23,7 @@ std::string AgentProtocol::getPlan(const AgentRequestContext &agentRequestCtx)
     return agent->generatePlan(agentRequestCtx.query);
 }
 
-std::string AgentProtocol::getResponse(const AgentRequest &ctx, const std::string &retrievedData)
+std::string AgentProtocol::getResponse(const AgentRequestContext &ctx, const std::string &retrievedData)
 {
     static std::unique_ptr<Agent> agent = nullptr;
     if (!agent)
