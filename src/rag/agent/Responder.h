@@ -9,4 +9,8 @@ public:
         const std::string& query,
         const nlohmann::json& executionResult
     );
+
+private:
+    std::string model;
+    std::string host;
 };
