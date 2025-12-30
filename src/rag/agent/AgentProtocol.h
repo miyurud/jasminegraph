@@ -13,4 +13,5 @@ struct AgentRequestContext {
 class AgentProtocol {
     public:
     static std::string getPlan(const AgentRequestContext& agentRequestCtx);
+    static std::string AgentProtocol::getResponse (const AgentRequest& ctx, const std::string& retrievedData);
 };
