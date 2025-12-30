@@ -30,8 +30,8 @@ class NodeBlock {
     bool isDirected = false;
 
  public:
-    static const unsigned long BLOCK_SIZE = 40;  // Size of a node block in bytes
-    static const unsigned int LABEL_SIZE = 200;    // Size of a node label in bytes
+    static const unsigned long BLOCK_SIZE = 140 ;  // Size of a node block in bytes
+    static const unsigned int LABEL_SIZE = 180;    // Size of a node label in bytes
     unsigned int addr = 0;
     std::string id = "";  // Node ID for this block ie: citation paper ID, Facebook accout ID, Twitter account ID etc
 

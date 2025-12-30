@@ -247,7 +247,7 @@ void JasmineGraphIncrementalLocalStore::addEdgeFromString(
       addCentralEdgeProperties(newRelation, edgeJson);
     }
 
-    addSourceProperties(newRelation, sourceJson);
+    addSourceProperties(newRelation, sourceJson, dId);
     addDestinationProperties(newRelation, destinationJson);
     incremental_localstore_logger.debug("Edge (" + sId + ", " + dId +
                                         ") Added successfully!");
@@ -332,14 +332,13 @@ void JasmineGraphIncrementalLocalStore::addLocalEdge(std::string edge) {
             return;
         }
         incremental_localstore_logger.debug("edge: " + jsonEdge.dump());
-
         addLocalEdgeProperties(newRelation, jsonEdge);
-        addSourceProperties(newRelation, jsonSource);
+        addSourceProperties(newRelation, jsonSource, dId);
         addDestinationProperties(newRelation, jsonDestination);
-        NodeBlock* src = nm->get(sId);
-        NodeBlock* dst = nm->get(dId);
-        incremental_localstore_logger.debug("src edge ref = " + to_string(src->edgeRef));
-        incremental_localstore_logger.debug("dest edge ref = " + to_string(src->edgeRef));
+
+        newRelation->getDestination()->setLocalRelationHead(*newRelation);
+
+
 
         delete newRelation->getSource();
         delete newRelation->getDestination();
@@ -385,7 +384,7 @@ void JasmineGraphIncrementalLocalStore::addCentralEdge(std::string edge) {
   }
 
   addCentralEdgeProperties(newRelation, jsonEdge);
-  addSourceProperties(newRelation, jsonSource);
+  addSourceProperties(newRelation, jsonSource, jsonDestination["id"].get<std::string>());
   addDestinationProperties(newRelation, jsonDestination);
   delete newRelation->getSource();
   delete newRelation->getDestination();
@@ -442,7 +441,7 @@ void JasmineGraphIncrementalLocalStore::addLocalEdgeProperties(
 }
 
 void JasmineGraphIncrementalLocalStore::addSourceProperties(
-    RelationBlock* relationBlock, const json& sourceJson) {
+    RelationBlock* relationBlock, const json& sourceJson, string destId) {
   char value[PropertyLink::MAX_VALUE_SIZE] = {};
   char label[NodeBlock::LABEL_SIZE] = {0};
   std::ostringstream textForEmbedding;
@@ -456,16 +455,24 @@ incremental_localstore_logger.debug("Adding source properties: " + sourceJson.du
         strcpy(value, it.value().get<std::string>().c_str());
         if (std::string(it.key()) == "label") {
           strcpy(label, it.value().get<std::string>().c_str());
+            NodeBlock* src = nm->get(destId);
+            incremental_localstore_logger.debug("nodeId 471:" + std::to_string(src->nodeId));
           relationBlock->getSource()->addLabel(&label[0]);
-
+            NodeBlock* src1 = nm->get(destId);
+            incremental_localstore_logger.debug("nodeId 474:" + std::to_string(src1->nodeId));
 
         }
           if (it.key() != "id") {
               textForEmbedding << value << "\n" ;
 
           }
+
+          NodeBlock* src = nm->get(destId);
+          incremental_localstore_logger.debug("nodeId 483:" + std::to_string(src->nodeId));
           relationBlock->getSource()->addProperty(std::string(it.key()),
                                                      &value[0]);
+          NodeBlock* src2 = nm->get(destId);
+          incremental_localstore_logger.debug("nodeId 487:" + std::to_string(src2->nodeId));
       }
 
       if (this->embedNode) {
@@ -485,8 +492,12 @@ incremental_localstore_logger.debug("Adding source properties: " + sourceJson.du
   }
 incremental_localstore_logger.debug("Adding meta");
   std::string sourcePid = std::to_string(sourceJson["pid"].get<int>());
+    NodeBlock* src = nm->get(destId);
+    incremental_localstore_logger.debug("nodeId 501:" + std::to_string(src->nodeId));
   addNodeMetaProperty(relationBlock->getSource(),
                       MetaPropertyLink::PARTITION_ID, sourcePid);
+    NodeBlock* src2 = nm->get(destId);
+    incremental_localstore_logger.debug("nodeId 506:" + std::to_string(src2->nodeId));
     incremental_localstore_logger.debug("Added meta");
 
 }

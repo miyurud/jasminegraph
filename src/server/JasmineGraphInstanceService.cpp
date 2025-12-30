@@ -5461,7 +5461,7 @@ static void semantic_beam_search(
       workers, incrementalLocalStoreInstance->nm);
   // semanticBeamSearch->getSeedNodes();
   SharedBuffer shared(50);
-  semanticBeamSearch->semanticMultiHopBeamSearch(shared, 3, 10);
+  semanticBeamSearch->semanticMultiHopBeamSearch(shared, 3, 15);
   auto startTime = std::chrono::high_resolution_clock::now();
   int time = 0;
 

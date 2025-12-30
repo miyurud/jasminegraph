@@ -555,6 +555,8 @@ RelationBlock* RelationBlock::getCentralRelation(unsigned int address) {
 }
 
 RelationBlock* RelationBlock::nextLocalSource() {
+    relation_block_logger.debug("Fetching next relation of source at: "+ std::to_string(this->destination
+      .nextRelationId));
     return RelationBlock::getLocalRelation(this->source.nextRelationId);
 }
 
@@ -571,6 +573,8 @@ RelationBlock* RelationBlock::previousCentralSource() {
 }
 
 RelationBlock* RelationBlock::nextLocalDestination() {
+    relation_block_logger.debug("Fetching next relation of destination at: "+ std::to_string(this->destination
+        .nextRelationId));
     return RelationBlock::getLocalRelation(this->destination.nextRelationId);
 }
 
@@ -871,6 +875,8 @@ std::map<std::string, char*> RelationBlock::getAllProperties() {
  * */
 NodeBlock* RelationBlock::getSource() {
     if (this->sourceBlock) {
+        relation_block_logger.debug("getSource: "+ std::to_string(this->sourceBlock->nodeId));
+
         return sourceBlock;
     }
     relation_block_logger.warn("Get source from node block address is not implemented yet!");

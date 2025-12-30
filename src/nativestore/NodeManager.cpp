@@ -30,7 +30,6 @@ limitations under the License.
 #include <thread>
 
 Logger node_manager_logger;
-pthread_mutex_t lockEdgeAdd;
 pthread_mutex_t lockNodeAdd;
 
 
@@ -257,6 +256,10 @@ RelationBlock *NodeManager::addLocalRelation(NodeBlock source, NodeBlock destina
         if (newRelation) {
             source.updateLocalRelation(newRelation, true);
             destination.updateLocalRelation(newRelation, true);
+            NodeBlock* src = get(to_string(source.nodeId));
+            NodeBlock* dst = get(to_string(destination.nodeId));
+
+
         } else {
             node_manager_logger.error("Error while adding the new edge/relation for source = " +
                                       std::string(source.id) + " destination = " + std::string(destination.id));
@@ -413,6 +416,7 @@ NodeBlock *NodeManager::get(std::string nodeId) {
     }
     // unsigned int nodeIndex = this->nodeIndex[nodeId];
     const unsigned int blockAddress = this->nodeIndex[nodeId] * NodeBlock::BLOCK_SIZE;
+    NodeBlock::nodesDB->clear();
     NodeBlock::nodesDB->seekg(blockAddress);
     node_manager_logger.debug("Reading node index --> Node key = " + nodeId);
     node_manager_logger.debug("Reading node index:" + std::to_string(this->nodeIndex[nodeId]));

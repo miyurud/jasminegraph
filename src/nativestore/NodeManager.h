@@ -40,6 +40,8 @@ class NodeManager {
     std::string indexDBPath;
 
     std::string edgeIndexDBPath;
+    pthread_mutex_t lockEdgeAdd;
+
 
 
 

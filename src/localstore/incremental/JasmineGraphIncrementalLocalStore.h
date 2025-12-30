@@ -59,7 +59,7 @@ class JasmineGraphIncrementalLocalStore {
     void addRelationMetaProperty(RelationBlock* relationBlock, std::string propertyKey, std::string propertyValue);
     void addLocalEdgeProperties(RelationBlock* relationBlock, const json& edgeJson);
     void addCentralEdgeProperties(RelationBlock* relationBlock, const json& edgeJson);
-    void addSourceProperties(RelationBlock* relationBlock, const json& sourceJson);
+    void addSourceProperties(RelationBlock* relationBlock, const json& sourceJson, string destId);
     void addDestinationProperties(RelationBlock* relationBlock, const json& destinationJson);
 };
 

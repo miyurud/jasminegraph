@@ -810,73 +810,73 @@ static void agent_plan_command(std::string masterIP, int connFd, vector<DataPubl
     // ---------------Verify Model------------
     vector<std::string> llmServers = Utils::getUniqueLLMRunners(llmRunner);
 
-    for (auto llmServer : llmServers) {
-        std::string url;
-        bool modelFound = false;
-        std::string endpointPath;
-        if (inferenceEngine == "ollama") {
-            endpointPath = "api/tags";
-        } else if (inferenceEngine == "vllm") {
-            endpointPath = "/v1/models";
-        } else {
-            frontend_logger.error("Unknown inference engine: " + inferenceEngine);
-            std::string msg = "Unknown inference engine '" + inferenceEngine + "'";
-            write(connFd, msg.c_str(), msg.length());
-            write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
-            *loop_exit = true;
-            return;
-        }
-
-        url = Utils::normalizeURL(llmServer, endpointPath);
-        frontend_logger.info("Final LLM endpoint: " + url);
-
-        CURL *curl = curl_easy_init();
-        if (curl) {
-            std::string response;
-            curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
-            curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, WriteCallback);
-            curl_easy_setopt(curl, CURLOPT_WRITEDATA, &response);
-            curl_easy_setopt(curl, CURLOPT_TIMEOUT, 5L);
-
-            CURLcode res = curl_easy_perform(curl);
-            curl_easy_cleanup(curl);
-
-            if (res != CURLE_OK) {
-                frontend_logger.error("Failed to reach " + inferenceEngine + " server at " + llmServer);
-                std::string msg = "Could not connect to " + inferenceEngine + " server.";
-                write(connFd, msg.c_str(), msg.length());
-                write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
-                *loop_exit = true;
-                return;
-            }
-
-            // --- Check model existence ---
-            if (inferenceEngine == "ollama") {
-                // Ollama returns {"models":[{"name":"llama2"}]}
-                if (response.find("\"name\":\"" + llmModel + "\"") != std::string::npos) {
-                    modelFound = true;
-                }
-            } else if (inferenceEngine == "vllm") {
-                // vLLM returns {"data":[{"id":"mistral"}]}
-                frontend_logger.info(response);
-                if (response.find("\"id\":\"" + llmModel + "\"") != std::string::npos) {
-                    modelFound = true;
-                }
-            }
-
-            if (!modelFound) {
-                frontend_logger.error("Model '" + llmModel + "' not found on " + inferenceEngine + " server.");
-                std::string msg = "Model '" + llmModel + "' not available on " + inferenceEngine + " server.";
-                write(connFd, msg.c_str(), msg.length());
-                write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
-                *loop_exit = true;
-                return;
-            } else {
-                frontend_logger.info("Verified model '" + llmModel + "' exists on " + inferenceEngine + " server.");
-            }
-
-        }
-    }
+    // for (auto llmServer : llmServers) {
+    //     std::string url;
+    //     bool modelFound = false;
+    //     std::string endpointPath;
+    //     if (inferenceEngine == "ollama") {
+    //         endpointPath = "api/tags";
+    //     } else if (inferenceEngine == "vllm") {
+    //         endpointPath = "/v1/models";
+    //     } else {
+    //         frontend_logger.error("Unknown inference engine: " + inferenceEngine);
+    //         std::string msg = "Unknown inference engine '" + inferenceEngine + "'";
+    //         write(connFd, msg.c_str(), msg.length());
+    //         write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
+    //         *loop_exit = true;
+    //         return;
+    //     }
+    //
+    //     url = Utils::normalizeURL(llmServer, endpointPath);
+    //     frontend_logger.info("Final LLM endpoint: " + url);
+    //
+    //     CURL *curl = curl_easy_init();
+    //     if (curl) {
+    //         std::string response;
+    //         curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
+    //         curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, WriteCallback);
+    //         curl_easy_setopt(curl, CURLOPT_WRITEDATA, &response);
+    //         curl_easy_setopt(curl, CURLOPT_TIMEOUT, 5L);
+    //
+    //         CURLcode res = curl_easy_perform(curl);
+    //         curl_easy_cleanup(curl);
+    //
+    //         if (res != CURLE_OK) {
+    //             frontend_logger.error("Failed to reach " + inferenceEngine + " server at " + llmServer);
+    //             std::string msg = "Could not connect to " + inferenceEngine + " server.";
+    //             write(connFd, msg.c_str(), msg.length());
+    //             write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
+    //             *loop_exit = true;
+    //             return;
+    //         }
+    //
+    //         // --- Check model existence ---
+    //         if (inferenceEngine == "ollama") {
+    //             // Ollama returns {"models":[{"name":"llama2"}]}
+    //             if (response.find("\"name\":\"" + llmModel + "\"") != std::string::npos) {
+    //                 modelFound = true;
+    //             }
+    //         } else if (inferenceEngine == "vllm") {
+    //             // vLLM returns {"data":[{"id":"mistral"}]}
+    //             frontend_logger.info(response);
+    //             if (response.find("\"id\":\"" + llmModel + "\"") != std::string::npos) {
+    //                 modelFound = true;
+    //             }
+    //         }
+    //
+    //         if (!modelFound) {
+    //             frontend_logger.error("Model '" + llmModel + "' not found on " + inferenceEngine + " server.");
+    //             std::string msg = "Model '" + llmModel + "' not available on " + inferenceEngine + " server.";
+    //             write(connFd, msg.c_str(), msg.length());
+    //             write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
+    //             *loop_exit = true;
+    //             return;
+    //         } else {
+    //             frontend_logger.info("Verified model '" + llmModel + "' exists on " + inferenceEngine + " server.");
+    //         }
+    //
+    //     }
+    // }
 
     auto begin = chrono::high_resolution_clock::now();
 
@@ -2134,72 +2134,72 @@ bool JasmineGraphFrontEnd::constructKGStreamHDFSCommand(std::string masterIP, in
 
     vector<std::string> llmServers = Utils::getUniqueLLMRunners(hostnamePortS);
 
-    for (auto llmServer : llmServers) {
-        std::string url;
-        bool modelFound = false;
-        std::string endpointPath;
-        if (llmInferenceEngineS == "ollama") {
-            endpointPath = "api/tags";
-        } else if (llmInferenceEngineS == "vllm") {
-            endpointPath = "/v1/models";
-        } else {
-            frontend_logger.error("Unknown inference engine: " + llmInferenceEngineS);
-            std::string msg = "Unknown inference engine '" + llmInferenceEngineS + "'";
-            write(connFd, msg.c_str(), msg.length());
-            write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
-            *loop_exit_p = true;
-            return false;
-        }
-
-        url = Utils::normalizeURL(llmServer, endpointPath);
-        frontend_logger.info("Final LLM endpoint: " + url);
-
-        CURL *curl = curl_easy_init();
-        if (curl) {
-            std::string response;
-            curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
-            curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, WriteCallback);
-            curl_easy_setopt(curl, CURLOPT_WRITEDATA, &response);
-            curl_easy_setopt(curl, CURLOPT_TIMEOUT, 5L);
-
-            CURLcode res = curl_easy_perform(curl);
-            curl_easy_cleanup(curl);
-
-            if (res != CURLE_OK) {
-                frontend_logger.error("Failed to reach " + llmInferenceEngineS + " server at " + llmServer);
-                std::string msg = "Could not connect to " + llmInferenceEngineS + " server.";
-                write(connFd, msg.c_str(), msg.length());
-                write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
-                *loop_exit_p = true;
-                return false;
-            }
-
-            // --- Check model existence ---
-            if (llmInferenceEngineS == "ollama") {
-                // Ollama returns {"models":[{"name":"llama2"}]}
-                if (response.find("\"name\":\"" + llmS + "\"") != std::string::npos) {
-                    modelFound = true;
-                }
-            } else if (llmInferenceEngineS == "vllm") {
-                // vLLM returns {"data":[{"id":"mistral"}]}
-                frontend_logger.info(response);
-                if (response.find("\"id\":\"" + llmS + "\"") != std::string::npos) {
-                    modelFound = true;
-                }
-            }
-
-            if (!modelFound) {
-                frontend_logger.error("Model '" + llmS + "' not found on " + llmInferenceEngineS + " server.");
-                std::string msg = "Model '" + llmS + "' not available on " + llmInferenceEngineS + " server.";
-                write(connFd, msg.c_str(), msg.length());
-                write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
-                *loop_exit_p = true;
-                return false;
-            } else {
-                frontend_logger.info("Verified model '" + llmS + "' exists on " + llmInferenceEngineS + " server.");
-            }
-        }
-    }
+    // for (auto llmServer : llmServers) {
+    //     std::string url;
+    //     bool modelFound = false;
+    //     std::string endpointPath;
+    //     if (llmInferenceEngineS == "ollama") {
+    //         endpointPath = "api/tags";
+    //     } else if (llmInferenceEngineS == "vllm") {
+    //         endpointPath = "/v1/models";
+    //     } else {
+    //         frontend_logger.error("Unknown inference engine: " + llmInferenceEngineS);
+    //         std::string msg = "Unknown inference engine '" + llmInferenceEngineS + "'";
+    //         write(connFd, msg.c_str(), msg.length());
+    //         write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
+    //         *loop_exit_p = true;
+    //         return false;
+    //     }
+    //
+    //     url = Utils::normalizeURL(llmServer, endpointPath);
+    //     frontend_logger.info("Final LLM endpoint: " + url);
+    //
+    //     CURL *curl = curl_easy_init();
+    //     if (curl) {
+    //         std::string response;
+    //         curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
+    //         curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, WriteCallback);
+    //         curl_easy_setopt(curl, CURLOPT_WRITEDATA, &response);
+    //         curl_easy_setopt(curl, CURLOPT_TIMEOUT, 5L);
+    //
+    //         CURLcode res = curl_easy_perform(curl);
+    //         curl_easy_cleanup(curl);
+    //
+    //         if (res != CURLE_OK) {
+    //             frontend_logger.error("Failed to reach " + llmInferenceEngineS + " server at " + llmServer);
+    //             std::string msg = "Could not connect to " + llmInferenceEngineS + " server.";
+    //             write(connFd, msg.c_str(), msg.length());
+    //             write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
+    //             *loop_exit_p = true;
+    //             return false;
+    //         }
+    //
+    //         // --- Check model existence ---
+    //         if (llmInferenceEngineS == "ollama") {
+    //             // Ollama returns {"models":[{"name":"llama2"}]}
+    //             if (response.find("\"name\":\"" + llmS + "\"") != std::string::npos) {
+    //                 modelFound = true;
+    //             }
+    //         } else if (llmInferenceEngineS == "vllm") {
+    //             // vLLM returns {"data":[{"id":"mistral"}]}
+    //             frontend_logger.info(response);
+    //             if (response.find("\"id\":\"" + llmS + "\"") != std::string::npos) {
+    //                 modelFound = true;
+    //             }
+    //         }
+    //
+    //         if (!modelFound) {
+    //             frontend_logger.error("Model '" + llmS + "' not found on " + llmInferenceEngineS + " server.");
+    //             std::string msg = "Model '" + llmS + "' not available on " + llmInferenceEngineS + " server.";
+    //             write(connFd, msg.c_str(), msg.length());
+    //             write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
+    //             *loop_exit_p = true;
+    //             return false;
+    //         } else {
+    //             frontend_logger.info("Verified model '" + llmS + "' exists on " + llmInferenceEngineS + " server.");
+    //         }
+    //     }
+    // }
 
     std::string chunk_size_msg = "chunk size (Bytes):";
     resultWr = write(connFd, chunk_size_msg.c_str(), chunk_size_msg.length());

@@ -80,6 +80,10 @@ std::vector<ScoredPath> SemanticBeamSearch::getSeedNodes() {
 
       float score = Utils::cosineSimilarity(
           emb, faissStore->getEmbeddingById(nodeData["id"]));
+
+        if (score < 0.55) {
+            continue;
+        }
         HopTrace seedTrace;
         seedTrace.hop = 0;
         seedTrace.expandedFromNode = "QUERY";
@@ -250,8 +254,12 @@ void SemanticBeamSearch::semanticMultiHopBeamSearch(SharedBuffer& buffer,
               visitedRelations.find(relData["id"].get<std::string>())!= visitedRelations.end()
               || newPathNodeIds.find(to_string(expandedNode->nodeId))!=  newPathNodeIds.end()) {
             semantic_beam_search_logger.debug("Skipping visited relation");
-            relation =
-                relation->nextLocalDestination();  // or nextCentralDestination
+              if (lastNode->addr == relation->source.address) {
+                  relation =  relation->nextLocalSource();
+              }else {
+                  relation =  relation->nextLocalDestination();
+
+              }
 
             continue;
           }
@@ -298,8 +306,8 @@ void SemanticBeamSearch::semanticMultiHopBeamSearch(SharedBuffer& buffer,
               ", interim score: " + std::to_string(score));
           semantic_beam_search_logger.debug("Node properties: " +
                                             nodeData.dump());
-            float nodeScore = Utils::cosineSimilarity(emb, emb_);
-            float newScore = score + nodeScore;
+            // float nodeScore = Utils::cosineSimilarity(emb, emb_);
+            float newScore = score ;
 
             HopTrace trace;
             trace.hop = hop;
@@ -308,7 +316,7 @@ void SemanticBeamSearch::semanticMultiHopBeamSearch(SharedBuffer& buffer,
                                         ? relData["type"].get<std::string>()
                                         : "UNKNOWN";
             trace.toNode = std::to_string(expandedNode->nodeId);
-            trace.nodeScore = nodeScore;
+            trace.nodeScore = 0.0f;
             trace.relationScore = 0.0f; // added later
             trace.cumulativeScore = newScore;
 
@@ -396,9 +404,12 @@ void SemanticBeamSearch::semanticMultiHopBeamSearch(SharedBuffer& buffer,
               visitedRelations.find(relData["id"].get<std::string>())!= visitedRelations.end()
               ||  newPathNodeIds.find(to_string(expandedNode->nodeId))!=  newPathNodeIds.end()) {
             semantic_beam_search_logger.debug("Skipping parent relation");
-            relation =
-                relation
-                    ->nextCentralDestination();  // or nextCentralDestination
+                if (lastNode->addr == relation->source.address) {
+                    relation =  relation->nextLocalSource();
+                }else {
+                    relation =  relation->nextLocalDestination();
+
+                }
             continue;
           }
           newPath["pathRels"].push_back(relData);
@@ -442,8 +453,8 @@ void SemanticBeamSearch::semanticMultiHopBeamSearch(SharedBuffer& buffer,
           semantic_beam_search_logger.debug("Node properties: " +
                                             nodeData.dump());
 
-            float nodeScore = Utils::cosineSimilarity(emb, emb_);
-            float newScore = score + nodeScore;
+            // float nodeScore = Utils::cosineSimilarity(emb, emb_);
+            float newScore = score ;
 
             HopTrace trace;
             trace.hop = hop;
@@ -452,7 +463,7 @@ void SemanticBeamSearch::semanticMultiHopBeamSearch(SharedBuffer& buffer,
                                         ? relData["type"].get<std::string>()
                                         : "UNKNOWN";
             trace.toNode = std::to_string(expandedNode->nodeId);
-            trace.nodeScore = nodeScore;
+            trace.nodeScore = 0.0f ;
             trace.relationScore = 0.0f; // added later
             trace.cumulativeScore = newScore;
 
@@ -518,7 +529,8 @@ void SemanticBeamSearch::semanticMultiHopBeamSearch(SharedBuffer& buffer,
 
       if (expandedPaths.empty() || !isPathExpanded) {
         json spJson;
-          float total = hop*2 +1;
+
+          float total = hop ;
         spJson["score"] = sp.score/total;
         spJson["pathObj"] = sp.pathObj;
           spJson["hop"] = hop;
@@ -593,9 +605,12 @@ void SemanticBeamSearch::semanticMultiHopBeamSearch(SharedBuffer& buffer,
       json pathRels = path.pathObj["pathRels"].back();
       if (pathRels.contains("type")) {
         std::string edgeType = pathRels["type"].get<std::string>();
+          semantic_beam_search_logger.debug("reconstructed embedding for edge type:" + edgeType);
         auto it = typeEmbeddingCache.find(edgeType);
         if (it != typeEmbeddingCache.end()) {
           float relScore = Utils::cosineSimilarity(emb, it->second);
+            semantic_beam_search_logger.debug("Score reconstructed embedding for edge type: " + edgeType + ": "+
+                std::to_string(relScore));
           path.score += relScore;
             path.hopTraces.back().relationScore = relScore;
             path.hopTraces.back().cumulativeScore += relScore;
@@ -636,7 +651,7 @@ void SemanticBeamSearch::semanticMultiHopBeamSearch(SharedBuffer& buffer,
                                       paths[i].pathObj.dump());
     json data;
     data["pathObj"] = paths[i].pathObj;
-    data["score"] = paths[i].score/ (numHops * 2 +3);
+    data["score"] = paths[i].score/ (numHops + 1);
       data["hop"] = numHops;
     buffer.add(data.dump());
   }
