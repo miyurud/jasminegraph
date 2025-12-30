@@ -5953,7 +5953,7 @@ static void graphrag_command(
                 AgentProtocol::getResponse(
                     agentRequestCtx,
                     retrievedData.dump(2));
-            
+
             instance_logger.info("[GraphRAG] Generatied final response: " + finalAnswer);
 
             // ---- Write to socket ----
@@ -5986,6 +5986,31 @@ static void graphrag_command(
 
         instance_logger.info("[GraphRAG] Command completed");
     }
+}
+
+static std::vector<std::string> chunkText(
+    const std::string &text,
+    size_t maxChunkSize = 800)
+{
+    std::vector<std::string> chunks;
+    std::string current;
+
+    for (char c : text)
+    {
+        current.push_back(c);
+
+        if (current.size() >= maxChunkSize &&
+            (c == '.' || c == '\n'))
+        {
+            chunks.push_back(current);
+            current.clear();
+        }
+    }
+
+    if (!current.empty())
+        chunks.push_back(current);
+
+    return chunks;
 }
 
 static void semantic_search_expand_node_remote_batch(
