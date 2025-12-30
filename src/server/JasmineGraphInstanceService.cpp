@@ -5945,6 +5945,17 @@ static void graphrag_command(
             instance_logger.info("[GraphRAG][SBS] Top-" +
                                  std::to_string(results.size()) + " results selected");
 
+            json retrievedData;
+            retrievedData["results"] = results;
+            retrievedData["k"] = results.size();
+
+            std::string finalAnswer =
+                AgentProtocol::getResponse(
+                    agentRequestCtx,
+                    retrievedData.dump(2));
+            
+            instance_logger.info("[GraphRAG] Generatied final response: " + finalAnswer);
+
             // ---- Write to socket ----
             int resultIndex = 0;
             for (const auto &res : results)
@@ -5957,7 +5968,6 @@ static void graphrag_command(
                 {
                     instance_logger.error("[GraphRAG][SBS] Socket write failed for result " + std::to_string(resultIndex - 1));
                     *loop_exit_p = true;
-  
                 }
             }
 
