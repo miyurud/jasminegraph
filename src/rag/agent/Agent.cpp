@@ -38,7 +38,7 @@ std::string Agent::generatePlan(const std::string &query)
     return plan.dump();
 }
 
-std::string generateResponse(const std::string &query, const std::string &retrievedData)
+std::string Agent::generateResponse(const std::string &query, const std::string &retrievedData)
 {
     json response = p->responder->generateResponse(query, retrievedData);
     response["response_id"] = getUid();
