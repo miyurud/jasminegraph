@@ -5813,7 +5813,6 @@ static void graphrag_command(
             instance_logger.info("[GraphRAG][SBS] Executing objective: " +
                                  obj.id + " -> " + obj.query);
 
-            // ---- Parse worker list ----
             std::vector<std::tuple<std::string, int, int>> workers;
             std::stringstream ss(workerListStr);
             std::string workerInfo;
@@ -5921,7 +5920,6 @@ static void graphrag_command(
                     });
             }
 
-            // ---- Join threads ----
             for (auto &t : workerThreads)
                 if (t.joinable())
                     t.join();
@@ -5932,7 +5930,6 @@ static void graphrag_command(
 
             instance_logger.info("[GraphRAG][SBS] All workers completed");
 
-            // ---- Sort & trim ----
             std::sort(results.begin(), results.end(),
                       [](const json &a, const json &b)
                       {
@@ -5978,23 +5975,6 @@ static void graphrag_command(
                     break;
                 }
             }
-
-            // // ---- Write to socket ----
-            // int resultIndex = 0;
-            // for (const auto &res : results)
-            // {
-            //     instance_logger.info("[GraphRAG][SBS] Writing result " + std::to_string(resultIndex++));
-            //     std::string data = res.dump() + Conts::CARRIAGE_RETURN_NEW_LINE;
-
-            //     ssize_t n = write(connFd, data.c_str(), data.size());
-            //     if (n < 0)
-            //     {
-            //         instance_logger.error("[GraphRAG][SBS] Socket write failed for result " + std::to_string(resultIndex - 1));
-            //         *loop_exit_p = true;
-            //     }
-            // }
-
-            // ---- Send end-of-results marker ----
    
             instance_logger.info("[GraphRAG][SBS] Sending end-of-results marker");
             std::string endSignal = json{{"type", "end"}}.dump() + Conts::CARRIAGE_RETURN_NEW_LINE;
