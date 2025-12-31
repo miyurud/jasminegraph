@@ -160,6 +160,10 @@ long countLocalTriangles(
 
 static void processFile(string basicString, bool isLocal, InstanceStreamHandler &handler, bool isEmbedGraph);
 
+static std::vector<std::string> chunkText(
+    const std::string &text,
+    size_t maxChunkSize = 800);
+
 char *converter(const std::string &s)
 {
     char *pc = new char[s.size() + 1];
@@ -5956,24 +5960,44 @@ static void graphrag_command(
 
             instance_logger.info("[GraphRAG] Generatied final response: " + finalAnswer);
 
-            // ---- Write to socket ----
-            int resultIndex = 0;
-            for (const auto &res : results)
-            {
-                instance_logger.info("[GraphRAG][SBS] Writing result " + std::to_string(resultIndex++));
-                std::string data = res.dump() + Conts::CARRIAGE_RETURN_NEW_LINE;
+            auto chunks = chunkText(finalAnswer);
 
-                ssize_t n = write(connFd, data.c_str(), data.size());
-                if (n < 0)
+            for (const auto &chunk : chunks)
+            {
+                std::string payload =
+                    json{
+                        {"type", "answer_chunk"},
+                        {"data", chunk}}
+                        .dump() +
+                    Conts::CARRIAGE_RETURN_NEW_LINE;
+                instance_logger.info("[GraphRAG] Chunk: " + payload);
+                if (write(connFd, payload.c_str(), payload.size()) < 0)
                 {
-                    instance_logger.error("[GraphRAG][SBS] Socket write failed for result " + std::to_string(resultIndex - 1));
+                    instance_logger.error("[GraphRAG] Socket write failed");
                     *loop_exit_p = true;
+                    break;
                 }
             }
 
+            // // ---- Write to socket ----
+            // int resultIndex = 0;
+            // for (const auto &res : results)
+            // {
+            //     instance_logger.info("[GraphRAG][SBS] Writing result " + std::to_string(resultIndex++));
+            //     std::string data = res.dump() + Conts::CARRIAGE_RETURN_NEW_LINE;
+
+            //     ssize_t n = write(connFd, data.c_str(), data.size());
+            //     if (n < 0)
+            //     {
+            //         instance_logger.error("[GraphRAG][SBS] Socket write failed for result " + std::to_string(resultIndex - 1));
+            //         *loop_exit_p = true;
+            //     }
+            // }
+
             // ---- Send end-of-results marker ----
-            instance_logger.info("[GraphRAG][SBS] Sending end-of-results marker (-1)");
-            std::string endSignal = "-1" + Conts::CARRIAGE_RETURN_NEW_LINE;
+   
+            instance_logger.info("[GraphRAG][SBS] Sending end-of-results marker");
+            std::string endSignal = json{{"type", "end"}}.dump() + Conts::CARRIAGE_RETURN_NEW_LINE;
             if (write(connFd, endSignal.c_str(), endSignal.size()) < 0)
             {
                 instance_logger.error("[GraphRAG][SBS] Failed to send end-of-results marker");
@@ -5990,7 +6014,7 @@ static void graphrag_command(
 
 static std::vector<std::string> chunkText(
     const std::string &text,
-    size_t maxChunkSize = 800)
+    size_t maxChunkSize)
 {
     std::vector<std::string> chunks;
     std::string current;
