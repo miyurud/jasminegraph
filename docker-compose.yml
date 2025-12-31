@@ -21,12 +21,14 @@ services:
       - kafka
       - alloy
       - grafana
+      - tempo
   prometheus:
     image: prom/prometheus:latest
     ports:
       - 9090:9090
     volumes:
       - './conf/prometheus.yaml:/etc/prometheus/prometheus.yml'
+      - './prometheus_data:/prometheus' 
     networks:
       jasminenet:
         ipv4_address: 172.28.5.2
@@ -64,8 +66,6 @@ services:
     image: grafana/alloy:latest
     ports:
       - 12345:12345
-      - 4317:4317
-      - 4318:4318
     volumes:
       - ./config.alloy:/etc/alloy/config.alloy
       - /var/run/docker.sock:/var/run/docker.sock
@@ -86,36 +86,35 @@ services:
       jasminenet:
         ipv4_address: 172.28.5.5
   grafana:
-    image: grafana/grafana-enterprise
+    build:
+      context: .
+      dockerfile: Dockerfile.grafana
     environment:
       - GF_FEATURE_TOGGLES_ENABLE=grafanaManagedRecordingRules
       - GF_AUTH_ANONYMOUS_ORG_ROLE=Admin
       - GF_AUTH_ANONYMOUS_ENABLED=true
       - GF_AUTH_BASIC_ENABLED=false
+      - GF_SECURITY_ALLOW_EMBEDDING=true
+      - GF_SECURITY_X_FRAME_OPTIONS=ALLOWALL
     ports:
       - 3001:3000
-    entrypoint:
-      - sh
-      - -euc
-      - |
-        mkdir -p /etc/grafana/provisioning/datasources
-        cat <<EOF > /etc/grafana/provisioning/datasources/ds.yaml
-        apiVersion: 1
-        datasources:
-        - name: Loki
-          type: loki
-          access: proxy
-          orgId: 1
-          url: 'http://loki:3100'
-          basicAuth: false
-          isDefault: true
-          version: 1
-          editable: true 
-        EOF
-        /run.sh
     networks:
       jasminenet:
         ipv4_address: 172.28.5.6
+  
+  tempo:
+    image: grafana/tempo:latest
+    ports:
+      - "3200:3200"
+      - "4317:4317"
+      - "4318:4318"
+      - "14268:14268"
+    volumes:
+      - ./tempo-config.yaml:/etc/tempo.yaml
+    command: -config.file=/etc/tempo.yaml
+    networks:
+      jasminenet:
+        ipv4_address: 172.28.5.9
 
 networks:
   jasminenet:

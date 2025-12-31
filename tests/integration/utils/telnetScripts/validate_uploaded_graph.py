@@ -19,7 +19,7 @@ from time import sleep
 # Configuration
 HOST = "127.0.0.1"
 PORT = 7777
-GRAPH_ID = "47"
+GRAPH_ID = "17"
 LINE_END = b"\r\n"
 CYPHER = b"cypher"
 
@@ -155,7 +155,7 @@ if __name__ == "__main__":
         port = sys.argv[4] if len(sys.argv) >4 else PORT
 
     else:
-        graph_source = "../../env_init/data/graph_with_properties_test2.txt"
+        graph_source = "../../env_init/data/graph_with_properties_large.txt"
         graph_id = GRAPH_ID
         host = HOST
         port = PORT

@@ -31,7 +31,7 @@ limitations under the License.
 #include "../../util/Conts.h"
 #include "../../util/Utils.h"
 #include "../../util/logger/Logger.h"
-#include "StatisticCollector.h"
+#include "StatisticsCollector.h"
 
 #ifndef JASMINEGRAPH_PERFORMANCEUTIL_H
 #define JASMINEGRAPH_PERFORMANCEUTIL_H
@@ -50,6 +50,7 @@ struct Place {
     std::string hostId;
     std::string placeId;
 };
+
 
 class PerformanceUtil {
  public:
@@ -80,6 +81,7 @@ class PerformanceUtil {
                                                  int elapsedTime, std::string masterIP);
     static double getAggregatedLoadAverage(std::string graphId, std::string placeId, std::string command,
                                            std::string category, int elapsedTime);
+
 
  private:
     static void collectLocalSLAResourceUtilization(std::string graphId, std::string placeId, std::string command,

@@ -15,7 +15,9 @@ create table graph
     train_status                VARCHAR(20),
     feature_count               INTEGER(100),
     is_directed                 boolean default false,
-    feature_type                VARCHAR(10)
+    feature_type                VARCHAR(10),
+    uploaded_bytes  BIGINT DEFAULT 0,
+    file_size_bytes BIGINT DEFAULT 0
 );
 
 create index index_idgraph
@@ -53,12 +55,13 @@ create table model
 create table partition
 (
     idpartition                 INTEGER not null,
-    graph_idgraph               INTEGER,
+    graph_idgraph               INTEGER not null,
     vertexcount                 INTEGER,
     central_vertexcount         INTEGER,
     edgecount                   INTEGER,
     central_edgecount           INTEGER,
-    central_edgecount_with_dups INTEGER
+    central_edgecount_with_dups INTEGER,
+    PRIMARY KEY (idpartition, graph_idgraph)
 );
 
 create table worker

@@ -268,7 +268,11 @@ void HDFSStreamHandler::streamFromBufferToProcessingQueuePropertyGraph(HDFSMulti
 
 void HDFSStreamHandler::startStreamingFromBufferToPartitions() {
     auto startTime = high_resolution_clock::now();
-    HDFSMultiThreadedHashPartitioner partitioner(numberOfPartitions, graphId, masterIP, isDirected);
+
+    JasmineGraphServer *server = JasmineGraphServer::getInstance();
+    std::vector<JasmineGraphServer::worker> workers = server->workers(numberOfPartitions);
+    HDFSMultiThreadedHashPartitioner partitioner(numberOfPartitions, graphId, masterIP, isDirected, workers,
+        false, 1000);
 
     std::thread readerThread(&HDFSStreamHandler::streamFromHDFSIntoBuffer, this);
     std::vector<std::thread> bufferProcessorThreads;

@@ -18,6 +18,7 @@ limitations under the License.
 #include "../../../../nativestore/MetaPropertyLink.h"
 #include "../../../../nativestore/MetaPropertyEdgeLink.h"
 #include "../../../../nativestore/temporal/TemporalQueryFilter.h"
+#include "../../../../util/telemetry/OpenTelemetryUtil.h"
 #include "Helpers.h"
 #include <thread>
 #include <queue>
@@ -167,10 +168,13 @@ void OperatorExecutor::initializeMethodMap() {
 }
 
 void OperatorExecutor::AllNodeScan(SharedBuffer &buffer, std::string jsonPlan, GraphConfig gc) {
+    OTEL_TRACE_OPERATION("AllNodeScan");
+
     json query = json::parse(jsonPlan);
     TemporalConstraints temporalConstraints = TemporalQueryFilter::fromJson(query);
     const std::string partitionKey = std::to_string(gc.partitionID);
     NodeManager nodeManager(gc);
+    int nodeCount = 0;
     for (auto it : nodeManager.nodeIndex) {
         json nodeData;
         auto nodeId = it.first;
@@ -183,15 +187,22 @@ void OperatorExecutor::AllNodeScan(SharedBuffer &buffer, std::string jsonPlan, G
         string variable = query["variables"];
         data[variable] = nodeData;
         buffer.add(data.dump());
+        nodeCount++;
     }
+    OpenTelemetryUtil::addSpanAttribute("nodes.scanned", std::to_string(nodeCount));
     buffer.add("-1");
 }
 
 void OperatorExecutor::NodeScanByLabel(SharedBuffer &buffer, std::string jsonPlan, GraphConfig gc) {
+    OTEL_TRACE_OPERATION("NodeScanByLabel");
+
     json query = json::parse(jsonPlan);
     TemporalConstraints temporalConstraints = TemporalQueryFilter::fromJson(query);
     const std::string partitionKey = std::to_string(gc.partitionID);
+    OpenTelemetryUtil::addSpanAttribute("scan.label", query["Label"].get<std::string>());
+
     NodeManager nodeManager(gc);
+    int nodeCount = 0;
     for (auto it : nodeManager.nodeIndex) {
         json nodeData;
         auto nodeId = it.first;
@@ -202,6 +213,16 @@ void OperatorExecutor::NodeScanByLabel(SharedBuffer &buffer, std::string jsonPla
         }
         if (!populateNodeJson(node, nodeData, temporalConstraints, partitionKey)) {
             continue;
+                delete[] value;  // Free each allocated char* array
+            }
+            properties.clear();
+
+            json data;
+            string variable = query["variable"];
+            data[variable] = nodeData;
+            buffer.add(data.dump());
+            nodeCount++;
+>>>>>>> master
         }
 
         json data;
@@ -209,10 +230,13 @@ void OperatorExecutor::NodeScanByLabel(SharedBuffer &buffer, std::string jsonPla
         data[variable] = nodeData;
         buffer.add(data.dump());
     }
+    OpenTelemetryUtil::addSpanAttribute("nodes.found", std::to_string(nodeCount));
     buffer.add("-1");
 }
 
 void OperatorExecutor::ProduceResult(SharedBuffer &buffer, std::string jsonPlan, GraphConfig gc) {
+    OTEL_TRACE_OPERATION("ProduceResult");
+
     json query = json::parse(jsonPlan);
     SharedBuffer sharedBuffer(INTER_OPERATOR_BUFFER_SIZE);
     std::string nextOpt = query["NextOperator"];
@@ -239,6 +263,8 @@ void OperatorExecutor::ProduceResult(SharedBuffer &buffer, std::string jsonPlan,
 }
 
 void OperatorExecutor::Filter(SharedBuffer &buffer, std::string jsonPlan, GraphConfig gc) {
+    OTEL_TRACE_OPERATION("Filter");
+
     json query = json::parse(jsonPlan);
     SharedBuffer sharedBuffer(INTER_OPERATOR_BUFFER_SIZE);
     std::string nextOpt = query["NextOperator"];
@@ -263,8 +289,15 @@ void OperatorExecutor::Filter(SharedBuffer &buffer, std::string jsonPlan, GraphC
 }
 
 void OperatorExecutor::UndirectedRelationshipTypeScan(SharedBuffer &buffer, std::string jsonPlan, GraphConfig gc) {
+    OTEL_TRACE_OPERATION("UndirectedRelationshipTypeScan");
+
     json query = json::parse(jsonPlan);
+<<<<<<< HEAD
     TemporalConstraints temporalConstraints = TemporalQueryFilter::fromJson(query);
+=======
+    OpenTelemetryUtil::addSpanAttribute("relationship.type", query["relType"].get<std::string>());
+
+>>>>>>> master
     NodeManager nodeManager(gc);
 
     const std::string& dbPrefix = nodeManager.getDbPrefix();

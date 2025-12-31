@@ -14,6 +14,9 @@ limitations under the License.
 #include <memory>
 #include <nlohmann/json.hpp>
 #include <string>
+
+#include "../../vectorstore/FaissIndex.h"
+#include "../../vectorstore/TextEmbedder.h"
 using json = nlohmann::json;
 
 #include "../../nativestore/NodeManager.h"
@@ -21,16 +24,28 @@ using json = nlohmann::json;
 #ifndef Incremental_LocalStore
 #define Incremental_LocalStore
 
+struct EmbeddingRequest {
+    std::string nodeId;
+    std::string nodeText;
+};
+
 class JasmineGraphIncrementalLocalStore {
  public:
     GraphConfig gc;
-    NodeManager *nm;
-     std::unique_ptr<TemporalEventLogger> temporalLogger;
+    NodeManager* nm;
+    std::unique_ptr<TemporalEventLogger> temporalLogger;
+    FaissIndex* faissStore;
+    TextEmbedder* textEmbedder;
+    std::vector<EmbeddingRequest>* embedding_requests;
+    // batch texts to embed
+
+    bool embedNode;
     void addEdgeFromString(std::string edgeString);
     static std::pair<std::string, unsigned int> getIDs(std::string edgeString);
-    JasmineGraphIncrementalLocalStore(unsigned int graphID = 0,
-                                      unsigned int partitionID = 0, std::string openMode = "trunk");
+    JasmineGraphIncrementalLocalStore(unsigned int graphID = 0, unsigned int partitionID = 0,
+                                      std::string openMode = "trunk", bool embedNode = false);
     ~JasmineGraphIncrementalLocalStore() { delete nm; }
+    bool getAndStoreEmbeddings();
     void addLocalEdge(std::string edge);
     void addCentralEdge(std::string edge);
     void addNodeMetaProperty(NodeBlock* nodeBlock, std::string propertyKey, std::string propertyValue);

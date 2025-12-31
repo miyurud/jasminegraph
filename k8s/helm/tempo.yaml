@@ -1,0 +1,99 @@
+image:
+  repository: grafana/tempo
+  tag: latest
+  pullPolicy: IfNotPresent
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 256Mi
+  limits:
+    cpu: 500m
+    memory: 1Gi
+
+service:
+  type: ClusterIP
+  ports:
+    - name: otlp-grpc
+      port: 4317
+      targetPort: 4317
+      protocol: TCP
+    - name: otlp-http
+      port: 4318
+      targetPort: 4318
+      protocol: TCP
+    - name: tempo
+      port: 3200
+      targetPort: 3200
+      protocol: TCP
+    - name: jaeger
+      port: 14268
+      targetPort: 14268
+      protocol: TCP
+
+tempo:
+  metricsGenerator:
+    enabled: true
+    remoteWriteUrl: "http://prometheus-server:80/api/v1/write"
+  
+  storage:
+    trace:
+      backend: local
+      local:
+        path: /var/tempo/traces
+  
+  receivers:
+    otlp:
+      protocols:
+        grpc:
+          endpoint: 0.0.0.0:4317
+        http:
+          endpoint: 0.0.0.0:4318
+    jaeger:
+      protocols:
+        thrift_http:
+          endpoint: 0.0.0.0:14268
+
+persistence:
+  enabled: true
+  size: 10Gi
+  storageClassName: standard
+
+config: |
+  auth_enabled: false
+  
+  server:
+    http_listen_port: 3200
+  
+  distributor:
+    receivers:
+      otlp:
+        protocols:
+          grpc:
+            endpoint: 0.0.0.0:4317
+          http:
+            endpoint: 0.0.0.0:4318
+      jaeger:
+        protocols:
+          thrift_http:
+            endpoint: 0.0.0.0:14268
+  
+  ingester:
+    trace_idle_period: 10s
+    max_block_bytes: 1_000_000
+    max_block_duration: 5m
+  
+  compactor:
+    compaction:
+      block_retention: 1h
+  
+  storage:
+    trace:
+      backend: local
+      local:
+        path: /var/tempo/traces
+      wal:
+        path: /var/tempo/wal
+      pool:
+        max_workers: 100
+        queue_depth: 10000

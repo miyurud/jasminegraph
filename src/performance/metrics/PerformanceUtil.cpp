@@ -13,6 +13,8 @@ limitations under the License.
 
 #include "PerformanceUtil.h"
 
+#include "../../server/JasmineGraphServer.h"
+
 using namespace std::chrono;
 std::map<std::string, std::vector<ResourceUsageInfo>> resourceUsageMap;
 
@@ -37,40 +39,96 @@ void PerformanceUtil::init() {
 
 int PerformanceUtil::collectPerformanceStatistics() {
     // Host level
-    double cpuUsage = StatisticCollector::getCpuUsage();
+    double cpuUsage = StatisticsCollector::getCpuUsage();
     Utils::send_job("", "cpu_usage", std::to_string(cpuUsage));
 
-    long rxBytes = StatisticCollector::getRXBytes();
+    long rxBytes = StatisticsCollector::getRXBytes();
     Utils::send_job("", "rx_bytes", std::to_string(rxBytes));
 
-    long txBytes = StatisticCollector::getTXBytes();
+    long txBytes = StatisticsCollector::getTXBytes();
     Utils::send_job("", "tx_bytes", std::to_string(txBytes));
 
-    long totalMemoryUsage = StatisticCollector::getTotalMemoryUsage();
+    long totalMemoryUsage = StatisticsCollector::getTotalMemoryUsage();
     Utils::send_job("", "total_memory", std::to_string(totalMemoryUsage));
 
-    long usedSwapSpace = StatisticCollector::getUsedSwapSpace();
+    double totalMemoryUsagePercentage = StatisticsCollector::getMemoryUsagePercentage();
+    Utils::send_job("", "memory_usage_percentage", std::to_string(totalMemoryUsagePercentage));
+
+
+    long usedSwapSpace = StatisticsCollector::getUsedSwapSpace();
     Utils::send_job("", "used_swap_space", std::to_string(usedSwapSpace));
 
-    double currentLoadAverage = StatisticCollector::getLoadAverage();
+    double currentLoadAverage = StatisticsCollector::getLoadAverage();
     Utils::send_job("", "load_average", std::to_string(currentLoadAverage));
 
-    long totalSwapSpace = StatisticCollector::getTotalSwapSpace();
+    double cpuLoadPercentage = StatisticsCollector::getCpuLoadPercentage();
+    Utils::send_job("", "cpu_load_percentage", std::to_string(cpuLoadPercentage));
+
+    long runQueue = StatisticsCollector::getRunQueue();
+    Utils::send_job("", "run_queue", std::to_string(runQueue));
+
+    std::vector<double> logicalCpuUsages = StatisticsCollector::getLogicalCpuCoreThreadUsage();
+    for (size_t i = 0; i < logicalCpuUsages.size(); i++) {
+        Utils::send_job("", "cpu_core_" + std::to_string(i) + "_usage", std::to_string(logicalCpuUsages[i]));
+    }
+
+    double processSwitchesPerSec = StatisticsCollector::getProcessSwitchesPerSecond();
+    Utils::send_job("", "process_switches_per_sec", std::to_string(processSwitchesPerSec));
+
+    double forkCallsPerSec = StatisticsCollector::getForkCallsPerSecond();
+    Utils::send_job("", "fork_calls_per_sec", std::to_string(forkCallsPerSec));
+
+    std::unordered_map<std::string, std::pair<double, double>> networkPackets =
+                StatisticsCollector::getNetworkPacketsPerSecond();
+    for (const auto& [interface, packets] : networkPackets) {
+        double rxPacketsPerSec = packets.first;
+        double txPacketsPerSec = packets.second;
+        Utils::send_job("", "net_" + interface + "_rx_packets_per_sec", std::to_string(rxPacketsPerSec));
+        Utils::send_job("", "net_" + interface + "_tx_packets_per_sec", std::to_string(txPacketsPerSec));
+    }
+
+    std::unordered_map<std::string, double> diskBusy = StatisticsCollector::getDiskBusyPercentage();
+    for (const auto& [device, busyPercentage] : diskBusy) {
+        Utils::send_job("", "disk_" + device + "_busy_percentage", std::to_string(busyPercentage));
+    }
+
+    std::unordered_map<std::string, std::pair<double, double>> diskRates =
+                StatisticsCollector::getDiskReadWriteKBPerSecond();
+    for (const auto& [device, rates] : diskRates) {
+        double readKBPerSec = rates.first;
+        double writeKBPerSec = rates.second;
+        Utils::send_job("", "disk_" + device + "_read_kb_per_sec", std::to_string(readKBPerSec));
+        Utils::send_job("", "disk_" + device + "_write_kb_per_sec", std::to_string(writeKBPerSec));
+    }
+
+    std::unordered_map<std::string, double> diskBlockSizes = StatisticsCollector::getDiskBlockSizeKB();
+    for (const auto& [device, blockSizeKB] : diskBlockSizes) {
+        Utils::send_job("", "disk_" + device + "_block_size_kb", std::to_string(blockSizeKB));
+    }
+
+    std::unordered_map<std::string, double> diskTransferRates = StatisticsCollector::getDiskTransfersPerSecond();
+    for (const auto& [device, transfersPerSec] : diskTransferRates) {
+        Utils::send_job("", "disk_" + device + "_transfers_per_sec", std::to_string(transfersPerSec));
+    }
+
+    long totalSwapSpace = StatisticsCollector::getTotalSwapSpace();
     Utils::send_job("", "total_swap_space", std::to_string(totalSwapSpace));
 
     // Per process
-    long memoryUsage = StatisticCollector::getMemoryUsageByProcess();
+    long memoryUsage = StatisticsCollector::getMemoryUsageByProcess();
     Utils::send_job("", "memory_usage", std::to_string(memoryUsage));
 
-    int threadCount = StatisticCollector::getThreadCount();
+    int threadCount = StatisticsCollector::getThreadCount();
     Utils::send_job("", "thread_count", std::to_string(threadCount));
 
-    int socketCount = StatisticCollector::getSocketCount();
+    int socketCount = StatisticsCollector::getSocketCount();
     Utils::send_job("", "socket_count", std::to_string(socketCount));
-
     scheduler_logger.info("Pushed performance metrics");
     return 0;
 }
+
+
+
 
 std::vector<Place> PerformanceUtil::getHostReporterList() {
     std::vector<Place> hostReporterList;
@@ -137,7 +195,7 @@ void PerformanceUtil::collectLocalSLAResourceUtilization(std::string graphId, st
                                                          std::string category, int elapsedTime, bool autoCalibrate) {
     string graphSlaId;
 
-    double loadAverage = StatisticCollector::getLoadAverage();
+    double loadAverage = StatisticsCollector::getLoadAverage();
 
     auto executedTime = std::chrono::system_clock::now();
     std::time_t reportTime = std::chrono::system_clock::to_time_t(executedTime);
@@ -438,7 +496,7 @@ void PerformanceUtil::adjustAggregateLoadMap(std::map<std::string, std::vector<d
 }
 
 void PerformanceUtil::logLoadAverage() {
-    double currentLoadAverage = StatisticCollector::getLoadAverage();
+    double currentLoadAverage = StatisticsCollector::getLoadAverage();
 }
 
 void PerformanceUtil::updateResourceConsumption(PerformanceSQLiteDBInterface *performanceDb, std::string graphId,

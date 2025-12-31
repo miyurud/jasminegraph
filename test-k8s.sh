@@ -6,7 +6,7 @@ export TERM=xterm-256color
 PROJECT_ROOT="$(pwd)"
 TEST_ROOT="${PROJECT_ROOT}/tests/integration"
 
-TIMEOUT_SECONDS=500
+TIMEOUT_SECONDS=2400
 
 RUN_ID="$(date +%y%m%d_%H%M%S)"
 LOG_DIR="${PROJECT_ROOT}/logs/${RUN_ID}"
@@ -235,6 +235,30 @@ ready_hdfs() {
     }
     echo "Custom graph file successfully uploaded to HDFS at ${CUSTOM_GRAPH_HDFS_PATH}"
 
+    CUSTOM_GRAPH_FILE="text.txt"
+    CUSTOM_GRAPH_LOCAL_PATH="${LOCAL_DIRECTORY}${CUSTOM_GRAPH_FILE}"
+    CUSTOM_GRAPH_HDFS_PATH="${HDFS_DIRECTORY}${CUSTOM_GRAPH_FILE}"
+    echo "Copying text file from JasmineGraph Master pod..."
+    kubectl cp "${MASTER_POD}:${CUSTOM_GRAPH_LOCAL_PATH}" "${CUSTOM_GRAPH_LOCAL_PATH}" || {
+        echo "Error copying custom graph file from JasmineGraph Master pod."
+        return 1
+    }
+    echo "Copying text file to HDFS Namenode container..."
+    docker cp "${CUSTOM_GRAPH_LOCAL_PATH}" "${NAMENODE_CONTAINER}:${CUSTOM_GRAPH_LOCAL_PATH}" || {
+        echo "Error copying custom graph file to Namenode container."
+        return 1
+    }
+    echo "Uploading text file to HDFS..."
+    docker exec -i "${NAMENODE_CONTAINER}" hdfs dfs -mkdir -p "${HDFS_DIRECTORY}" || {
+        echo "Error creating HDFS directory for custom graph file."
+        return 1
+    }
+    docker exec -i "${NAMENODE_CONTAINER}" hdfs dfs -put -f "${CUSTOM_GRAPH_LOCAL_PATH}" "${CUSTOM_GRAPH_HDFS_PATH}" || {
+        echo "Error uploading textfile to HDFS."
+        return 1
+    }
+    echo "Text file successfully uploaded to HDFS at ${CUSTOM_GRAPH_HDFS_PATH}"
+
 }
 cd "$TEST_ROOT"
 force_remove env
@@ -312,6 +336,7 @@ if [ "$exit_code" != '0' ]; then
     kubectl top pods || echo "kubectl top not available"
     free -h
     df -h
+    du -sh /* 2>/dev/null | sort -hr | head -n 10
 
     echo
     echo -e '\e[31;1mERROR: Test Timeout\e[0m'

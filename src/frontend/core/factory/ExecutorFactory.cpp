@@ -17,6 +17,7 @@ limitations under the License.
 #include "../executor/impl/StreamingTriangleCountExecutor.h"
 #include "../executor/impl/PageRankExecutor.h"
 #include "../executor/impl/CypherQueryExecutor.h"
+#include "../executor/impl/SemanticBeamSearchExecutor.h"
 
 ExecutorFactory::ExecutorFactory(SQLiteDBInterface *db, PerformanceSQLiteDBInterface *perfDb) {
     this->sqliteDB = db;
@@ -32,6 +33,8 @@ AbstractExecutor* ExecutorFactory::getExecutor(JobRequest jobRequest) {
         return new PageRankExecutor(this->sqliteDB, this->perfDB, jobRequest);
     } else if (CYPHER == jobRequest.getJobType()) {
         return new CypherQueryExecutor(this->sqliteDB, this->perfDB, jobRequest);
+    } else if (SEMANTIC_BEAM_SEARCH == jobRequest.getJobType()) {
+        return new SemanticBeamSearchExecutor(this->sqliteDB, this->perfDB, jobRequest);
     }
     return nullptr;
 }

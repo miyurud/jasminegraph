@@ -39,14 +39,21 @@ class NodeManager {
     unsigned long INDEX_KEY_SIZE = 6;  // Size of an index key entry in bytes
     std::string indexDBPath;
 
+    std::string edgeIndexDBPath;
+
+
 
     void persistNodeIndex();
+    void persistEdgeIndex();
     std::unordered_map<std::string, unsigned int> readNodeIndex();
+    std::unordered_map<std::string, unsigned int> readEdgeIndex();
     void addNodeIndex(std::string nodeId, unsigned int nodeIndex);
 
  public:
+    unsigned long nextEdgeIndex = 0;
     static unsigned int nextPropertyIndex;  // Next available property block index
     std::unordered_map<std::string, unsigned int> nodeIndex;
+    std::unordered_map<std::string, unsigned int> edgeIndex;
     NodeManager(GraphConfig);
     ~NodeManager() { delete NodeBlock::nodesDB; };
 

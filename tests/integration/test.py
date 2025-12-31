@@ -9,12 +9,12 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 """
-
 import sys
 import socket
 import logging
 import os
 import time
+
 from utils.telnetScripts.validate_uploaded_graph import  test_graph_validation
 
 logging.addLevelName(
@@ -49,8 +49,11 @@ DONE = b'done'
 ADHDFS = b'adhdfs'
 LINE_END = b'\r\n'
 CYPHER = b'cypher'
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
-
+UPLOAD_SCRIPT = os.path.join(BASE_DIR, 'utils/datasets/upload-hdfs-file.sh')
+OLLAMA_SETUP_SCRIPT = os.path.join(BASE_DIR, 'graphRAG/utils/start-ollama.sh')
+TEXT_FOLDER = os.path.join(BASE_DIR, 'graphRAG/KG/gold')
 def expect_response(conn: socket.socket, expected: bytes, timeout: float = 30000.0):
     """Check if the response is equal to the expected response within a timeout.
     Return True if they are equal, False otherwise.
@@ -190,6 +193,7 @@ failed_tests = []
 
 def test(host, port):
     """Test the JasmineGraph server by sending a series of commands and checking the responses."""
+
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
         sock.connect((host, port))
         print()
@@ -200,7 +204,7 @@ def test(host, port):
         logging.info('Testing adgr')
         send_and_expect_response(sock, 'adgr', ADGR, SEND, exit_on_failure=True)
         send_and_expect_response(
-            sock, 'adgr', b'powergrid|/var/tmp/data/powergrid.dl', DONE, exit_on_failure=True)
+        sock, 'adgr', b'powergrid|/var/tmp/data/powergrid.dl', DONE, exit_on_failure=True)
 
         print()
         logging.info('Testing lst after adgr')
