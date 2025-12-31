@@ -38,7 +38,7 @@ void AgentPlanExecutor::execute()
     int connFd = std::stoi(request.getParameter(Conts::PARAM_KEYS::CONN_FILE_DESCRIPTOR));
     bool *loop_exit = reinterpret_cast<bool *>(static_cast<std::uintptr_t>(std::stoull(
         request.getParameter(Conts::PARAM_KEYS::LOOP_EXIT_POINTER))));
-        
+
     bool canCalibrate = Utils::parseBoolean(canCalibrateString);
     bool autoCalibrate = Utils::parseBoolean(autoCalibrateString);
 
@@ -147,8 +147,7 @@ void AgentPlanExecutor::execute()
     sendField("llmModel", llmModel);
     sendField("workerList", workerListStr);
 
-    // --- Receive results line-by-line until -1 ---
-    std::vector<json> results;
+    // // --- Receive results line-by-line until -1 ---
     std::string lineBuffer;
     char c;
 
@@ -158,35 +157,43 @@ void AgentPlanExecutor::execute()
         if (bytesRead <= 0)
         {
             agent_executor_logger.error("[AGENT EXECUTOR] Connection closed or error while reading");
+            *loop_exit = true;
             break;
         }
 
         if (c == '\n') // end of line
         {
-            // Remove trailing '\r' if present
             if (!lineBuffer.empty() && lineBuffer.back() == '\r')
                 lineBuffer.pop_back();
 
             std::string line = Utils::trim_copy(lineBuffer);
             lineBuffer.clear();
 
-            if (line == "-1") // end-of-results
-            {
-                agent_executor_logger.info("[AGENT EXECUTOR] End-of-results signal received");
-                break;
-            }
+            if (line.empty())
+                continue;
 
-            if (!line.empty())
+            try
             {
-                agent_executor_logger.info("[AGENT EXECUTOR] Received JSON result: " + line);
-                try
+                json payload = json::parse(line);
+
+                if (payload.contains("type") && payload["type"] == "end")
                 {
-                    // Stream to frontend immediately
-                    ssize_t result_wr = write(connFd, line.c_str(), line.size());
+                    agent_executor_logger.info("[AGENT EXECUTOR] End-of-answer marker received");
+                    break;
+                }
+-
+                if (payload.contains("type") && payload["type"] == "answer_chunk")
+                {
+                    std::string dataStr = payload["data"];
+                    nlohmann::json innerJson = nlohmann::json::parse(dataStr);
+                    std::string chunkContent = innerJson["answer"];
+                    agent_executor_logger.info("[AGENT EXECUTOR] Received answer chunk: " + chunkContent);
+
+                    ssize_t n = write(connFd, chunkContent.c_str(), chunkContent.size());
                     write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(),
                           Conts::CARRIAGE_RETURN_NEW_LINE.size());
 
-                    if (result_wr < 0)
+                    if (n < 0)
                     {
                         agent_executor_logger.error("[AGENT EXECUTOR] Error writing to frontend socket");
                         *loop_exit = true;
@@ -194,10 +201,10 @@ void AgentPlanExecutor::execute()
                         return;
                     }
                 }
-                catch (const std::exception &e)
-                {
-                    agent_executor_logger.error("[AGENT EXECUTOR] JSON parse error: " + std::string(e.what()));
-                }
+            }
+            catch (const std::exception &e)
+            {
+                agent_executor_logger.error("[AGENT EXECUTOR] JSON parse error: " + std::string(e.what()));
             }
         }
         else
@@ -207,8 +214,6 @@ void AgentPlanExecutor::execute()
     }
 
     agent_executor_logger.info("[AGENT EXECUTOR] All results received");
-
-    // Optional: ACK to worker
 
     Utils::send_str_wrapper(sockfd, "ok");
     close(sockfd);
