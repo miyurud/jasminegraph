@@ -60,7 +60,7 @@ void NodeBlock::addLabel(char *label) {
         node_block_logger.debug(std::to_string(this->addr));
         std::strncpy(this->label, label, NodeBlock::LABEL_SIZE - 1);
         this->label[NodeBlock::LABEL_SIZE - 1] = '\0';
-        NodeBlock::nodesDB->clear();
+        // NodeBlock::nodesDB->clear();
         NodeBlock::nodesDB->seekp(this->addr + sizeof(this->usage) + sizeof(this->nodeId) + sizeof(this->edgeRef) +
                                   sizeof(this->centralEdgeRef) + sizeof(this->edgeRefPID) + sizeof(this->propRef) +
                                   sizeof(this->metaPropRef));
@@ -84,7 +84,8 @@ bool isSmallLabel = id.length() < sizeof(this->label);
 if (isSmallLabel) {
     std::strncpy(this->label, this->id.c_str(), sizeof(this->label) - 1);
     this->label[sizeof(this->label) - 1] = '\0';
-}        NodeBlock::nodesDB->clear();
+}
+    // NodeBlock::nodesDB->clear();
 
     NodeBlock::nodesDB->seekp(this->addr);
     NodeBlock::nodesDB->put(this->usage);                                                                       // 1
@@ -116,7 +117,7 @@ void NodeBlock::addProperty(std::string name, const char* value) {
             // If it was an empty prop link before inserting, Then update the property reference of this node
             // block
             //            node_block_logger.info("propRef = " + std::to_string(this->propRef));
-            NodeBlock::nodesDB->clear();
+            // NodeBlock::nodesDB->clear();
 
             NodeBlock::nodesDB->seekp(this->addr +sizeof(this->usage) +sizeof(this->nodeId) + sizeof(this->edgeRef) +
                                       sizeof(this->centralEdgeRef) + sizeof(this->edgeRefPID));
@@ -146,7 +147,7 @@ void NodeBlock::addMetaProperty(std::string name, const char* value) {
 
             node_block_logger.debug("Created new MetaPropertyLink at address: " +
                 std::to_string(newLink->blockAddress));
-            NodeBlock::nodesDB->clear();
+            // NodeBlock::nodesDB->clear();
 
             NodeBlock::nodesDB->seekp(this->addr + sizeof(this->usage) + sizeof(this->nodeId) + sizeof(this->edgeRef) +
                                       sizeof(this->centralEdgeRef) + sizeof(this->edgeRefPID) + sizeof(this->propRef));
@@ -284,11 +285,11 @@ RelationBlock* NodeBlock::getCentralRelationHead() {
 
 bool NodeBlock::setLocalRelationHead(RelationBlock newRelation) {
     try {
-        NodeBlock::nodesDB->clear();  // clear old errors
+        // NodeBlock::nodesDB->clear();  // clear old errors
 
         unsigned int edgeReferenceAddress = newRelation.addr;
         int edgeReferenceOffset = sizeof(this->usage) + sizeof(this->nodeId);
-        NodeBlock::nodesDB->clear();
+        // NodeBlock::nodesDB->clear();
 
         NodeBlock::nodesDB->seekp(this->addr + edgeReferenceOffset);
         if (!NodeBlock::nodesDB->good()) {

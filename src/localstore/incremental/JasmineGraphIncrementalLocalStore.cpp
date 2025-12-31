@@ -336,6 +336,8 @@ void JasmineGraphIncrementalLocalStore::addLocalEdge(std::string edge) {
         addSourceProperties(newRelation, jsonSource, dId);
         addDestinationProperties(newRelation, jsonDestination);
 
+
+// TODO : temporary fix for edgeRef = 0 for destination node sometimes
         newRelation->getDestination()->setLocalRelationHead(*newRelation);
 
 

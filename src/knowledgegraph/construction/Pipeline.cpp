@@ -531,51 +531,54 @@ json Pipeline::processTupleAndSaveInPartition(const std::vector<std::unique_ptr<
                     if (line == END_OF_STREAM_MARKER) {
                         kg_pipeline_stream_handler_logger.debug("Received end-of-stream marker in thread " +
                                                                 std::to_string(i));
-                         std::unique_lock<std::mutex> lock(realTimeBytesUpdateMutex);
+                        //
+                        // {
+                        //     std::lock_guard<std::mutex> lock(realTimeBytesUpdateMutex);
+                        //
+                        //    json meta;
+                        //    json graph;
+                        //    graph["vertexcount"] = partitions.getVertexCount();
+                        //    graph["edgecount"] = partitions.getEdgeCount();
+                        //    graph["centralpartitioncount"] = this->numberOfPartitions;
+                        //    graph["graph_status_idgraph_status"] = Conts::GRAPH_STATUS::OPERATIONAL;
+                        //
+                        //    meta["graph"] = graph;
+                        //    meta["partitions"] = partitions.getPartitionsMeta();
+                        //
+                        //    char data[FED_DATA_LENGTH + 1];
+                        //
+                        //    Utils::send_str_wrapper(connFd, META);
+                        //    string response = Utils::read_str_wrapper(connFd, data, FED_DATA_LENGTH);
+                        //
+                        //    char ack3[ACK_MESSAGE_SIZE] = {0};
+                        //    string metaS = meta.dump();
+                        //    int message_length = metaS.length();
+                        //    int converted_number = htonl(message_length);
+                        //    kg_pipeline_stream_handler_logger.debug("Sending content length: " +
+                        //                                            to_string(converted_number));
+                        //
+                        //    if (!Utils::sendIntExpectResponse(connFd, ack3, JasmineGraphInstanceProtocol::OK.length(),
+                        //                                      converted_number, JasmineGraphInstanceProtocol::OK)) {
+                        //        Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::CLOSE);
+                        //        close(connFd);
+                        //        return;
+                        //    }
+                        //
+                        //    if (!Utils::send_str_wrapper(connFd, metaS)) {
+                        //        close(connFd);
+                        //        return;
+                        //    }
+                        //    char ack2[FED_DATA_LENGTH + 1];
+                        //    Utils::send_str_wrapper(connFd, std::to_string(realtime_bytes_read_so_far));
+                        //
+                        //    response = Utils::read_str_wrapper(connFd, ack2, FED_DATA_LENGTH);
+                        //
+                        // if (response == "stop") {
+                        //     kg_pipeline_stream_handler_logger.info("stop request:" + response);
+                        //     stopFlag = true;
+                        // }
+                        // }
 
-                        json meta;
-                        json graph;
-                        graph["vertexcount"] = partitions.getVertexCount();
-                        graph["edgecount"] = partitions.getEdgeCount();
-                        graph["centralpartitioncount"] = this->numberOfPartitions;
-                        graph["graph_status_idgraph_status"] = Conts::GRAPH_STATUS::OPERATIONAL;
-
-                        meta["graph"] = graph;
-                        meta["partitions"] = partitions.getPartitionsMeta();
-
-                        char data[FED_DATA_LENGTH + 1];
-
-                        Utils::send_str_wrapper(connFd, META);
-                        string response = Utils::read_str_wrapper(connFd, data, FED_DATA_LENGTH);
-
-                        char ack3[ACK_MESSAGE_SIZE] = {0};
-                        string metaS = meta.dump();
-                        int message_length = metaS.length();
-                        int converted_number = htonl(message_length);
-                        kg_pipeline_stream_handler_logger.debug("Sending content length: " +
-                                                                to_string(converted_number));
-
-                        if (!Utils::sendIntExpectResponse(connFd, ack3, JasmineGraphInstanceProtocol::OK.length(),
-                                                          converted_number, JasmineGraphInstanceProtocol::OK)) {
-                            Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::CLOSE);
-                            close(connFd);
-                            return;
-                        }
-
-                        if (!Utils::send_str_wrapper(connFd, metaS)) {
-                            close(connFd);
-                            return;
-                        }
-                        char ack2[FED_DATA_LENGTH + 1];
-                        Utils::send_str_wrapper(connFd, std::to_string(realtime_bytes_read_so_far));
-
-                        response = Utils::read_str_wrapper(connFd, ack2, FED_DATA_LENGTH);
-
-                        if (response == "stop") {
-                            kg_pipeline_stream_handler_logger.info("stop request:" + response);
-                            stopFlag = true;
-                        }
-                        lock.unlock();
                         break;
                     }
                     try {
@@ -925,6 +928,8 @@ void Pipeline::extractTuples(std::string host, int port, std::string masterIP, i
                 ssize_t ret = recv(sockfd, &tuple_length_net, sizeof(int), 0);
                 if (ret <= 0) {
                     kg_pipeline_stream_handler_logger.error("Failed to receive tuple length, closing stream");
+                    retry = true;
+                    retryChunk = &chunkData;
                     break;
                 }
 

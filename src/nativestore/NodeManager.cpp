@@ -31,7 +31,7 @@ limitations under the License.
 
 Logger node_manager_logger;
 pthread_mutex_t lockNodeAdd;
-
+pthread_mutex_t lockEdgeAdd;
 
 NodeManager::NodeManager(GraphConfig gConfig) {
     this->graphID = gConfig.graphID;
