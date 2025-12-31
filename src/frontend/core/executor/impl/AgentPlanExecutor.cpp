@@ -181,7 +181,7 @@ void AgentPlanExecutor::execute()
                     agent_executor_logger.info("[AGENT EXECUTOR] End-of-answer marker received");
                     break;
                 }
--
+
                 if (payload.contains("type") && payload["type"] == "answer_chunk")
                 {
                     std::string dataStr = payload["data"];
