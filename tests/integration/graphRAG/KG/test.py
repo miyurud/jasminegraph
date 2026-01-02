@@ -178,11 +178,12 @@ def test_kg(text_folder, upload_file_script, host, port):
                 all_txt_files.append(os.path.join(root, file))
 
     random.shuffle(all_txt_files)
-
+    graph_ids = []
     for local_path in all_txt_files:
         try:
             hdfs_path = upload_to_hdfs(local_path, upload_file_script)
             graph_id = send_file_to_master(hdfs_path, host, port)
+            graph_ids.append(graph_id)
         except subprocess.CalledProcessError as err:
             logging.error("Failed to upload %s to HDFS: %s", local_path, err)
             continue
@@ -198,6 +199,8 @@ def test_kg(text_folder, upload_file_script, host, port):
             entities.append(triple["head_entity"])
 
         assert entities.index("Radio City") != -1
+
+    return graph_ids
 
 if __name__ == "__main__":
     test_kg(TEXT_FOLDER, UPLOAD_SCRIPT, HOST, PORT)
