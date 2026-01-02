@@ -112,7 +112,6 @@ json Planner::buildSemanticBeamSearchPlan(const std::string &query)
 
     while (attempt < maxRetries)
     {
-        //llmResponse = callLLM(prompt);
         llmResponse = LLMUtils::callLLM(prompt, host, model);
         if (!llmResponse.empty())
             break;
@@ -135,7 +134,7 @@ json Planner::buildSemanticBeamSearchPlan(const std::string &query)
         std::string responseText = stripMarkdown(raw["response"]);
         json cleanPlan = json::parse(responseText);
         planner_logger.info(
-            "Generated clean semantic plan: " + cleanPlan.dump());
+            "Generated Semantic Plan: " + cleanPlan.dump());
         return cleanPlan;
     }
     catch (...)

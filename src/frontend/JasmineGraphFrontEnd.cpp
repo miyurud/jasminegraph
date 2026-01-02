@@ -775,7 +775,7 @@ static void agent_plan_command(std::string masterIP, int connFd, vector<DataPubl
     read(connFd, llmRunnerBuf, FRONTEND_DATA_LENGTH);
     std::string llmRunner = Utils::trim_copy(llmRunnerBuf);
 
-    frontend_logger.info("LLM runner(s): " + llmRunner);
+    frontend_logger.debug("LLM runner(s): " + llmRunner);
 
     // --------------Inference Engine---------------
     std::string inferenceMsg = "LLM inference engine? ollama/vllm?";
@@ -788,7 +788,7 @@ static void agent_plan_command(std::string masterIP, int connFd, vector<DataPubl
     read(connFd, engineBuf, FRONTEND_DATA_LENGTH);
     std::string inferenceEngine = Utils::trim_copy(engineBuf);
 
-    frontend_logger.info("Inference engine: " + inferenceEngine);
+    frontend_logger.debug("Inference engine: " + inferenceEngine);
 
     // ---------------LLM Model---------------
     std::string modelMsg = "What is the LLM you want to use?:";
@@ -801,7 +801,7 @@ static void agent_plan_command(std::string masterIP, int connFd, vector<DataPubl
     read(connFd, modelBuf, FRONTEND_DATA_LENGTH);
     std::string llmModel = Utils::trim_copy(modelBuf);
 
-    frontend_logger.info("LLM model: " + llmModel);
+    frontend_logger.debug("LLM model: " + llmModel);
 
     // ---------------Verify Model------------
     vector<std::string> llmServers = Utils::getUniqueLLMRunners(llmRunner);
@@ -824,7 +824,7 @@ static void agent_plan_command(std::string masterIP, int connFd, vector<DataPubl
         }
 
         url = Utils::normalizeURL(llmServer, endpointPath);
-        frontend_logger.info("Final LLM endpoint: " + url);
+        frontend_logger.debug("Final LLM endpoint: " + url);
 
         CURL *curl = curl_easy_init();
         if (curl) {
@@ -854,7 +854,7 @@ static void agent_plan_command(std::string masterIP, int connFd, vector<DataPubl
                 }
             } else if (inferenceEngine == "vllm") {
                 // vLLM returns {"data":[{"id":"mistral"}]}
-                frontend_logger.info(response);
+                frontend_logger.debug(response);
                 if (response.find("\"id\":\"" + llmModel + "\"") != std::string::npos) {
                     modelFound = true;
                 }
@@ -907,7 +907,6 @@ static void agent_plan_command(std::string masterIP, int connFd, vector<DataPubl
                             canCalibrate ? "true" : "false");
 
     jobScheduler->pushJob(jobDetails);
-    frontend_logger.debug("Agent plan job pushed");
 
     JobResponse jobResponse = jobScheduler->getResult(jobDetails);
     std::string errorMessage = jobResponse.getParameter(Conts::PARAM_KEYS::ERROR_MESSAGE);

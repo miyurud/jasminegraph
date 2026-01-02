@@ -45,10 +45,6 @@ DecodedPlan PlanDecoder::decode(const json &jsonPlan)
         }
 
         decoded.sbsPlan = sbsPlan;
-
-        plan_decoder_logger.info(
-            "Decoded plan_id=" + std::to_string(decoded.planId) +
-            ", SBS=" + std::to_string(decoded.sbsPlan.has_value()));
     }
 
     return decoded;

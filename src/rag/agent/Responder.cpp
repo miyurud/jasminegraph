@@ -89,8 +89,6 @@ json Responder::generateResponse(
 
         std::string answer = raw["response"].get<std::string>();
 
-        responder_logger.info("Generated user response successfully: " + answer);
-
         return {
             {"query", query},
             {"answer", answer}};
