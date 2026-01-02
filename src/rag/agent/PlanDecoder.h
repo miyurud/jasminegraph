@@ -4,6 +4,6 @@
 #include "PlanTypes.h"
 
 class PlanDecoder {
-    public:
-        static DecodedPlan decode(const nlohmann::json& jsonPlan);
+ public:
+    static DecodedPlan decode(const nlohmann::json& jsonPlan);
 };
