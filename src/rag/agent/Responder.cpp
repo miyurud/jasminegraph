@@ -41,17 +41,12 @@ Provide a clear and complete answer to the User Query based on the Retrieved Dat
 )";
 
 Responder::Responder(const std::string& model, const std::string& host, const std::string& engine)
-    : model(model), host(host), engine(engine) {
-}
+    : model(model), host(host), engine(engine) {}
 
-json Responder::generateResponse(
-    const std::string& query,
-    const json& executionResult) {
-    std::string prompt =
-        RESPONDER_PROMPT +
-        std::string("\n\nUser Query:\n") + query +
-        std::string("\n\nRetrieved Data:\n") + executionResult.dump(2) +
-        std::string("\n\nFinal Answer:");
+json Responder::generateResponse(const std::string& query, const json& executionResult) {
+    std::string prompt = RESPONDER_PROMPT + std::string("\n\nUser Query:\n") + query +
+                         std::string("\n\nRetrieved Data:\n") + executionResult.dump(2) +
+                         std::string("\n\nFinal Answer:");
 
     responder_logger.debug("Responder Prompt: " + prompt);
     const int maxRetries = 3;
@@ -64,26 +59,18 @@ json Responder::generateResponse(
         if (!llmResponse.empty())
             break;
 
-        responder_logger.info(
-            "Retrying LLM response generation in " +
-            std::to_string(baseDelaySeconds * (attempt + 1)) +
-            " seconds...");
+        responder_logger.info("Retrying LLM response generation in " +
+                              std::to_string(baseDelaySeconds * (attempt + 1)) + " seconds...");
 
-        std::this_thread::sleep_for(
-            std::chrono::seconds(baseDelaySeconds * (attempt + 1)));
+        std::this_thread::sleep_for(std::chrono::seconds(baseDelaySeconds * (attempt + 1)));
         attempt++;
     }
 
     if (llmResponse.empty()) {
-        responder_logger.error(
-            "LLM failed to generate a response after " +
-            std::to_string(maxRetries) + " attempts");
+        responder_logger.error("LLM failed to generate a response after " + std::to_string(maxRetries) + " attempts");
 
-        llmResponse =
-            "I'm sorry, I couldn't generate a response at this time.";
+        llmResponse = "I'm sorry, I couldn't generate a response at this time.";
     }
 
-    return {
-        {"query", query},
-        {"answer", llmResponse}};
+    return {{"query", query}, {"answer", llmResponse}};
 }

@@ -1,6 +1,24 @@
+# Based on Google style
 BasedOnStyle: Google
+
+# Indentation
 IndentWidth: 4
-ColumnLimit: 0
-BreakBeforeBraces: Attach           
-SpacesBeforeTrailingComments: 2     
+AccessModifierOffset: -4  # Align 'public:', 'private:' one level inside class
+
+# Line length
+ColumnLimit: 120  # Limit lines to 120 chars
+
+# Braces
+BreakBeforeBraces: Attach  # Keep braces at end of function/class/namespace lines
+
+# Single-line statements
 AllowShortIfStatementsOnASingleLine: false
+
+# Trailing spaces
+TrimTrailingWhitespace: true
+
+# Newline at end of file
+InsertFinalNewline: true
+
+# Misc
+SpacesBeforeTrailingComments: 2

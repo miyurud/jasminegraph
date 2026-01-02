@@ -61,11 +61,9 @@ Guidelines for objectives:
 )";
 
 Planner::Planner(const std::string& modelName, const std::string& host, const std::string& engine)
-    : model(modelName), host(host), engine(engine) {
-}
+    : model(modelName), host(host), engine(engine) {}
 
-Planner::~Planner() {
-}
+Planner::~Planner() {}
 
 static std::string stripMarkdown(const std::string& s) {
     std::string out = s;
@@ -114,15 +112,13 @@ json Planner::buildSemanticBeamSearchPlan(const std::string& query) {
 
     try {
         json cleanPlan = json::parse(llmResponse);
-        planner_logger.info(
-            "Generated Semantic Plan: " + cleanPlan.dump());
+        planner_logger.info("Generated Semantic Plan: " + cleanPlan.dump());
         return cleanPlan;
     } catch (...) {
         planner_logger.error("LLM output not valid JSON, returning fallback plan.");
         json fallback;
-        fallback["objectives"] = json::array({{{"id", "obj1"},
-                                               {"query", prompt},
-                                               {"search_type", "SEMANTIC_BEAM_SEARCH"}}});
+        fallback["objectives"] =
+            json::array({{{"id", "obj1"}, {"query", prompt}, {"search_type", "SEMANTIC_BEAM_SEARCH"}}});
         fallback["plan_type"] = "DIRECT";
 
         return fallback;

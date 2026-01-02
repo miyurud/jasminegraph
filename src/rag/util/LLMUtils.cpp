@@ -45,7 +45,8 @@ static std::string stripMarkdown(const std::string& s) {
     return out;
 }
 
-std::string callLLM(const std::string& prompt, const std::string& host, const std::string& model, const std::string& engine) {
+std::string callLLM(const std::string& prompt, const std::string& host, const std::string& model,
+                    const std::string& engine) {
     std::string result;
     CURL* curl = curl_easy_init();
     if (!curl)
@@ -101,8 +102,7 @@ std::string callLLM(const std::string& prompt, const std::string& host, const st
             if (!raw.contains("choices") || raw["choices"].empty())
                 return "";
 
-            text = raw["choices"][0]["message"]["content"]
-                       .get<std::string>();
+            text = raw["choices"][0]["message"]["content"].get<std::string>();
         } else {
             if (!raw.contains("response"))
                 return "";
@@ -112,8 +112,7 @@ std::string callLLM(const std::string& prompt, const std::string& host, const st
 
         return stripMarkdown(text);
     } catch (const std::exception& e) {
-        llmutil_logger.error("LLM response parse error: " +
-                             std::string(e.what()));
+        llmutil_logger.error("LLM response parse error: " + std::string(e.what()));
     }
     return "";
 }

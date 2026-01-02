@@ -17,8 +17,7 @@ int Agent::getUid() {
     return ++uid;
 }
 
-Agent::Agent(const std::string& modelName, const std::string& host, const std::string& engine)
-    : p(new Impl()) {
+Agent::Agent(const std::string& modelName, const std::string& host, const std::string& engine) : p(new Impl()) {
     p->planner = new Planner(modelName, host, engine);
     p->responder = new Responder(modelName, host, engine);
 }
