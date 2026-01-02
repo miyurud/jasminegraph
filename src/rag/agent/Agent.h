@@ -4,7 +4,7 @@
 
 class Agent {
 public:
-    Agent(const std::string& modelName, const std::string& host);
+    Agent(const std::string& modelName, const std::string& host, const std::string& engine);
     ~Agent();
 
     static int getUid();

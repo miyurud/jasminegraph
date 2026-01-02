@@ -38,8 +38,8 @@ Output:
 Provide a clear and complete answer to the User Query based on the Retrieved Data.
 )";
 
-Responder::Responder(const std::string &model, const std::string &host)
-    : model(model), host(host)
+Responder::Responder(const std::string &model, const std::string &host, const std::string& engine)
+    : model(model), host(host), engine(engine)
 {
 }
 
@@ -61,7 +61,7 @@ json Responder::generateResponse(
 
     while (attempt < maxRetries)
     {
-        llmResponse = LLMUtils::callLLM(prompt, host, model);
+        llmResponse = LLMUtils::callLLM(prompt, host, model, engine);
         if (!llmResponse.empty())
             break;
 

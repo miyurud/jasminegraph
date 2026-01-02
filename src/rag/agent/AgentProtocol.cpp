@@ -18,7 +18,8 @@ std::string AgentProtocol::getPlan(const AgentRequestContext &agentRequestCtx)
             " | engine=" + agentRequestCtx.llmEngine);
         agent.reset(new Agent(
             agentRequestCtx.llmModel,
-            agentRequestCtx.llmRunner));
+            agentRequestCtx.llmRunner,
+            agentRequestCtx.llmEngine));
     }
     return agent->generatePlan(agentRequestCtx.query);
 }
@@ -34,7 +35,8 @@ std::string AgentProtocol::getResponse(const AgentRequestContext &ctx, const std
             " | engine=" + ctx.llmEngine);
         agent.reset(new Agent(
             ctx.llmModel,
-            ctx.llmRunner));
+            ctx.llmRunner,
+            ctx.llmEngine));
     }
     return agent->generateResponse(ctx.query, retrievedData);
 }

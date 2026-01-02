@@ -4,7 +4,7 @@
 
 class Responder {
 public:
-    Responder(const std::string& model, const std::string& host);
+    Responder(const std::string& model, const std::string& host, const std::string& engine);
     ~Responder();
     nlohmann::json generateResponse(
         const std::string& query,
@@ -14,4 +14,5 @@ public:
 private:
     std::string model;
     std::string host;
+    std::string engine;
 };

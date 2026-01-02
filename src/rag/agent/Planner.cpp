@@ -57,8 +57,8 @@ Guidelines for objectives:
 - Use clear, concrete language
 )";
 
-Planner::Planner(const std::string &modelName, const std::string &host)
-    : model(modelName), host(host)
+Planner::Planner(const std::string &modelName, const std::string &host, const std::string& engine)
+    : model(modelName), host(host), engine(engine)
 {
 }
 
@@ -111,7 +111,7 @@ json Planner::buildSemanticBeamSearchPlan(const std::string &query)
 
     while (attempt < maxRetries)
     {
-        llmResponse = LLMUtils::callLLM(prompt, host, model);
+        llmResponse = LLMUtils::callLLM(prompt, host, model, engine);
         if (!llmResponse.empty())
             break;
 

@@ -26,7 +26,7 @@ namespace LLMUtils
         return size * nmemb;
     }
 
-    std::string callLLM(const std::string &prompt, const std::string &host, const std::string &model)
+    std::string callLLM(const std::string &prompt, const std::string &host, const std::string &model, const std::string &engine)
     {
         std::string result;
         CURL *curl = curl_easy_init();
