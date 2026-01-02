@@ -230,7 +230,7 @@ def test(host, port):
         logging.info('[KG] Testing knowledge graph construction ')
         graph_ids= test_kg(TEXT_FOLDER ,UPLOAD_SCRIPT, host, port)
 
-        sbs_results = run_sbs_query(graph_ids[0], 'At what frequency deos radio city broadcasts', host, port)
+        sbs_results = run_sbs_query('1', 'At what frequency deos radio city broadcasts', host, port)
         print(sbs_results)
 
         # shutting down workers after testing
