@@ -229,7 +229,7 @@ done
 sleep 2
 stop_tests_on_failure &
 
- Expand comma-separated or space-separated list into array TEST_LIST
+# Expand comma-separated or space-separated list into array TEST_LIST
 TEST_LIST=()
 
 if [ -z "$TEST_NAME" ]; then
@@ -289,7 +289,7 @@ if [ "$exit_code" = '124' ]; then
 fi
 
 print_log() {
-    sed -e 's/^jasminegraph-server  | //g' \
+    sed -e 's/^integration-jasminegraph-1  | //g' \
         -e 's/ \[logger\]//g' \
         -e 's/ \[info\] / ['$'\033''[32minfo'$'\033''[0m] /g' \
         -e 's/ \[warn\] / ['$'\033''[1;33mwarn'$'\033''[0m] /g' \
