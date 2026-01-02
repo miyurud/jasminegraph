@@ -1,10 +1,13 @@
 #include "Planner.h"
-#include "../../util/logger/Logger.h"
-#include "../util/LLMUtils.h"
+
 #include <curl/curl.h>
+
+#include <chrono>
 #include <nlohmann/json.hpp>
 #include <thread>
-#include <chrono>
+
+#include "../../util/logger/Logger.h"
+#include "../util/LLMUtils.h"
 
 using json = nlohmann::json;
 
@@ -57,41 +60,33 @@ Guidelines for objectives:
 - Use clear, concrete language
 )";
 
-Planner::Planner(const std::string &modelName, const std::string &host, const std::string& engine)
-    : model(modelName), host(host), engine(engine)
-{
+Planner::Planner(const std::string& modelName, const std::string& host, const std::string& engine)
+    : model(modelName), host(host), engine(engine) {
 }
 
-Planner::~Planner()
-{
+Planner::~Planner() {
 }
 
-static std::string stripMarkdown(const std::string &s)
-{
+static std::string stripMarkdown(const std::string& s) {
     std::string out = s;
 
     auto start = out.find("```");
-    if (start != std::string::npos)
-    {
+    if (start != std::string::npos) {
         start = out.find("\n", start);
-        if (start != std::string::npos)
-        {
+        if (start != std::string::npos) {
             out = out.substr(start + 1);
         }
     }
 
     auto end = out.rfind("```");
-    if (end != std::string::npos)
-    {
+    if (end != std::string::npos) {
         out = out.substr(0, end);
     }
 
     return out;
 }
 
-json Planner::build(const std::string &query)
-{
-
+json Planner::build(const std::string& query) {
     json semanticBeamSearchPlan = buildSemanticBeamSearchPlan(query);
 
     return json{
@@ -99,9 +94,7 @@ json Planner::build(const std::string &query)
     };
 }
 
-json Planner::buildSemanticBeamSearchPlan(const std::string &query)
-{
-
+json Planner::buildSemanticBeamSearchPlan(const std::string& query) {
     std::string prompt = SBS_PLANNER_PROMPT + std::string("\nUser Query:\n") + query;
 
     const int maxRetries = 3;
@@ -109,8 +102,7 @@ json Planner::buildSemanticBeamSearchPlan(const std::string &query)
     int attempt = 0;
     std::string llmResponse;
 
-    while (attempt < maxRetries)
-    {
+    while (attempt < maxRetries) {
         llmResponse = LLMUtils::callLLM(prompt, host, model, engine);
         if (!llmResponse.empty())
             break;
@@ -120,15 +112,12 @@ json Planner::buildSemanticBeamSearchPlan(const std::string &query)
         attempt++;
     }
 
-    try
-    {
+    try {
         json cleanPlan = json::parse(llmResponse);
         planner_logger.info(
             "Generated Semantic Plan: " + cleanPlan.dump());
         return cleanPlan;
-    }
-    catch (...)
-    {
+    } catch (...) {
         planner_logger.error("LLM output not valid JSON, returning fallback plan.");
         json fallback;
         fallback["objectives"] = json::array({{{"id", "obj1"},

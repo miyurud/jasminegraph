@@ -1,8 +1,10 @@
 #include "Responder.h"
+
+#include <chrono>
+#include <thread>
+
 #include "../../util/logger/Logger.h"
 #include "../util/LLMUtils.h"
-#include <thread>
-#include <chrono>
 
 using json = nlohmann::json;
 
@@ -38,15 +40,13 @@ Output:
 Provide a clear and complete answer to the User Query based on the Retrieved Data.
 )";
 
-Responder::Responder(const std::string &model, const std::string &host, const std::string &engine)
-    : model(model), host(host), engine(engine)
-{
+Responder::Responder(const std::string& model, const std::string& host, const std::string& engine)
+    : model(model), host(host), engine(engine) {
 }
 
 json Responder::generateResponse(
-    const std::string &query,
-    const json &executionResult)
-{
+    const std::string& query,
+    const json& executionResult) {
     std::string prompt =
         RESPONDER_PROMPT +
         std::string("\n\nUser Query:\n") + query +
@@ -59,8 +59,7 @@ json Responder::generateResponse(
     int attempt = 0;
     std::string llmResponse;
 
-    while (attempt < maxRetries)
-    {
+    while (attempt < maxRetries) {
         llmResponse = LLMUtils::callLLM(prompt, host, model, engine);
         if (!llmResponse.empty())
             break;
@@ -75,8 +74,7 @@ json Responder::generateResponse(
         attempt++;
     }
 
-    if (llmResponse.empty())
-    {
+    if (llmResponse.empty()) {
         responder_logger.error(
             "LLM failed to generate a response after " +
             std::to_string(maxRetries) + " attempts");

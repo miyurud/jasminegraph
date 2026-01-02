@@ -1,17 +1,16 @@
 #include "AgentProtocol.h"
-#include "Agent.h"
-#include "../../util/logger/Logger.h"
-#include "../../util/Utils.h"
 
 #include <memory>
 
+#include "../../util/Utils.h"
+#include "../../util/logger/Logger.h"
+#include "Agent.h"
+
 Logger agent_protocol_logger;
 
-std::string AgentProtocol::getPlan(const AgentRequestContext &agentRequestCtx)
-{
+std::string AgentProtocol::getPlan(const AgentRequestContext& agentRequestCtx) {
     static std::unique_ptr<Agent> agent = nullptr;
-    if (!agent)
-    {
+    if (!agent) {
         agent_protocol_logger.info(
             "Initializing Agent | model=" + agentRequestCtx.llmModel +
             " | runner=" + agentRequestCtx.llmRunner +
@@ -24,11 +23,9 @@ std::string AgentProtocol::getPlan(const AgentRequestContext &agentRequestCtx)
     return agent->generatePlan(agentRequestCtx.query);
 }
 
-std::string AgentProtocol::getResponse(const AgentRequestContext &ctx, const std::string &retrievedData)
-{
+std::string AgentProtocol::getResponse(const AgentRequestContext& ctx, const std::string& retrievedData) {
     static std::unique_ptr<Agent> agent = nullptr;
-    if (!agent)
-    {
+    if (!agent) {
         agent_protocol_logger.info(
             "Initializing Agent for response | model=" + ctx.llmModel +
             " | runner=" + ctx.llmRunner +
