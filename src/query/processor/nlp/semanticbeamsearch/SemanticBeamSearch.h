@@ -59,8 +59,8 @@ class SemanticBeamSearch {
 
  public:
     SemanticBeamSearch(FaissIndex *faissStore, std::vector<float> emb, int k, GraphConfig gc);
-    SemanticBeamSearch(FaissIndex *faissStore, FaissIndex* faissEdgeStore, TextEmbedder *textEmbedder, std::vector<float> emb, int k,
-                       GraphConfig gc, vector<JasmineGraphServer::worker> workerList);
+    SemanticBeamSearch(FaissIndex *faissStore, FaissIndex* faissEdgeStore, TextEmbedder *textEmbedder,
+        std::vector<float> emb, int k, GraphConfig gc, vector<JasmineGraphServer::worker> workerList);
     SemanticBeamSearch(FaissIndex *faissStore, std::vector<float> emb, int k, GraphConfig gc,
                        vector<JasmineGraphServer::worker> workerList);
     SemanticBeamSearch(FaissIndex *faissStore, FaissIndex *faissEdgeStore, TextEmbedder *textEmbedder,

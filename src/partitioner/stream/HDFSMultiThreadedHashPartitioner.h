@@ -83,7 +83,6 @@ class HDFSMultiThreadedHashPartitioner {
 
     void consumeLocalEdges(int partitionIndex, JasmineGraphServer::worker worker);
     void consumeEdgeCuts(int partitionIndex, JasmineGraphServer::worker worker);
-
 };
 
 #endif  // !JASMINEGRAPH_HASH_PARTITIONER_HEADER

@@ -52,8 +52,7 @@ void AgentPlanExecutor::execute() {
         throw std::runtime_error("Failed to create socket");
     }
 
-    if (designatedWorker.hostname.find('@') != std::string::npos)
-    {
+    if (designatedWorker.hostname.find('@') != std::string::npos) {
         designatedWorker.hostname = Utils::split(designatedWorker.hostname, '@')[1];
     }
 
@@ -71,7 +70,8 @@ void AgentPlanExecutor::execute() {
         server->h_length);
     serv_addr.sin_port = htons(designatedWorker.port);
 
-    agent_executor_logger.info("[AGENT EXECUTOR] Connecting to " + designatedWorker.hostname + ":" + std::to_string(designatedWorker.port));
+    agent_executor_logger.info("[AGENT EXECUTOR] Connecting to " +
+        designatedWorker.hostname + ":" + std::to_string(designatedWorker.port));
 
     if (Utils::connect_wrapper(
             sockfd,

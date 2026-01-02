@@ -138,8 +138,7 @@ void HDFSStreamHandler::streamFromBufferToProcessingQueueEdgeListGraph(HDFSMulti
                 std::string destId = tokens[1];
 
                 try {
-
-                    Partitioner fennelPartitioner ( numberOfPartitions,graphId,  spt::FENNEL, sqlite,  true );
+                    Partitioner fennelPartitioner(numberOfPartitions, graphId,  spt::FENNEL, sqlite,  true);
                     partitionedEdge partitioned_edge = fennelPartitioner.addEdge({sourceId, destId});
                     int sourceIndex =  partitioned_edge[0].second;
                     int destIndex =  partitioned_edge[1].second;

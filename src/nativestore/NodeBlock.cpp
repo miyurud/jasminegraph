@@ -52,9 +52,8 @@ std::strncpy(this->label, _label, NodeBlock::LABEL_SIZE - 1);
     }
 
 void NodeBlock::addLabel(char *label) {
-
     if (this->label == this->id && strlen(label) != 0) {
-        node_block_logger.debug( this->label);
+        node_block_logger.debug(this->label);
         node_block_logger.debug("nodeID: " + std::to_string(this->nodeId));
         node_block_logger.debug("edgeRef: " + std::to_string(this->edgeRef));
         node_block_logger.debug(std::to_string(this->addr));
@@ -320,9 +319,9 @@ bool NodeBlock::setLocalRelationHead(RelationBlock newRelation) {
                                     std::to_string(this->addr));
             return false;
         }
-
     } catch (std::exception& e) {
-        node_block_logger.error("Error while setting the Head for node " + std::to_string(this->addr) + ": " + e.what());
+        node_block_logger.error("Error while setting the Head for node " + std::to_string(this->addr) +
+            ": " + e.what());
         return false;
     }
     return true;

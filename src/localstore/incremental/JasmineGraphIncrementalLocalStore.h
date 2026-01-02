@@ -35,7 +35,7 @@ class JasmineGraphIncrementalLocalStore {
     FaissIndex* faissNodeStore;
     FaissIndex* faissEdgeStore;
     TextEmbedder* textEmbedder;
-    std::unique_ptr<unordered_map<string,string>> node_embedding_requests;
+    std::unique_ptr<unordered_map<string, string>> node_embedding_requests;
     std::unique_ptr<set<string>> edge_embedding_requests;
     bool processing_done = false;
     pthread_mutex_t embeddingQueueMutex;

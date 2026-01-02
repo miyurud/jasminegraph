@@ -44,8 +44,6 @@ DataPublisher::DataPublisher(int worker_port, std::string worker_address, int wo
         data_publisher_logger.error("Connection Failed!");
     }
     Utils::send_str_wrapper(sock, JasmineGraphInstanceProtocol::CLOSE);
-
-
 }
 
 DataPublisher::~DataPublisher() {

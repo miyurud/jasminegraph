@@ -61,22 +61,21 @@ class Pipeline {
                                               bool continueKGConstruction, SQLiteDBInterface* sqlite,
                                               shared_ptr<atomic<bool>>& stopFlag,
                                               shared_ptr<KGConstructionRate>& kgConstructionRates);
-     static bool streamLocalGraphToDesignatedWorker(string host, int port, int dataPort, string masterIP, string graphId,
-                                                   int numberOfPartitions, string hostnamePort,
+     static bool streamLocalGraphToDesignatedWorker(string host, int port, int dataPort, string masterIP,
+                                                    string graphId, int numberOfPartitions, string hostnamePort,
                                                    string llmInferenceEngine, string llm, string chunkSize,
                                                    string localFilePath, bool continueKGConstruction,
                                                    SQLiteDBInterface* sqlite, shared_ptr<atomic<bool>>& stopFlag,
                                                    shared_ptr<KGConstructionRate>& kgConstructionRates);
 
-    private:
+ private:
     void streamFromHDFSIntoBuffer();
-     void streamFromLocalFileIntoBuffer();
-     void streamChunckToWorker(const std::string& chunk, int partitionId);
+    void streamFromLocalFileIntoBuffer();
+    void streamChunckToWorker(const std::string& chunk, int partitionId);
     void startStreamingFromBufferToWorkers();
     json processTupleAndSaveInPartition(const std::vector<std::unique_ptr<SharedBuffer>>& tupleBuffer);
     void extractTuples(std::string host, int port, std::string masterIP, int graphID, int partitionId,
-
-                       std::queue<Chunk>& dataBuffer, SharedBuffer& sharedBuffer);
+    std::queue<Chunk>& dataBuffer, SharedBuffer& sharedBuffer);
 
     hdfsFS fileSystem;
 

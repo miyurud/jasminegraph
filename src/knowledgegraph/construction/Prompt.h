@@ -55,4 +55,4 @@ Correct output:
 ["Annette Bening", "actor", "Lady Macbeth", "Person", "FictionalCharacter", "1984", "American Conservatory Theatre"],
   ["Annette Bening", "performerIn", "American Conservatory Theatre", "Person", "Organization", "1984", "San Francisco"]
 )";
-}
+}   // namespace Prompts

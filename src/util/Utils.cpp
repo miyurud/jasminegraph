@@ -587,7 +587,7 @@ std::string Utils::checkFlag(std::string flagPath) {
 int Utils::connect_wrapper(int sock, const sockaddr *addr, socklen_t slen) {
     int retry = 0;
     const int maxRetries = 4;
-    const int baseDelayMs = 500; // base delay 0.5s
+    const int baseDelayMs = 500;  // base delay 0.5s
 
     struct timeval tv = {1, 0};
 
@@ -604,7 +604,7 @@ int Utils::connect_wrapper(int sock, const sockaddr *addr, socklen_t slen) {
 
     do {
         if (retry > 0) {
-            int maxDelay = baseDelayMs * (1 << retry); // exponential
+            int maxDelay = baseDelayMs * (1 << retry);  // exponential
             std::uniform_int_distribution<> dist(0, maxDelay);
             int delayMs = dist(gen);
 
@@ -2219,12 +2219,7 @@ float  Utils::cosineSimilarity(const std::vector<float>& a, const std::vector<fl
     }
     if (normA == 0 || normB == 0) return 0.0f;
     float cos = dot / (std::sqrt(normA) * std::sqrt(normB));
-    // float alpha = 5.0f;
-    //
-    // cos = std::max(-1.0f, std::min(1.0f, cos));
-
     return cos;
-
 }
 
 string Utils:: canonicalize(const std::string& input) {

@@ -199,11 +199,10 @@ void *instanceservicesession(void *dummyPt) {
     instance_logger.info("New service session started on thread:" + to_string(pthread_self()) +
                          " connFd:" + to_string(connFd));
 
-    instance_logger.info("Received Cmd: " + cmd );
+    instance_logger.info("Received Cmd: " + cmd);
     char data[DATA_BUFFER_SIZE];
     bool loop_exit = false;
     while (!loop_exit) {
-
         if (cmd.compare(JasmineGraphInstanceProtocol::HANDSHAKE) == 0) {
             handshake_command(connFd, &loop_exit);
         } else if (cmd.compare(JasmineGraphInstanceProtocol::CLOSE) == 0) {
@@ -255,14 +254,9 @@ void *instanceservicesession(void *dummyPt) {
             streaming_triangles_command(connFd, serverPort, incrementalLocalStoreMap, &loop_exit);
         } else if (cmd.compare(JasmineGraphInstanceProtocol::INITIATE_STREAMING_KG_CONSTRUCTION) == 0) {
             streaming_kg_construction(connFd, serverPort, incrementalLocalStoreMap, &loop_exit);
-
-
-        }
-        else if (cmd.compare(JasmineGraphInstanceProtocol::INITIATE_LOCAL_STREAMING_KG_CONSTRUCTION) == 0) {
+        } else if (cmd.compare(JasmineGraphInstanceProtocol::INITIATE_LOCAL_STREAMING_KG_CONSTRUCTION) == 0) {
             streaming_kg_construction_local(connFd, &loop_exit);
-
-
-        }else if (cmd.compare(JasmineGraphInstanceProtocol::INITIATE_STREAMING_TUPLE_CONSTRUCTION) == 0) {
+        } else if (cmd.compare(JasmineGraphInstanceProtocol::INITIATE_STREAMING_TUPLE_CONSTRUCTION) == 0) {
             streaming_tuple_extraction(connFd, serverPort, incrementalLocalStoreMap, &loop_exit);
         } else if (cmd.compare(JasmineGraphInstanceProtocol::SEMANTIC_BEAM_SEARCH) == 0) {
             semantic_beam_search(connFd, instanceHandler, incrementalLocalStoreMap, &loop_exit);
@@ -335,7 +329,6 @@ void *instanceservicesession(void *dummyPt) {
             cmd = Utils::trim_copy(cmd);
             instance_logger.debug("Received cmd : " + cmd);
         }
-
     }
     instance_logger.info("Closing thread " + to_string(pthread_self()));
     close(connFd);
@@ -382,7 +375,7 @@ void JasmineGraphInstanceService::run(string masterHost, string host, int server
     std::map<std::string, JasmineGraphHashMapLocalStore> graphDBMapLocalStores;
     std::map<std::string, JasmineGraphHashMapCentralStore> graphDBMapCentralStores;
     std::map<std::string, JasmineGraphHashMapDuplicateCentralStore> graphDBMapDuplicateCentralStores;
-    std::map<std::string, JasmineGraphIncrementalLocalStore *> incrementalLocalStore ;
+    std::map<std::string, JasmineGraphIncrementalLocalStore *> incrementalLocalStore;
     std::thread perfThread = std::thread(&PerformanceUtil::collectPerformanceStatistics);
     perfThread.detach();
 
@@ -403,12 +396,9 @@ void JasmineGraphInstanceService::run(string masterHost, string host, int server
             continue;
         }
         line = Utils::trim_copy(line);
-
-
         if (std::find(JasmineGraphInstanceProtocol::MULT_THREADED_CMDS.begin(),
                       JasmineGraphInstanceProtocol::MULT_THREADED_CMDS.end(),
                       line) != JasmineGraphInstanceProtocol::MULT_THREADED_CMDS.end()) {
-
             // Start a new thread for this command
             std::thread t([&, connFd, line]() {
                 instanceservicesessionargs *serviceArguments_p = new instanceservicesessionargs;
@@ -422,12 +412,10 @@ void JasmineGraphInstanceService::run(string masterHost, string host, int server
                 serviceArguments_p->dataPort = serverDataPort;
                 serviceArguments_p->host = host;
                 serviceArguments_p->connFd = connFd;
-
                 instanceservicesession(serviceArguments_p);
-                // close(connFd);
             });
 
-            t.detach(); // detach thread so it runs independently
+            t.detach();  // detach thread so it runs independently
         } else {
             pid_t pid = fork();
             if (pid == 0) {
@@ -3350,7 +3338,7 @@ static void streaming_kg_construction(
         // Find last colon
         size_t lastColon = entry.rfind(':');
         if (lastColon == std::string::npos) {
-            continue; // Invalid format (must have a count)
+            continue;  // Invalid format (must have a count)
         }
 
         std::string lastPart = entry.substr(lastColon + 1);
@@ -3360,7 +3348,7 @@ static void streaming_kg_construction(
                         std::all_of(lastPart.begin(), lastPart.end(), ::isdigit);
 
         if (!isNumber) {
-            continue; // No count → skip
+            continue;  // No count → skip
         }
 
         int count = std::stoi(lastPart);
@@ -3401,7 +3389,6 @@ static void streaming_kg_construction(
 static void streaming_kg_construction_local(
         int connFd,
         bool* loop_exit_p) {
-
   if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::OK)) {
     *loop_exit_p = true;
     return;
@@ -3582,7 +3569,7 @@ static void streaming_kg_construction_local(
         // Find last colon
         size_t lastColon = entry.rfind(':');
         if (lastColon == std::string::npos) {
-            continue; // Invalid format (must have a count)
+            continue;  // Invalid format (must have a count)
         }
 
         std::string lastPart = entry.substr(lastColon + 1);
@@ -3592,7 +3579,7 @@ static void streaming_kg_construction_local(
                         std::all_of(lastPart.begin(), lastPart.end(), ::isdigit);
 
         if (!isNumber) {
-            continue; // No count → skip
+            continue;  // No count → skip
         }
 
         int count = std::stoi(lastPart);
@@ -3757,14 +3744,13 @@ static void streaming_tuple_extraction(
       "chunk_processing_with_tuples",
       {
           {"chunk_content_length", std::to_string(content_length)},
-          {"chunk_text", chunk}, // limit to first 4k chars
+          {"chunk_text", chunk},
           {"worker.id", "worker_" + std::to_string(serverPort)},
           {"worker.port", std::to_string(serverPort)},
           {"llm.server.endpoint", llmHost},
           {"graph.id", graphID},
           {"operation.type", "streaming_tuple_extraction"}
-      }
-  );
+      });
 
       recv(connFd, &content_length, sizeof(int), 0);
       content_length = ntohl(content_length);
@@ -3780,7 +3766,7 @@ static void streaming_tuple_extraction(
       // Add worker identification attributes to distinguish workers in traces
       OpenTelemetryUtil::addSpanAttribute("worker.id", "worker_" + std::to_string(serverPort));
       OpenTelemetryUtil::addSpanAttribute("worker.port", std::to_string(serverPort));
-      OpenTelemetryUtil::addSpanAttribute("llm.server.endpoint",llmHost  );
+      OpenTelemetryUtil::addSpanAttribute("llm.server.endpoint", llmHost);
       OpenTelemetryUtil::addSpanAttribute("graph.id", graphID);
       OpenTelemetryUtil::addSpanAttribute("operation.type", "streaming_tuple_extraction");
 
@@ -3795,7 +3781,7 @@ static void streaming_tuple_extraction(
         *loop_exit_p = true;
         close(connFd);
       };
-      int idleTimeoutSec = 300;  // e.g., break if no tuple for 30s
+      int idleTimeoutSec = 300;   // e.g., break if no tuple for 30s
         int tuple_id = 0;
         vector<string> trace_tuples;
       while (true) {
@@ -3819,36 +3805,23 @@ static void streaming_tuple_extraction(
                     .length(),
                 converted_number,
                 JasmineGraphInstanceProtocol::GRAPH_STREAM_C_length_ACK);
-        //   instance_logger.error("Error in receiving GRAPH_STREAM_C_length_ACK");
-        //     instance_logger.error(data);
-        //   *loop_exit_p = true;
-        //   close(connFd);
-        //   break;
-        // }
-
-        // instance_logger.debug("3208 : " + tupleData);
-
-          // ScopedTracer tupleSpan(
-          //                   "generated_tuple",
-          //                   {
-          //                       {"tuple_id", to_string(tuple_id)},
-          //                       {"tuple", tupleData}
-          //                   });
-            // instance_logger.info(tupleData);
-          trace_tuples.push_back(tupleData);
-          tuple_id++;
+        ScopedTracer tupleSpan(
+                            "generated_tuple",
+                            {
+                                {"tuple_id", to_string(tuple_id)},
+                                {"tuple", tupleData}
+                            });
+        trace_tuples.push_back(tupleData);
+        tuple_id++;
         Utils::send_str_wrapper(connFd, tupleData);
         char ack1[FED_DATA_LENGTH + 1];
-
         string response =
             Utils::read_str_wrapper(connFd, ack1, FED_DATA_LENGTH);
         if (response == "stop") {
           tupleBuffer.clear();
           break;
         }
-
         if (tupleData == "-1") {
-
             string tupleArrayString;
             for (const string& tuple : trace_tuples) {
                 tupleArrayString += tuple;
@@ -3857,16 +3830,10 @@ static void streaming_tuple_extraction(
             chunkTrace.addAttributes({
        {"tuple_count", std::to_string(tuple_id)},
        {"tuples", tupleArrayString}
-   });
-            // instance_logger.info(chunk);
-            // instance_logger.info(tupleArrayString);
-
-
+            });
           instance_logger.info("Received end signal from producer");
-            instance_logger.info(chunk);
-
-            instance_logger.info(tupleArrayString);
-
+          instance_logger.info(chunk);
+          instance_logger.info(tupleArrayString);
           tupleBuffer.clear();
           break;
         }
@@ -5093,7 +5060,7 @@ static void query_start_command(int connFd, InstanceHandler &instanceHandler, st
     masterIP = masterIp;
 
 
-     content_length = 0 ;
+     content_length = 0;
     instance_logger.info("Waiting for content length");
      return_status = recv(connFd, &content_length, sizeof(int), 0);
     if (return_status > 0) {
@@ -5163,8 +5130,7 @@ static void query_start_command(int connFd, InstanceHandler &instanceHandler, st
         gc.maxLabelSize = std::stoi(Utils::getJasmineGraphProperty(
             "org.jasminegraph.nativestore.max.label.size"));
         gc.openMode = "app";
-
-        incrementalLocalStoreInstance->nm =new NodeManager (gc);
+        incrementalLocalStoreInstance->nm = new NodeManager (gc);
     }
 
     content_length = 0;
@@ -5333,7 +5299,7 @@ static void semantic_beam_search(
           "org.jasminegraph.nativestore.max.label.size"));
       // gc.openMode = "app";
 
-      incrementalLocalStoreInstance->nm =new NodeManager (gc);
+      incrementalLocalStoreInstance->nm = new NodeManager (gc);
       incrementalLocalStoreInstance->nm->edgeIndex = edgeIndex;
       incrementalLocalStoreInstance->nm->nodeIndex = nodeIndex;
       incrementalLocalStoreInstance->nm->nextNodeIndex = nextNodeIndex;
@@ -5391,20 +5357,11 @@ static void semantic_beam_search(
     return;
   }
 
-  // if (!Utils::send_str_wrapper(
-  //         connFd, JasmineGraphInstanceProtocol::GRAPH_STREAM_C_length_ACK)) {
-  //   *loop_exit_p = true;
-  //   return;
-  // }
   // read workerIP:port in comma separated format
   string workersIP =
       Utils::read_str_trim_wrapper(connFd, data, INSTANCE_DATA_LENGTH);
   instance_logger.info("Received Worker IP: " + workersIP);
-    // if (!Utils::send_str_wrapper(
-    //         connFd, JasmineGraphInstanceProtocol::GRAPH_STREAM_C_length_ACK)) {
-    //     *loop_exit_p = true;
-    //     return;
-    //         }
+
   std::vector<string> workerSockets;
   stringstream wl(workersIP);
   string intermediate;
@@ -5428,29 +5385,6 @@ static void semantic_beam_search(
     }
     workers.push_back(worker);
   }
-
-  // unsigned long maxLabel = std::stol(Utils::getJasmineGraphProperty(
-  //     "org.jasminegraph.nativestore.max.label.size"));
-  // GraphConfig gc{maxLabel, static_cast<unsigned int>(std::stoi(graphId)),
-  //                static_cast<unsigned int>(std::stoi(partition)), "app"};
-  //
-  // std::string instanceDataFolderLocation = Utils::getJasmineGraphProperty(
-  //     "org.jasminegraph.server.instance.datafolder");
-  // std::string graphPrefix = instanceDataFolderLocation + "/g" + graphId;
-  // string dbPrefix = graphPrefix + "_p" + partition;
-  // FaissIndex *faissStore =
-  //     FaissIndex::getInstance(std::stoi(Utils::getJasmineGraphProperty(
-  //                                 "org.jasminegraph.vectorstore.dimension")),
-  //                             dbPrefix + "_faiss.index");
-  //   FaissIndex *faissEdgeStore =
-  //       FaissIndex::getInstance(std::stoi(Utils::getJasmineGraphProperty(
-  //                                   "org.jasminegraph.vectorstore.dimension")),
-  //                               dbPrefix + "_faiss_edge.index");
-  // TextEmbedder *textEmbedder = new TextEmbedder(
-  //     Utils::getJasmineGraphProperty("org.jasminegraph.vectorstore.embedding."
-  //                                    "ollama.endpoint"),
-  //                                    Utils::getJasmineGraphProperty("org.jasminegraph.vectorstore.embedding.model"));
-  // // check workerlist
   for (const auto &worker : workers) {
     instance_logger.info("Worker Hostname: " + worker.hostname +
                          ", Port: " + std::to_string(worker.port) +
@@ -5459,7 +5393,9 @@ static void semantic_beam_search(
 
 
   SemanticBeamSearch *semanticBeamSearch = new SemanticBeamSearch(
-      incrementalLocalStoreInstance->faissNodeStore, incrementalLocalStoreInstance->faissEdgeStore, incrementalLocalStoreInstance->textEmbedder, incrementalLocalStoreInstance->textEmbedder->embed(message), 7, incrementalLocalStoreInstance->gc,
+      incrementalLocalStoreInstance->faissNodeStore, incrementalLocalStoreInstance->faissEdgeStore,
+      incrementalLocalStoreInstance->textEmbedder, incrementalLocalStoreInstance->textEmbedder->embed(message),
+      7, incrementalLocalStoreInstance->gc,
       workers, incrementalLocalStoreInstance->nm);
   // semanticBeamSearch->getSeedNodes();
   SharedBuffer shared(50);
@@ -5495,8 +5431,7 @@ static void graphrag_command(
     InstanceHandler &instanceHandler,
     std::map<std::string, JasmineGraphIncrementalLocalStore *>
         &incrementalLocalStoreMap,
-    bool *loop_exit_p)
-{
+    bool *loop_exit_p) {
     instance_logger.info("graphrag Command initiated");
 
     char buffer[INSTANCE_DATA_LENGTH];
@@ -5870,27 +5805,18 @@ static void hdfs_start_stream_command(int connFd, bool *loop_exit_p, bool isLoca
         return;
     }
     instance_logger.debug("Sent : " + JasmineGraphInstanceProtocol::HDFS_STREAM_END_ACK);
-    // processFile(fileName, isLocalStream, instanceStreamHandler, isEmbedGraph == "1");
-    //
 
-        // std::atomic<bool> processing_done(false);
-bool done = false;
+        bool done = false;
         std::thread procThread([&]() {
-
             while (!done) {
                 instance_logger.debug("Done : " + to_string(done));
            if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::FILE_RECV_WAIT)) {
                *loop_exit_p = true;
                return;
            }
-           std::this_thread::sleep_for(std::chrono::milliseconds(1000)); // prevent busy wait
-
-           // sleep(0.1);
-       }
-
-
+           std::this_thread::sleep_for(std::chrono::milliseconds(1000));  // prevent busy wait
+            }
         });
-        // procThread.detach();
         processFile(fileName, isLocalStream, instanceStreamHandler, isEmbedGraph == "1");
         done = true;
 
@@ -5944,16 +5870,13 @@ static void processFile(string fileName, bool isLocal,
         file.close();
         return;
     }
-
-
-    NodeManager* nm = nullptr ;
-    JasmineGraphIncrementalLocalStore* localStore = nullptr ;
-
-
+    NodeManager* nm = nullptr;
+    JasmineGraphIncrementalLocalStore* localStore = nullptr;
     string graphIdentifier = std::to_string(graphId) + "_" + std::to_string(partitionIndex);
     std::unique_lock<std::mutex> lock(handler.map_mutex);
     if (handler.incrementalLocalStoreMap.find(graphIdentifier) == handler.incrementalLocalStoreMap.end()) {
-        InstanceStreamHandler::loadStreamingStore(std::to_string(graphId), std::to_string(partitionIndex), handler.incrementalLocalStoreMap, NodeManager::FILE_MODE, isEmbedGraph);
+        InstanceStreamHandler::loadStreamingStore(std::to_string(graphId),
+            std::to_string(partitionIndex), handler.incrementalLocalStoreMap, NodeManager::FILE_MODE, isEmbedGraph);
         // append mode
         instance_logger.info("[Instance Service] Initiated Increamental LocalStore");
         localStore = handler.incrementalLocalStoreMap[std::to_string(graphId) + "_" + std::to_string(partitionIndex)];
@@ -5964,13 +5887,11 @@ static void processFile(string fileName, bool isLocal,
         }
         instance_logger.info("5516");
         nm = localStore->nm;
-        if (nm == nullptr ) {
+        if (nm == nullptr) {
             instance_logger.error("Failed to initialize node manager for: " + graphIdentifier);
             lock.unlock();
             return;
         }
-        instance_logger.info("5518");
-
     } else {
         localStore = handler.incrementalLocalStoreMap[std::to_string(graphId) + "_" + std::to_string(partitionIndex)];
         GraphConfig gc;
@@ -5980,26 +5901,19 @@ static void processFile(string fileName, bool isLocal,
             "org.jasminegraph.nativestore.max.label.size"));
         gc.openMode = "app";
          nm = new NodeManager (gc);
-
         localStore->setNodeManger(nm);
     }
     lock.unlock();
 
-std::thread embeddingThread;
+    std::thread embeddingThread;
     if (isEmbedGraph) {
-        instance_logger.debug("5535");
         localStore->processing_done = false;
-        instance_logger.debug("5537");
-
         embeddingThread = std::thread([&]() {
-    localStore->getAndStoreEmbeddings();
-});
-
+        localStore->getAndStoreEmbeddings();
+    });
         instance_logger.debug("Started embedding generation and persistence thread");
-
     }
     std::string line;
-
     while (std::getline(file, line)) {
         instance_logger.debug("currentLine " + line);
         if (isLocal) {
@@ -6017,23 +5931,14 @@ std::thread embeddingThread;
         }
     }
     instance_logger.debug("Done Uploading File");
-
     localStore->processing_done = true;
     pthread_cond_broadcast(&localStore->embeddingQueueCond);
-
-    instance_logger.debug("Done Uploading File 5555");
-
     if (embeddingThread.joinable()) {
         embeddingThread.join();
     }
-    instance_logger.debug("Done Uploading File 5562");
-// nm->close();
-    // delete nm;
     delete NodeBlock::nodesDB;
- file.close();
-
+    file.close();
     instance_logger.info("Finished processing file: " + filePath);
-
 }
 
 

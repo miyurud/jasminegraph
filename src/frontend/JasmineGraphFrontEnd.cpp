@@ -897,7 +897,6 @@ static void agent_plan_command(std::string masterIP, int connFd, vector<DataPubl
     jobDetails.addParameter(Conts::PARAM_KEYS::CONN_FILE_DESCRIPTOR, std::to_string(connFd));
     jobDetails.addParameter(Conts::PARAM_KEYS::LOOP_EXIT_POINTER,
                              std::to_string(reinterpret_cast<std::uintptr_t>(loop_exit)));
-    
     long graphSLA = JasmineGraphFrontEndCommon::getSLAForGraphId(sqlite, perfSqlite, graphIdResponse,
         AGENT_PLAN, Conts::SLA_CATEGORY::LATENCY);
     jobDetails.addParameter(Conts::PARAM_KEYS::GRAPH_SLA, std::to_string(graphSLA));
@@ -920,13 +919,11 @@ static void agent_plan_command(std::string masterIP, int connFd, vector<DataPubl
         write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
         return;
     }
-
     auto end = chrono::high_resolution_clock::now();
     auto duration = chrono::duration_cast<chrono::milliseconds>(end - begin).count();
     frontend_logger.info("Agent plan execution time: " + std::to_string(duration) + " ms");
-
     write(connFd, DONE.c_str(), FRONTEND_COMMAND_LENGTH);
-    write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());                
+    write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
 }
 
 static void add_rdf_command(std::string masterIP, int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_p) {
@@ -2382,7 +2379,6 @@ bool JasmineGraphFrontEnd::constructKGStreamLocalTXTCommand(
         int numberOfPartitions,
         SQLiteDBInterface *sqlite,
         bool *loop_exit_p) {
-
     /* =========================
      * 1. Ask for local file path
      * ========================= */
@@ -2401,8 +2397,7 @@ bool JasmineGraphFrontEnd::constructKGStreamLocalTXTCommand(
 
     static const std::regex urlRegex(
         R"(^(https?|ftp)://[^\s/$.?#].[^\s]*$)",
-        std::regex::icase
-    );
+        std::regex::icase);
     if (std::regex_match(localFilePath, urlRegex)) {
         std::string instanceFolder = Utils::getJasmineGraphProperty("org.jasminegraph.server.instance");
 

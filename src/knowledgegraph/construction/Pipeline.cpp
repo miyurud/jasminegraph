@@ -447,7 +447,7 @@ json Pipeline::processTupleAndSaveInPartition(const std::vector<std::unique_ptr<
     auto startTime = high_resolution_clock::now();
 
     kg_pipeline_stream_handler_logger.debug("Starting processTupleAndSaveInPartition");
-    Partitioner partitioner (numberOfPartitions,graphId,  spt::FENNEL, sqlite,  true );
+    Partitioner partitioner(numberOfPartitions, graphId,  spt::FENNEL, sqlite,  true);
     HDFSMultiThreadedHashPartitioner partitions(numberOfPartitions, graphId, masterIP, true,
         workerList, true, 100,
         sqlite);
@@ -515,7 +515,6 @@ json Pipeline::processTupleAndSaveInPartition(const std::vector<std::unique_ptr<
         tupleThreads.emplace_back([&, tupleBufferRef, i]() {
             kg_pipeline_stream_handler_logger.debug("Tuple thread started for partition " + std::to_string(i));
             while (isProcessing) {
-
                     std::string line = tupleBufferRef->get();
                     kg_pipeline_stream_handler_logger.debug("Thread " + std::to_string(i) +
                                                             " processing line: " + line);
@@ -645,7 +644,6 @@ json Pipeline::processTupleAndSaveInPartition(const std::vector<std::unique_ptr<
 
 void Pipeline::extractTuples(std::string host, int port, std::string masterIP, int graphID, int partitionId,
                              std::queue<Chunk>& dataBuffer, SharedBuffer& sharedBuffer) {
-
     bool retry  = false;
     Chunk* retryChunk = nullptr;
     while (true) {
@@ -755,7 +753,8 @@ void Pipeline::extractTuples(std::string host, int port, std::string masterIP, i
                     kg_pipeline_stream_handler_logger.error("Failed to send END_OF_STREAM");
                                                }
                 Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::CLOSE);
-                kg_pipeline_stream_handler_logger.info("Closed connection for partitionId: " + std::to_string(partitionId));
+                kg_pipeline_stream_handler_logger.info("Closed connection for partitionId: " +
+                    std::to_string(partitionId));
                 sharedBuffer.add(END_OF_STREAM_MARKER);
                 close(sockfd);
                 break;
@@ -763,14 +762,16 @@ void Pipeline::extractTuples(std::string host, int port, std::string masterIP, i
             std::string chunk;
 
             std::unique_lock<std::mutex> lock(dataBufferMutex);
-            dataBufferCV.wait(lock, [this, &dataBuffer] { return !dataBuffer.empty() || !this->isReading; });
+            dataBufferCV.wait(lock, [this, &dataBuffer] { return !dataBuffer.empty() ||
+                !this->isReading; });
 
             Chunk chunkData = dataBuffer.front();
             chunk = chunkData.text;
 
             dataBuffer.pop();
 
-            kg_pipeline_stream_handler_logger.info("Processing chunk for partitionId: " + std::to_string(partitionId));
+            kg_pipeline_stream_handler_logger.info("Processing chunk for partitionId: " +
+                std::to_string(partitionId));
             lock.unlock();
             dataBufferCV.notify_all();
 
@@ -783,7 +784,8 @@ void Pipeline::extractTuples(std::string host, int port, std::string masterIP, i
                     kg_pipeline_stream_handler_logger.error("Failed to send END_OF_STREAM");
                                                }
                 Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::CLOSE);
-                kg_pipeline_stream_handler_logger.info("Closed connection for partitionId: " + std::to_string(partitionId));
+                kg_pipeline_stream_handler_logger.info("Closed connection for partitionId: " +
+                    std::to_string(partitionId));
                 sharedBuffer.add(END_OF_STREAM_MARKER);
                 close(sockfd);
                 break;  // Exit loop if end of stream marker is received
@@ -802,10 +804,12 @@ void Pipeline::extractTuples(std::string host, int port, std::string masterIP, i
 
             char ack3[ACK_MESSAGE_SIZE] = {0};
             int converted_number = htonl(chunk.length());
-            kg_pipeline_stream_handler_logger.info("Sending chunk length: " + std::to_string(chunk.length()));
+            kg_pipeline_stream_handler_logger.info("Sending chunk length: " +
+                std::to_string(chunk.length()));
             if (!Utils::sendIntExpectResponse(sockfd, ack3,
                                               JasmineGraphInstanceProtocol::GRAPH_STREAM_C_length_ACK.length(),
-                                              converted_number, JasmineGraphInstanceProtocol::GRAPH_STREAM_C_length_ACK)) {
+                                              converted_number,
+                                              JasmineGraphInstanceProtocol::GRAPH_STREAM_C_length_ACK)) {
                 kg_pipeline_stream_handler_logger.error("Failed to send chunk length");
                 retry = true;
                 retryChunk = &chunkData;
@@ -828,7 +832,8 @@ void Pipeline::extractTuples(std::string host, int port, std::string masterIP, i
                 (currentTraceContext.length()));
             if (!Utils::sendIntExpectResponse(sockfd, ack3,
                                               JasmineGraphInstanceProtocol::GRAPH_STREAM_C_length_ACK.length(),
-                                              converted_number, JasmineGraphInstanceProtocol::GRAPH_STREAM_C_length_ACK)) {
+                                              converted_number,
+                                              JasmineGraphInstanceProtocol::GRAPH_STREAM_C_length_ACK)) {
                 kg_pipeline_stream_handler_logger.error("Failed to send chunk length");
                 retry = true;
                 retryChunk = &chunkData;
@@ -1024,33 +1029,26 @@ bool Pipeline::streamGraphToDesignatedWorker(std::string host, int port, std::st
     std::string entry;
 
     while (std::getline(ss, entry, ',')) {
-        // Trim spaces
         entry.erase(0, entry.find_first_not_of(" \t\r\n"));
         entry.erase(entry.find_last_not_of(" \t\r\n") + 1);
         if (entry.empty()) continue;
 
-        // Find last colon
         size_t lastColon = entry.rfind(':');
         if (lastColon == std::string::npos) {
-            continue; // Invalid format (must have a count)
+            continue;
         }
 
         std::string lastPart = entry.substr(lastColon + 1);
 
-        // Check if last part is numeric (chunk count)
         bool isNumber = !lastPart.empty() &&
                         std::all_of(lastPart.begin(), lastPart.end(), ::isdigit);
 
         if (!isNumber) {
-            continue; // No count → skip
+            continue;
         }
 
         int count = std::stoi(lastPart);
-
-        // Base URL without the chunk count
         std::string baseURL = entry.substr(0, lastColon);
-
-        // Replicate 'count' times
         for (int i = 0; i < count; i++) {
             llmRunnerSockets.push_back(baseURL);
         }
@@ -1077,8 +1075,6 @@ bool Pipeline::streamGraphToDesignatedWorker(std::string host, int port, std::st
                           std::to_string(worker.port);
         workerCountMap[key] += 1;
     }
-
-    // Build final string by iterating the map keys
 
     int index = 0;
     int size = workerCountMap.size();
@@ -1231,12 +1227,11 @@ bool Pipeline::streamGraphToDesignatedWorker(std::string host, int port, std::st
                 edgeCount = std::stoll(graph["edgecount"].get<std::string>());
             }
 
-            // compute elapsed with high precision
             auto now = std::chrono::steady_clock::now();
             std::chrono::duration<double> elapsed_seconds = now - previousTimeStampTriplesPerSecond;
             double elapsed = elapsed_seconds.count();
 
-            if (elapsed > 0.000001) { // sanity threshold to avoid tiny divisions
+            if (elapsed > 0.000001) {
                 kgConstructionRates->triplesPerSecond =
                     static_cast<double>(edgeCount - previousEdgeCount) / elapsed;
             }
@@ -1405,7 +1400,7 @@ bool Pipeline::streamLocalGraphToDesignatedWorker(std::string host, int port, in
         // Find last colon
         size_t lastColon = entry.rfind(':');
         if (lastColon == std::string::npos) {
-            continue; // Invalid format (must have a count)
+            continue;
         }
 
         std::string lastPart = entry.substr(lastColon + 1);
@@ -1415,7 +1410,7 @@ bool Pipeline::streamLocalGraphToDesignatedWorker(std::string host, int port, in
                         std::all_of(lastPart.begin(), lastPart.end(), ::isdigit);
 
         if (!isNumber) {
-            continue; // No count → skip
+            continue;
         }
 
         int count = std::stoi(lastPart);
@@ -1556,7 +1551,8 @@ bool Pipeline::streamLocalGraphToDesignatedWorker(std::string host, int port, in
     }
 
     string fileName = Utils::getFileName(localFilePath);
-    kg_pipeline_stream_handler_logger.debug("Going to send file " + localFilePath + " through file transfer service to worker");
+    kg_pipeline_stream_handler_logger.debug("Going to send file " + localFilePath +
+        " through file transfer service to worker");
     Utils::sendFileThroughService(host, dataPort, fileName, localFilePath);
 
     string response;
@@ -1637,7 +1633,7 @@ bool Pipeline::streamLocalGraphToDesignatedWorker(std::string host, int port, in
             std::chrono::duration<double> elapsed_seconds = now - previousTimeStampTriplesPerSecond;
             double elapsed = elapsed_seconds.count();
 
-            if (elapsed > 0.000001) { // sanity threshold to avoid tiny divisions
+            if (elapsed > 0.000001) {
                 kgConstructionRates->triplesPerSecond =
                     static_cast<double>(edgeCount - previousEdgeCount) / elapsed;
             }

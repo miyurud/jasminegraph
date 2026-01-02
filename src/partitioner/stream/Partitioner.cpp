@@ -220,7 +220,7 @@ partitionedEdge Partitioner::fennelPartitioning(std::pair<std::string, std::stri
     int firstIndex =
         distance(partitionScoresFirst.begin(), max_element(partitionScoresFirst.begin(), partitionScoresFirst.end()));
 
-    int secondIndex = firstIndex; // minimize edge cuts
+    int secondIndex = firstIndex;  // minimize edge cuts
         partitions[firstIndex].addEdge(edge);
 
     this->totalEdges += 1;

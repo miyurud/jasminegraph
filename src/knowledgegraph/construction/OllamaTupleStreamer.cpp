@@ -112,7 +112,7 @@ size_t OllamaTupleStreamer::StreamCallback(char* ptr, size_t size, size_t nmemb,
                       ctx->retryReason = "Tuple size less than 5. Tuple size should be 5 or more.";
                       return 0;   // IMMEDIATE ABORT of curl_easy_perform
                   }
-                 if (triple.is_array() ) {
+                 if (triple.is_array()) {
                   std::string subject = triple[0].get<std::string>();
                   std::string predicate = triple[1].get<std::string>();
                   std::string object = triple[2].get<std::string>();

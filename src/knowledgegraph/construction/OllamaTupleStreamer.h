@@ -38,7 +38,6 @@ class OllamaTupleStreamer : public TupleStreamer {
     int bracketDepth = 0;
     bool retryChunk;
     std::string retryReason;
-
   };
 
   static size_t StreamCallback(char* ptr, size_t size, size_t nmemb,

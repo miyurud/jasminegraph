@@ -491,9 +491,8 @@ void NodeManager::persistNodeIndex() {
         if (key.length() >= NodeManager::INDEX_KEY_SIZE) {
             node_manager_logger.error(
                 "Node label/ID too long (" + std::to_string(key.length()) +
-                "), max allowed is " + std::to_string(NodeManager::INDEX_KEY_SIZE - 1)
-            );
-            continue; // or throw
+                "), max allowed is " + std::to_string(NodeManager::INDEX_KEY_SIZE - 1));
+            continue;  // or throw
         }
 
         char nodeIDC[NodeManager::INDEX_KEY_SIZE] = {0};
@@ -506,8 +505,7 @@ void NodeManager::persistNodeIndex() {
 
         node_manager_logger.debug(
             "Writing node index --> Node key = " + key +
-            " value " + std::to_string(nodeBlockIndex)
-        );
+            " value " + std::to_string(nodeBlockIndex));
     }
 
     index_db.close();

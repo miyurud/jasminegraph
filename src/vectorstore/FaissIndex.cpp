@@ -131,8 +131,7 @@ void FaissIndex::save(const std::string& filepath) {
 }
 
 void FaissIndex::save() {
-
-    try{
+    try {
     std::lock_guard<std::mutex> lock(mtx);
 
     // Save FAISS index
@@ -270,15 +269,11 @@ bool FaissIndex::isEmbeddingExist(std::string nodeId) {
 
     try {
         return  nodeIdToEmbeddingIdMap.find(nodeId) != nodeIdToEmbeddingIdMap.end();
-
     } catch (const std::exception& e) {
         throw std::runtime_error(
             std::string("Failed to reconstruct embedding for ID ") + nodeId + ": " +
             e.what());
     }
-
-
-
 }
 std::vector<float> FaissIndex::getEmbeddingById(std::string nodeId) {
   std::lock_guard<std::mutex> lock(mtx);

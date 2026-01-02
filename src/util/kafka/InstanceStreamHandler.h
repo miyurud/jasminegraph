@@ -41,15 +41,13 @@ class InstanceStreamHandler {
                    std::string dbFilesOpenMode = "trunk", bool isEmbed = false);
     std::map<std::string, std::mutex> queue_mutexes;
     std::mutex map_mutex;
+
  private:
     std::map<std::string, std::thread> threads;
     std::map<std::string, std::queue<std::string>> queues;
     std::map<std::string, std::condition_variable> cond_vars;
-
     std::atomic<bool> terminateThreads{false};
-
-        void threadFunction(const std::string& nodeString);
-        static std::string extractGraphIdentifier(const std::string& nodeString);
-
+    void threadFunction(const std::string& nodeString);
+    static std::string extractGraphIdentifier(const std::string& nodeString);
 };
 #endif  // INSTANCESTREAMHANDLER_H
