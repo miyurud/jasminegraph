@@ -261,7 +261,7 @@ void VLLMTupleStreamer::streamChunk(const std::string& chunkKey,
     jsonRequest["max_tokens"] = 10000;
 
     std::string postFields = jsonRequest.dump();
-    vllm_tuple_streamer_logger.debug("Post fields: " + postFields);
+    vllm_tuple_streamer_logger.info("Post fields: " + postFields);
     ctx.current_tuple = "";
     curl_easy_setopt(curl, CURLOPT_POSTFIELDS, postFields.c_str());
     curl_easy_setopt(curl, CURLOPT_POSTFIELDSIZE, postFields.size());

@@ -108,16 +108,16 @@ wait_for_hadoop() {
     HDFS_FILE_PATH="${HDFS_DIRECTORY}${FILE_NAME}"
 
     # # cp the hdfs config file to the jasminegraph container
-    docker cp "${HDFS_CONF_FILE}" jasminegraph-server:/var/tmp/config/hdfs_config.txt
+    docker cp "${HDFS_CONF_FILE}" integration-jasminegraph-1:/var/tmp/config/hdfs_config.txt
 
-    docker exec -i jasminegraph-server cat /var/tmp/config/hdfs_config.txt
+    docker exec -i integration-jasminegraph-1 cat /var/tmp/config/hdfs_config.txt
 
     # Upload the file to HDFS
     # Ensure local directory exists
     mkdir -p "${LOCAL_DIRECTORY}"
 
     # Copy the file from jasminegraph-server to the current container
-    docker cp jasminegraph-server:"${LOCAL_FILE_PATH}" "${LOCAL_DIRECTORY}"
+    docker cp integration-jasminegraph-1:"${LOCAL_FILE_PATH}" "${LOCAL_DIRECTORY}"
 
     # Create the HDFS directory (this ensures it exists in HDFS)
     docker exec -i hdfs-namenode hadoop fs -mkdir -p "${HDFS_DIRECTORY}"
@@ -137,7 +137,7 @@ wait_for_hadoop() {
     CUSTOM_GRAPH_FILE="graph_with_properties.txt"
     CUSTOM_GRAPH_LOCAL_PATH="${LOCAL_DIRECTORY}${CUSTOM_GRAPH_FILE}"
     CUSTOM_GRAPH_HDFS_PATH="${HDFS_DIRECTORY}${CUSTOM_GRAPH_FILE}"
-    docker cp jasminegraph-server:"${CUSTOM_GRAPH_LOCAL_PATH}" "${LOCAL_DIRECTORY}"
+    docker cp integration-jasminegraph-1:"${CUSTOM_GRAPH_LOCAL_PATH}" "${LOCAL_DIRECTORY}"
     docker exec -i hdfs-namenode hadoop fs -mkdir -p "${HDFS_DIRECTORY}"
     docker cp "${CUSTOM_GRAPH_LOCAL_PATH}" hdfs-namenode:"${CUSTOM_GRAPH_HDFS_PATH}"
     if ! docker exec -i hdfs-namenode hadoop fs -test -e "${CUSTOM_GRAPH_HDFS_PATH}"; then
@@ -151,7 +151,7 @@ wait_for_hadoop() {
     CUSTOM_GRAPH_FILE="graph_with_properties_large.txt"
     CUSTOM_GRAPH_LOCAL_PATH="${LOCAL_DIRECTORY}${CUSTOM_GRAPH_FILE}"
     CUSTOM_GRAPH_HDFS_PATH="${HDFS_DIRECTORY}${CUSTOM_GRAPH_FILE}"
-    docker cp jasminegraph-server:"${CUSTOM_GRAPH_LOCAL_PATH}" "${LOCAL_DIRECTORY}"
+    docker cp integration-jasminegraph-1:"${CUSTOM_GRAPH_LOCAL_PATH}" "${LOCAL_DIRECTORY}"
     docker exec -i hdfs-namenode hadoop fs -mkdir -p "${HDFS_DIRECTORY}"
     docker cp "${CUSTOM_GRAPH_LOCAL_PATH}" hdfs-namenode:"${CUSTOM_GRAPH_HDFS_PATH}"
     if ! docker exec -i hdfs-namenode hadoop fs -test -e "${CUSTOM_GRAPH_HDFS_PATH}"; then
@@ -165,7 +165,7 @@ wait_for_hadoop() {
     CUSTOM_GRAPH_FILE="text.txt"
     CUSTOM_GRAPH_LOCAL_PATH="${LOCAL_DIRECTORY}${CUSTOM_GRAPH_FILE}"
     CUSTOM_GRAPH_HDFS_PATH="${HDFS_DIRECTORY}${CUSTOM_GRAPH_FILE}"
-    docker cp jasminegraph-server:"${CUSTOM_GRAPH_LOCAL_PATH}" "${LOCAL_DIRECTORY}"
+    docker cp integration-jasminegraph-1:"${CUSTOM_GRAPH_LOCAL_PATH}" "${LOCAL_DIRECTORY}"
     docker exec -i hdfs-namenode hadoop fs -mkdir -p "${HDFS_DIRECTORY}"
     docker cp "${CUSTOM_GRAPH_LOCAL_PATH}" hdfs-namenode:"${CUSTOM_GRAPH_HDFS_PATH}"
     if ! docker exec -i hdfs-namenode hadoop fs -test -e "${CUSTOM_GRAPH_HDFS_PATH}"; then
