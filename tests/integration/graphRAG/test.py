@@ -175,7 +175,45 @@ def send_and_expect_response_file(conn, test_name, send, expected_file, exit_on_
             logging.fatal('Failed some tests,')
             print(*failed_tests, sep='\n', file=sys.stderr)
             sys.exit(1)
+def recv_until(sock, stop=b"\n"):
+    """Receive bytes from socket until a stop character."""
+    buffer = bytearray()
+    while True:
+        chunk = sock.recv(1)
+        if not chunk:
+            break
+        buffer.extend(chunk)
+        if buffer.endswith(stop):
+            break
+    return buffer.decode("utf-8")
+def run_sbs_query(graph_id, query, host, port):
+    """Run SBS query and return JSON rows."""
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+        sock.connect((host, port))
+        logging.info("Connected to JasmineGraph at %s:%d for SBS", host, port)
 
+        # Enter SBS mode
+        sock.sendall(b"sbs" + LINE_END)
+        recv_until(sock, b"\n")
+
+        # Send graph ID
+        sock.sendall(graph_id.encode("utf-8") + LINE_END)
+        recv_until(sock, b"\n")
+
+        # Send SBS natural-language query
+        print("sbs query:", query)
+        sock.sendall(query.encode("utf-8") + LINE_END)
+
+        results = []
+        while True:
+            line = recv_until(sock, b"\n").strip()
+            if not line or "done" in line:
+                break
+            results.append(line)
+
+        sock.sendall(b"exit" + LINE_END)
+        print(results)
+        return results
 
 passed_all = True
 failed_tests = []
@@ -190,7 +228,10 @@ def test(host, port):
         sock.connect((host, port))
         print()
         logging.info('[KG] Testing knowledge graph construction ')
-        test_kg(TEXT_FOLDER ,UPLOAD_SCRIPT, host, port)
+        graph_ids= test_kg(TEXT_FOLDER ,UPLOAD_SCRIPT, host, port)
+
+        sbs_results = run_sbs_query(graph_ids[0], 'At what frequency deos radio city broadcasts', host, port)
+        print(sbs_results)
 
         # shutting down workers after testing
         print()
