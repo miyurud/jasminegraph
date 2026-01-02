@@ -14,7 +14,7 @@ namespace LLMUtils
 
     struct CurlGlobalInit
     {
-        CurlGlobalInit()  { curl_global_init(CURL_GLOBAL_DEFAULT); }
+        CurlGlobalInit() { curl_global_init(CURL_GLOBAL_DEFAULT); }
         ~CurlGlobalInit() { curl_global_cleanup(); }
     };
 
@@ -33,15 +33,36 @@ namespace LLMUtils
         if (!curl)
             return "";
 
-        curl_easy_setopt(curl, CURLOPT_URL, (host + "/api/generate").c_str());
+        std::string url;
+        if (engine == "vllm")
+        {
+            url = host + "/v1/chat/completions";
+        }
+        else
+        {
+            url = host + "/api/generate";
+        }
+
+        curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
         curl_easy_setopt(curl, CURLOPT_POST, 1L);
 
         json requestJson;
-        requestJson["model"] = model;
-        requestJson["prompt"] = prompt;
-        requestJson["max_tokens"] = 8000;
-        requestJson["stream"] = false;
-
+        if (engine == "vllm")
+        {
+            requestJson["model"] = model;
+            requestJson["messages"] = json::array({
+                                            {{"role", "user"}, {"content", prompt}}});
+            requestJson["max_tokens"] = 10000;
+            requestJson["stream"] = false;
+        }
+        else
+        { 
+            requestJson["model"] = model;
+            requestJson["prompt"] = prompt;
+            requestJson["max_tokens"] = 8000;
+            requestJson["stream"] = false;
+        }
+ 
         std::string postFields = requestJson.dump();
 
         struct curl_slist *headers = nullptr;
