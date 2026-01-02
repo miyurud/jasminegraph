@@ -5746,7 +5746,6 @@ static void graphrag_command(
         &incrementalLocalStoreMap,
     bool *loop_exit_p)
 {
-    instance_logger.info("graphrag Command initiated");
     AgentRequestContext agentRequestCtx;
 
     char buffer[INSTANCE_DATA_LENGTH];
@@ -5830,14 +5829,9 @@ static void graphrag_command(
                     host,
                     std::stoi(portStr),
                     std::stoi(dataPortStr));
-
-                instance_logger.info("[GraphRAG][SBS] Worker parsed: " +
-                                     host + ":" + portStr + ":" + dataPortStr);
             }
 
             int numberOfPartitions = workers.size();
-            instance_logger.info("[GraphRAG][SBS] Partitions: " +
-                                 std::to_string(numberOfPartitions));
 
             // ---- Shared buffers ----
             std::vector<std::unique_ptr<SharedBuffer>> bufferPool;
@@ -5903,13 +5897,13 @@ static void graphrag_command(
                             std::string data = bufferPool[i]->get();
                             if (data == "-1")
                             {
-                                instance_logger.info(
+                                instance_logger.debug(
                                     "[GraphRAG][SBS][Reader-" +
                                     std::to_string(i) + "] End signal");
                                 break;
                             }
 
-                            instance_logger.info(
+                            instance_logger.debug(
                                 "[GraphRAG][SBS][Reader-" +
                                 std::to_string(i) + "] Data received");
 
@@ -5928,8 +5922,6 @@ static void graphrag_command(
                 if (t.joinable())
                     t.join();
 
-            instance_logger.info("[GraphRAG][SBS] All workers completed");
-
             std::sort(results.begin(), results.end(),
                       [](const json &a, const json &b)
                       {
@@ -5940,8 +5932,6 @@ static void graphrag_command(
             if (results.size() > static_cast<size_t>(k))
             {
                 results.resize(k);
-                instance_logger.info("[GraphRAG][SBS] Top-" +
-                                     std::to_string(k) + " results selected");
             }
             instance_logger.info("[GraphRAG][SBS] Top-" +
                                  std::to_string(results.size()) + " results selected");
@@ -5955,8 +5945,6 @@ static void graphrag_command(
                     agentRequestCtx,
                     retrievedData.dump(2));
 
-            instance_logger.info("[GraphRAG] Generatied final response: " + finalAnswer);
-
             auto chunks = chunkText(finalAnswer);
 
             for (const auto &chunk : chunks)
@@ -5967,7 +5955,7 @@ static void graphrag_command(
                         {"data", chunk}}
                         .dump() +
                     Conts::CARRIAGE_RETURN_NEW_LINE;
-                instance_logger.info("[GraphRAG] Chunk: " + payload);
+                instance_logger.debug("[GraphRAG] Chunk: " + payload);
                 if (write(connFd, payload.c_str(), payload.size()) < 0)
                 {
                     instance_logger.error("[GraphRAG] Socket write failed");
