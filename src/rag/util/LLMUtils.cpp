@@ -26,6 +26,29 @@ namespace LLMUtils
         return size * nmemb;
     }
 
+    static std::string stripMarkdown(const std::string &s)
+    {
+        std::string out = s;
+
+        auto start = out.find("```");
+        if (start != std::string::npos)
+        {
+            start = out.find("\n", start);
+            if (start != std::string::npos)
+            {
+                out = out.substr(start + 1);
+            }
+        }
+
+        auto end = out.rfind("```");
+        if (end != std::string::npos)
+        {
+            out = out.substr(0, end);
+        }
+
+        return out;
+    }
+
     std::string callLLM(const std::string &prompt, const std::string &host, const std::string &model, const std::string &engine)
     {
         std::string result;
@@ -50,19 +73,18 @@ namespace LLMUtils
         if (engine == "vllm")
         {
             requestJson["model"] = model;
-            requestJson["messages"] = json::array({
-                                            {{"role", "user"}, {"content", prompt}}});
+            requestJson["messages"] = json::array({{{"role", "user"}, {"content", prompt}}});
             requestJson["max_tokens"] = 10000;
             requestJson["stream"] = false;
         }
         else
-        { 
+        {
             requestJson["model"] = model;
             requestJson["prompt"] = prompt;
             requestJson["max_tokens"] = 8000;
             requestJson["stream"] = false;
         }
- 
+
         std::string postFields = requestJson.dump();
 
         struct curl_slist *headers = nullptr;
@@ -83,7 +105,34 @@ namespace LLMUtils
         curl_slist_free_all(headers);
         curl_easy_cleanup(curl);
 
-        return result;
-    }
+        try
+        {
+            json raw = json::parse(result);
+            std::string text;
 
+            if (engine == "vllm")
+            {
+                if (!raw.contains("choices") || raw["choices"].empty())
+                    return "";
+
+                text = raw["choices"][0]["message"]["content"]
+                           .get<std::string>();
+            }
+            else
+            {
+                if (!raw.contains("response"))
+                    return "";
+
+                text = raw["response"].get<std::string>();
+            }
+
+            return stripMarkdown(text);
+        }
+        catch (const std::exception &e)
+        {
+            llmutil_logger.error("LLM response parse error: " +
+                                 std::string(e.what()));
+        }
+        return "";
+    }
 }
