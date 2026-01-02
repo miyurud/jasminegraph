@@ -27,6 +27,7 @@ struct StreamContext {
   std::string current_tuple;  // accumulate partial tuple text
   bool isSuccess;             // track success/failure
     bool retryChunk;
+    std::string retryReason;
   std::stack<char> braceStack;
   int braceDepth = 0;
     std::vector<string> recorrectionTuples;

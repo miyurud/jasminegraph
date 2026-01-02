@@ -5321,21 +5321,23 @@ static void semantic_beam_search(
             graphId, partition, incrementalLocalStoreMap, "app", true);
   } else {
     incrementalLocalStoreInstance = incrementalLocalStoreMap[graphIdentifier];
+       std::unordered_map<std::string, unsigned int> nodeIndex = incrementalLocalStoreInstance->nm->nodeIndex;
+      std::unordered_map<std::string, unsigned int> edgeIndex = incrementalLocalStoreInstance->nm->edgeIndex;
+      unsigned long nextEdgeIndex = incrementalLocalStoreInstance->nm->nextEdgeIndex;
+      unsigned int nextNodeIndex = incrementalLocalStoreInstance->nm->nextNodeIndex;
+
       GraphConfig gc;
       gc.graphID = stoi(graphId);
       gc.partitionID = stoi(partition);
       gc.maxLabelSize = std::stoi(Utils::getJasmineGraphProperty(
-
-
-
-
-
-
-
           "org.jasminegraph.nativestore.max.label.size"));
-      gc.openMode = "app";
+      // gc.openMode = "app";
 
       incrementalLocalStoreInstance->nm =new NodeManager (gc);
+      incrementalLocalStoreInstance->nm->edgeIndex = edgeIndex;
+      incrementalLocalStoreInstance->nm->nodeIndex = nodeIndex;
+      incrementalLocalStoreInstance->nm->nextNodeIndex = nextNodeIndex;
+      incrementalLocalStoreInstance->nm->nextEdgeIndex = nextEdgeIndex;
   }
 
   content_length = 0;

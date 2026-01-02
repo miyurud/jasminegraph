@@ -107,6 +107,7 @@ size_t VLLMTupleStreamer::StreamCallback(char* ptr, size_t size, size_t nmemb,
 
                       ctx->isSuccess = false;
                       ctx->retryChunk = true;
+                      ctx->retryReason = "Tuple size less than 5. Tuple size should be 5 or more.";
                         return 0;   // IMMEDIATE ABORT of curl_easy_perform
                   }
 
@@ -158,13 +159,14 @@ size_t VLLMTupleStreamer::StreamCallback(char* ptr, size_t size, size_t nmemb,
                 }
               } catch (const std::exception& ex) {
                 vllm_tuple_streamer_logger.error(
-                    "❌ JSON array parse failed: " + std::string(ex.what()) + "Invalid Tuple: " + std::string
+                    "❌ JSON array parse failed: " + std::string(ex.what()) + ". Invalid Tuple: " + std::string
                     (ctx->current_tuple));
                   vllm_tuple_streamer_logger.error(
                          "Invalid tuple  detected. Retrying entire chunk.");
 
                   ctx->isSuccess = false;
                   ctx->retryChunk = true;
+                  ctx->retryReason =  std::string(ex.what());
                   return 0;   // IMMEDIATE ABORT of curl_easy_perform
               }
               ctx->current_tuple.clear();
@@ -198,7 +200,7 @@ void VLLMTupleStreamer::streamChunk(const std::string& chunkKey,
   do {
       tupleBuffer.clear();   // avoid mixing partial results
       ctx.braceDepth = 0;
-      ctx.retryChunk = false;
+
       ctx.isSuccess = true;
 
     CURL* curl = curl_easy_init();
@@ -242,13 +244,7 @@ void VLLMTupleStreamer::streamChunk(const std::string& chunkKey,
               Prompts::KNOWLEDGE_EXTRACTION +
               "\n PREVIOUS OUTPUT WAS INVALID.\n"
           +"Previous OUTPUT TUPLE : " + ctx.current_tuple+ " \n"
-              "You MUST strictly follow these rules:\n"
-              "1. Output ONLY a JSON array\n"
-              "2. Each item MUST be an array of EXACTLY 5 strings:\n"
-              "   [subject, predicate, object, subject_type, object_type]\n"
-              "3. NO explanations, NO text, NO markdown\n"
-              "4. Do NOT include incomplete or empty tuples\n"
-              "5. Use double quotes for ALL strings\n"
+          +"Invalid Reason: " + ctx.retryReason+ " \n"
               "\nNow RE-EXTRACT from the SAME text:\n" +
               chunkText +
               "\n\nArray:";
@@ -283,6 +279,7 @@ void VLLMTupleStreamer::streamChunk(const std::string& chunkKey,
 
     curl_slist_free_all(headers);
     curl_easy_cleanup(curl);
+      ctx.retryChunk = false;
       if (res == CURLE_WRITE_ERROR && ! ctx.retryChunk) {
           // ✅ Expected: aborted by callback for immediate retry
           vllm_tuple_streamer_logger.warn(

@@ -37,6 +37,7 @@ class OllamaTupleStreamer : public TupleStreamer {
     int braceDepth = 0;
     int bracketDepth = 0;
       bool retryChunk;
+      std::string retryReason ;
 
   };
 

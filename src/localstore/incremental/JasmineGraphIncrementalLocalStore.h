@@ -40,6 +40,11 @@ class JasmineGraphIncrementalLocalStore {
     bool processing_done = false;
     pthread_mutex_t embeddingQueueMutex;
     pthread_cond_t  embeddingQueueCond;
+    std::unordered_map<std::string, unsigned int> nodeIndex;
+    std::unordered_map<std::string, unsigned int> edgeIndex;
+    unsigned int nextNodeIndex = 0;
+    unsigned long nextEdgeIndex = 0;
+
 
 
     // batch texts to embed
