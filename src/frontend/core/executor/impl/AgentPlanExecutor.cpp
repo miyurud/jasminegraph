@@ -134,8 +134,7 @@ void AgentPlanExecutor::execute() {
             break;
         }
 
-        if (c == '\n')  // end of line
-        {
+        if (c == '\n') {
             if (!lineBuffer.empty() && lineBuffer.back() == '\r')
                 lineBuffer.pop_back();
 
