@@ -89,7 +89,6 @@ static std::string stripMarkdown(const std::string &s)
     return out;
 }
 
-
 json Planner::build(const std::string &query)
 {
 
@@ -140,12 +139,12 @@ json Planner::buildSemanticBeamSearchPlan(const std::string &query)
     catch (...)
     {
         planner_logger.error("LLM output not valid JSON, returning fallback plan.");
-        // minimal fallback plan
         json fallback;
-        fallback["model"] = "DEFAULT";
-        fallback["steps"] = json::array({{{"step_id", "s1"}, {"op", "SCAN"}, {"params", {{"root", ""}}}},
-                                         {{"step_id", "s2"}, {"op", "TRAVERSE"}, {"params", {{"depth", 1}}}}});
-        fallback["merge_strategy"] = "concat";
+        fallback["objectives"] = json::array({{{"id", "obj1"},
+                                               {"query", prompt},
+                                               {"search_type", "SEMANTIC_BEAM_SEARCH"}}});
+        fallback["plan_type"] = "DIRECT";
+
         return fallback;
     }
 }
