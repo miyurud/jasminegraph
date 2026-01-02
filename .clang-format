@@ -1,24 +1,12 @@
-# Based on Google style
 BasedOnStyle: Google
-
-# Indentation
 IndentWidth: 4
-AccessModifierOffset: -4  # Align 'public:', 'private:' one level inside class
-
-# Line length
-ColumnLimit: 120  # Limit lines to 120 chars
-
-# Braces
-BreakBeforeBraces: Attach  # Keep braces at end of function/class/namespace lines
-
-# Single-line statements
+ColumnLimit: 120
+BreakBeforeBraces: Attach
 AllowShortIfStatementsOnASingleLine: false
-
-# Trailing spaces
+SpacesBeforeTrailingComments: 2
 TrimTrailingWhitespace: true
-
-# Newline at end of file
 InsertFinalNewline: true
 
-# Misc
-SpacesBeforeTrailingComments: 2
+# Access modifier indentation
+AccessModifierOffset: 4      # indent public/private inside class
+IndentAccessModifiers: true  # indent the members inside the access section

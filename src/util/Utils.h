@@ -39,199 +39,201 @@ using std::unordered_map;
 using json = nlohmann::json;
 
 class Utils {
-private:
-    static unordered_map<std::string, std::string> propertiesMap;
-    static std::mutex sqliteMutex;
+    private:
+        static unordered_map<std::string, std::string> propertiesMap;
+        static std::mutex sqliteMutex;
 
-public:
-    struct worker {
-        std::string workerID;
-        std::string hostname;
-        std::string username;
-        std::string port;
-        std::string dataPort;
-    };
-    struct MetricHistory {
-        std::deque<double> cpu_usage;
-        std::deque<double> memory_usage;
-        std::deque<double> load_average;
-    };
+    public:
+        struct worker {
+                std::string workerID;
+                std::string hostname;
+                std::string username;
+                std::string port;
+                std::string dataPort;
+        };
+        struct MetricHistory {
+                std::deque<double> cpu_usage;
+                std::deque<double> memory_usage;
+                std::deque<double> load_average;
+        };
 
-    static std::string getJasmineGraphProperty(std::string key);
+        static std::string getJasmineGraphProperty(std::string key);
 
-    static std::vector<worker> getWorkerList(SQLiteDBInterface* sqlite);
+        static std::vector<worker> getWorkerList(SQLiteDBInterface* sqlite);
 
-    static std::vector<std::string> getHostListFromProperties();
+        static std::vector<std::string> getHostListFromProperties();
 
-    static std::vector<std::string> getFileContent(std::string);
+        static std::vector<std::string> getFileContent(std::string);
 
-    static std::string getFileContentAsString(std::string);
+        static std::string getFileContentAsString(std::string);
 
-    static std::string replaceAll(std::string content, const std::string& oldValue, const std::string& newValue);
+        static std::string replaceAll(std::string content, const std::string& oldValue, const std::string& newValue);
 
-    static void writeFileContent(const std::string& filePath, const std::string& content);
+        static void writeFileContent(const std::string& filePath, const std::string& content);
 
-    static std::vector<std::string> split(const std::string&, char delimiter);
+        static std::vector<std::string> split(const std::string&, char delimiter);
 
-    static std::string trim_copy(const std::string&, const std::string& delimiters = " \f\n\r\t\v");
+        static std::string trim_copy(const std::string&, const std::string& delimiters = " \f\n\r\t\v");
 
-    static bool parseBoolean(const std::string str);
+        static bool parseBoolean(const std::string str);
 
-    static bool fileExists(std::string fileName);
+        static bool fileExists(std::string fileName);
 
-    static bool fileExistsWithReadPermission(const std::string& path);
+        static bool fileExistsWithReadPermission(const std::string& path);
 
-    static std::fstream* openFile(const std::string& path, std::ios_base::openmode mode);
+        static std::fstream* openFile(const std::string& path, std::ios_base::openmode mode);
 
-    static int compressFile(const std::string filePath, std::string mode = "pigz");
+        static int compressFile(const std::string filePath, std::string mode = "pigz");
 
-    static bool is_number(const std::string& compareString);
+        static bool is_number(const std::string& compareString);
 
-    static int createDirectory(const std::string dirName);
+        static int createDirectory(const std::string dirName);
 
-    static std::vector<std::string> getListOfFilesInDirectory(std::string dirName);
+        static std::vector<std::string> getListOfFilesInDirectory(std::string dirName);
 
-    static int deleteDirectory(const std::string dirName);
+        static int deleteDirectory(const std::string dirName);
 
-    static int deleteAllMatchingFiles(const std::string fileNamePattern);
+        static int deleteAllMatchingFiles(const std::string fileNamePattern);
 
-    static int deleteFile(const std::string fileName);
+        static int deleteFile(const std::string fileName);
 
-    static std::string getFileName(std::string filePath);
+        static std::string getFileName(std::string filePath);
 
-    static int getFileSize(std::string filePath);
+        static int getFileSize(std::string filePath);
 
-    static std::string getJasmineGraphHome();
+        static std::string getJasmineGraphHome();
 
-    static std::string getHomeDir();
+        static std::string getHomeDir();
 
-    static int copyFile(const std::string sourceFilePath, const std::string destinationFilePath);
+        static int copyFile(const std::string sourceFilePath, const std::string destinationFilePath);
 
-    static int unzipFile(std::string filePath, std::string mode = "pigz");
+        static int unzipFile(std::string filePath, std::string mode = "pigz");
 
-    static bool hostExists(std::string name, std::string ip, std::string workerPort, SQLiteDBInterface* sqlite);
+        static bool hostExists(std::string name, std::string ip, std::string workerPort, SQLiteDBInterface* sqlite);
 
-    static int compressDirectory(const std::string filePath);
+        static int compressDirectory(const std::string filePath);
 
-    static int unzipDirectory(std::string filePath);
+        static int unzipDirectory(std::string filePath);
 
-    static int copyToDirectory(std::string currentPath, std::string copyPath);
+        static int copyToDirectory(std::string currentPath, std::string copyPath);
 
-    static std::string getHostID(std::string hostName, SQLiteDBInterface* sqlite);
+        static std::string getHostID(std::string hostName, SQLiteDBInterface* sqlite);
 
-    static void assignPartitionsToWorkers(int numberOfWorkers, SQLiteDBInterface* sqlite);
+        static void assignPartitionsToWorkers(int numberOfWorkers, SQLiteDBInterface* sqlite);
 
-    static void updateSLAInformation(PerformanceSQLiteDBInterface* perfSqlite, std::string graphId, int partitionCount,
-                                     long newSlaValue, std::string command, std::string category);
+        static void updateSLAInformation(PerformanceSQLiteDBInterface* perfSqlite, std::string graphId,
+                                         int partitionCount, long newSlaValue, std::string command,
+                                         std::string category);
 
-    static void editFlagZero(std::string flagPath);
+        static void editFlagZero(std::string flagPath);
 
-    static void editFlagOne(std::string flagPath);
+        static void editFlagOne(std::string flagPath);
 
-    static std::string checkFlag(std::string flagPath);
+        static std::string checkFlag(std::string flagPath);
 
-    static int connect_wrapper(int sock, const sockaddr* addr, socklen_t slen);
+        static int connect_wrapper(int sock, const sockaddr* addr, socklen_t slen);
 
-    /**
-     * Wrapper to recv(2) to read a string.
-     *
-     * @param connFd connection file descriptor
-     * @param buf writable buffer of size at least len+1
-     * @param len maximum length of the string to read (excluding null terminator)
-     * @param allowEmpty whether to allow reading empty string or not
-     * @return The string read or "" on error. Logs error if recv failed. Also logs error if allowEmpty is false and
-     * read length 0 string.
-     */
-    static std::string read_str_wrapper(int connFd, char* buf, size_t len, bool allowEmpty = false);
+        /**
+         * Wrapper to recv(2) to read a string.
+         *
+         * @param connFd connection file descriptor
+         * @param buf writable buffer of size at least len+1
+         * @param len maximum length of the string to read (excluding null terminator)
+         * @param allowEmpty whether to allow reading empty string or not
+         * @return The string read or "" on error. Logs error if recv failed. Also logs error if allowEmpty is false and
+         * read length 0 string.
+         */
+        static std::string read_str_wrapper(int connFd, char* buf, size_t len, bool allowEmpty = false);
 
-    /**
-     * Wrapper to recv(2) to read a string and trim it.
-     *
-     * @param connFd connection file descriptor
-     * @param buf writable buffer of size at least len+1
-     * @param len maximum length of the string to read (excluding null terminator)
-     * @return The trimmed string read or "" on error. Also rerurns "" if read length 0 string. This may return an
-     * empty string if the string read is non-empty but contained only white-space characters.
-     */
-    static std::string read_str_trim_wrapper(int connFd, char* buf, size_t len);
+        /**
+         * Wrapper to recv(2) to read a string and trim it.
+         *
+         * @param connFd connection file descriptor
+         * @param buf writable buffer of size at least len+1
+         * @param len maximum length of the string to read (excluding null terminator)
+         * @return The trimmed string read or "" on error. Also rerurns "" if read length 0 string. This may return an
+         * empty string if the string read is non-empty but contained only white-space characters.
+         */
+        static std::string read_str_trim_wrapper(int connFd, char* buf, size_t len);
 
-    /**
-     * Wrapper to send(2) to send data to socket.
-     *
-     * @param connFd connection file descriptor
-     * @param buf readable buffer of size at least `size`
-     * @param size size of data to send
-     * @return true on success or false otherwise. Logs error if send() failed or sent less than the requested size.
-     */
-    static bool send_wrapper(int connFd, const char* buf, size_t size);
+        /**
+         * Wrapper to send(2) to send data to socket.
+         *
+         * @param connFd connection file descriptor
+         * @param buf readable buffer of size at least `size`
+         * @param size size of data to send
+         * @return true on success or false otherwise. Logs error if send() failed or sent less than the requested size.
+         */
+        static bool send_wrapper(int connFd, const char* buf, size_t size);
 
-    /**
-     * Wrapper to send(2) to send a std::string to socket.
-     *
-     * @param connFd connection file descriptor
-     * @param str the string to send without any null terminator
-     * @return true on success or false otherwise. Uses Utils::send_wrapper(int, const char *, size_t) internally.
-     */
-    static bool send_str_wrapper(int connFd, std::string str);
-    static bool send_int_wrapper(int connFd, int* value, size_t datalength);
-    static bool send_long_wrapper(int connFd, long int* value, size_t datalength);
+        /**
+         * Wrapper to send(2) to send a std::string to socket.
+         *
+         * @param connFd connection file descriptor
+         * @param str the string to send without any null terminator
+         * @return true on success or false otherwise. Uses Utils::send_wrapper(int, const char *, size_t) internally.
+         */
+        static bool send_str_wrapper(int connFd, std::string str);
+        static bool send_int_wrapper(int connFd, int* value, size_t datalength);
+        static bool send_long_wrapper(int connFd, long int* value, size_t datalength);
 
-    static bool sendExpectResponse(int sockfd, char* data, size_t data_length, std::string sendMsg,
-                                   std::string expectMsg);
-    static bool expect_str_wrapper(int sockfd, const std::string& expected);
+        static bool sendExpectResponse(int sockfd, char* data, size_t data_length, std::string sendMsg,
+                                       std::string expectMsg);
+        static bool expect_str_wrapper(int sockfd, const std::string& expected);
 
-    static bool performHandshake(int sockfd, char* data, size_t data_length, std::string masterIP);
+        static bool performHandshake(int sockfd, char* data, size_t data_length, std::string masterIP);
 
-    static std::string getCurrentTimestamp();
+        static std::string getCurrentTimestamp();
 
-    static std::string getJsonStringFromYamlFile(const std::string& yamlFile);
+        static std::string getJsonStringFromYamlFile(const std::string& yamlFile);
 
-    static int createDatabaseFromDDL(const char* dbLocation, const char* ddlFileLocation);
+        static int createDatabaseFromDDL(const char* dbLocation, const char* ddlFileLocation);
 
-    static std::string downloadFile(const std::string& fileURL, const std::string& localFilePath);
+        static std::string downloadFile(const std::string& fileURL, const std::string& localFilePath);
 
-    static std::string send_job(std::string job_group_name, std::string metric_name, std::string metric_value);
+        static std::string send_job(std::string job_group_name, std::string metric_name, std::string metric_value);
 
-    static map<string, string> getMetricMap(string metricName);
+        static map<string, string> getMetricMap(string metricName);
 
-    static std::unordered_map<std::string, MetricHistory> getMetricsForHosts(
-        const std::vector<std::string>& metricNames, int secondsBack);
+        static std::unordered_map<std::string, MetricHistory> getMetricsForHosts(
+            const std::vector<std::string>& metricNames, int secondsBack);
 
-    static double exponentialWeightedMovingAverage(const std::deque<double>& vals, double alpha = 0.3);
-    static double computeSlope(const std::deque<double>& vals);
-    static bool uploadFileToWorker(std::string host, int port, int dataPort, int graphID, std::string filePath,
-                                   std::string masterIP, std::string uploadType);
+        static double exponentialWeightedMovingAverage(const std::deque<double>& vals, double alpha = 0.3);
+        static double computeSlope(const std::deque<double>& vals);
+        static bool uploadFileToWorker(std::string host, int port, int dataPort, int graphID, std::string filePath,
+                                       std::string masterIP, std::string uploadType);
 
-    static bool sendFileThroughService(std::string host, int dataPort, std::string fileName, std::string filePath);
+        static bool sendFileThroughService(std::string host, int dataPort, std::string fileName, std::string filePath);
 
-    static bool transferPartition(std::string sourceWorker, int sourceWorkerPort, std::string destinationWorker,
-                                  int destinationWorkerDataPort, std::string graphID, std::string partitionID,
-                                  std::string workerID, SQLiteDBInterface* sqlite);
-    static bool sendSbsQueryPlanToWorker(std::string host, int port, std::string masterIP, int graphID, int PartitionId,
-                                         std::string query, SharedBuffer& sharedBuffer,
-                                         const std::string& workerListString);
-    static bool sendQueryPlanToWorker(const std::string& host, int port, const std::string& masterIP, int graphID,
-                                      int PartitionId, const std::string& message, SharedBuffer& sharedBuffer,
-                                      const std::string& masterTraceContext = "");
-    static std::optional<std::tuple<std::string, int, int>> getWorker(string partitionID, std::string host, int port);
-    static bool sendDataFromWorkerToWorker(string masterIP, int graphID, string partitionId, std::string message,
-                                           SharedBuffer& sharedBuffer);
-    bool sendPartitionMetadata(int sockfd, int partitionId, int graphId, int localVertexCount, int centralVertexCount,
-                               int edgeCount, int centralEdgeCount);
-    static float cosineSimilarity(const std::vector<float>& a, const std::vector<float>& b);
-    static string canonicalize(const std::string& input);
-    static std::string normalizeURL(const std::string& server, const std::string& path);
-    static std::vector<std::string> getUniqueLLMRunners(const std::string& hostnamePortS);
-    static bool sendIntExpectResponse(int sockfd, char* data, size_t data_length, int value, std::string expectMsg);
+        static bool transferPartition(std::string sourceWorker, int sourceWorkerPort, std::string destinationWorker,
+                                      int destinationWorkerDataPort, std::string graphID, std::string partitionID,
+                                      std::string workerID, SQLiteDBInterface* sqlite);
+        static bool sendSbsQueryPlanToWorker(std::string host, int port, std::string masterIP, int graphID,
+                                             int PartitionId, std::string query, SharedBuffer& sharedBuffer,
+                                             const std::string& workerListString);
+        static bool sendQueryPlanToWorker(const std::string& host, int port, const std::string& masterIP, int graphID,
+                                          int PartitionId, const std::string& message, SharedBuffer& sharedBuffer,
+                                          const std::string& masterTraceContext = "");
+        static std::optional<std::tuple<std::string, int, int>> getWorker(string partitionID, std::string host,
+                                                                          int port);
+        static bool sendDataFromWorkerToWorker(string masterIP, int graphID, string partitionId, std::string message,
+                                               SharedBuffer& sharedBuffer);
+        bool sendPartitionMetadata(int sockfd, int partitionId, int graphId, int localVertexCount,
+                                   int centralVertexCount, int edgeCount, int centralEdgeCount);
+        static float cosineSimilarity(const std::vector<float>& a, const std::vector<float>& b);
+        static string canonicalize(const std::string& input);
+        static std::string normalizeURL(const std::string& server, const std::string& path);
+        static std::vector<std::string> getUniqueLLMRunners(const std::string& hostnamePortS);
+        static bool sendIntExpectResponse(int sockfd, char* data, size_t data_length, int value, std::string expectMsg);
 
-    static bool sendFileChunkToWorker(std::string host, int port, int dataPort, std::string filePath,
-                                      std::string masterIP, std::string uploadType, bool isEmbedGraph);
+        static bool sendFileChunkToWorker(std::string host, int port, int dataPort, std::string filePath,
+                                          std::string masterIP, std::string uploadType, bool isEmbedGraph);
 
-    static void assignPartitionToWorker(int graphId, int partitionIndex, string hostname, int port);
+        static void assignPartitionToWorker(int graphId, int partitionIndex, string hostname, int port);
 
-    static string getFrontendInput(int connFd);
-    static string getPartitionAlgorithm(string graphID, std::string host);
-    static string getGraphDirection(string graphID, std::string host);
+        static string getFrontendInput(int connFd);
+        static string getPartitionAlgorithm(string graphID, std::string host);
+        static string getGraphDirection(string graphID, std::string host);
 };
 
 #endif  // JASMINEGRAPH_UTILS_H
