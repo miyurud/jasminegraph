@@ -38,7 +38,7 @@ Output:
 Provide a clear and complete answer to the User Query based on the Retrieved Data.
 )";
 
-Responder::Responder(const std::string &model, const std::string &host, const std::string& engine)
+Responder::Responder(const std::string &model, const std::string &host, const std::string &engine)
     : model(model), host(host), engine(engine)
 {
 }
@@ -75,30 +75,17 @@ json Responder::generateResponse(
         attempt++;
     }
 
-    try
+    if (llmResponse.empty())
     {
-        json raw = json::parse(llmResponse);
+        responder_logger.error(
+            "LLM failed to generate a response after " +
+            std::to_string(maxRetries) + " attempts");
 
-        if (!raw.contains("response"))
-        {
-            responder_logger.error("LLM response missing 'response'");
-            return {
-                {"query", query},
-                {"answer", "Sorry, I couldn't generate a response at this time."}};
-        }
-
-        std::string answer = raw["response"].get<std::string>();
-
-        return {
-            {"query", query},
-            {"answer", answer}};
+        llmResponse =
+            "I'm sorry, I couldn't generate a response at this time.";
     }
-    catch (...)
-    {
-        responder_logger.error("Responder LLM output not valid JSON");
 
-        return {
-            {"query", query},
-            {"answer", "Sorry, something went wrong while generating the answer."}};
-    }
+    return {
+        {"query", query},
+        {"answer", llmResponse}};
 }

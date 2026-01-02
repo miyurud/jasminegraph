@@ -122,16 +122,7 @@ json Planner::buildSemanticBeamSearchPlan(const std::string &query)
 
     try
     {
-        json raw = json::parse(llmResponse);
-
-        if (!raw.contains("response"))
-        {
-            planner_logger.error("LLM response missing 'response'");
-            return raw;
-        }
-
-        std::string responseText = stripMarkdown(raw["response"]);
-        json cleanPlan = json::parse(responseText);
+        json cleanPlan = json::parse(llmResponse);
         planner_logger.info(
             "Generated Semantic Plan: " + cleanPlan.dump());
         return cleanPlan;
