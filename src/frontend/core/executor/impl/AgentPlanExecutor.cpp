@@ -43,9 +43,8 @@ void AgentPlanExecutor::execute()
 
     auto begin = chrono::high_resolution_clock::now();
 
-    // JasmineGraphServer::worker designatedWorker = JasmineGraphServer::getDesignatedWorker();
-    JasmineGraphServer::worker designatedWorker{"10.8.100.22", 7780, 7781};
-
+    JasmineGraphServer::worker designatedWorker = JasmineGraphServer::getDesignatedWorker();
+ 
     // Open Socket
     int sockfd = socket(AF_INET, SOCK_STREAM, 0);
     if (sockfd < 0)
@@ -73,7 +72,7 @@ void AgentPlanExecutor::execute()
         server->h_length);
     serv_addr.sin_port = htons(designatedWorker.port);
 
-    agent_executor_logger.info("[AGENT EXECUTOR] Connecting to " + designatedWorker.hostname + ":" + std::to_string(designatedWorker.port));
+    agent_executor_logger.info("Connecting to designated worker: " + designatedWorker.hostname + ":" + std::to_string(designatedWorker.port));
 
     if (Utils::connect_wrapper(
             sockfd,
