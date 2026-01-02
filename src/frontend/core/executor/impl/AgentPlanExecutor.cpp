@@ -1,9 +1,11 @@
 #include "AgentPlanExecutor.h"
-#include "../../../../server/JasmineGraphServer.h"
-#include "../../../../../src/util/Utils.h"
-#include <nlohmann/json.hpp>
+
 #include <atomic>
+#include <nlohmann/json.hpp>
 #include <thread>
+
+#include "../../../../../src/util/Utils.h"
+#include "../../../../server/JasmineGraphServer.h"
 
 using json = nlohmann::json;
 
@@ -11,17 +13,14 @@ Logger agent_executor_logger;
 
 AgentPlanExecutor::AgentPlanExecutor() {}
 
-AgentPlanExecutor::AgentPlanExecutor(SQLiteDBInterface *db,
-                                     PerformanceSQLiteDBInterface *perfDb,
-                                     JobRequest jobRequest)
-{
+AgentPlanExecutor::AgentPlanExecutor(SQLiteDBInterface* db, PerformanceSQLiteDBInterface* perfDb,
+                                     JobRequest jobRequest) {
     this->sqlite = db;
     this->perfDB = perfDb;
     this->request = jobRequest;
 }
 
-void AgentPlanExecutor::execute()
-{
+void AgentPlanExecutor::execute() {
     int uniqueId = getuid();
     std::string workerListStr;
     std::string masterIP = request.getMasterIP();
@@ -35,8 +34,8 @@ void AgentPlanExecutor::execute()
 
     int numberOfPartitions = std::stoi(request.getParameter(Conts::PARAM_KEYS::NO_OF_PARTITIONS));
     int connFd = std::stoi(request.getParameter(Conts::PARAM_KEYS::CONN_FILE_DESCRIPTOR));
-    bool *loop_exit = reinterpret_cast<bool *>(static_cast<std::uintptr_t>(std::stoull(
-        request.getParameter(Conts::PARAM_KEYS::LOOP_EXIT_POINTER))));
+    bool* loop_exit = reinterpret_cast<bool*>(
+        static_cast<std::uintptr_t>(std::stoull(request.getParameter(Conts::PARAM_KEYS::LOOP_EXIT_POINTER))));
 
     bool canCalibrate = Utils::parseBoolean(canCalibrateString);
     bool autoCalibrate = Utils::parseBoolean(autoCalibrateString);
@@ -44,94 +43,72 @@ void AgentPlanExecutor::execute()
     auto begin = chrono::high_resolution_clock::now();
 
     JasmineGraphServer::worker designatedWorker = JasmineGraphServer::getDesignatedWorker();
- 
+
     // Open Socket
     int sockfd = socket(AF_INET, SOCK_STREAM, 0);
-    if (sockfd < 0)
-    {
+    if (sockfd < 0) {
         throw std::runtime_error("Failed to create socket");
     }
 
-    if (designatedWorker.hostname.find('@') != std::string::npos)
-    {
+    if (designatedWorker.hostname.find('@') != std::string::npos) {
         designatedWorker.hostname = Utils::split(designatedWorker.hostname, '@')[1];
     }
 
-    struct hostent *server = gethostbyname(designatedWorker.hostname.c_str());
-    if (!server)
-    {
+    struct hostent* server = gethostbyname(designatedWorker.hostname.c_str());
+    if (!server) {
         close(sockfd);
         throw std::runtime_error("Unknown host: " + designatedWorker.hostname);
     }
 
     struct sockaddr_in serv_addr{};
     serv_addr.sin_family = AF_INET;
-    bcopy(
-        (char *)server->h_addr,
-        (char *)&serv_addr.sin_addr.s_addr,
-        server->h_length);
+    bcopy((char*)server->h_addr, (char*)&serv_addr.sin_addr.s_addr, server->h_length);
     serv_addr.sin_port = htons(designatedWorker.port);
 
-    agent_executor_logger.info("Connecting to designated worker: " + designatedWorker.hostname + ":" + std::to_string(designatedWorker.port));
+    agent_executor_logger.info("Connecting to designated worker: " + designatedWorker.hostname + ":" +
+                               std::to_string(designatedWorker.port));
 
-    if (Utils::connect_wrapper(
-            sockfd,
-            (struct sockaddr *)&serv_addr,
-            sizeof(serv_addr)) < 0)
-    {
+    if (Utils::connect_wrapper(sockfd, (struct sockaddr*)&serv_addr, sizeof(serv_addr)) < 0) {
         close(sockfd);
         throw std::runtime_error("Connection to worker failed");
     }
 
     // Handshake
     char buffer[FED_DATA_LENGTH + 1];
-    if (!Utils::performHandshake(sockfd, buffer, FED_DATA_LENGTH, masterIP))
-    {
+    if (!Utils::performHandshake(sockfd, buffer, FED_DATA_LENGTH, masterIP)) {
         Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::CLOSE);
         close(sockfd);
         throw std::runtime_error("Handshake failed");
     }
 
-    auto sendField = [&](const std::string &fieldName,
-                         const std::string &value)
-    {
-        agent_executor_logger.info(
-            "Sending " + fieldName + " length=" + std::to_string(value.size()));
+    auto sendField = [&](const std::string& fieldName, const std::string& value) {
+        agent_executor_logger.info("Sending " + fieldName + " length=" + std::to_string(value.size()));
 
         int32_t len = htonl(value.size());
 
-        if (send(sockfd, &len, sizeof(len), 0) != sizeof(len))
-        {
+        if (send(sockfd, &len, sizeof(len), 0) != sizeof(len)) {
             throw std::runtime_error("Failed to send length for " + fieldName);
         }
 
         char ack[64]{0};
         int n = recv(sockfd, ack, sizeof(ack), 0);
-        if (n <= 0)
-        {
+        if (n <= 0) {
             throw std::runtime_error("No ACK for " + fieldName);
         }
 
-        agent_executor_logger.info(
-            "ACK received for " + fieldName + ": " +
-            Utils::trim_copy(ack));
+        agent_executor_logger.info("ACK received for " + fieldName + ": " + Utils::trim_copy(ack));
 
-        if (send(sockfd, value.data(), value.size(), 0) != (ssize_t)value.size())
-        {
+        if (send(sockfd, value.data(), value.size(), 0) != (ssize_t)value.size()) {
             throw std::runtime_error("Failed to send value for " + fieldName);
         }
     };
 
     std::vector<JasmineGraphServer::worker> workers = JasmineGraphServer::getWorkers(numberOfPartitions);
 
-
-    for (size_t i = 0; i < workers.size(); i++)
-    {
-        workerListStr += workers[i].hostname + ":" +
-                         std::to_string(workers[i].port) + ":" +
-                         std::to_string(workers[i].dataPort);
-        if (i + 1 < workers.size())
-        {
+    for (size_t i = 0; i < workers.size(); i++) {
+        workerListStr +=
+            workers[i].hostname + ":" + std::to_string(workers[i].port) + ":" + std::to_string(workers[i].dataPort);
+        if (i + 1 < workers.size()) {
             workerListStr += ",";
         }
     }
@@ -149,17 +126,15 @@ void AgentPlanExecutor::execute()
     std::string lineBuffer;
     char c;
 
-    while (true)
-    {
+    while (true) {
         ssize_t bytesRead = recv(sockfd, &c, 1, 0);
-        if (bytesRead <= 0)
-        {
+        if (bytesRead <= 0) {
             agent_executor_logger.error("Connection closed or error while reading");
             *loop_exit = true;
             break;
         }
 
-        if (c == '\n') // end of line
+        if (c == '\n')  // end of line
         {
             if (!lineBuffer.empty() && lineBuffer.back() == '\r')
                 lineBuffer.pop_back();
@@ -170,42 +145,33 @@ void AgentPlanExecutor::execute()
             if (line.empty())
                 continue;
 
-            try
-            {
+            try {
                 json payload = json::parse(line);
 
-                if (payload.contains("type") && payload["type"] == "end")
-                {
+                if (payload.contains("type") && payload["type"] == "end") {
                     agent_executor_logger.info("End-of-answer marker received");
                     break;
                 }
 
-                if (payload.contains("type") && payload["type"] == "answer_chunk")
-                {
+                if (payload.contains("type") && payload["type"] == "answer_chunk") {
                     std::string dataStr = payload["data"];
                     nlohmann::json innerJson = nlohmann::json::parse(dataStr);
                     std::string chunkContent = innerJson["answer"];
 
                     ssize_t n = write(connFd, chunkContent.c_str(), chunkContent.size());
-                    write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(),
-                          Conts::CARRIAGE_RETURN_NEW_LINE.size());
+                    write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
 
-                    if (n < 0)
-                    {
+                    if (n < 0) {
                         agent_executor_logger.error("Error writing to frontend socket");
                         *loop_exit = true;
                         close(sockfd);
                         return;
                     }
                 }
-            }
-            catch (const std::exception &e)
-            {
+            } catch (const std::exception& e) {
                 agent_executor_logger.error("JSON parse error: " + std::string(e.what()));
             }
-        }
-        else
-        {
+        } else {
             lineBuffer.push_back(c);
         }
     }
@@ -224,27 +190,22 @@ void AgentPlanExecutor::execute()
 
     auto end = chrono::high_resolution_clock::now();
     auto dur = end - begin;
-    auto msDuration =
-        std::chrono::duration_cast<std::chrono::milliseconds>(dur).count();
-        
+    auto msDuration = std::chrono::duration_cast<std::chrono::milliseconds>(dur).count();
+
     std::string durationString = std::to_string(msDuration);
     agent_executor_logger.info("###AGENT-EXECUTOR### Execution Completed. Total time taken: " + durationString + " ms");
 
-    if (canCalibrate || autoCalibrate)
-    {
-        Utils::updateSLAInformation(perfDB, graphId, numberOfPartitions, msDuration,
-                                    CYPHER, Conts::SLA_CATEGORY::LATENCY);
+    if (canCalibrate || autoCalibrate) {
+        Utils::updateSLAInformation(perfDB, graphId, numberOfPartitions, msDuration, CYPHER,
+                                    Conts::SLA_CATEGORY::LATENCY);
         isStatCollect = false;
     }
 
     processStatusMutex.lock();
-    for (auto processCompleteIterator = processData.begin();
-         processCompleteIterator != processData.end();
-         ++processCompleteIterator)
-    {
+    for (auto processCompleteIterator = processData.begin(); processCompleteIterator != processData.end();
+         ++processCompleteIterator) {
         ProcessInfo processInformation = *processCompleteIterator;
-        if (processInformation.id == uniqueId)
-        {
+        if (processInformation.id == uniqueId) {
             processData.erase(processInformation);
             break;
         }
@@ -252,8 +213,7 @@ void AgentPlanExecutor::execute()
     processStatusMutex.unlock();
 }
 
-int AgentPlanExecutor::getUid()
-{
+int AgentPlanExecutor::getUid() {
     static std::atomic<std::uint32_t> uid{0};
     return ++uid;
 }
