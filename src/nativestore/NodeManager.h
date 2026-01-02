@@ -55,7 +55,10 @@ class NodeManager {
     std::unordered_map<std::string, unsigned int> nodeIndex;
     std::unordered_map<std::string, unsigned int> edgeIndex;
     NodeManager(GraphConfig);
-    ~NodeManager() { delete NodeBlock::nodesDB; };
+
+    NodeBlock *get(std::string);
+    static NodeBlock *get(unsigned int nodeIndex, const std::string& nodeId);
+    void addNode(NodeBlock nodeBlock);
 
     void setIndexKeySize(unsigned long);
     static int dbSize(std::string path);
@@ -72,7 +75,6 @@ class NodeManager {
     RelationBlock* addCentralRelation(NodeBlock source, NodeBlock destination);
 
     NodeBlock* addNode(std::string);  // will return DB block address
-    NodeBlock* get(std::string);
 
     std::list<NodeBlock*> getCentralGraph();
     std::list<NodeBlock> getLimitedGraph(int limit = 10);
