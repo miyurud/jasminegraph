@@ -31,4 +31,4 @@ class AgentPlanExecutor : public AbstractExecutor {
     PerformanceSQLiteDBInterface* perfDB;
 };
 
-#endif 
+#endif

@@ -54,6 +54,5 @@ Correct output:
   ["Tim Cook", "worksFor", "Apple Inc.", "Person", "Organization"],
 ["Annette Bening", "actor", "Lady Macbeth", "Person", "FictionalCharacter", "1984", "American Conservatory Theatre"],
   ["Annette Bening", "performerIn", "American Conservatory Theatre", "Person", "Organization", "1984", "San Francisco"]
-
 )";
 }

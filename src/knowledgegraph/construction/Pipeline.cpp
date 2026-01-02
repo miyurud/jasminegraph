@@ -261,7 +261,8 @@ void Pipeline::streamFromHDFSIntoBuffer() {
     auto endTime = high_resolution_clock::now();
     std::chrono::duration<double> duration = endTime - startTime;
     kg_pipeline_stream_handler_logger.debug("Successfully streamed data from HDFS into data buffer.");
-    kg_pipeline_stream_handler_logger.debug("Time taken to read from HDFS: " + to_string(duration.count()) + " seconds");
+    kg_pipeline_stream_handler_logger.debug("Time taken to read from HDFS: " + to_string(duration.count()) +
+        " seconds");
 }
 void Pipeline::streamFromLocalFileIntoBuffer() {
     auto startTime = chrono::high_resolution_clock::now();
@@ -364,7 +365,8 @@ void Pipeline::streamFromLocalFileIntoBuffer() {
     auto endTime = chrono::high_resolution_clock::now();
     std::chrono::duration<double> duration = endTime - startTime;
     kg_pipeline_stream_handler_logger.info("Successfully streamed data from local file into data buffer.");
-    kg_pipeline_stream_handler_logger.info("Time taken to read from local file: " + std::to_string(duration.count()) + " seconds");
+    kg_pipeline_stream_handler_logger.info("Time taken to read from local file: " +
+        std::to_string(duration.count()) + " seconds");
 }
 
 void Pipeline::startStreamingFromBufferToWorkers() {
@@ -445,8 +447,9 @@ json Pipeline::processTupleAndSaveInPartition(const std::vector<std::unique_ptr<
     auto startTime = high_resolution_clock::now();
 
     kg_pipeline_stream_handler_logger.debug("Starting processTupleAndSaveInPartition");
-    Partitioner partitioner ( numberOfPartitions,graphId,  spt::FENNEL, sqlite,  true );
-    HDFSMultiThreadedHashPartitioner partitions(numberOfPartitions, graphId, masterIP, true, workerList, true, 100,
+    Partitioner partitioner (numberOfPartitions,graphId,  spt::FENNEL, sqlite,  true );
+    HDFSMultiThreadedHashPartitioner partitions(numberOfPartitions, graphId, masterIP, true,
+        workerList, true, 100,
         sqlite);
     std::hash<std::string> hasher;
     std::vector<std::thread> tupleThreads;
@@ -456,12 +459,9 @@ json Pipeline::processTupleAndSaveInPartition(const std::vector<std::unique_ptr<
     auto nextTick = steady_clock::now();
 
     while (metaThreadRunning.load(std::memory_order_relaxed)) {
-        // nextTick += seconds(3);   //  META every 3 second
         std::this_thread::sleep_for(std::chrono::milliseconds(10000));
 
         kg_pipeline_stream_handler_logger.debug("Meta thread running");
-
-         // std::unique_lock<std::mutex> lock(realTimeBytesUpdateMutex);
 
                         json meta;
                         json graph;
@@ -505,7 +505,6 @@ json Pipeline::processTupleAndSaveInPartition(const std::vector<std::unique_ptr<
                             kg_pipeline_stream_handler_logger.info("stop request:" + response);
                             stopFlag = true;
                         }
-                        // lock.unlock();
     }
 });
 
@@ -514,15 +513,8 @@ json Pipeline::processTupleAndSaveInPartition(const std::vector<std::unique_ptr<
         kg_pipeline_stream_handler_logger.debug("Launching tuple thread for partition " + std::to_string(i));
 
         tupleThreads.emplace_back([&, tupleBufferRef, i]() {
-            int realtimePartitionMetaUpdateIndicator = 0;
             kg_pipeline_stream_handler_logger.debug("Tuple thread started for partition " + std::to_string(i));
             while (isProcessing) {
-
-                // if (!tupleBufferRef->empty()) {
-                    realtimePartitionMetaUpdateIndicator++;
-                    // if (realtimePartitionMetaUpdateIndicator != 0 && realtimePartitionMetaUpdateIndicator % 10 == 0) {
-                    //
-                    // }
 
                     std::string line = tupleBufferRef->get();
                     kg_pipeline_stream_handler_logger.debug("Thread " + std::to_string(i) +
@@ -531,75 +523,23 @@ json Pipeline::processTupleAndSaveInPartition(const std::vector<std::unique_ptr<
                     if (line == END_OF_STREAM_MARKER) {
                         kg_pipeline_stream_handler_logger.debug("Received end-of-stream marker in thread " +
                                                                 std::to_string(i));
-                        //
-                        // {
-                        //     std::lock_guard<std::mutex> lock(realTimeBytesUpdateMutex);
-                        //
-                        //    json meta;
-                        //    json graph;
-                        //    graph["vertexcount"] = partitions.getVertexCount();
-                        //    graph["edgecount"] = partitions.getEdgeCount();
-                        //    graph["centralpartitioncount"] = this->numberOfPartitions;
-                        //    graph["graph_status_idgraph_status"] = Conts::GRAPH_STATUS::OPERATIONAL;
-                        //
-                        //    meta["graph"] = graph;
-                        //    meta["partitions"] = partitions.getPartitionsMeta();
-                        //
-                        //    char data[FED_DATA_LENGTH + 1];
-                        //
-                        //    Utils::send_str_wrapper(connFd, META);
-                        //    string response = Utils::read_str_wrapper(connFd, data, FED_DATA_LENGTH);
-                        //
-                        //    char ack3[ACK_MESSAGE_SIZE] = {0};
-                        //    string metaS = meta.dump();
-                        //    int message_length = metaS.length();
-                        //    int converted_number = htonl(message_length);
-                        //    kg_pipeline_stream_handler_logger.debug("Sending content length: " +
-                        //                                            to_string(converted_number));
-                        //
-                        //    if (!Utils::sendIntExpectResponse(connFd, ack3, JasmineGraphInstanceProtocol::OK.length(),
-                        //                                      converted_number, JasmineGraphInstanceProtocol::OK)) {
-                        //        Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::CLOSE);
-                        //        close(connFd);
-                        //        return;
-                        //    }
-                        //
-                        //    if (!Utils::send_str_wrapper(connFd, metaS)) {
-                        //        close(connFd);
-                        //        return;
-                        //    }
-                        //    char ack2[FED_DATA_LENGTH + 1];
-                        //    Utils::send_str_wrapper(connFd, std::to_string(realtime_bytes_read_so_far));
-                        //
-                        //    response = Utils::read_str_wrapper(connFd, ack2, FED_DATA_LENGTH);
-                        //
-                        // if (response == "stop") {
-                        //     kg_pipeline_stream_handler_logger.info("stop request:" + response);
-                        //     stopFlag = true;
-                        // }
-                        // }
-
                         break;
                     }
                     try {
-                        auto jsonEdge = json::parse(line);
-                        // auto source = jsonEdge["source"];
-                        // auto destination = jsonEdge["destination"];
-                        // auto edge = jsonEdge["properties"];;
+                        auto jsonEdge = json::parse(line);;
                         auto& source = jsonEdge["source"];
-                      auto& destination = jsonEdge["destination"];
-                      auto& edge = jsonEdge["properties"];
+                        auto& destination = jsonEdge["destination"];
+                        auto& edge = jsonEdge["properties"];
+
                         std::string sourceId = source["id"].get<std::string>();
                         std::string destinationId = destination["id"].get<std::string>();
                         std::string edgeId = edge["id"].get<std::string>();
-                        std::unique_lock<std::mutex> lock(    entityResolutionMutex);
 
-
+                        std::unique_lock<std::mutex> lock(entityResolutionMutex);
                         if (nodeIndex.find(sourceId) == nodeIndex.end()) {
                             nodeIndex.insert({sourceId, nextNodeIndex});
                             source["id"]= to_string(nextNodeIndex);
                             source["properties"]["id"]= to_string(nextNodeIndex);
-
                             nextNodeIndex++;
                         } else {
                             source["id"]= to_string(nodeIndex[sourceId]);
@@ -627,10 +567,11 @@ json Pipeline::processTupleAndSaveInPartition(const std::vector<std::unique_ptr<
                         jsonEdge["properties"] = edge;
 
                         kg_pipeline_stream_handler_logger.debug("Thread " + std::to_string(i) + " sourceId: " +
-                                                                source["id"].get<std::string>() + ", destinationId: " + destination["id"].get<std::string>());
+                                                                source["id"].get<std::string>() + ", destinationId: " +
+                                                                destination["id"].get<std::string>());
                         if (!sourceId.empty() && !destinationId.empty()) {
-                            partitionedEdge partitioned_edge = partitioner.addEdge({ source["id"].get<std::string>(),
-    destination["id"].get<std::string>()});
+                            partitionedEdge partitioned_edge = partitioner.addEdge({
+                            source["id"].get<std::string>(), destination["id"].get<std::string>()});
                             lock.unlock();
                             int sourceIndex =  partitioned_edge[0].second;
                             int destIndex =  partitioned_edge[1].second;
@@ -667,24 +608,15 @@ json Pipeline::processTupleAndSaveInPartition(const std::vector<std::unique_ptr<
                         kg_pipeline_stream_handler_logger.error("Unexpected exception in line: " +
                                                                 std::string(e.what()));
                     }
-                // }
-
-                // else {
-                //     std::this_thread::sleep_for(std::chrono::milliseconds(1000));
-                //
-                // }
             }
 
             kg_pipeline_stream_handler_logger.debug("Tuple thread finished for partition " + std::to_string(i));
         });
     }
-
-
     for (auto& t : tupleThreads) {
         if (t.joinable()) {
             t.join();
         }
-        // t.join();
     }
     partitions.stopConsumerThreads();
 

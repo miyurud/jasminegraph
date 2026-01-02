@@ -211,7 +211,7 @@ void *frontendservicesesion(void *dummyPt) {
             workerClientsInitialized = true;
             semanticBeamSearch(masterIP, connFd, workerClients, numberOfPartitions, &loop_exit, sqlite, perfSqlite,
                                jobScheduler);
-        } else if (line.compare(AGENT_PLAN) == 0){
+        } else if (line.compare(AGENT_PLAN) == 0) {
             workerClients = getWorkerClients(sqlite);
             workerClientsInitialized = true;
             agent_plan_command(masterIP, connFd, workerClients, numberOfPartitions, &loop_exit, sqlite, perfSqlite,
@@ -241,11 +241,10 @@ void *frontendservicesesion(void *dummyPt) {
         } else if (line.compare(CONSTRUCT_KG) == 0) {
             JasmineGraphFrontEnd::constructKGStreamHDFSCommand(masterIP, connFd, numberOfPartitions, sqlite,
                                                                &loop_exit);
-        }
-        else if (line.compare(CONSTRUCT_KG_LOCAL) == 0) {
+        } else if (line.compare(CONSTRUCT_KG_LOCAL) == 0) {
             JasmineGraphFrontEnd::constructKGStreamLocalTXTCommand(masterIP, connFd, numberOfPartitions, sqlite,
                                                                &loop_exit);
-        }else if (line.compare(STOP_CONSTRUCT_KG) == 0) {
+        } else if (line.compare(STOP_CONSTRUCT_KG) == 0) {
             JasmineGraphFrontEnd::stop_graph_streaming(connFd, sqlite, &loop_exit);
         } else if (line.compare(STOP_STREAM_KAFKA) == 0) {
             stop_stream_kafka_command(connFd, kstream, &loop_exit);
@@ -900,8 +899,7 @@ static void agent_plan_command(std::string masterIP, int connFd, vector<DataPubl
                              std::to_string(reinterpret_cast<std::uintptr_t>(loop_exit)));
     
     long graphSLA = JasmineGraphFrontEndCommon::getSLAForGraphId(sqlite, perfSqlite, graphIdResponse,
-                                                                 AGENT_PLAN, Conts::SLA_CATEGORY::LATENCY);
-    
+        AGENT_PLAN, Conts::SLA_CATEGORY::LATENCY);
     jobDetails.addParameter(Conts::PARAM_KEYS::GRAPH_SLA, std::to_string(graphSLA));
 
     if (graphSLA == 0 && JasmineGraphFrontEnd::areRunningJobsForSameGraph()) {
@@ -2393,9 +2391,6 @@ bool JasmineGraphFrontEnd::constructKGStreamLocalTXTCommand(
     write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(),
           Conts::CARRIAGE_RETURN_NEW_LINE.size());
 
-
-
-
     char filePathBuf[FRONTEND_DATA_LENGTH + 1];
     memset(filePathBuf, 0, sizeof(filePathBuf));
     read(connFd, filePathBuf, FRONTEND_DATA_LENGTH);
@@ -2411,8 +2406,8 @@ bool JasmineGraphFrontEnd::constructKGStreamLocalTXTCommand(
     if (std::regex_match(localFilePath, urlRegex)) {
         std::string instanceFolder = Utils::getJasmineGraphProperty("org.jasminegraph.server.instance");
 
-       string savedFilePath = Utils::downloadFile(localFilePath, instanceFolder+"/"+ Utils::getFileName
-           (localFilePath));
+       string savedFilePath = Utils::downloadFile(localFilePath, instanceFolder+"/"+
+           Utils::getFileName(localFilePath));
         localFilePath =  instanceFolder+"/"+ Utils::getFileName(localFilePath);
 
         if (!savedFilePath.empty()) {

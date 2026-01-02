@@ -111,7 +111,7 @@ size_t VLLMTupleStreamer::StreamCallback(char* ptr, size_t size, size_t nmemb,
                         return 0;   // IMMEDIATE ABORT of curl_easy_perform
                   }
 
-                if (triple.is_array() ) {
+                if (triple.is_array()) {
                   std::string subject = triple[0].get<std::string>();
                   std::string predicate = triple[1].get<std::string>();
                   std::string object = triple[2].get<std::string>();
@@ -121,7 +121,7 @@ size_t VLLMTupleStreamer::StreamCallback(char* ptr, size_t size, size_t nmemb,
 
 
                   std::string subject_id =
-                      Utils::canonicalize(subject );
+                      Utils::canonicalize(subject);
                   std::string object_id =
                       Utils::canonicalize(object);
                   std::string edge_id = Utils::canonicalize(
@@ -144,11 +144,11 @@ size_t VLLMTupleStreamer::StreamCallback(char* ptr, size_t size, size_t nmemb,
                        {{"id", edge_id},
                         {"type", predicate}}}};
 
-                    if (triple.size() == 6 ) {
+                    if (triple.size() == 6) {
                         formattedTriple["properties"]["when"] = triple[5].get<std::string>();
                     }
 
-                    if (triple.size() == 7 ) {
+                    if (triple.size() == 7) {
                         formattedTriple["properties"]["when"] = triple[5].get<std::string>();
                         formattedTriple["properties"]["where"] = triple[6].get<std::string>();
                     }
@@ -254,10 +254,8 @@ void VLLMTupleStreamer::streamChunk(const std::string& chunkKey,
     jsonRequest["model"] = model;
     jsonRequest["messages"] = {{{"role", "system"},
                       {"content",
-                       "You are an expert information extractor specialized in "
-                       "knowledge graph construction."}},
-                     {{"role", "user"},
-                      {"content",userPrompt}}};
+                       "You are an expert information extractor specialized in knowledge graph construction."}},
+        {{"role", "user"}, {"content", userPrompt}}};
 
     jsonRequest["stream"] = true;
     jsonRequest["max_tokens"] = 10000;
@@ -280,12 +278,11 @@ void VLLMTupleStreamer::streamChunk(const std::string& chunkKey,
     curl_slist_free_all(headers);
     curl_easy_cleanup(curl);
       ctx.retryChunk = false;
-      if (res == CURLE_WRITE_ERROR && ! ctx.retryChunk) {
+      if (res == CURLE_WRITE_ERROR && !ctx.retryChunk) {
           // ✅ Expected: aborted by callback for immediate retry
           vllm_tuple_streamer_logger.warn(
               "Stream aborted by callback due to invalid tuple. Retrying immediately.");
-      }
-      else if  (res != CURLE_OK && attempt < maxRetries - 1) {
+      } else if (res != CURLE_OK && attempt < maxRetries - 1) {
       vllm_tuple_streamer_logger.error("CURL response code: " +
                                        std::to_string(res));
       int waitTime = baseDelaySeconds * attempt;

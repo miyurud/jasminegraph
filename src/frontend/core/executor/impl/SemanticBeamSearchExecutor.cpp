@@ -227,8 +227,8 @@ void SemanticBeamSearchExecutor::doSemanticBeamSearch(
                                    JasmineGraphInstanceProtocol::QUERY_START_ACK)) {
         Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::CLOSE);
         close(sockfd);
-        return ;
-                                   }
+        return;
+    }
 
   semantic_beam_search_logger_executor.debug("Received ACK after command");
 

@@ -15,15 +15,13 @@ AgentPlanExecutor::AgentPlanExecutor() {}
 
 AgentPlanExecutor::AgentPlanExecutor(SQLiteDBInterface *db,
                                      PerformanceSQLiteDBInterface *perfDb,
-                                     JobRequest jobRequest)
-{
+                                     JobRequest jobRequest) {
     this->sqlite = db;
     this->perfDB = perfDb;
     this->request = jobRequest;
 }
 
-void AgentPlanExecutor::execute()
-{
+void AgentPlanExecutor::execute() {
     agent_executor_logger.info("[AGENT EXECUTOR] Starting");
     AgentRequestContext agentRequestCtx;
     int uniqueId = getuid();
@@ -50,8 +48,7 @@ void AgentPlanExecutor::execute()
 
     // Open Socket
     int sockfd = socket(AF_INET, SOCK_STREAM, 0);
-    if (sockfd < 0)
-    {
+    if (sockfd < 0) {
         throw std::runtime_error("Failed to create socket");
     }
 
@@ -61,8 +58,7 @@ void AgentPlanExecutor::execute()
     }
 
     struct hostent *server = gethostbyname(designatedWorker.hostname.c_str());
-    if (!server)
-    {
+    if (!server) {
         close(sockfd);
         throw std::runtime_error("Unknown host: " + designatedWorker.hostname);
     }
@@ -80,38 +76,33 @@ void AgentPlanExecutor::execute()
     if (Utils::connect_wrapper(
             sockfd,
             (struct sockaddr *)&serv_addr,
-            sizeof(serv_addr)) < 0)
-    {
+            sizeof(serv_addr)) < 0) {
         close(sockfd);
         throw std::runtime_error("Connection to worker failed");
     }
 
     // Handshake
     char buffer[FED_DATA_LENGTH + 1];
-    if (!Utils::performHandshake(sockfd, buffer, FED_DATA_LENGTH, masterIP))
-    {
+    if (!Utils::performHandshake(sockfd, buffer, FED_DATA_LENGTH, masterIP)) {
         Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::CLOSE);
         close(sockfd);
         throw std::runtime_error("Handshake failed");
     }
 
     auto sendField = [&](const std::string &fieldName,
-                         const std::string &value)
-    {
+                         const std::string &value) {
         agent_executor_logger.info(
             "Sending " + fieldName + " length=" + std::to_string(value.size()));
 
         int32_t len = htonl(value.size());
 
-        if (send(sockfd, &len, sizeof(len), 0) != sizeof(len))
-        {
+        if (send(sockfd, &len, sizeof(len), 0) != sizeof(len)) {
             throw std::runtime_error("Failed to send length for " + fieldName);
         }
 
         char ack[64]{0};
         int n = recv(sockfd, ack, sizeof(ack), 0);
-        if (n <= 0)
-        {
+        if (n <= 0) {
             throw std::runtime_error("No ACK for " + fieldName);
         }
 
@@ -119,8 +110,7 @@ void AgentPlanExecutor::execute()
             "ACK received for " + fieldName + ": " +
             Utils::trim_copy(ack));
 
-        if (send(sockfd, value.data(), value.size(), 0) != (ssize_t)value.size())
-        {
+        if (send(sockfd, value.data(), value.size(), 0) != (ssize_t)value.size()) {
             throw std::runtime_error("Failed to send value for " + fieldName);
         }
     };
@@ -136,8 +126,7 @@ void AgentPlanExecutor::execute()
     // Receive plan JSON
     char planBuf[64 * 1024];
     int bytes = recv(sockfd, planBuf, sizeof(planBuf), 0);
-    if (bytes <= 0)
-    {
+    if (bytes <= 0) {
         close(sockfd);
         throw std::runtime_error("No plan received from worker");
     }
@@ -171,8 +160,7 @@ void AgentPlanExecutor::execute()
     // bufferPool.reserve(numberOfPartitions);
 }
 
-int AgentPlanExecutor::getUid()
-{
+int AgentPlanExecutor::getUid() {
     static std::atomic<std::uint32_t> uid{0};
     return ++uid;
 }

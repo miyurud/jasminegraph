@@ -60,7 +60,6 @@ size_t OllamaTupleStreamer::StreamCallback(char* ptr, size_t size, size_t nmemb,
 
       // Completed tuple
       if (jsonLine.value("done", false)) {
-
           if (!ctx->retryChunk) {
               ctx->buffer->add("-1");  // Signal end
           }
@@ -123,7 +122,7 @@ size_t OllamaTupleStreamer::StreamCallback(char* ptr, size_t size, size_t nmemb,
 
 
                   std::string subject_id =
-                      Utils::canonicalize(subject );
+                      Utils::canonicalize(subject);
                   std::string object_id =
                       Utils::canonicalize(object);
                   std::string edge_id = Utils::canonicalize(
@@ -146,11 +145,11 @@ size_t OllamaTupleStreamer::StreamCallback(char* ptr, size_t size, size_t nmemb,
                        {{"id", edge_id},
                         {"type", predicate}}}};
 
-                    if (triple.size() == 6 ) {
+                    if (triple.size() == 6) {
                         formattedTriple["properties"]["when"] = triple[5].get<std::string>();
                     }
 
-                    if (triple.size() == 7 ) {
+                    if (triple.size() == 7) {
                         formattedTriple["properties"]["when"] = triple[5].get<std::string>();
                         formattedTriple["properties"]["where"] = triple[6].get<std::string>();
                     }
@@ -263,12 +262,10 @@ void OllamaTupleStreamer::streamChunk(const std::string& chunkKey,
 
     curl_slist_free_all(headers);
     curl_easy_cleanup(curl);
-      if (res == CURLE_WRITE_ERROR && ! ctx.retryChunk) {
-          // ✅ Expected: aborted by callback for immediate retry
+      if (res == CURLE_WRITE_ERROR && !ctx.retryChunk) {
           ollama_tuple_streamer_logger.warn(
               "Stream aborted by callback due to invalid tuple. Retrying immediately.");
-      }
-      else if (res != CURLE_OK && attempt < maxRetries - 1) {
+      } else if (res != CURLE_OK && attempt < maxRetries - 1) {
       int waitTime = baseDelaySeconds * attempt;  // exponential backoff
       ollama_tuple_streamer_logger.error(
           "Retrying in " + std::to_string(waitTime) + " seconds...");
