@@ -1,6 +1,7 @@
 #pragma once
-#include "PlanTypes.h"
 #include <nlohmann/json.hpp>
+
+#include "PlanTypes.h"
 
 class PlanDecoder {
 public:

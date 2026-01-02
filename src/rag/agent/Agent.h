@@ -1,6 +1,6 @@
 #pragma once
-#include <string>
 #include <nlohmann/json.hpp>
+#include <string>
 
 class Agent {
 public:
@@ -8,7 +8,7 @@ public:
     ~Agent();
 
     static int getUid();
-    std::string generatePlan(const std::string &query);
+    std::string generatePlan(const std::string& query);
     std::string generateResponse(const std::string& query, const std::string& retrievedData);
 
 private:

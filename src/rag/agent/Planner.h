@@ -1,6 +1,6 @@
 #pragma once
-#include <string>
 #include <nlohmann/json.hpp>
+#include <string>
 
 class Planner {
 public:
@@ -15,5 +15,4 @@ private:
     std::string engine;
 
     nlohmann::json buildSemanticBeamSearchPlan(const std::string& query);
-
 };

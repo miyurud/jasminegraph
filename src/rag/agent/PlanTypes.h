@@ -1,12 +1,9 @@
 #pragma once
+#include <optional>
 #include <string>
 #include <vector>
-#include <optional>
 
-enum class ExecutorType {
-    SBS,
-    CYPHER
-};
+enum class ExecutorType { SBS, CYPHER };
 
 struct SBSObjective {
     std::string id;
@@ -23,4 +20,3 @@ struct DecodedPlan {
     int planId;
     std::optional<SBSPlan> sbsPlan;
 };
-
