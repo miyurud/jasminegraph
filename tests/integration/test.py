@@ -191,7 +191,7 @@ def send_and_expect_response_file(conn, test_name, send, expected_file, exit_on_
 passed_all = True
 failed_tests = []
 
-def test(host, port):
+def test(host, port):  # pylint: disable=too-many-branches
     """Test the JasmineGraph server by sending a series of commands and checking the responses."""
 
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
@@ -601,6 +601,98 @@ def test(host, port):
         send_and_expect_response(sock, 'rmgr', b'2', DONE, exit_on_failure=True)
         send_and_expect_response(sock, 'rmgr', RMGR, SEND, exit_on_failure=True)
         send_and_expect_response(sock, 'rmgr', b'3', DONE, exit_on_failure=True)
+
+        print()
+        logging.info(
+            '[IntraPartition] Testing getAllProperties on small graph (sequential fallback)'
+        )
+        send_and_expect_response(sock, 'cypher', CYPHER, b'Graph ID:', exit_on_failure=True)
+        send_and_expect_response(sock, 'cypher', b'2', b'Input query :', exit_on_failure=True)
+        # Test that getAllProperties returns all node properties correctly
+        send_and_expect_response(sock, 'cypher', b'MATCH (n) WHERE n.id = 2 RETURN n',
+                                 b'{"n":{"id":"2","label":"Person","name":"Charlie",'
+                                 b'"occupation":"IT Engineer","partitionID":"0"}}',
+                                 exit_on_failure=True)
+        send_and_expect_response(sock, 'cypher', b'', b'done', exit_on_failure=True)
+
+        print()
+        logging.info('[IntraPartition] Testing getAllProperties with null values')
+        send_and_expect_response(sock, 'cypher', CYPHER, b'Graph ID:', exit_on_failure=True)
+        send_and_expect_response(sock, 'cypher', b'2', b'Input query :', exit_on_failure=True)
+        send_and_expect_response(sock, 'cypher', b'MATCH (n:Location) WHERE n.id = 6 RETURN n',
+                                 b'{"n":{"category":"Park","id":"6","label":"Location",'
+                                 b'"name":"Central Park","partitionID":"0"}}',
+                                 exit_on_failure=True)
+        send_and_expect_response(sock, 'cypher', b'', b'done', exit_on_failure=True)
+
+        print()
+        logging.info('[IntraPartition] Testing getAllProperties multiple nodes (lifetime safety)')
+        send_and_expect_response(sock, 'cypher', CYPHER, b'Graph ID:', exit_on_failure=True)
+        send_and_expect_response(sock, 'cypher', b'2', b'Input query :', exit_on_failure=True)
+        # Return multiple nodes to verify no memory corruption or dangling references
+        query = b'MATCH (n:Person) WHERE n.id < 4 RETURN n.id, n.name ORDER BY n.id ASC'
+        sock.sendall(query + LINE_END)
+        print('MATCH (n:Person) WHERE n.id < 4 RETURN n.id, n.name ORDER BY n.id ASC')
+        # Expecting exactly 4 results - Alice (0), Bob (1), Charlie (2), David (3)
+        expected_results = [
+            b'{"n.id":"0","n.name":"Alice"}',
+            b'{"n.id":"1","n.name":"Bob"}',
+            b'{"n.id":"2","n.name":"Charlie"}',
+            b'{"n.id":"3","n.name":"David"}'
+        ]
+        for i, expected in enumerate(expected_results):
+            if not expect_response(sock, expected + LINE_END):
+                failed_tests.append(f'[IntraPartition] Multiple nodes - result {i}')
+        send_and_expect_response(sock, 'cypher', b'', b'done', exit_on_failure=True)
+
+        print()
+        logging.info(
+            '[IntraPartition] Testing getAllProperties on large graph (parallel execution)'
+        )
+        send_and_expect_response(sock, 'cypher', CYPHER, b'Graph ID:', exit_on_failure=True)
+        send_and_expect_response(sock, 'cypher', b'4', b'Input query :', exit_on_failure=True)
+        # Spot check: verify a node query works on large graph
+        sock.sendall(b'MATCH (n) WHERE n.id = 1 RETURN n' + LINE_END)
+        print('MATCH (n) WHERE n.id = 1 RETURN n')
+        response = b''
+        while True:
+            byte = sock.recv(1)
+            if not byte:
+                break
+            response += byte
+            if response.endswith(b'\r\n') or response.endswith(b'\n'):
+                break
+
+        if b'"id":"1"' in response:
+            logging.info('✓ Large graph node query returned results')
+        else:
+            logging.warning('Large graph query unexpected response: %s', response[:100])
+            failed_tests.append('[IntraPartition] Large graph getAllProperties')
+        send_and_expect_response(sock, 'cypher', b'', b'done', exit_on_failure=True)
+
+        print()
+        logging.info('[IntraPartition] Testing relationship getAllProperties')
+        send_and_expect_response(sock, 'cypher', CYPHER, b'Graph ID:', exit_on_failure=True)
+        send_and_expect_response(sock, 'cypher', b'4', b'Input query :', exit_on_failure=True)
+        # Verify relationship scan works
+        sock.sendall(b'MATCH (n)-[r]->(m) WHERE n.id = 1 RETURN n, r, m' + LINE_END)
+        print('MATCH (n)-[r]->(m) WHERE n.id = 1 RETURN n, r, m')
+        response = b''
+        while True:
+            byte = sock.recv(1)
+            if not byte:
+                break
+            response += byte
+            if response.endswith(b'\r\n') or response.endswith(b'\n'):
+                break
+
+        if b'"n":' in response and b'"r":' in response and b'"m":' in response:
+            logging.info('✓ Relationship query returned results with correct structure')
+        else:
+            logging.warning('Relationship query unexpected response: %s', response[:100])
+            failed_tests.append('[IntraPartition] Relationship structure')
+        send_and_expect_response(sock, 'cypher', b'', b'done', exit_on_failure=True)
+
         print()
         logging.info('[Cypher] Testing OrderBy for Large Graph')
         send_and_expect_response(sock, 'cypher', CYPHER, b'Graph ID:', exit_on_failure=True)
