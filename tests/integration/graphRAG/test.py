@@ -175,18 +175,6 @@ def send_and_expect_response_file(conn, test_name, send, expected_file, exit_on_
             logging.fatal('Failed some tests,')
             print(*failed_tests, sep='\n', file=sys.stderr)
             sys.exit(1)
-def recv_until(sock, stop=b"\n"):
-    """Receive bytes from socket until a stop character."""
-    buffer = bytearray()
-    while True:
-        chunk = sock.recv(1)
-        if not chunk:
-            break
-        buffer.extend(chunk)
-        if buffer.endswith(stop):
-            break
-    return buffer.decode("utf-8")
-
 passed_all = True
 failed_tests = []
 
@@ -200,7 +188,7 @@ def test(host, port):
         sock.connect((host, port))
         print()
         logging.info('[KG] Testing knowledge graph construction ')
-        graph_ids= test_kg(TEXT_FOLDER ,UPLOAD_SCRIPT, host, port)
+        test_kg(TEXT_FOLDER ,UPLOAD_SCRIPT, host, port)
 
         # shutting down workers after testing
         print()

@@ -5622,50 +5622,6 @@ static std::vector<std::string> chunkText(const std::string& text, size_t maxChu
     return chunks;
 }
 
-static void graphrag_command(
-    int connFd,
-    InstanceHandler &instanceHandler,
-    std::map<std::string, JasmineGraphIncrementalLocalStore *>
-        &incrementalLocalStoreMap,
-    bool *loop_exit_p) {
-    instance_logger.info("graphrag Command initiated");
-
-    char buffer[INSTANCE_DATA_LENGTH];
-
-    // ---- helper to read length-prefixed string ----
-    auto readField = [&](const std::string &fieldName) -> std::string {
-        int content_length = 0;
-
-        instance_logger.info("Waiting for length: " + fieldName);
-        ssize_t status = recv(connFd, &content_length, sizeof(int), 0);
-        if (status <= 0) {
-            throw std::runtime_error("Failed to read length for " + fieldName);
-        }
-
-        content_length = ntohl(content_length);
-
-        if (!Utils::send_str_wrapper(
-                connFd,
-                JasmineGraphInstanceProtocol::GRAPH_STREAM_C_length_ACK)) {
-            throw std::runtime_error("ACK failed for " + fieldName);
-        }
-
-        std::string value(content_length, 0);
-        status = recv(connFd, &value[0], content_length, 0);
-        if (status <= 0) {
-            throw std::runtime_error("Failed to read value for " + fieldName);
-        }
-
-        instance_logger.info("Received " + fieldName + ": " + value);
-        return value;
-    };
-
-    std::string graphId = readField("graphId");
-    std::string query = readField("query");
-    std::string llmRunner = readField("llmRunner");
-    std::string llmEngine = readField("llmEngine");
-    std::string llmModel = readField("llmModel");
-}
 
 static void semantic_search_expand_node_remote_batch(
     int connFd, std::map<std::string, JasmineGraphIncrementalLocalStore*>& incrementalLocalStoreMap,
