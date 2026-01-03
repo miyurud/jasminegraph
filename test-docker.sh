@@ -219,9 +219,34 @@ docker system prune -af
 # Remove dangling volumes
 docker volume prune -f
 echo "Remove unused networks"
-# Remove unused networks
-docker network prune -f
-# Wait for Hadoop to start
+NET_LOG="${LOG_DIR}/network_prune.log"
+
+echo "::group::Docker Network Prune"
+set +e
+docker network prune -f |& tee -a "$NET_LOG"
+net_rc=${PIPESTATUS[0]}
+set -e
+
+if [ "$net_rc" -ne 0 ]; then
+    echo "::error::docker network prune failed (exit code=$net_rc)"
+
+    echo "::group::Docker Network List"
+    docker network ls
+    echo "::endgroup::"
+
+    echo "::group::Containers blocking networks"
+    docker ps -a
+    echo "::endgroup::"
+
+    echo "::group::Network Inspect"
+    for net in $(docker network ls -q); do
+        echo "Inspecting network $net"
+        docker network inspect "$net" || true
+    done
+    echo "::endgroup::"
+fi
+echo "::endgroup::"
+
 wait_for_hadoop
 #
 
