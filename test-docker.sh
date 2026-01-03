@@ -203,53 +203,12 @@ cd "$TEST_ROOT"
 force_remove env
 cp -r env_init env
 cd "$PROJECT_ROOT"
-echo "Remove unused networks"
-
-docker network prune -f
-
 build_and_run_docker
-
-docker ps -a --filter "ancestor=grafana/grafana-enterprise" -q | xargs -r docker stop
-docker ps -a --filter "ancestor=grafana/grafana-enterprise" -q | xargs -r docker rm
-docker images | grep "grafana/grafana-enterprise" | awk '{print $3}' | xargs -r docker rmi -f
-docker images
-
-docker system prune -af
-
-# Remove dangling volumes
-docker volume prune -f
-echo "Remove unused networks"
-NET_LOG="${LOG_DIR}/network_prune.log"
-
-echo "::group::Docker Network Prune"
-set +e
-docker network prune -f |& tee -a "$NET_LOG"
-net_rc=${PIPESTATUS[0]}
-set -e
-
-if [ "$net_rc" -ne 0 ]; then
-    echo "::error::docker network prune failed (exit code=$net_rc)"
-
-    echo "::group::Docker Network List"
-    docker network ls
-    echo "::endgroup::"
-
-    echo "::group::Containers blocking networks"
-    docker ps -a
-    echo "::endgroup::"
-
-    echo "::group::Network Inspect"
-    for net in $(docker network ls -q); do
-        echo "Inspecting network $net"
-        docker network inspect "$net" || true
-    done
-    echo "::endgroup::"
-fi
-echo "::endgroup::"
-
+docker network ls
+docker network inspect bridge
+# Wait for Hadoop to start
 wait_for_hadoop
 #
-
 ## sleep until server starts listening
 cur_timestamp="$(date +%s)"
 end_timestamp="$((cur_timestamp + TIMEOUT_SECONDS))"
