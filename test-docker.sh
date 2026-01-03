@@ -205,9 +205,22 @@ cp -r env_init env
 cd "$PROJECT_ROOT"
 build_and_run_docker
 
+docker ps -a --filter "ancestor=grafana/grafana-enterprise" -q | xargs -r docker stop
+docker ps -a --filter "ancestor=grafana/grafana-enterprise" -q | xargs -r docker rm
+docker images | grep "grafana/grafana-enterprise" | awk '{print $3}' | xargs -r docker rmi -f
+docker images
+
+docker system prune -af
+
+# Remove dangling volumes
+docker volume prune -f
+
+# Remove unused networks
+docker network prune -f
 # Wait for Hadoop to start
 wait_for_hadoop
 #
+
 ## sleep until server starts listening
 cur_timestamp="$(date +%s)"
 end_timestamp="$((cur_timestamp + TIMEOUT_SECONDS))"
