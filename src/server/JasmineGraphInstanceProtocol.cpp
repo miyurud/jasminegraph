@@ -114,7 +114,6 @@ const string JasmineGraphInstanceProtocol::AGENT_PLAN = "initiate-agent-plan";
 
 
 
-
 const string JasmineGraphInstanceProtocol::QUERY_START = "query-start";
 const string JasmineGraphInstanceProtocol::SUB_QUERY_START = "sub-query-start";
 const string JasmineGraphInstanceProtocol::QUERY_START_ACK = "query-start-ack";

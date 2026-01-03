@@ -1,9 +1,26 @@
+/**
+Copyright 2025 JasmineGraph Team
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+    http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+ */
+
 #include "Planner.h"
-#include "../../util/logger/Logger.h"
+
 #include <curl/curl.h>
+
+#include <chrono>
 #include <nlohmann/json.hpp>
 #include <thread>
-#include <chrono>
+
+#include "../../util/logger/Logger.h"
+#include "../util/LLMUtils.h"
 
 using json = nlohmann::json;
 
@@ -56,51 +73,31 @@ Guidelines for objectives:
 - Use clear, concrete language
 )";
 
-Planner::Planner(const std::string &modelName, const std::string &host)
-    : model(modelName), host(host)
-{
-    curl_global_init(CURL_GLOBAL_DEFAULT);
-}
+Planner::Planner(const std::string& modelName, const std::string& host, const std::string& engine)
+    : model(modelName), host(host), engine(engine) {}
 
-Planner::~Planner()
-{
-    curl_global_cleanup();
-}
+Planner::~Planner() {}
 
-// helper to capture CURL response
-static size_t CurlWriteCallback(void *contents, size_t size, size_t nmemb, void *userp)
-{
-    ((std::string *)userp)->append((char *)contents, size * nmemb);
-    return size * nmemb;
-}
-
-static std::string stripMarkdown(const std::string &s)
-{
+static std::string stripMarkdown(const std::string& s) {
     std::string out = s;
 
     auto start = out.find("```");
-    if (start != std::string::npos)
-    {
+    if (start != std::string::npos) {
         start = out.find("\n", start);
-        if (start != std::string::npos)
-        {
+        if (start != std::string::npos) {
             out = out.substr(start + 1);
         }
     }
 
     auto end = out.rfind("```");
-    if (end != std::string::npos)
-    {
+    if (end != std::string::npos) {
         out = out.substr(0, end);
     }
 
     return out;
 }
 
-
-json Planner::build(const std::string &query)
-{
-
+json Planner::build(const std::string& query) {
     json semanticBeamSearchPlan = buildSemanticBeamSearchPlan(query);
 
     return json{
@@ -108,51 +105,7 @@ json Planner::build(const std::string &query)
     };
 }
 
-std::string Planner::callLLM(const std::string &prompt)
-{
-    std::string result;
-    CURL *curl = curl_easy_init();
-    if (!curl)
-    {
-        planner_logger.error("Failed to initialize CURL");
-        return "";
-    }
-
-    curl_easy_setopt(curl, CURLOPT_URL, (host + "/api/generate").c_str());
-    curl_easy_setopt(curl, CURLOPT_POST, 1L);
-
-    json requestJson;
-    requestJson["model"] = model;
-    requestJson["prompt"] = prompt;
-    requestJson["max_tokens"] = 8000;
-    requestJson["stream"] = false;
-
-    std::string postFields = requestJson.dump();
-
-    struct curl_slist *headers = nullptr;
-    headers = curl_slist_append(headers, "Content-Type: application/json");
-    curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
-    curl_easy_setopt(curl, CURLOPT_POSTFIELDS, postFields.c_str());
-    curl_easy_setopt(curl, CURLOPT_POSTFIELDSIZE, postFields.size());
-
-    curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, CurlWriteCallback);
-    curl_easy_setopt(curl, CURLOPT_WRITEDATA, &result);
-
-    CURLcode res = curl_easy_perform(curl);
-    if (res != CURLE_OK)
-    {
-        planner_logger.error("CURL error: " + std::string(curl_easy_strerror(res)));
-    }
-
-    curl_slist_free_all(headers);
-    curl_easy_cleanup(curl);
-
-    return result;
-}
-
-json Planner::buildSemanticBeamSearchPlan(const std::string &query)
-{
-
+json Planner::buildSemanticBeamSearchPlan(const std::string& query) {
     std::string prompt = SBS_PLANNER_PROMPT + std::string("\nUser Query:\n") + query;
 
     const int maxRetries = 3;
@@ -160,9 +113,8 @@ json Planner::buildSemanticBeamSearchPlan(const std::string &query)
     int attempt = 0;
     std::string llmResponse;
 
-    while (attempt < maxRetries)
-    {
-        llmResponse = callLLM(prompt);
+    while (attempt < maxRetries) {
+        llmResponse = LLMUtils::callLLM(prompt, host, model, engine);
         if (!llmResponse.empty())
             break;
 
@@ -171,31 +123,17 @@ json Planner::buildSemanticBeamSearchPlan(const std::string &query)
         attempt++;
     }
 
-    try
-    {
-        json raw = json::parse(llmResponse);
-
-        if (!raw.contains("response"))
-        {
-            planner_logger.error("LLM response missing 'response'");
-            return raw;
-        }
-
-        std::string responseText = stripMarkdown(raw["response"]);
-        json cleanPlan = json::parse(responseText);
-        planner_logger.info(
-            "Generated clean semantic plan: " + cleanPlan.dump());
+    try {
+        json cleanPlan = json::parse(llmResponse);
+        planner_logger.info("Generated Semantic Plan: " + cleanPlan.dump());
         return cleanPlan;
-    }
-    catch (...)
-    {
+    } catch (...) {
         planner_logger.error("LLM output not valid JSON, returning fallback plan.");
-        // minimal fallback plan
         json fallback;
-        fallback["model"] = "DEFAULT";
-        fallback["steps"] = json::array({{{"step_id", "s1"}, {"op", "SCAN"}, {"params", {{"root", ""}}}},
-                                         {{"step_id", "s2"}, {"op", "TRAVERSE"}, {"params", {{"depth", 1}}}}});
-        fallback["merge_strategy"] = "concat";
+        fallback["objectives"] =
+            json::array({{{"id", "obj1"}, {"query", prompt}, {"search_type", "SEMANTIC_BEAM_SEARCH"}}});
+        fallback["plan_type"] = "DIRECT";
+
         return fallback;
     }
 }

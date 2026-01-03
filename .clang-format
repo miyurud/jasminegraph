@@ -1,0 +1,12 @@
+BasedOnStyle: Google
+IndentWidth: 4
+ColumnLimit: 120
+BreakBeforeBraces: Attach
+AllowShortIfStatementsOnASingleLine: false
+SpacesBeforeTrailingComments: 2
+TrimTrailingWhitespace: true
+InsertFinalNewline: true
+
+# Access modifier indentation
+AccessModifierOffset: 4      # indent public/private inside class
+IndentAccessModifiers: true  # indent the members inside the access section

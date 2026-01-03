@@ -15,6 +15,7 @@ limitations under the License.
 #define AGENTPLANEXECUTOR_H
 
 #include "../AbstractExecutor.h"
+#include <nlohmann/json.hpp>
 
 class AgentPlanExecutor : public AbstractExecutor {
  public:

@@ -12,11 +12,9 @@ limitations under the License.
  */
 
 #pragma once
-#include <nlohmann/json.hpp>
+#include <string>
 
-#include "PlanTypes.h"
-
-class PlanDecoder {
- public:
-    static DecodedPlan decode(const nlohmann::json& jsonPlan);
-};
+namespace LLMUtils {
+std::string callLLM(const std::string& prompt, const std::string& host, const std::string& model,
+                    const std::string& engine);
+}

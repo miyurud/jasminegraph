@@ -13,10 +13,16 @@ limitations under the License.
 
 #pragma once
 #include <nlohmann/json.hpp>
+#include <string>
 
-#include "PlanTypes.h"
-
-class PlanDecoder {
+class Responder {
  public:
-    static DecodedPlan decode(const nlohmann::json& jsonPlan);
+    Responder(const std::string& model, const std::string& host, const std::string& engine);
+    ~Responder();
+    nlohmann::json generateResponse(const std::string& query, const nlohmann::json& executionResult);
+
+ private:
+    std::string model;
+    std::string host;
+    std::string engine;
 };
