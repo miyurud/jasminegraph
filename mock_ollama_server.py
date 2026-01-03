@@ -1,4 +1,4 @@
-"""Copyright 2023 JasmineGraph Team
+"""Copyright 2025 JasmineGraph Team
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
@@ -74,13 +74,14 @@ async def streamer( model: str):
 
 @app.get("/api/tags")
 async def get_models():
+    """API for available models."""
     return JSONResponse(content=AVAILABLE_MODELS)
 
 
 @app.post("/api/generate")
 async def generate(request: Request):
+    """API for text generation."""
     data = await request.json()
-    prompt = data.get("prompt", "")
     model = data.get("model", "mock-llama")
     stream = data.get("stream", False)
 
@@ -112,7 +113,9 @@ def fake_embedding(text, dim=768):
 
 @app.post("/api/embeddings")
 async def single_embed(request: Request):
+    """API for text embeddings."""
     data = await request.json()
-    text = data.get("prompt") or (data.get("input")[0] if isinstance(data.get("input"), list) else "")
+    text = data.get("prompt") or (data.get("input")[0] if isinstance(data.get("input"),
+                                                                     list) else "")
     embedding = fake_embedding(text, dim=768)
     return JSONResponse(content={"embedding": embedding})
