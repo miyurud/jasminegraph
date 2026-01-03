@@ -79,6 +79,10 @@ faiss::idx_t FaissIndex::add(const std::vector<float>& embedding,
             "[FaissIndex] Embedding added to index. Updating nodeEmbeddingMap.");
         nodeIdToEmbeddingIdMap[nodeId] = new_id;
         embeddingIdToNodeIdMap[new_id] = nodeId;
+
+        if (index->ntotal % 1000 == 0) {
+            save(filePath);
+        }
         return new_id;
     } catch (const std::exception& e) {
        // faiss_index_logger.error(std::string("Failed to reconstruct embedding for ID ") + nodeId + ": " +
