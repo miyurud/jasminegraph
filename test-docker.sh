@@ -25,6 +25,8 @@ TEST_LOG="${LOG_DIR}/test.log"
 WORKER_LOG_DIR="/tmp/jasminegraph"
 rm -rf "${WORKER_LOG_DIR}"
 mkdir -p "${WORKER_LOG_DIR}"
+docker compose -f "${TEST_ROOT}/docker-compose.yml" down -v --remove-orphans || true
+docker network prune -f
 
 force_remove() {
     local files=("$@")
