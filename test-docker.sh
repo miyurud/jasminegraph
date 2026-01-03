@@ -203,6 +203,10 @@ cd "$TEST_ROOT"
 force_remove env
 cp -r env_init env
 cd "$PROJECT_ROOT"
+echo "Remove unused networks"
+
+docker network prune -f
+
 build_and_run_docker
 
 docker ps -a --filter "ancestor=grafana/grafana-enterprise" -q | xargs -r docker stop
@@ -214,7 +218,7 @@ docker system prune -af
 
 # Remove dangling volumes
 docker volume prune -f
-
+echo "Remove unused networks"
 # Remove unused networks
 docker network prune -f
 # Wait for Hadoop to start
