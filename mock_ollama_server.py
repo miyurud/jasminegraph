@@ -1,4 +1,14 @@
-# mock_ollama_server_array.py
+"""Copyright 2023 JasmineGraph Team
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+    http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+"""
 from fastapi import FastAPI, Request
 from fastapi.responses import StreamingResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
@@ -24,7 +34,7 @@ AVAILABLE_MODELS = [
     {"name": "mock-llama", "description": "Another mock LLM."}
 ]
 
-async def streamer(prompt: str, model: str):
+async def streamer( model: str):
     """Stream Ollama-style NDJSON."""
 
     # Example array-of-arrays tuples
@@ -36,7 +46,8 @@ async def streamer(prompt: str, model: str):
 
     # Start of response
     for chunk in ["```", "json", "\n", "["]:
-        yield json.dumps({"model": model, "created_at": "2025-01-01T00:00:00Z", "response": chunk, "done": False}) + "\n"
+        yield json.dumps({"model": model, "created_at": "2025-01-01T00:00:00Z", "response": chunk,
+                          "done": False}) + "\n"
         await asyncio.sleep(0.05)
 
     # Stream each tuple as JSON array
@@ -44,16 +55,19 @@ async def streamer(prompt: str, model: str):
         line = "  " + json.dumps(t)
         if i < len(tuples) - 1:
             line += ","
-        yield json.dumps({"model": model, "created_at":  "2025-01-01T00:00:00Z", "response": line, "done": False}) + "\n"
+        yield json.dumps({"model": model, "created_at":  "2025-01-01T00:00:00Z",
+                          "response": line, "done": False}) + "\n"
         await asyncio.sleep(0.05)
 
     # End of array and code block
     for chunk in ["\n", "]", "```"]:
-        yield json.dumps({"model": model, "created_at": "2025-01-01T00:00:00Z", "response": chunk, "done": False}) + "\n"
+        yield json.dumps({"model": model, "created_at": "2025-01-01T00:00:00Z", "response": chunk,
+                          "done": False}) + "\n"
         await asyncio.sleep(0.05)
 
     # Done
-    yield json.dumps({"model": model, "created_at":  "2025-01-01T00:00:00Z", "response": "", "done": True}) + "\n"
+    yield json.dumps({"model": model, "created_at":  "2025-01-01T00:00:00Z", "response": "",
+                      "done": True}) + "\n"
 
 
 
@@ -81,7 +95,7 @@ async def generate(request: Request):
         })
 
     return StreamingResponse(
-        streamer(prompt, model),
+        streamer(model),
         media_type="application/x-ndjson"
     )
 
