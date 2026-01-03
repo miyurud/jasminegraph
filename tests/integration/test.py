@@ -703,9 +703,9 @@ def test(host, port):  # pylint: disable=too-many-branches
                                       'orderby_expected_output_file.txt',exit_on_failure=True)
 
         # shutting down workers after testing
-        print()
-        logging.info('Shutting down')
-        sock.sendall(SHDN + LINE_END)
+        # print()
+        # logging.info('Shutting down')
+        # sock.sendall(SHDN + LINE_END)
         if passed_all:
             print()
             logging.info('Passed all tests')

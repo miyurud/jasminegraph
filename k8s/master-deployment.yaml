@@ -53,6 +53,11 @@ spec:
           ports:
             - containerPort: 7777
             - containerPort: 7778
+          resources:
+            requests:
+              ephemeral-storage: "1Gi"
+            limits:
+              ephemeral-storage: "2Gi"
           volumeMounts:
             - mountPath: /home/ubuntu/software/jasminegraph/metadb
               name: jasminegraph-metadb

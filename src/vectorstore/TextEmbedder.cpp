@@ -93,6 +93,7 @@ std::vector<std::vector<float>> TextEmbedder::batch_embed(
 
   for (int attempt = 1; attempt <= max_retries; ++attempt) {
     try {
+        text_embedder_logger.debug("[Text Embedder] Fetching Batch Embedding");
       // Override shorter timeout for large batches
       res = http.post(endpoint + "/v1/embeddings", req.dump(),
                       {"Content-Type: application/json"});

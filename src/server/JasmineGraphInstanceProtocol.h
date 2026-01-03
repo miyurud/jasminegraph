@@ -14,7 +14,9 @@ limitations under the License.
 #ifndef JASMINEGRAPH_JASMINEGRAPHINSTANCEPROTOCOL_H
 #define JASMINEGRAPH_JASMINEGRAPHINSTANCEPROTOCOL_H
 
+
 #include <iostream>
+#include <vector>
 
 using namespace std;
 
@@ -140,11 +142,14 @@ class JasmineGraphInstanceProtocol {
     static const string HDFS_FILE_CHUNK_END_CHK;
     static const string HDFS_FILE_CHUNK_END_ACK;
     static const string INITIATE_STREAMING_KG_CONSTRUCTION;
+    static const string  INITIATE_LOCAL_STREAMING_KG_CONSTRUCTION;
+
     static  const string INITIATE_STREAMING_TUPLE_CONSTRUCTION;
     static  const string  CHUNK_STREAM_END;
     static const string SEMANTIC_BEAM_SEARCH;
     static const string EXPAND_NODE_BATCH;
     static const string HDFS_STREAM_IS_EMBED_ACK;
+    static const vector<string> MULT_THREADED_CMDS;
     static const string AGENT_PLAN;
 };
 

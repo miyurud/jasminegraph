@@ -35,19 +35,19 @@ class InstanceStreamHandler {
                          std::string partitionId, std::string graphIdentifier, bool isEmbed);
     void handleCentralEdge(std::string edge, std::string graphId,
                            std::string partitionId, std::string graphIdentifier, bool isEmbed);
+    static JasmineGraphIncrementalLocalStore *loadStreamingStore(
+                   std::string graphId, std::string partitionId, std::map<std::string,
+                   JasmineGraphIncrementalLocalStore *> &graphDBMapStreamingStores,
+                   std::string dbFilesOpenMode = "trunk", bool isEmbed = false);
+    std::map<std::string, std::mutex> queue_mutexes;
+    std::mutex map_mutex;
 
  private:
     std::map<std::string, std::thread> threads;
     std::map<std::string, std::queue<std::string>> queues;
     std::map<std::string, std::condition_variable> cond_vars;
-    std::map<std::string, std::mutex> queue_mutexes;
     std::atomic<bool> terminateThreads{false};
-
-        void threadFunction(const std::string& nodeString);
-        static std::string extractGraphIdentifier(const std::string& nodeString);
-        static JasmineGraphIncrementalLocalStore *loadStreamingStore(
-                std::string graphId, std::string partitionId, std::map<std::string,
-                JasmineGraphIncrementalLocalStore *> &graphDBMapStreamingStores,
-                std::string dbFilesOpenMode = "trunk", bool isEmbed = false);
+    void threadFunction(const std::string& nodeString);
+    static std::string extractGraphIdentifier(const std::string& nodeString);
 };
 #endif  // INSTANCESTREAMHANDLER_H

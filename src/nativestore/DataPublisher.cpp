@@ -43,6 +43,7 @@ DataPublisher::DataPublisher(int worker_port, std::string worker_address, int wo
     if (Utils::connect_wrapper(sock, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
         data_publisher_logger.error("Connection Failed!");
     }
+    Utils::send_str_wrapper(sock, JasmineGraphInstanceProtocol::CLOSE);
 }
 
 DataPublisher::~DataPublisher() {
@@ -57,7 +58,7 @@ void DataPublisher::publish(std::string message) {
          JasmineGraphInstanceProtocol::GRAPH_STREAM_START.length(), 0);
 
     char start_ack[ACK_MESSAGE_SIZE] = {0};
-    auto ack_return_status = recv(this->sock, &start_ack, sizeof(start_ack), 0);
+    recv(this->sock, &start_ack, sizeof(start_ack), 0);
     std::string ack(start_ack);
     if (JasmineGraphInstanceProtocol::GRAPH_STREAM_START_ACK != ack) {
         data_publisher_logger.error("Error while receiving start command ack\n");

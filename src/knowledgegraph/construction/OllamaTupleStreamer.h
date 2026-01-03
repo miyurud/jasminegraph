@@ -23,7 +23,7 @@ class OllamaTupleStreamer : public TupleStreamer {
   OllamaTupleStreamer(const std::string& modelName, const std::string& host);
 
   void streamChunk(const std::string& chunkKey, const std::string& chunkText,
-                   SharedBuffer& tupleBuffer);
+                   SharedBuffer& tupleBuffer) override;
 
  private:
   std::string model;
@@ -36,6 +36,8 @@ class OllamaTupleStreamer : public TupleStreamer {
     bool isSuccess;
     int braceDepth = 0;
     int bracketDepth = 0;
+    bool retryChunk;
+    std::string retryReason;
   };
 
   static size_t StreamCallback(char* ptr, size_t size, size_t nmemb,

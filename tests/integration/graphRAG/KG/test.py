@@ -22,7 +22,7 @@ logging.basicConfig(level=logging.INFO, format="%(message)s")
 # JasmineGraph master config
 RESULT = subprocess.check_output(["hostname", "-I"]).decode().strip()
 SERVER_IP = RESULT.split()[0]
-HOST = "127.0.0.1"
+HOST = "10.8.100.248"
 HDFS_PORT = "9000"
 PORT = 7777
 LINE_END = b"\r\n"
@@ -31,13 +31,13 @@ LINE_END = b"\r\n"
 TEXT_FOLDER = "gold"
 
 # LLM runner configuration
-LLM_RUNNERS = f"http://{SERVER_IP}:11441," * 2
+LLM_RUNNERS = f"http://{SERVER_IP}:11450:2"
 RUNNER_URLS = [u.strip() for u in LLM_RUNNERS.split(",") if u.strip()]
 REASONING_MODEL_URI = RUNNER_URLS[0] if RUNNER_URLS else None
 LLM_MODEL = "gemma3:1b"
 LLM_INFERENCE_ENGINE = "ollama"
 
-CHUNK_SIZE = "2048"
+CHUNK_SIZE = "1000"
 
 # HDFS target folder
 HDFS_BASE = "/home/"
@@ -178,27 +178,29 @@ def test_kg(text_folder, upload_file_script, host, port):
                 all_txt_files.append(os.path.join(root, file))
 
     random.shuffle(all_txt_files)
-
+    graph_ids = []
     for local_path in all_txt_files:
-        folder_name = os.path.basename(os.path.dirname(local_path))
         try:
             hdfs_path = upload_to_hdfs(local_path, upload_file_script)
             graph_id = send_file_to_master(hdfs_path, host, port)
+            graph_ids.append(graph_id)
         except subprocess.CalledProcessError as err:
             logging.error("Failed to upload %s to HDFS: %s", local_path, err)
             continue
 
         # Wait for KG construction
-        time.sleep(240)
+        time.sleep(10)
         raw = run_cypher_query(str(graph_id), query, host, port)
         triples = parse_results(raw)
         print(json.dumps(triples, indent=2, ensure_ascii=False))
 
-        output_dir = os.path.join("pred", folder_name)
-        os.makedirs(output_dir, exist_ok=True)
+        entities = []
+        for triple in triples :
+            entities.append(triple["head_entity"])
 
-        with open(os.path.join(output_dir, "pred.json"), "w", encoding="utf-8") as f:
-            json.dump(triples, f, indent=2, ensure_ascii=False)
+        assert entities.index("Radio City") != -1
+
+    return graph_ids
 
 if __name__ == "__main__":
     test_kg(TEXT_FOLDER, UPLOAD_SCRIPT, HOST, PORT)

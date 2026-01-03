@@ -30,7 +30,6 @@ struct GraphConfig {
 
 class NodeManager {
  private:
-    unsigned int nextNodeIndex = 0;
     std::fstream* nodeDBT;
     unsigned int graphID = 0;
     unsigned int partitionID = 0;
@@ -40,6 +39,8 @@ class NodeManager {
     std::string indexDBPath;
 
     std::string edgeIndexDBPath;
+    // pthread_mutex_t lockEdgeAdd;
+
 
 
 
@@ -51,6 +52,8 @@ class NodeManager {
 
  public:
     unsigned long nextEdgeIndex = 0;
+    unsigned int nextNodeIndex = 0;
+
     static unsigned int nextPropertyIndex;  // Next available property block index
     std::unordered_map<std::string, unsigned int> nodeIndex;
     std::unordered_map<std::string, unsigned int> edgeIndex;

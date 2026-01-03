@@ -91,7 +91,7 @@ void SemanticBeamSearchExecutor::execute() {
           "Starting read thread for bufferPool[" + std::to_string(i) + "]");
       while (true) {
         std::string data = bufferPool[i]->get();
-        semantic_beam_search_logger_executor.info(
+        semantic_beam_search_logger_executor.debug(
             "Fetched data from bufferPool[" + std::to_string(i) + "]: " + data);
         if (data == "-1") {
           break;

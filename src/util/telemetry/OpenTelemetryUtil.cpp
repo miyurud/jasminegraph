@@ -600,7 +600,13 @@ void OpenTelemetryUtil::addSpanAttribute(const std::string& key, const std::stri
         // Attribute setting failed - continue execution
     }
 }
+void OpenTelemetryUtil::addSpanAttributes(const std::map<std::string, std::string>& attributes) {
+    if (!OpenTelemetryUtil::isEnabled()) return;
 
+    for (const auto& kv : attributes) {
+        addSpanAttribute(kv.first, kv.second);
+    }
+}
 void OpenTelemetryUtil::flushTraces() {
     if (isTestingEnvironment() || !OpenTelemetryUtil::isInitialized()) {
         return;
