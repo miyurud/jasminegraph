@@ -17,7 +17,6 @@ services:
       - TESTING=true
     networks:
       - jasminegraph_net
-      - prom_net
     command: --MODE 1 --MASTERIP 172.28.5.1 --WORKERS 2 --WORKERIP 172.28.5.1 --ENABLE_NMON false
 
   namenode:
@@ -35,8 +34,10 @@ services:
     env_file:
       - env_init/config/hdfs/hadoop.env
     networks:
-      jasminegraph_net:
-        ipv4_address: 172.28.5.10 # this IP is referred at tests/integration/env_init/config/hdfs/hdfs_config.txt
+      - jasminegraph_net
+#    networks:
+#      jasminegraph_net:
+#        ipv4_address: 172.28.5.10 # this IP is referred at tests/integration/env_init/config/hdfs/hdfs_config.txt
 
   datanode:
     hostname: datanode
