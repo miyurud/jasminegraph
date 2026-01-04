@@ -45,6 +45,12 @@ stop_and_remove_containers() {
     if [ ! -z "$(docker ps -a -q)" ]; then
         docker ps -a -q | xargs docker rm -f &>/dev/null
     fi
+
+     echo "Running Docker system cleanup..."
+
+      docker system prune -f &>/dev/null \
+            && echo "Docker system prune completed." \
+            || echo "Docker system prune failed."
 }
 
 build_and_run_docker() {
