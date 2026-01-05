@@ -165,7 +165,34 @@ def parse_results(raw_rows):
         except (json.JSONDecodeError, KeyError) as err:
             logging.warning("Could not parse row: %s (%s)", row, err)
     return triples
+def run_sbs_query(graph_id, query, host, port):
+    """Run SBS query and return JSON rows."""
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+        sock.connect((host, port))
+        logging.info("Connected to JasmineGraph at %s:%d for SBS", host, port)
 
+        # Enter SBS mode
+        sock.sendall(b"sbs" + LINE_END)
+        recv_until(sock, b"\n")
+
+        # Send graph ID
+        sock.sendall(graph_id.encode("utf-8") + LINE_END)
+        recv_until(sock, b"\n")
+
+        # Send SBS natural-language query
+        print("sbs query:", query)
+        sock.sendall(query.encode("utf-8") + LINE_END)
+
+        results = []
+        while True:
+            line = recv_until(sock, b"\n").strip()
+            if not line or "done" in line:
+                break
+            results.append(line)
+
+        sock.sendall(b"exit" + LINE_END)
+        print(results)
+        return results
 
 def test_kg(text_folder, upload_file_script, host, port):
     """Upload files, construct KGs, query them, and store triples."""
@@ -199,6 +226,10 @@ def test_kg(text_folder, upload_file_script, host, port):
             entities.append(triple["head_entity"])
 
         assert entities.index("Radio City") != -1
+
+        sbs_raw = run_sbs_query(str(graph_id), "At what frequency does radio city broadcast?", host, port)
+        print(sbs_raw)
+
 
     return graph_ids
 
