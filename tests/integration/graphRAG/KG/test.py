@@ -227,7 +227,8 @@ def test_kg(text_folder, upload_file_script, host, port):
 
         assert entities.index("Radio City") != -1
 
-        sbs_raw = run_sbs_query(str(graph_id), "At what frequency does radio city broadcast?", host, port)
+        sbs_raw = run_sbs_query(str(graph_id),
+                                "At what frequency does radio city broadcast?", host, port)
         print(sbs_raw)
 
 
