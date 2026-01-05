@@ -97,8 +97,10 @@ InstanceStreamHandler::loadStreamingStore(std::string graphId, std::string parti
     instance_stream_logger.info("###INSTANCE### Loading streaming Store for" + graphIdentifier
                                + " : Started");
     std::string folderLocation = Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder");
+
     auto *jasmineGraphStreamingLocalStore = new JasmineGraphIncrementalLocalStore(
                                      stoi(graphId), stoi(partitionId), dbFilesOpenMode, isEmbed);
+
     graphDBMapStreamingStores.insert(std::make_pair(graphIdentifier, jasmineGraphStreamingLocalStore));
     instance_stream_logger.info("###INSTANCE### Loading Local Store : Completed");
     return jasmineGraphStreamingLocalStore;
@@ -111,7 +113,9 @@ void InstanceStreamHandler::handleLocalEdge(std::string edge, std::string graphI
         loadStreamingStore(graphId, partitionId, incrementalLocalStoreMap, NodeManager::FILE_MODE, isEmbed);
         // append mode
     }
+
     JasmineGraphIncrementalLocalStore* localStore = incrementalLocalStoreMap[graphIdentifier];
+    instance_stream_logger.debug("retrieve Increamental Store");
     localStore->addLocalEdge(edge);
 }
 

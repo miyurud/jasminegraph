@@ -69,7 +69,7 @@ void InstanceHandler::handleRequest(int connFd, bool *loop_exit_p,
 void InstanceHandler::dataPublishToMaster(int connFd, bool *loop_exit_p, std::string message) {
     instance_logger.debug("Inside dataPublishToMaster");
     if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::QUERY_DATA_START)) {
-        *loop_exit_p = true;
+        // *loop_exit_p = true;
         return;
     }
 
@@ -80,7 +80,7 @@ void InstanceHandler::dataPublishToMaster(int connFd, bool *loop_exit_p, std::st
         instance_logger.debug("Received data start ack: " + start_ack);
     } else {
         instance_logger.error("Error while reading start ack");
-        *loop_exit_p = true;
+        // *loop_exit_p = true;
         return;
     }
 

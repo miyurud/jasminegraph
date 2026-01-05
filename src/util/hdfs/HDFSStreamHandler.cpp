@@ -138,8 +138,12 @@ void HDFSStreamHandler::streamFromBufferToProcessingQueueEdgeListGraph(HDFSMulti
                 std::string destId = tokens[1];
 
                 try {
-                    int sourceIndex = std::stoi(sourceId) % this->numberOfPartitions;
-                    int destIndex = std::stoi(destId) % this->numberOfPartitions;
+                    Partitioner fennelPartitioner(numberOfPartitions, graphId,  spt::FENNEL, sqlite,  true);
+                    partitionedEdge partitioned_edge = fennelPartitioner.addEdge({sourceId, destId});
+                    int sourceIndex =  partitioned_edge[0].second;
+                    int destIndex =  partitioned_edge[1].second;
+                    // int sourceIndex = std::stoi(sourceId) % this->numberOfPartitions;
+                    // int destIndex = std::stoi(destId) % this->numberOfPartitions;
 
                     // Construct source and destination node objects
                     json source = {
@@ -271,8 +275,10 @@ void HDFSStreamHandler::startStreamingFromBufferToPartitions() {
 
     JasmineGraphServer *server = JasmineGraphServer::getInstance();
     std::vector<JasmineGraphServer::worker> workers = server->workers(numberOfPartitions);
+    const string isEmbedGraph = Utils::getJasmineGraphProperty("org.jasminegraph.vectorstore.enabled");
+
     HDFSMultiThreadedHashPartitioner partitioner(numberOfPartitions, graphId, masterIP, isDirected, workers,
-        false, 1000);
+        isEmbedGraph == "true", 1000, this->sqlite);
 
     std::thread readerThread(&HDFSStreamHandler::streamFromHDFSIntoBuffer, this);
     std::vector<std::thread> bufferProcessorThreads;

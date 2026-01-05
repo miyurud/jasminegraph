@@ -15,6 +15,7 @@ limitations under the License.
 #include <faiss/IndexFlat.h>
 #include <faiss/IndexIDMap.h>
 #include <faiss/index_io.h>
+#include <faiss/IndexIVFPQ.h>
 
 #include <fstream>
 #include <iostream>
@@ -27,14 +28,23 @@ limitations under the License.
 std::unique_ptr<FaissIndex> FaissIndex::instance = nullptr;
 std::once_flag FaissIndex::initFlag;
 Logger faiss_index_logger;
+std::unordered_map<std::string,
+    std::unique_ptr<FaissIndex>> FaissIndex::instances;
+
+std::mutex FaissIndex::instancesMutex;
 FaissIndex* FaissIndex::getInstance(int embeddingDim,
                                     const std::string& filepath) {
-  std::call_once(initFlag, [&]() {
-    instance.reset(new FaissIndex(embeddingDim, filepath));
-  });
-  return instance.get();
-}
+    std::lock_guard<std::mutex> lock(instancesMutex);
 
+    auto it = instances.find(filepath);
+    if (it != instances.end()) {
+        return it->second.get();
+    }
+
+    FaissIndex* index = new FaissIndex (embeddingDim, filepath);
+    instances.emplace(filepath, index);
+    return index;
+}
 FaissIndex::FaissIndex(int embeddingDim, const std::string& filepath)
     : dim(embeddingDim), filePath(filepath) {
   load(filepath);
@@ -42,7 +52,7 @@ FaissIndex::FaissIndex(int embeddingDim, const std::string& filepath)
 
 FaissIndex::~FaissIndex() {
   try {
-    faiss_index_logger.debug("saving FAISS index");
+    faiss_index_logger.info("saving FAISS index");
     save(filePath);
   } catch (const std::exception& e) {
     faiss_index_logger.error("[FaissIndex] Failed to auto-save index: " +
@@ -56,19 +66,29 @@ faiss::idx_t FaissIndex::add(const std::vector<float>& embedding,
   if (embedding.size() != dim) {
     throw std::runtime_error("Embedding dimension mismatch!");
   }
-  std::lock_guard<std::mutex> lock(mtx);
+    try {
+        std::lock_guard<std::mutex> lock(mtx);
 
-  faiss::idx_t new_id = index->ntotal;
-  faiss_index_logger.debug("[FaissIndex] Adding new embedding with nodeId: " +
-                           nodeId + ", assigned id: " + std::to_string(new_id));
+        faiss::idx_t new_id = index->ntotal;
+        faiss_index_logger.debug("[FaissIndex] Adding new embedding with nodeId: " +
+                                 nodeId + ", assigned id: " + std::to_string(new_id));
 
-  index->add(1, embedding.data());
+        index->add(1, embedding.data());
 
-  faiss_index_logger.debug(
-      "[FaissIndex] Embedding added to index. Updating nodeEmbeddingMap.");
-  nodeIdToEmbeddingIdMap.insert({nodeId, new_id});
-  embeddingIdToNodeIdMap.insert({new_id, nodeId});
-  return new_id;
+        faiss_index_logger.debug(
+            "[FaissIndex] Embedding added to index. Updating nodeEmbeddingMap.");
+        nodeIdToEmbeddingIdMap[nodeId] = new_id;
+        embeddingIdToNodeIdMap[new_id] = nodeId;
+
+        if (index->ntotal % 1000 == 0) {
+            save(filePath);
+        }
+        return new_id;
+    } catch (const std::exception& e) {
+       // faiss_index_logger.error(std::string("Failed to reconstruct embedding for ID ") + nodeId + ": " +
+       //     e.what());
+        throw std::runtime_error("Failed to reconstruct embedding for ID " + nodeId);
+    }
 }
 
 std::vector<std::pair<faiss::idx_t, float>> FaissIndex::search(
@@ -115,29 +135,34 @@ void FaissIndex::save(const std::string& filepath) {
 }
 
 void FaissIndex::save() {
-  std::lock_guard<std::mutex> lock(mtx);
+    try {
+    std::lock_guard<std::mutex> lock(mtx);
 
-  // Save FAISS index
-  faiss::write_index(index, filePath.c_str());
+    // Save FAISS index
+    faiss::write_index(index, filePath.c_str());
+        faiss_index_logger.info("[FaissIndex] Saved index");
 
-  // Save mapping alongside index (e.g., filepath + ".map")
-  std::ofstream mapFile(filePath + ".map", std::ios::binary);
-  if (!mapFile.is_open()) {
-    throw std::runtime_error("Failed to open map file for saving.");
-  }
+    // Save mapping alongside index (e.g., filepath + ".map")
+    std::ofstream mapFile(filePath + ".map", std::ios::binary);
+    if (!mapFile.is_open()) {
+        throw std::runtime_error("Failed to open map file for saving.");
+    }
 
-  size_t size = nodeIdToEmbeddingIdMap.size();
-  mapFile.write(reinterpret_cast<const char*>(&size), sizeof(size));
+    size_t size = nodeIdToEmbeddingIdMap.size();
+    mapFile.write(reinterpret_cast<const char*>(&size), sizeof(size));
 
-  for (const auto& entry : nodeIdToEmbeddingIdMap) {
-    size_t keyLen = entry.first.size();
-    mapFile.write(reinterpret_cast<const char*>(&keyLen), sizeof(keyLen));
-    mapFile.write(entry.first.data(), keyLen);
-    mapFile.write(reinterpret_cast<const char*>(&entry.second),
-                  sizeof(entry.second));
-  }
+    for (const auto& entry : nodeIdToEmbeddingIdMap) {
+        size_t keyLen = entry.first.size();
+        mapFile.write(reinterpret_cast<const char*>(&keyLen), sizeof(keyLen));
+        mapFile.write(entry.first.data(), keyLen);
+        mapFile.write(reinterpret_cast<const char*>(&entry.second),
+                      sizeof(entry.second));
+    }
 
-  mapFile.close();
+    mapFile.close();
+} catch (const std::exception& e) {
+    faiss_index_logger.error(std::string("Failed to save index: ") + e.what());
+}
 }
 void FaissIndex::load(const std::string& filepath) {
   std::lock_guard<std::mutex> lock(mtx);
@@ -148,6 +173,8 @@ void FaissIndex::load(const std::string& filepath) {
 
   if (f.good()) {
     faiss_index_logger.info("File exists, loading index...");
+
+
     faiss::Index* loaded = faiss::read_index(filepath.c_str());
     index = dynamic_cast<faiss::IndexFlatL2*>(loaded);
     if (!index) {
@@ -155,6 +182,21 @@ void FaissIndex::load(const std::string& filepath) {
     }
   } else {
     // Create a new index if file not found
+      // int nlist = 100000;         // number of clusters (IVF)
+      // int m = 64;                 // PQ number of sub-vectors
+      // int nbits = 8;              // 8-bit quantization
+      //
+      // faiss::IndexFlatL2 quantizer(dim);
+      //
+      // faiss::IndexIVFPQ* index = new faiss::IndexIVFPQ(
+      //     &quantizer,
+      //     dim,
+      //     nlist,     // IVF clusters
+      //     m,         // number of PQ subvectors
+      //     nbits      // bits per subvector
+      // );
+      // index->use_precomputed_table = 1;
+      // index->train(num_train_vectors, train_data);
     index = new faiss::IndexFlatL2(dim);
   }
 
@@ -221,6 +263,22 @@ void FaissIndex::load(const std::string& filepath) {
   mapFile.close();
 }
 
+
+bool FaissIndex::isEmbeddingExist(std::string nodeId) {
+    std::lock_guard<std::mutex> lock(mtx);
+
+    if (!index) {
+        throw std::runtime_error("FAISS index not initialized.");
+    }
+
+    try {
+        return  nodeIdToEmbeddingIdMap.find(nodeId) != nodeIdToEmbeddingIdMap.end();
+    } catch (const std::exception& e) {
+        throw std::runtime_error(
+            std::string("Failed to reconstruct embedding for ID ") + nodeId + ": " +
+            e.what());
+    }
+}
 std::vector<float> FaissIndex::getEmbeddingById(std::string nodeId) {
   std::lock_guard<std::mutex> lock(mtx);
 
@@ -261,3 +319,37 @@ std::string FaissIndex::getNodeIdFromEmbeddingId(faiss::idx_t embeddingId) {
 
   return it->second;  // access the nodeId from the right map
 }
+
+std::vector<std::vector<float>>
+FaissIndex::getEmbeddingsByIds(const std::vector<std::string>& nodeIds) {
+    std::lock_guard<std::mutex> lock(mtx);
+
+    if (!index) {
+        throw std::runtime_error("FAISS index not initialized.");
+    }
+
+    std::vector<std::vector<float>> results;
+    results.reserve(nodeIds.size());
+
+    for (const auto& nodeId : nodeIds) {
+        auto it = nodeIdToEmbeddingIdMap.find(nodeId);
+        if (it == nodeIdToEmbeddingIdMap.end()) {
+            // push empty embedding or skip — your choice
+            results.emplace_back(dim, 0.0f);
+            continue;
+        }
+
+        faiss::idx_t id = it->second;
+        if (id < 0 || id >= index->ntotal) {
+            results.emplace_back(dim, 0.0f);
+            continue;
+        }
+
+        std::vector<float> emb(dim);
+        index->reconstruct(id, emb.data());
+        results.emplace_back(std::move(emb));
+    }
+
+    return results;
+}
+

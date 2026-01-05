@@ -17,8 +17,7 @@ services:
       - TESTING=true
     networks:
       - jasminegraph_net
-      - prom_net
-    command: --MODE 1 --MASTERIP 172.30.5.1 --WORKERS 2 --WORKERIP 172.30.5.1 --ENABLE_NMON false
+    command: --MODE 1 --MASTERIP 172.28.5.1 --WORKERS 2 --WORKERIP 172.28.5.1 --ENABLE_NMON false
 
   namenode:
     hostname: namenode
@@ -35,8 +34,10 @@ services:
     env_file:
       - env_init/config/hdfs/hadoop.env
     networks:
-      jasminegraph_net:
-        ipv4_address: 172.30.5.10 # this IP is referred at tests/integration/env_init/config/hdfs/hdfs_config.txt
+      - jasminegraph_net
+#    networks:
+#      jasminegraph_net:
+#        ipv4_address: 172.28.5.10 # this IP is referred at tests/integration/env_init/config/hdfs/hdfs_config.txt
 
   datanode:
     hostname: datanode
@@ -92,16 +93,16 @@ services:
     depends_on:
       - pushgateway
     networks:
-      prom_net:
-        ipv4_address: 172.28.5.2  #  Fixed IP for Prometheu
+      - jasminegraph_net
+
 
   pushgateway:
     image: prom/pushgateway
     ports:
       - 9091:9091
     networks:
-      prom_net:
-        ipv4_address: 172.28.5.3  #  Fixed IP for Pushgateway
+      - jasminegraph_net
+
 
 
 
@@ -117,13 +118,13 @@ networks:
     driver: bridge
     ipam:
       config:
-        - subnet: 172.30.5.0/24
-          ip_range: 172.30.5.0/24
-          gateway: 172.30.5.1
-  prom_net:
-    driver: bridge
-    ipam:
-      config:
         - subnet: 172.28.5.0/24
           ip_range: 172.28.5.0/24
           gateway: 172.28.5.1
+#  prom_net:
+#    driver: bridge
+#    ipam:
+#      config:
+#        - subnet: 172.28.5.0/24
+#          ip_range: 172.28.5.0/24
+#          gateway: 172.28.5.1

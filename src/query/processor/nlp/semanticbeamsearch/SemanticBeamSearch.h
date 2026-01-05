@@ -27,15 +27,28 @@ limitations under the License.
 namespace faiss {
 struct Index;
 }
-
+struct HopTrace {
+    int hop;
+    std::string expandedFromNode;
+    std::string viaRelationType;
+    std::string toNode;
+    float nodeScore;
+    float relationScore;
+    float cumulativeScore;
+};
 struct ScoredPath {
+    int pathId;
     nlohmann::json pathObj;
+    set<string> pathNodeIds;
+    set<string> pathRelIds;
     float score;
+    std::vector<HopTrace> hopTraces;
 };
 
 class SemanticBeamSearch {
  private:
     FaissIndex *faissStore;
+    FaissIndex *faissEdgeStore;
     TextEmbedder *textEmbedder;
     const std::vector<float> emb;
     int k;  // Number of top results to return
@@ -46,10 +59,13 @@ class SemanticBeamSearch {
 
  public:
     SemanticBeamSearch(FaissIndex *faissStore, std::vector<float> emb, int k, GraphConfig gc);
-    SemanticBeamSearch(FaissIndex *faissStore, TextEmbedder *textEmbedder, std::vector<float> emb, int k,
-                       GraphConfig gc, vector<JasmineGraphServer::worker> workerList);
+    SemanticBeamSearch(FaissIndex *faissStore, FaissIndex* faissEdgeStore, TextEmbedder *textEmbedder,
+        std::vector<float> emb, int k, GraphConfig gc, vector<JasmineGraphServer::worker> workerList);
     SemanticBeamSearch(FaissIndex *faissStore, std::vector<float> emb, int k, GraphConfig gc,
                        vector<JasmineGraphServer::worker> workerList);
+    SemanticBeamSearch(FaissIndex *faissStore, FaissIndex *faissEdgeStore, TextEmbedder *textEmbedder,
+                       std::vector<float> emb, int k, GraphConfig gc, vector<JasmineGraphServer::worker> workerList,
+                       NodeManager *nodeManager);
     std::vector<ScoredPath> getSeedNodes();
     void semanticMultiHopBeamSearch(SharedBuffer &buffer, int numHops, int beamWidth);
     nlohmann::json callRemoteExpansion(int partitionId, const std::vector<ScoredPath> &currentPaths,
