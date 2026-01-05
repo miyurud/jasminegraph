@@ -422,9 +422,6 @@ NodeBlock *NodeManager::get(unsigned int nodeIndex, const std::string& nodeId) {
     NodeBlock *nodeBlockPointer = nullptr;
     const unsigned int blockAddress = nodeIndex * NodeBlock::BLOCK_SIZE;
     NodeBlock::nodesDB->seekg(blockAddress);
-    node_manager_logger.debug("Reading node index --> Node key = " + nodeId);
-    node_manager_logger.debug("Reading node index:" + std::to_string(this->nodeIndex[nodeId]));
-    node_manager_logger.debug("node block address" + std::to_string(blockAddress));
     unsigned int vertexId;
     unsigned int edgeRef;
     unsigned int centralEdgeRef;
@@ -480,6 +477,7 @@ NodeBlock *NodeManager::get(unsigned int nodeIndex, const std::string& nodeId) {
     }
     return nodeBlockPointer;
 }
+
 
 void NodeManager::persistNodeIndex() {
     std::ofstream index_db(indexDBPath, std::ios::binary | std::ios::trunc);
