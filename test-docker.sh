@@ -211,6 +211,7 @@ cd "$TEST_ROOT"
 force_remove env
 cp -r env_init env
 cd "$PROJECT_ROOT"
+
 build_and_run_docker
 docker network ls
 docker network inspect bridge
