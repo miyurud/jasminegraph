@@ -46,11 +46,11 @@ stop_and_remove_containers() {
         docker ps -a -q | xargs docker rm -f &>/dev/null
     fi
 
-     echo "Running Docker system cleanup..."
+    echo "Running Docker system cleanup..."
 
-      docker system prune -f &>/dev/null \
-            && echo "Docker system prune completed." \
-            || echo "Docker system prune failed."
+    docker system prune -f &>/dev/null &&
+        echo "Docker system prune completed." ||
+        echo "Docker system prune failed."
 }
 
 build_and_run_docker() {
@@ -247,16 +247,16 @@ else
     MODEL_DIR="$(pwd)/ollama_models"
     mkdir -p "$MODEL_DIR"
     docker run -d $GPU_FLAG \
-      --name "$CONTAINER_NAME" \
-      --network integration_jasminegraph_net \
-      -p "${HOST_PORT}:11434" \
-      -v "${MODEL_DIR}:/root/.ollama" \
-      -e OLLAMA_MODELS=/root/.ollama/models \
-      -e OLLAMA_NUM_PARALLEL="$NUM_PARALLEL" \
-      -e OLLAMA_MAX_LOADED_MODELS=2 \
-      -e OLLAMA_VRAM_RECOVERY_TIMEOUT=15 \
-      -e OLLAMA_KEEP_ALIVE=30s \
-      "$DOCKER_IMAGE"
+        --name "$CONTAINER_NAME" \
+        --network integration_jasminegraph_net \
+        -p "${HOST_PORT}:11434" \
+        -v "${MODEL_DIR}:/root/.ollama" \
+        -e OLLAMA_MODELS=/root/.ollama/models \
+        -e OLLAMA_NUM_PARALLEL="$NUM_PARALLEL" \
+        -e OLLAMA_MAX_LOADED_MODELS=2 \
+        -e OLLAMA_VRAM_RECOVERY_TIMEOUT=15 \
+        -e OLLAMA_KEEP_ALIVE=30s \
+        "$DOCKER_IMAGE"
 fi
 
 # Wait a few seconds for the container to initialize
