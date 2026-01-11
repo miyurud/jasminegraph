@@ -28,8 +28,7 @@ limitations under the License.
 std::unique_ptr<FaissIndex> FaissIndex::instance = nullptr;
 std::once_flag FaissIndex::initFlag;
 Logger faiss_index_logger;
-std::unordered_map<std::string,
-    std::unique_ptr<FaissIndex>> FaissIndex::instances;
+std::unordered_map<std::string, std::unique_ptr<FaissIndex>> FaissIndex::instances;
 
 std::mutex FaissIndex::instancesMutex;
 FaissIndex* FaissIndex::getInstance(int embeddingDim,
