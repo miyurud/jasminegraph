@@ -196,6 +196,7 @@ def run_sbs_query(graph_id, query, host, port):
 
 def test_kg(text_folder, upload_file_script, host, port):
     """Upload files, construct KGs, query them, and store triples."""
+    logging.info("test")
     query = "MATCH (n)-[r]-(m) RETURN n,r,m"
     all_txt_files = []
 
@@ -229,7 +230,7 @@ def test_kg(text_folder, upload_file_script, host, port):
 
         sbs_raw = run_sbs_query(str(graph_id),
                                 "At what frequency does radio city broadcast?", host, port)
-        print(sbs_raw)
+        logging.info(sbs_raw)
 
 
     return graph_ids
