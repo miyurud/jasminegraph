@@ -65,6 +65,13 @@ jobs:
     - name: Docker Build
       run: docker build -t jasminegraph .
 
+    - uses: actions/setup-python@v4
+      with:
+        python-version: 3.11
+    - name: Install python dependencies Build
+      run: |
+        pip install fastapi uvicorn httpx
+
       # 4. Start mock Ollama server in the background
     - name: Start Mock LLM Server
       run: |
