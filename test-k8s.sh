@@ -30,6 +30,60 @@ mkdir -p "${WORKER_LOG_DIR}"
 
 MASTER_LOG_PID=""
 
+setup_gemma3_ollama() {
+
+    NUM_PARALLEL=${1:-4}
+    HOST_PORT=${2:-11441}
+    CONTAINER_NAME="gemma3"
+    DOCKER_IMAGE="ollama/ollama"
+    MODELS=("jina/jina-embeddings-v2-small-en")
+
+    # GPU detection
+    if command -v nvidia-smi &>/dev/null && nvidia-smi >/dev/null 2>&1; then
+        GPU_FLAG="--gpus all"
+        echo "GPU detected"
+    else
+        GPU_FLAG=""
+        echo "Running on CPU"
+    fi
+
+    MODEL_DIR="$(pwd)/ollama_models"
+    mkdir -p "$MODEL_DIR"
+
+    if docker ps -a -q -f name="^${CONTAINER_NAME}$" | grep -q .; then
+        echo "Starting existing container"
+        docker start "$CONTAINER_NAME"
+    else
+        echo "Creating Ollama container"
+        docker run -d $GPU_FLAG \
+            --name "$CONTAINER_NAME" \
+            -p "${HOST_PORT}:11434" \
+            -v "${MODEL_DIR}:/root/.ollama" \
+            -e OLLAMA_NUM_PARALLEL="$NUM_PARALLEL" \
+            "$DOCKER_IMAGE"
+    fi
+
+    echo "Waiting for Ollama to start..."
+    sleep 5
+
+    for MODEL_NAME in "${MODELS[@]}"; do
+        echo "Pulling model: $MODEL_NAME"
+        docker exec "$CONTAINER_NAME" ollama pull "$MODEL_NAME"
+    done
+
+    # Hostname mapping
+    HOST_IP=$(hostname -I | awk '{print $1}')
+    echo "Mapping gemma3 → $HOST_IP"
+
+    sudo sed -i "/[[:space:]]gemma3$/d" /etc/hosts
+    echo "$HOST_IP gemma3" | sudo tee -a /etc/hosts >/dev/null
+
+    getent hosts gemma3
+
+    echo "✅ Gemma3 ready at http://gemma3:${HOST_PORT}"
+}
+
+
 # Function to start capturing master logs
 start_master_logs() {
     echo "Starting to capture JasmineGraph master logs..."
