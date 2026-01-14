@@ -65,6 +65,14 @@ jobs:
     - name: Docker Build
       run: docker build -t jasminegraph .
 
+      # 4. Start mock Ollama server in the background
+    - name: Start Mock LLM Server
+      run: |
+        nohup uvicorn mock_ollama_server:app --host 0.0.0.0 --port 11450 &
+
+      # 5. Wait a few seconds for server to be ready
+    - run: sleep 2
+
     - name: Run Integration Tests
       run: |
         chmod +x test-docker.sh
