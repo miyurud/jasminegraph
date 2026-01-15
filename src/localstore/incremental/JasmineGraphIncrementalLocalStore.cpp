@@ -55,8 +55,7 @@ JasmineGraphIncrementalLocalStore::JasmineGraphIncrementalLocalStore(
                                  "org.jasminegraph.vectorstore.dimension")),
                              this->nm->getDbPrefix() + "_faiss_edge.index");
     this->textEmbedder = new TextEmbedder(
-        Utils::getJasmineGraphProperty("org.jasminegraph.vectorstore.embedding."
-                                       "ollama.endpoint"),  // Ollama endpoint
+        Utils::getJasmineGraphProperty("org.jasminegraph.vectorstore.embedding.ollama.endpoint"),  // Ollama endpoint
         Utils::getJasmineGraphProperty(
             "org.jasminegraph.vectorstore.embedding.model"));
   }
