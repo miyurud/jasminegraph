@@ -78,6 +78,7 @@ build_and_run_docker() {
 
     docker compose -f "${TEST_ROOT}/docker-compose.yml" up >"$RUN_LOG" 2>&1 &
     # Attach all running containers using jasminegraph image to integration_jasminegraph_net
+    docker ps
     JASMINEGRAPH_CONTAINERS=$(docker ps -q --filter ancestor=jasminegraph:test)
 
     for CONTAINER in $JASMINEGRAPH_CONTAINERS; do
