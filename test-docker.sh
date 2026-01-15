@@ -77,6 +77,19 @@ build_and_run_docker() {
     cat $HDFS_CONF_FILE
 
     docker compose -f "${TEST_ROOT}/docker-compose.yml" up >"$RUN_LOG" 2>&1 &
+    # Attach all running containers using jasminegraph image to integration_jasminegraph_net
+    JASMINEGRAPH_CONTAINERS=$(docker ps -q --filter ancestor=jasminegraph:test)
+
+    for CONTAINER in $JASMINEGRAPH_CONTAINERS; do
+        # Check if container is already connected to the network
+        if ! docker network inspect integration_jasminegraph_net | grep -q $(docker inspect --format='{{.Name}}' $CONTAINER | sed 's|/||'); then
+            echo "Connecting container $CONTAINER to network integration_jasminegraph_net"
+            docker network connect integration_jasminegraph_net "$CONTAINER"
+        else
+            echo "Container $CONTAINER is already on integration_jasminegraph_net"
+        fi
+    done
+
 
 }
 
