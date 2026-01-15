@@ -249,7 +249,6 @@ else
     docker run -d $GPU_FLAG \
         --name "$CONTAINER_NAME" \
         --network integration_jasminegraph_net \
-        -p "${HOST_PORT}:11434" \
         -v "${MODEL_DIR}:/root/.ollama" \
         -e OLLAMA_MODELS=/root/.ollama/models \
         -e OLLAMA_NUM_PARALLEL="$NUM_PARALLEL" \
