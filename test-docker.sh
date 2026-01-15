@@ -257,6 +257,7 @@ else
         -e OLLAMA_KEEP_ALIVE=30s \
         "$DOCKER_IMAGE"
 fi
+docker network inspect integration_jasminegraph_net
 
 # Wait a few seconds for the container to initialize
 echo "Waiting for container to initialize..."
