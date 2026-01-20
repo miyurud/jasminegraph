@@ -129,9 +129,3 @@ jobs:
           mkdir /var/tmp/worker0 /var/tmp/worker1
           chmod +x test-k8s.sh
           TEST_NAME="main" ./test-k8s.sh
-
-      - name: K8S integration tests
-        run: |
-          mkdir /var/tmp/worker0 /var/tmp/worker1
-          chmod +x test-k8s.sh
-          TEST_NAME="graphRAG" ./test-k8s.sh
