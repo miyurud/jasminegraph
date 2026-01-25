@@ -135,7 +135,7 @@ void JasmineGraphIncrementalLocalStore::getAndStoreEmbeddings() {
              * NODE EMBEDDINGS
              * ============================== */
             if (!node_texts.empty()) {
-                incremental_localstore_logger.debug(
+                incremental_localstore_logger.info(
                     "Node embedding batch size: " +
                     std::to_string(node_texts.size()));
 

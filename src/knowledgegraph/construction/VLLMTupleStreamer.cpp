@@ -102,7 +102,7 @@ size_t VLLMTupleStreamer::StreamCallback(char* ptr, size_t size, size_t nmemb,
                 auto triple = json::parse(ctx->current_tuple);
 
                   if (!triple.is_array() || triple.size() < 5) {
-                      vllm_tuple_streamer_logger.error(
+                      vllm_tuple_streamer_logger.warn(
                           "Invalid tuple size detected. Retrying entire chunk.");
 
                       ctx->isSuccess = false;
@@ -158,10 +158,10 @@ size_t VLLMTupleStreamer::StreamCallback(char* ptr, size_t size, size_t nmemb,
                       "✅ Added formatted triple: " + formattedTriple.dump());
                 }
               } catch (const std::exception& ex) {
-                vllm_tuple_streamer_logger.error(
+                vllm_tuple_streamer_logger.warn(
                     "❌ JSON array parse failed: " + std::string(ex.what()) + ". Invalid Tuple: " + std::string
                     (ctx->current_tuple));
-                  vllm_tuple_streamer_logger.error(
+                  vllm_tuple_streamer_logger.warn(
                          "Invalid tuple  detected. Retrying entire chunk.");
 
                   ctx->isSuccess = false;
@@ -176,7 +176,7 @@ size_t VLLMTupleStreamer::StreamCallback(char* ptr, size_t size, size_t nmemb,
         }
       }
     } catch (const std::exception& ex) {
-      vllm_tuple_streamer_logger.debug("JSON parse error: " +
+      vllm_tuple_streamer_logger.warn("JSON parse error: " +
                                        std::string(ex.what()));
     }
   }
@@ -261,7 +261,7 @@ void VLLMTupleStreamer::streamChunk(const std::string& chunkKey,
     jsonRequest["max_tokens"] = 10000;
 
     std::string postFields = jsonRequest.dump();
-    vllm_tuple_streamer_logger.info("Post fields: " + postFields);
+    // vllm_tuple_streamer_logger.info("Post fields: " + postFields);
     ctx.current_tuple = "";
     curl_easy_setopt(curl, CURLOPT_POSTFIELDS, postFields.c_str());
     curl_easy_setopt(curl, CURLOPT_POSTFIELDSIZE, postFields.size());

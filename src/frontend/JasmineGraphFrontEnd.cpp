@@ -2037,6 +2037,44 @@ bool JasmineGraphFrontEnd::constructKGStreamHDFSCommand(std::string masterIP, in
     std::string hdfsFilePathS(hdfsFilePath);
     hdfsFilePathS = Utils::trim_copy(hdfsFilePathS);
 
+    CURL* curl = curl_easy_init();
+    if (!curl) {
+        frontend_logger.error("Failed to initialize CURL");
+        *loop_exit_p = true;
+        return false;
+    }
+
+    std::string url =
+        "http://" + hdfsServerIp + ":9870/webhdfs/v1/?op=GETHOMEDIRECTORY";
+
+    long http_code = 0;
+
+    curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
+    curl_easy_setopt(curl, CURLOPT_NOBODY, 1L);          // no body
+    curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT, 1L); // immediate connect fail
+    curl_easy_setopt(curl, CURLOPT_TIMEOUT, 2L);        // hard stop
+    curl_easy_setopt(curl, CURLOPT_FAILONERROR, 1L);    // HTTP 4xx/5xx => error
+    curl_easy_setopt(curl, CURLOPT_NOSIGNAL, 1L);       // avoid DNS delays
+
+    CURLcode res = curl_easy_perform(curl);
+    curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &http_code);
+    curl_easy_cleanup(curl);
+
+    // Immediate failure
+    if (res != CURLE_OK || http_code == 0) {
+        frontend_logger.error(
+            "HDFS file System Not reachable at: " +
+            hdfsServerIp + " port: " + hdfsPort);
+
+        std::string error_message = "HDFS file System Not reachable.";
+        write(connFd, error_message.c_str(), error_message.length());
+        write(connFd,
+              Conts::CARRIAGE_RETURN_NEW_LINE.c_str(),
+              Conts::CARRIAGE_RETURN_NEW_LINE.size());
+
+        *loop_exit_p = true;
+        return false;
+    }
     HDFSConnector* hdfsConnector = new HDFSConnector(hdfsServerIp, hdfsPort);
 
     if (!hdfsConnector->isPathValid(hdfsFilePathS)) {
@@ -2051,11 +2089,15 @@ bool JasmineGraphFrontEnd::constructKGStreamHDFSCommand(std::string masterIP, in
 
     std::string path = "hdfs:" + hdfsFilePathS;
     double_t total_file_size = hdfsGetPathInfo(hdfsConnector->getFileSystem(), hdfsFilePathS.c_str())->mSize;
-    std::time_t time = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
-    std::string uploadStartTime = ctime(&time);
+    std::time_t now = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
+    struct tm localTime;
+    localtime_r(&now, &localTime);  // thread-safe version of localtime()
+    char buffer[100];
+    strftime(buffer, sizeof(buffer), "%Y-%m-%d %H:%M:%S", &localTime);
+    std::string uploadStartTime(buffer);
+
 
     // 2. Prepare new graph insertion
-    std::time_t now = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
     uploadStartTime.erase(uploadStartTime.find_last_not_of(Conts::CARRIAGE_RETURN_NEW_LINE) + 1);  // remove newline
 
     std::string llmRunnerMSG = "LLM runner hostname:port: ";
@@ -2077,6 +2119,12 @@ bool JasmineGraphFrontEnd::constructKGStreamHDFSCommand(std::string masterIP, in
     read(connFd, hostnamePort, FRONTEND_DATA_LENGTH);
     std::string hostnamePortS(hostnamePort);
     hostnamePortS = Utils::trim_copy(hostnamePortS);
+
+    if (hostnamePortS.find("exit") != std::string::npos) {
+        *loop_exit_p = true;
+        return false;
+    }
+
 
     frontend_logger.info("Received LLM runners: " + hostnamePortS);
 
@@ -2102,6 +2150,50 @@ bool JasmineGraphFrontEnd::constructKGStreamHDFSCommand(std::string masterIP, in
 
     frontend_logger.info("received Inference Engine: " + llmInferenceEngineS);
 
+    vector<std::string> llmServers = Utils::getUniqueLLMRunners(hostnamePortS);
+
+    for (auto llmServer : llmServers) {
+        std::string url;
+        bool modelFound = false;
+        std::string endpointPath;
+        if (llmInferenceEngineS == "ollama") {
+            endpointPath = "api/tags";
+        } else if (llmInferenceEngineS == "vllm") {
+            endpointPath = "/v1/models";
+        } else {
+            frontend_logger.error("Unknown inference engine: " + llmInferenceEngineS);
+            std::string msg = "Unknown inference engine '" + llmInferenceEngineS + "'";
+            write(connFd, msg.c_str(), msg.length());
+            write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
+            *loop_exit_p = true;
+            return false;
+        }
+
+        url = Utils::normalizeURL(llmServer, endpointPath);
+        frontend_logger.info("Final LLM endpoint: " + url);
+
+        CURL* curl = curl_easy_init();
+        if (curl) {
+            std::string response;
+            curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
+            curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, WriteCallback);
+            curl_easy_setopt(curl, CURLOPT_WRITEDATA, &response);
+            curl_easy_setopt(curl, CURLOPT_TIMEOUT, 5L);
+
+            CURLcode res = curl_easy_perform(curl);
+            curl_easy_cleanup(curl);
+
+            if (res != CURLE_OK) {
+                frontend_logger.error("Failed to reach " + llmInferenceEngineS + " server at " + llmServer);
+                std::string msg = "Could not connect to " + llmInferenceEngineS + " server.";
+                write(connFd, msg.c_str(), msg.length());
+                write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
+                *loop_exit_p = true;
+                return false;
+            }
+
+        }
+    }
     std::string LLM_MSG = "What is the LLM you want to use?:";
     resultWr = write(connFd, LLM_MSG.c_str(), LLM_MSG.length());
     if (resultWr < 0) {
@@ -2122,9 +2214,10 @@ bool JasmineGraphFrontEnd::constructKGStreamHDFSCommand(std::string masterIP, in
     std::string llmS(llm);
     llmS = Utils::trim_copy(llmS);
     frontend_logger.info("Received LLM " + llmS);
-
-    vector<std::string> llmServers = Utils::getUniqueLLMRunners(hostnamePortS);
-
+    if (llmS.find("exit") != std::string::npos) {
+        *loop_exit_p = true;
+        return false;
+    }
     for (auto llmServer : llmServers) {
         std::string url;
         bool modelFound = false;
@@ -2338,7 +2431,11 @@ bool JasmineGraphFrontEnd::constructKGStreamHDFSCommand(std::string masterIP, in
         }
 
         std::time_t time = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
-        std::string uploadEndTime = ctime(&time);
+        struct tm localTime;
+        localtime_r(&time, &localTime);
+        char buffer[100];
+        strftime(buffer, sizeof(buffer), "%Y-%m-%d %H:%M:%S", &localTime);
+        std::string uploadEndTime(buffer);
 
         std::string sqlStatementUpdateEndTime = "UPDATE graph SET upload_end_time = \"" + uploadEndTime +
                                                 "\" WHERE idgraph = " + std::to_string(newGraphID);

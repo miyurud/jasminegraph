@@ -19,9 +19,10 @@ limitations under the License.
 #include <vector>
 class FaissIndex {
  public:
+  ~FaissIndex();
   static FaissIndex* getInstance(int embeddingDim, const std::string& filepath);
 
-  ~FaissIndex();
+  // ~FaissIndex();
   faiss::idx_t add(const std::vector<float>& embedding, std::string nodeId);
 
   faiss::idx_t add(const std::vector<float>& embedding);
@@ -42,6 +43,7 @@ class FaissIndex {
 
  private:
   FaissIndex(int embeddingDim, const std::string& filepath);
+
 
   int dim;
   faiss::IndexFlatL2* index;

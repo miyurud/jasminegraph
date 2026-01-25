@@ -1782,205 +1782,251 @@ bool Utils::sendQueryPlanToWorker(const std::string& host, int port, const std::
 bool Utils::sendSbsQueryPlanToWorker(std::string host, int port, std::string masterIP, int graphID, int partitionId,
                                      std::string query, SharedBuffer& sharedBuffer,
                                      const std::string& workerListString) {
-    util_logger.info("Connecting to worker at " + host + ":" + std::to_string(port));
-    util_logger.debug("Parameters: host=" + host + ", port=" + std::to_string(port) + ", masterIP=" + masterIP +
-                      ", graphID=" + std::to_string(graphID) + ", partitionId=" + std::to_string(partitionId) +
-                      ", query=" + query);
+  util_logger.debug("Connecting to worker at " + host + ":" + std::to_string(port));
+  util_logger.debug(
+      "Parameters: host=" + host + ", port=" + std::to_string(port) +
+      ", masterIP=" + masterIP + ", graphID=" + std::to_string(graphID) +
+      ", partitionId=" + std::to_string(partitionId) + ", query=" + query);
 
-    int sockfd;
-    struct sockaddr_in serv_addr;
-    struct hostent* server;
-    static const int ACK_MESSAGE_SIZE = 1024;
-    char ack[ACK_MESSAGE_SIZE] = {0};
+  int sockfd;
+  struct sockaddr_in serv_addr;
+  struct hostent *server;
+  static const int ACK_MESSAGE_SIZE = 1024;
+  char ack[ACK_MESSAGE_SIZE] = {0};
 
-    // --- Create socket ---
-    sockfd = socket(AF_INET, SOCK_STREAM, 0);
-    util_logger.debug("Socket created, sockfd=" + std::to_string(sockfd));
-    if (sockfd < 0) {
-        util_logger.error("Cannot create socket");
-        return false;
-    }
+  // --- Create socket ---
+  sockfd = socket(AF_INET, SOCK_STREAM, 0);
+  util_logger.debug("Socket created, sockfd=" +
+                                             std::to_string(sockfd));
+  if (sockfd < 0) {
+    util_logger.error("Cannot create socket");
+    return false;
+  }
 
-    // --- Resolve host ---
-    if (host.find('@') != std::string::npos) {
-        util_logger.debug("Host contains '@', splitting...");
-        host = Utils::split(host, '@')[1];
-        util_logger.debug("Resolved host: " + host);
-    }
-    server = gethostbyname(host.c_str());
-    if (server == NULL) {
-        util_logger.error("No host named " + host);
-        close(sockfd);
-        return false;
-    }
-
-    bzero((char*)&serv_addr, sizeof(serv_addr));
-    serv_addr.sin_family = AF_INET;
-    bcopy((char*)server->h_addr, (char*)&serv_addr.sin_addr.s_addr, server->h_length);
-    serv_addr.sin_port = htons(port);
-
-    util_logger.debug("Attempting to connect to " + host + ":" + std::to_string(port));
-    if (Utils::connect_wrapper(sockfd, (struct sockaddr*)&serv_addr, sizeof(serv_addr)) < 0) {
-        util_logger.error("Connection failed to " + host + ":" + std::to_string(port));
-        close(sockfd);
-        return false;
-    }
-    util_logger.debug("Connected to worker");
-
-    // --- Step 1: Send command ---
-    std::string command = "initiate-semantic-beam-search\r\n";
-    util_logger.debug("Sending command: " + command);
-    if (send(sockfd, command.c_str(), command.size(), 0) <= 0) {
-        util_logger.error("Failed to send command");
-        close(sockfd);
-        return false;
-    }
-
-    bzero(ack, ACK_MESSAGE_SIZE);
-    util_logger.debug("Waiting for ACK after command");
-    if (recv(sockfd, ack, strlen("stream-c-length-ack"), 0) <= 0) {
-        util_logger.error("Failed to receive ACK after command");
-        close(sockfd);
-        return false;
-    }
-    util_logger.debug("Received ACK after command");
-
-    // --- Step 2: Send graphID ---
-    int length = htonl(std::to_string(graphID).size());
-    util_logger.debug("Sending graphID length: " + std::to_string(ntohl(length)));
-    send(sockfd, &length, sizeof(length), 0);
-    util_logger.debug("Sending graphID: " + std::to_string(graphID));
-    if (send(sockfd, std::to_string(graphID).c_str(), std::to_string(graphID).size(), 0) <= 0) {
-        util_logger.error("Failed to send graphID");
-        close(sockfd);
-        return false;
-    }
-    bzero(ack, ACK_MESSAGE_SIZE);
-    util_logger.debug("Waiting for ACK after graphID");
-    if (recv(sockfd, ack, strlen("stream-c-length-ack"), 0) <= 0) {
-        util_logger.error("Failed to receive ACK after graphID");
-        close(sockfd);
-        return false;
-    }
-    util_logger.debug("Received ACK after graphID");
-
-    // --- Step 3: Send partition ID ---
-    length = htonl(std::to_string(partitionId).size());
-    util_logger.debug("Sending partitionId length: " + std::to_string(ntohl(length)));
-    send(sockfd, &length, sizeof(length), 0);
-    util_logger.debug("Sending partitionId: " + std::to_string(partitionId));
-    if (send(sockfd, std::to_string(partitionId).c_str(), std::to_string(partitionId).size(), 0) <= 0) {
-        util_logger.error("Failed to send partitionId");
-        close(sockfd);
-        return false;
-    }
-    bzero(ack, ACK_MESSAGE_SIZE);
-    util_logger.debug("Waiting for ACK after partitionId");
-    if (recv(sockfd, ack, strlen("stream-c-length-ack"), 0) <= 0) {
-        util_logger.error("Failed to receive ACK after partitionId");
-        close(sockfd);
-        return false;
-    }
-    util_logger.debug("Received ACK after partitionId");
-
-    // --- Step 4: Send query ---
-    util_logger.info("semantic beam searcg" + query);
-    length = htonl(query.size());
-    util_logger.debug("Sending query length: " + std::to_string(ntohl(length)));
-    send(sockfd, &length, sizeof(length), 0);
-    util_logger.debug("Sending query: " + query);
-    if (send(sockfd, query.c_str(), query.size(), 0) <= 0) {
-        util_logger.error("Failed to send query");
-        close(sockfd);
-        return false;
-    }
-    bzero(ack, ACK_MESSAGE_SIZE);
-    util_logger.debug("Waiting for ACK after query");
-    if (recv(sockfd, ack, strlen("stream-c-length-ack"), 0) <= 0) {
-        util_logger.error("Failed to receive ACK after query");
-        close(sockfd);
-        return false;
-    }
-
-    // --- Step 4: Send workers ---
-    std::string workers = workerListString;
-
-    util_logger.info("semantic beam search" + workers);
-    length = htonl(workers.size());
-    util_logger.debug("Sending workers length: " + std::to_string(ntohl(length)));
-    send(sockfd, &length, sizeof(length), 0);
-    util_logger.debug("Sending workers: " + workers);
-    if (send(sockfd, workers.c_str(), workers.size(), 0) <= 0) {
-        util_logger.error("Failed to send query");
-        close(sockfd);
-        return false;
-    }
-    bzero(ack, ACK_MESSAGE_SIZE);
-    util_logger.debug("Waiting for ACK after query");
-    if (recv(sockfd, ack, strlen("stream-c-length-ack"), 0) <= 0) {
-        util_logger.info(ack);
-        util_logger.error("Failed to receive ACK after query");
-        close(sockfd);
-        return false;
-    }
-
-    util_logger.info("Received ACK after query ");
-
-    char start[ACK_MESSAGE_SIZE] = {0};
-    recv(sockfd, &start, sizeof(start), 0);
-    std::string start_msg(start);
-    char ack2[ACK_MESSAGE_SIZE] = {0};
-    recv(sockfd, &ack2, sizeof(start), 0);
-    std::string ack2_msg(ack2);
-    util_logger.info(start_msg);
-    util_logger.info("Semantic Beam Search request sent successfully");
-    while (true) {
-        char start[ACK_MESSAGE_SIZE] = {0};
-        recv(sockfd, &start, sizeof(start), 0);
-        std::string start_msg(start);
-        if (JasmineGraphInstanceProtocol::QUERY_DATA_START != start_msg) {
-            util_logger.error("Error while receiving start command: " + start_msg);
-            break;
-        }
-        send(sockfd, JasmineGraphInstanceProtocol::QUERY_DATA_ACK.c_str(),
-             JasmineGraphInstanceProtocol::QUERY_DATA_ACK.length(), 0);
-
-        int content_length;
-        ssize_t return_status = recv(sockfd, &content_length, sizeof(int), 0);
-        if (return_status > 0) {
-            content_length = ntohl(content_length);
-            util_logger.debug("Received int =" + std::to_string(content_length));
-        } else {
-            util_logger.error("Error while receiving content length");
-            return false;
-        }
-        send(sockfd, JasmineGraphInstanceProtocol::GRAPH_STREAM_C_length_ACK.c_str(),
-             JasmineGraphInstanceProtocol::GRAPH_STREAM_C_length_ACK.length(), 0);
-
-        std::string data(content_length, 0);
-        size_t received = 0;
-        while (received < content_length) {
-            ssize_t ret = recv(sockfd, &data[received], content_length - received, 0);
-            if (ret <= 0) {
-                util_logger.error("Error receiving request string");
-                break;
-            }
-            received += ret;
-        }
-        send(sockfd, JasmineGraphInstanceProtocol::GRAPH_DATA_SUCCESS.c_str(),
-             JasmineGraphInstanceProtocol::GRAPH_DATA_SUCCESS.length(), 0);
-
-        util_logger.info("patition " + std::to_string(partitionId) + "Received graph data: " + data);
-        if (data == "-1") {
-            sharedBuffer.add(data);
-            break;
-        }
-        sharedBuffer.add(data);
-    }
-
+  // --- Resolve host ---
+  if (host.find('@') != std::string::npos) {
+    util_logger.debug(
+        "Host contains '@', splitting...");
+    host = Utils::split(host, '@')[1];
+    util_logger.debug("Resolved host: " + host);
+  }
+  server = gethostbyname(host.c_str());
+  if (server == NULL) {
+    util_logger.error("No host named " + host);
     close(sockfd);
-    util_logger.debug("Socket closed");
-    return true;
+    return false;
+  }
+
+  bzero((char *)&serv_addr, sizeof(serv_addr));
+  serv_addr.sin_family = AF_INET;
+  bcopy((char *)server->h_addr, (char *)&serv_addr.sin_addr.s_addr,
+        server->h_length);
+  serv_addr.sin_port = htons(port);
+
+  util_logger.debug("Attempting to connect to " +
+                                             host + ":" + std::to_string(port));
+  if (Utils::connect_wrapper(sockfd, (struct sockaddr *)&serv_addr,
+                             sizeof(serv_addr)) < 0) {
+    util_logger.error("Connection failed to " + host +
+                                               ":" + std::to_string(port));
+    close(sockfd);
+    return false;
+  }
+  util_logger.debug("Connected to worker");
+
+    char data[FED_DATA_LENGTH + 1];
+
+  // --- Step 1: Send command ---
+  std::string command =  JasmineGraphInstanceProtocol::SEMANTIC_BEAM_SEARCH;
+  util_logger.debug("Sending command: " + command);
+    if (!Utils::sendExpectResponse(sockfd, data, INSTANCE_DATA_LENGTH,
+                                   JasmineGraphInstanceProtocol::SEMANTIC_BEAM_SEARCH,
+                                   JasmineGraphInstanceProtocol::QUERY_START_ACK)) {
+        Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::CLOSE);
+        close(sockfd);
+        return false;
+                                   }
+
+  util_logger.debug("Received ACK after command");
+
+  // --- Step 2: Send graphID ---
+  int length = htonl(std::to_string(graphID).size());
+  util_logger.debug("Sending graphID length: " +
+                                             std::to_string(ntohl(length)));
+  send(sockfd, &length, sizeof(length), 0);
+  util_logger.debug("Sending graphID: " +
+                                             std::to_string(graphID));
+  if (send(sockfd, std::to_string(graphID).c_str(),
+           std::to_string(graphID).size(), 0) <= 0) {
+    util_logger.error("Failed to send graphID");
+    close(sockfd);
+    return false;
+  }
+  bzero(ack, ACK_MESSAGE_SIZE);
+  util_logger.debug("Waiting for ACK after graphID");
+  if (recv(sockfd, ack, strlen("stream-c-length-ack"), 0) <= 0) {
+    util_logger.error(
+        "Failed to receive ACK after graphID");
+    close(sockfd);
+    return false;
+  }
+  util_logger.debug("Received ACK after graphID");
+
+  // --- Step 3: Send partition ID ---
+  length = htonl(std::to_string(partitionId).size());
+  util_logger.debug("Sending partitionId length: " +
+                                             std::to_string(ntohl(length)));
+  send(sockfd, &length, sizeof(length), 0);
+  util_logger.debug("Sending partitionId: " +
+                                             std::to_string(partitionId));
+  if (send(sockfd, std::to_string(partitionId).c_str(),
+           std::to_string(partitionId).size(), 0) <= 0) {
+    util_logger.error("Failed to send partitionId");
+    close(sockfd);
+    return false;
+  }
+  bzero(ack, ACK_MESSAGE_SIZE);
+  util_logger.debug(
+      "Waiting for ACK after partitionId");
+  if (recv(sockfd, ack, strlen("stream-c-length-ack"), 0) <= 0) {
+    util_logger.error(
+        "Failed to receive ACK after partitionId");
+    close(sockfd);
+    return false;
+  }
+  util_logger.debug("Received ACK after partitionId");
+
+  // --- Step 4: Send query ---
+  util_logger.debug("semantic beam searcg" + query);
+  length = htonl(query.size());
+  util_logger.debug("Sending query length: " +
+                                             std::to_string(ntohl(length)));
+  send(sockfd, &length, sizeof(length), 0);
+  util_logger.debug("Sending query: " + query);
+  if (send(sockfd, query.c_str(), query.size(), 0) <= 0) {
+    util_logger.error("Failed to send query");
+    close(sockfd);
+    return false;
+  }
+  bzero(ack, ACK_MESSAGE_SIZE);
+  util_logger.debug("Waiting for ACK after query");
+  if (recv(sockfd, ack, strlen("stream-c-length-ack"), 0) <= 0) {
+    util_logger.error(
+        "Failed to receive ACK after query");
+    close(sockfd);
+    return false;
+  }
+
+  // int counter = 0;
+  // string workers = "";
+  // // --- Step 4: Send workers ---
+  // for (JasmineGraphServer::worker worker :
+  //      JasmineGraphServer::getWorkers(noOfPartitions)) {
+  //   counter++;
+  //   util_logger.debug("count " +
+  //                                             std::to_string(counter));
+  //   workers += worker.hostname + ":" + std::to_string(worker.port) + ":" +
+  //              std::to_string(worker.dataPort);
+  //   // append , only if not last
+  //   if (counter < noOfPartitions) {
+  //     workers += ",";
+  //   }
+  // }
+
+  util_logger.debug("semantic beam search" + workerListString);
+  length = htonl(workerListString.size());
+  util_logger.debug("Sending workers length: " +
+                                             std::to_string(ntohl(length)));
+  send(sockfd, &length, sizeof(length), 0);
+  util_logger.debug("Sending workers: " + workerListString);
+  if (send(sockfd, workerListString.c_str(), workerListString.size(), 0) <= 0) {
+    util_logger.error("Failed to send query");
+    close(sockfd);
+    return false;
+  }
+  bzero(ack, ACK_MESSAGE_SIZE);
+  util_logger.debug("Waiting for ACK after query");
+  if (recv(sockfd, ack, strlen("stream-c-length-ack"), 0) <= 0) {
+    util_logger.debug(ack);
+    util_logger.error(
+        "Failed to receive ACK after query");
+    close(sockfd);
+    return false;
+  }
+    util_logger.debug(ack);
+
+  util_logger.debug("Received ACK after query ");
+
+
+  // char start[ACK_MESSAGE_SIZE] = {0};
+  // recv(sockfd, &start, sizeof(start), 0);
+  // std::string start_msg(start);
+  // char ack2[ACK_MESSAGE_SIZE] = {0};
+  // recv(sockfd, &ack2, sizeof(start), 0);
+  // std::string ack2_msg(ack2);
+  // util_logger.debug(start_msg);
+  util_logger.info(
+      "Semantic Beam Search request sent successfully");
+  while (true) {
+    char start2[ACK_MESSAGE_SIZE] = {0};
+    recv(sockfd, &start2, sizeof(start2), 0);
+    std::string start2_msg(start2);
+    if (JasmineGraphInstanceProtocol::QUERY_DATA_START != start2_msg) {
+      util_logger.error(
+          "Error while receiving start command: " + start2_msg);
+      break;
+    }
+
+
+
+
+
+    send(sockfd, JasmineGraphInstanceProtocol::QUERY_DATA_ACK.c_str(),
+         JasmineGraphInstanceProtocol::QUERY_DATA_ACK.length(), 0);
+
+    int content_length;
+    ssize_t return_status = recv(sockfd, &content_length, sizeof(int), 0);
+    if (return_status > 0) {
+      content_length = ntohl(content_length);
+      util_logger.debug(
+          "Received int =" + std::to_string(content_length));
+    } else {
+      util_logger.error(
+          "Error while receiving content length");
+      return false;
+    }
+    send(sockfd,
+         JasmineGraphInstanceProtocol::GRAPH_STREAM_C_length_ACK.c_str(),
+         JasmineGraphInstanceProtocol::GRAPH_STREAM_C_length_ACK.length(), 0);
+
+    std::string data(content_length, 0);
+    size_t received = 0;
+    while (received < content_length) {
+      ssize_t ret = recv(sockfd, &data[received], content_length - received, 0);
+      if (ret <= 0) {
+        util_logger.error(
+            "Error receiving request string");
+        break;
+      }
+      received += ret;
+    }
+    send(sockfd, JasmineGraphInstanceProtocol::GRAPH_DATA_SUCCESS.c_str(),
+         JasmineGraphInstanceProtocol::GRAPH_DATA_SUCCESS.length(), 0);
+
+
+    util_logger.info("patition " +
+                                              std::to_string(partitionId) +
+                                              "Received graph data: " + data);
+    if (data == "-1") {
+      sharedBuffer.add(data);
+      break;
+    }
+    sharedBuffer.add(data);
+  }
+
+  close(sockfd);
+  util_logger.debug("Socket closed");
+  return false;
 }
 
 std::optional<std::tuple<std::string, int, int>> Utils::getWorker(string partitionId, std::string host, int port) {

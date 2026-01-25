@@ -457,9 +457,9 @@ json Pipeline::processTupleAndSaveInPartition(const std::vector<std::unique_ptr<
     using namespace std::chrono;
 
     auto nextTick = steady_clock::now();
-
-    while (metaThreadRunning.load(std::memory_order_relaxed)) {
         std::this_thread::sleep_for(std::chrono::milliseconds(10000));
+    while (metaThreadRunning.load(std::memory_order_relaxed)) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(60000));
 
         kg_pipeline_stream_handler_logger.debug("Meta thread running");
 
@@ -804,7 +804,7 @@ void Pipeline::extractTuples(std::string host, int port, std::string masterIP, i
 
             char ack3[ACK_MESSAGE_SIZE] = {0};
             int converted_number = htonl(chunk.length());
-            kg_pipeline_stream_handler_logger.info("Sending chunk length: " +
+            kg_pipeline_stream_handler_logger.debug("Sending chunk length: " +
                 std::to_string(chunk.length()));
             if (!Utils::sendIntExpectResponse(sockfd, ack3,
                                               JasmineGraphInstanceProtocol::GRAPH_STREAM_C_length_ACK.length(),
@@ -816,7 +816,7 @@ void Pipeline::extractTuples(std::string host, int port, std::string masterIP, i
                 break;
                                               }
 
-            kg_pipeline_stream_handler_logger.info("Sending chunk data");
+            kg_pipeline_stream_handler_logger.debug("Sending chunk data");
             if (!Utils::send_str_wrapper(sockfd, chunk)) {
                 kg_pipeline_stream_handler_logger.error("Failed to send chunk data");
                 retry = true;
@@ -840,7 +840,7 @@ void Pipeline::extractTuples(std::string host, int port, std::string masterIP, i
                 break;
                                               }
 
-            kg_pipeline_stream_handler_logger.info("Sending currentTraceContext data:" +currentTraceContext);
+            kg_pipeline_stream_handler_logger.debug("Sending currentTraceContext data:" +currentTraceContext);
             if (!Utils::send_str_wrapper(sockfd, currentTraceContext)) {
                 kg_pipeline_stream_handler_logger.error("Failed to send chunk data");
                 retry = true;

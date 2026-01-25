@@ -114,15 +114,15 @@ void DataPublisher::queryPublish(std::string graphId, std::string partitionId, s
 
     int message_length = graphId.length();
     int converted_number = htonl(message_length);
-    data_publisher_logger.info("Sending content length: " + to_string(converted_number));
+    data_publisher_logger.debug("Sending content length: " + to_string(converted_number));
     send(this->sock, &converted_number, sizeof(converted_number), 0);
 
     int received_int = 0;
-    data_publisher_logger.info("Waiting for content length ack");
+    data_publisher_logger.debug("Waiting for content length ack");
     auto return_status = recv(this->sock, &received_int, sizeof(received_int), 0);
 
     if (return_status > 0) {
-        data_publisher_logger.info("Received int = " + std::to_string(ntohl(received_int)));
+        data_publisher_logger.debug("Received int = " + std::to_string(ntohl(received_int)));
     } else {
         data_publisher_logger.error("Error while receiving content length ack");
     }
@@ -131,15 +131,15 @@ void DataPublisher::queryPublish(std::string graphId, std::string partitionId, s
 
     message_length = partitionId.length();
     converted_number = htonl(message_length);
-    data_publisher_logger.info("Sending content length : " + to_string(converted_number));
+    data_publisher_logger.debug("Sending content length : " + to_string(converted_number));
     send(this->sock, &converted_number, sizeof(converted_number), 0);
 
     received_int = 0;
-    data_publisher_logger.info("Waiting for content length ack");
+    data_publisher_logger.debug("Waiting for content length ack");
     return_status = recv(this->sock, &received_int, sizeof(received_int), 0);
 
     if (return_status > 0) {
-        data_publisher_logger.info("Received int = " + std::to_string(ntohl(received_int)));
+        data_publisher_logger.debug("Received int = " + std::to_string(ntohl(received_int)));
     } else {
         data_publisher_logger.error("Error while receiving content length ack");
     }
@@ -147,21 +147,21 @@ void DataPublisher::queryPublish(std::string graphId, std::string partitionId, s
 
     message_length = message.length();
     converted_number = htonl(message_length);
-    data_publisher_logger.info("Sending content length : " + to_string(converted_number));
+    data_publisher_logger.debug("Sending content length : " + to_string(converted_number));
     send(this->sock, &converted_number, sizeof(converted_number), 0);
 
     received_int = 0;
-    data_publisher_logger.info("Waiting for content length ack");
+    data_publisher_logger.debug("Waiting for content length ack");
     return_status = recv(this->sock, &received_int, sizeof(received_int), 0);
 
     if (return_status > 0) {
-        data_publisher_logger.info("Received int = " + std::to_string(ntohl(received_int)));
+        data_publisher_logger.debug("Received int = " + std::to_string(ntohl(received_int)));
     } else {
         data_publisher_logger.error("Error while receiving content length ack");
     }
 
     send(this->sock, message.c_str(), message.length(), 0);
-    data_publisher_logger.info("Query sent successfully: " + message);
+    data_publisher_logger.debug("Query sent successfully: " + message);
 
     char returnCharResult;
     do {
