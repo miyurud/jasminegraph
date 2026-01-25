@@ -384,7 +384,15 @@ void JasmineGraphIncrementalLocalStore::addCentralEdgeProperties(
     for (auto it = edgeProperties.begin(); it != edgeProperties.end(); it++) {
       strcpy(value, it.value().get<std::string>().c_str());
       if (std::string(it.key()) == "type") {
+          string property = it.value().get<std::string>();
         strcpy(type, it.value().get<std::string>().c_str());
+          if (embedNode && !faissEdgeStore->isEmbeddingExist(property) &&
+             edge_embedding_requests->find(property) == edge_embedding_requests->end()) {
+              incremental_localstore_logger.debug(" Adding embedding request: "+ property);
+              pthread_mutex_lock(&embeddingQueueMutex);
+              edge_embedding_requests->insert(property);
+              pthread_mutex_unlock(&embeddingQueueMutex);
+             }
         relationBlock->addCentralRelationshipType(&type[0]);
       }
       relationBlock->addCentralProperty(std::string(it.key()), &value[0]);
@@ -406,7 +414,7 @@ void JasmineGraphIncrementalLocalStore::addLocalEdgeProperties(
       if (std::string(it.key()) == "type") {
           string property = it.value().get<std::string>();
         strcpy(type, it.value().get<std::string>().c_str());
-          if (!faissEdgeStore->isEmbeddingExist(property) &&
+          if (embedNode && !faissEdgeStore->isEmbeddingExist(property) &&
               edge_embedding_requests->find(property) == edge_embedding_requests->end()) {
               incremental_localstore_logger.debug(" Adding embedding request: "+ property);
               pthread_mutex_lock(&embeddingQueueMutex);
