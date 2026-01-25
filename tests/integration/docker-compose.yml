@@ -17,7 +17,7 @@ services:
       - TESTING=true
     networks:
       - jasminegraph_net
-    command: --MODE 1 --MASTERIP jasminegraph --WORKERS 2 --WORKERIP jasminegraph --ENABLE_NMON false
+    command: --MODE 1 --MASTERIP 172.28.5.1 --WORKERS 2 --WORKERIP 172.28.5.1 --ENABLE_NMON false
 
   namenode:
     hostname: namenode
@@ -116,6 +116,11 @@ volumes:
 networks:
   jasminegraph_net:
     driver: bridge
+    ipam:
+      config:
+        - subnet: 172.28.5.0/24
+          ip_range: 172.28.5.0/24
+          gateway: 172.28.5.1
 #  prom_net:
 #    driver: bridge
 #    ipam:
