@@ -29,7 +29,7 @@ logging.addLevelName(
 
 logging.getLogger().setLevel(logging.INFO)
 
-HOST = '127.0.0.1'
+HOST = socket.gethostbyname(socket.gethostname())
 PORT = 7777  # The port used by the server
 UI_PORT = 7776 # The port used by the frontend-ui
 SBS =b'sbs'
