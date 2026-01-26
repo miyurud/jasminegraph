@@ -2051,8 +2051,8 @@ bool JasmineGraphFrontEnd::constructKGStreamHDFSCommand(std::string masterIP, in
 
     curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
     curl_easy_setopt(curl, CURLOPT_NOBODY, 1L);          // no body
-    curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT, 1L); // immediate connect fail
-    curl_easy_setopt(curl, CURLOPT_TIMEOUT, 2L);        // hard stop
+    curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT, 10L); // wait up to 10s to connect
+    curl_easy_setopt(curl, CURLOPT_TIMEOUT, 30L);        // max 30s for whole request
     curl_easy_setopt(curl, CURLOPT_FAILONERROR, 1L);    // HTTP 4xx/5xx => error
     curl_easy_setopt(curl, CURLOPT_NOSIGNAL, 1L);       // avoid DNS delays
 

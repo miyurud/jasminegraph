@@ -77,9 +77,6 @@ build_and_run_docker() {
     cat $HDFS_CONF_FILE
 
     docker compose -f "${TEST_ROOT}/docker-compose.yml" up >"$RUN_LOG" 2>&1 &
-
-
-
 }
 
 wait_for_hadoop() {
@@ -220,7 +217,7 @@ docker network inspect bridge
 # Wait for Hadoop to start
 wait_for_hadoop
 
- # Attach all running containers using jasminegraph image to integration_jasminegraph_net
+# Attach all running containers using jasminegraph image to integration_jasminegraph_net
 docker ps
 JASMINEGRAPH_CONTAINERS=$(docker ps -q --filter ancestor=jasminegraph:test)
 
