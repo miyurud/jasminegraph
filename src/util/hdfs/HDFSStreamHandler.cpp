@@ -278,7 +278,7 @@ void HDFSStreamHandler::startStreamingFromBufferToPartitions() {
     const string isEmbedGraph = Utils::getJasmineGraphProperty("org.jasminegraph.vectorstore.enabled");
 
     HDFSMultiThreadedHashPartitioner partitioner(numberOfPartitions, graphId, masterIP, isDirected, workers,
-        isEmbedGraph == "true", 1000, this->sqlite);
+        false, 1000, this->sqlite);
 
     std::thread readerThread(&HDFSStreamHandler::streamFromHDFSIntoBuffer, this);
     std::vector<std::thread> bufferProcessorThreads;

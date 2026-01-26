@@ -1,4 +1,4 @@
-"""Copyright 2025 JasmineGraph Team
+"""Copyright 2026 JasmineGraph Team
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
@@ -40,8 +40,9 @@ async def streamer( model: str):
 
     # Example array-of-arrays tuples
     tuples = [
-        ["Radio City", "is", "India's first private FM radio station"],
-        ["Radio City", "was started on", "3 July 2001", "Organization", "Date"],
+        ["Radio City", "is", "India's first private FM radio station",
+         "Organization", "Description"],
+        ["Radio City", "was started on", "3 July 2001", "Organization", "Date", ],
         ["Radio City", "broadcasts on", "91.1", "Organization", "Frequency"]
     ]
 

@@ -1182,6 +1182,9 @@ static void semantic_beam_search_command(int connFd, std::string command, int nu
         *loop_exit_p = true;
         return;
     }
+    string done =  R"({"done":"true"})";
+    write(connFd,  done.c_str(), done.size());
+    write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
 
     ui_frontend_logger.info("Semantic beam search completed successfully for graph " + graph_id);
 }

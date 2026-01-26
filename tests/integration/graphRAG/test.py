@@ -9,7 +9,6 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 """
-import subprocess
 import sys
 import socket
 import logging
@@ -29,7 +28,7 @@ logging.addLevelName(
 
 logging.getLogger().setLevel(logging.INFO)
 
-HOST = '127.0.0.1'
+HOST = socket.gethostbyname(socket.gethostname())
 PORT = 7777  # The port used by the server
 UI_PORT = 7776 # The port used by the frontend-ui
 SBS =b'sbs'
@@ -181,7 +180,7 @@ failed_tests = []
 def test(host, port):
     """Test the JasmineGraph server by sending a series of commands and checking the responses."""
 
-    subprocess.run(['bash', OLLAMA_SETUP_SCRIPT], check=True)
+    # subprocess.run(['bash', OLLAMA_SETUP_SCRIPT], check=True)
 
 
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:

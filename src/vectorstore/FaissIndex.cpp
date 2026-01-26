@@ -28,8 +28,7 @@ limitations under the License.
 std::unique_ptr<FaissIndex> FaissIndex::instance = nullptr;
 std::once_flag FaissIndex::initFlag;
 Logger faiss_index_logger;
-std::unordered_map<std::string,
-    std::unique_ptr<FaissIndex>> FaissIndex::instances;
+std::unordered_map<std::string, std::unique_ptr<FaissIndex>> FaissIndex::instances;
 
 std::mutex FaissIndex::instancesMutex;
 FaissIndex* FaissIndex::getInstance(int embeddingDim,
@@ -52,7 +51,7 @@ FaissIndex::FaissIndex(int embeddingDim, const std::string& filepath)
 
 FaissIndex::~FaissIndex() {
   try {
-    faiss_index_logger.info("saving FAISS index");
+    faiss_index_logger.info("saving FAISS index from destructor");
     save(filePath);
   } catch (const std::exception& e) {
     faiss_index_logger.error("[FaissIndex] Failed to auto-save index: " +
@@ -67,7 +66,7 @@ faiss::idx_t FaissIndex::add(const std::vector<float>& embedding,
     throw std::runtime_error("Embedding dimension mismatch!");
   }
     try {
-        std::lock_guard<std::mutex> lock(mtx);
+        std::unique_lock<std::mutex> lock(mtx);
 
         faiss::idx_t new_id = index->ntotal;
         faiss_index_logger.debug("[FaissIndex] Adding new embedding with nodeId: " +
@@ -80,9 +79,14 @@ faiss::idx_t FaissIndex::add(const std::vector<float>& embedding,
         nodeIdToEmbeddingIdMap[nodeId] = new_id;
         embeddingIdToNodeIdMap[new_id] = nodeId;
 
-        if (index->ntotal % 1000 == 0) {
-            save(filePath);
-        }
+        // if (index->ntotal % 1000 == 0) {
+        //     lock.unlock();
+        //     faiss_index_logger.info("saving faiss index periodically");
+        //     save(filePath);
+        //     faiss_index_logger.info("saved faiss index periodically");
+        //
+        // }
+        lock.unlock();
         return new_id;
     } catch (const std::exception& e) {
        // faiss_index_logger.error(std::string("Failed to reconstruct embedding for ID ") + nodeId + ": " +

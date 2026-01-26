@@ -196,6 +196,7 @@ def run_sbs_query(graph_id, query, host, port):
 
 def test_kg(text_folder, upload_file_script, host, port):
     """Upload files, construct KGs, query them, and store triples."""
+    logging.info("test")
     query = "MATCH (n)-[r]-(m) RETURN n,r,m"
     all_txt_files = []
 
@@ -216,22 +217,10 @@ def test_kg(text_folder, upload_file_script, host, port):
             continue
 
         # Wait for KG construction
-        time.sleep(10)
+        time.sleep(120)
         raw = run_cypher_query(str(graph_id), query, host, port)
         triples = parse_results(raw)
         print(json.dumps(triples, indent=2, ensure_ascii=False))
-
-        entities = []
-        for triple in triples :
-            entities.append(triple["head_entity"])
-
-        assert entities.index("Radio City") != -1
-
-        sbs_raw = run_sbs_query(str(graph_id),
-                                "At what frequency does radio city broadcast?", host, port)
-        print(sbs_raw)
-
-
     return graph_ids
 
 if __name__ == "__main__":

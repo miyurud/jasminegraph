@@ -3757,7 +3757,7 @@ static void streaming_tuple_extraction(
                            std::to_string(content_length));
       std::string traceContext(content_length, 0);
       recv(connFd, &traceContext[0], content_length, 0);
-        instance_logger.info("traceContext: " + traceContext);
+        instance_logger.debug("traceContext: " + traceContext);
       OpenTelemetryUtil::receiveAndSetTraceContext(traceContext, "Streaming tuple extraction");
 
       // Add worker identification attributes to distinguish workers in traces
@@ -3829,8 +3829,8 @@ static void streaming_tuple_extraction(
        {"tuples", tupleArrayString}
             });
           instance_logger.info("Received end signal from producer");
-          instance_logger.info(chunk);
-          instance_logger.info(tupleArrayString);
+          // instance_logger.info(chunk);
+          // instance_logger.info(tupleArrayString);
           tupleBuffer.clear();
           break;
         }
@@ -6032,7 +6032,6 @@ static void processFile(string fileName, bool isLocal, InstanceStreamHandler& ha
             lock.unlock();
             return;
         }
-        instance_logger.info("5516");
         nm = localStore->nm;
         if (nm == nullptr) {
             instance_logger.error("Failed to initialize node manager for: " + graphIdentifier);
