@@ -252,8 +252,6 @@ if(NOT GENERATED_SRC)
     set(GENERATED_SRC ""
             src/frontend/JasmineGraphFrontEnd.cpp
             src/localstore/incremental/JasmineGraphIncrementalLocalStore.cpp
-            src/localstore/incremental/JasmineGraphIncrementalLocalStore.cpp
-            src/localstore/incremental/JasmineGraphIncrementalLocalStore.cpp
             src/frontend/JasmineGraphFrontEnd.cpp)
 endif()
 
