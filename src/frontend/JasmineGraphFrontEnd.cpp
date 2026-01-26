@@ -2065,7 +2065,8 @@ bool JasmineGraphFrontEnd::constructKGStreamHDFSCommand(std::string masterIP, in
         frontend_logger.error(
             "HDFS file System Not reachable at: " +
             hdfsServerIp + " port: " + hdfsPort);
-
+        frontend_logger.error("CURL response code: " +
+                                               std::to_string(res));
         std::string error_message = "HDFS file System Not reachable.";
         write(connFd, error_message.c_str(), error_message.length());
         write(connFd,

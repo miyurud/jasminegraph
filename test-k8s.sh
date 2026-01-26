@@ -83,7 +83,6 @@ setup_gemma3_ollama() {
     echo "✅ Gemma3 ready at http://gemma3:${HOST_PORT}"
 }
 
-
 # Function to start capturing master logs
 start_master_logs() {
     echo "Starting to capture JasmineGraph master logs..."
