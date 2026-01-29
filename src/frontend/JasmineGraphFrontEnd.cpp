@@ -3495,7 +3495,7 @@ static void sheep_command(std::string masterIP, int connFd, SQLiteDBInterface *s
     }
     
     // Generate graph ID
-    int graphID = Utils::getNextGraphID(sqlite);
+    int graphID = sqlite->getNextGraphId();
     
     // Prepare output path
     string outputPath = Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder") + 
