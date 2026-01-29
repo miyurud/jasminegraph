@@ -67,6 +67,8 @@ class SheepPartitioner {
     size_t totalEdges;
     size_t edgeCuts;
     size_t numPartitions;
+    std::vector<size_t> partitionVertexCounts;
+    std::vector<size_t> partitionEdgeCountsVec;
     
     /**
      * Load graph from edge list file

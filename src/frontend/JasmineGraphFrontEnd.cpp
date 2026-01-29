@@ -3452,8 +3452,23 @@ void JasmineGraphFrontEnd::stop_graph_streaming(int connFd, bool *loop_exit_p) {
 static void sheep_command(std::string masterIP, int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_p) {
     frontend_logger.info("Starting sheep partitioning command");
     
+    // Request graph name
+    int result_wr = write(connFd, "send graph name\r\n", 17);
+    if (result_wr < 0) {
+        frontend_logger.error("Error writing to socket");
+        *loop_exit_p = true;
+        return;
+    }
+    
+    char graph_name[FRONTEND_DATA_LENGTH + 1];
+    bzero(graph_name, FRONTEND_DATA_LENGTH + 1);
+    read(connFd, graph_name, FRONTEND_DATA_LENGTH);
+    string graphName(graph_name);
+    graphName = Utils::trim_copy(graphName);
+    frontend_logger.info("Graph name received: " + graphName);
+    
     // Request graph path
-    int result_wr = write(connFd, "send graph path\r\n", 17);
+    result_wr = write(connFd, "send graph path\r\n", 17);
     if (result_wr < 0) {
         frontend_logger.error("Error writing to socket");
         *loop_exit_p = true;
@@ -3494,8 +3509,29 @@ static void sheep_command(std::string masterIP, int connFd, SQLiteDBInterface *s
         return;
     }
     
-    // Generate graph ID
-    int graphID = sqlite->getNextGraphId();
+    // Insert graph record into metadb
+    std::time_t time = chrono::system_clock::to_time_t(chrono::system_clock::now());
+    string uploadStartTime = ctime(&time);
+    uploadStartTime = Utils::trim_copy(uploadStartTime);
+    
+    string sqlStatement =
+        "INSERT INTO graph (name,upload_path,upload_start_time,upload_end_time,graph_status_idgraph_status,"
+        "vertexcount,centralpartitioncount,edgecount) VALUES(\"" +
+        graphName + "\", \"" + graphPath + "\", \"" + uploadStartTime + "\", \"\",\"" +
+        to_string(Conts::GRAPH_STATUS::LOADING) + "\", \"\", \"\", \"\")";
+    int graphID = sqlite->runInsert(sqlStatement);
+    
+    if (graphID < 0) {
+        frontend_logger.error("Failed to insert graph into database");
+        result_wr = write(connFd, "error: database insertion failed\r\n", 35);
+        if (result_wr < 0) {
+            frontend_logger.error("Error writing to socket");
+        }
+        *loop_exit_p = true;
+        return;
+    }
+    
+    frontend_logger.info("Graph record created with ID: " + to_string(graphID));
     
     // Prepare output path
     string outputPath = Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder") + 
@@ -3507,6 +3543,19 @@ static void sheep_command(std::string masterIP, int connFd, SQLiteDBInterface *s
     
     if (success) {
         frontend_logger.info("Sheep partitioning completed successfully for graph ID: " + to_string(graphID));
+        
+        // Update graph status to operational
+        std::time_t endTime = chrono::system_clock::to_time_t(chrono::system_clock::now());
+        string uploadEndTime = ctime(&endTime);
+        uploadEndTime = Utils::trim_copy(uploadEndTime);
+        
+        string updateStatement = "UPDATE graph SET upload_end_time = '" + uploadEndTime +
+                               "', graph_status_idgraph_status = '" + to_string(Conts::GRAPH_STATUS::OPERATIONAL) +
+                               "' WHERE idgraph = '" + to_string(graphID) + "'";
+        sqlite->runUpdate(updateStatement);
+        
+        JasmineGraphFrontEndCommon::getAndUpdateUploadTime(to_string(graphID), sqlite);
+        
         string message = "sheep partitioning completed for graph ID: " + to_string(graphID);
         result_wr = write(connFd, message.c_str(), message.size());
         if (result_wr < 0) {

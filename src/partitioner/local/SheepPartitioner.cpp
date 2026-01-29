@@ -206,6 +206,10 @@ bool SheepPartitioner::writePartitions(const string &outputPath) {
         // Create separate file for each partition
         std::vector<ofstream> partitionFiles(numPartitions);
         
+        // Track vertices and edges per partition
+        std::vector<std::set<vertex_id>> partitionVertices(numPartitions);
+        std::vector<size_t> partitionEdgeCounts(numPartitions, 0);
+        
         for (size_t i = 0; i < numPartitions; i++) {
             string filename = outputPath + to_string(i);
             partitionFiles[i].open(filename);
@@ -223,16 +227,24 @@ bool SheepPartitioner::writePartitions(const string &outputPath) {
             vertex_id source = entry.first;
             partition_id sourcePart = vertexToPartition[source];
             
+            // Track vertex in its partition
+            partitionVertices[sourcePart].insert(source);
+            
             for (vertex_id target : entry.second) {
                 if (source < target) {  // Write each edge once
                     partition_id targetPart = vertexToPartition[target];
                     
+                    // Track vertex in its partition
+                    partitionVertices[targetPart].insert(target);
+                    
                     // Write to source partition
                     partitionFiles[sourcePart] << source << " " << target << "\n";
+                    partitionEdgeCounts[sourcePart]++;
                     
                     // If cross-partition edge, also write to target partition
                     if (sourcePart != targetPart) {
                         partitionFiles[targetPart] << source << " " << target << "\n";
+                        partitionEdgeCounts[targetPart]++;
                     }
                 }
             }
@@ -241,6 +253,14 @@ bool SheepPartitioner::writePartitions(const string &outputPath) {
         // Close all files
         for (auto &file : partitionFiles) {
             file.close();
+        }
+        
+        // Store partition statistics for later metadb update
+        partitionVertexCounts.clear();
+        partitionEdgeCountsVec.clear();
+        for (size_t i = 0; i < numPartitions; i++) {
+            partitionVertexCounts.push_back(partitionVertices[i].size());
+            partitionEdgeCountsVec.push_back(partitionEdgeCounts[i]);
         }
         
         sheep_partitioner_logger.info("Successfully wrote " + to_string(numPartitions) + 
@@ -286,12 +306,27 @@ bool SheepPartitioner::partitionGraph(int graphID, const string &graphPath,
     
     // Update metadata database
     try {
-        string sqlStatement = "UPDATE graph SET partition_algo='sheep' WHERE idgraph=" + 
-                            to_string(graphID);
+        // Update graph table with statistics
+        string sqlStatement = "UPDATE graph SET vertexcount = '" + to_string(adjacencyList.size()) +
+                            "', centralpartitioncount = '" + to_string(numPartitions) +
+                            "', edgecount = '" + to_string(totalEdges) +
+                            "', id_algorithm = 'sheep' WHERE idgraph = '" + to_string(graphID) + "'";
         sqlite->runUpdate(sqlStatement);
         
+        sheep_partitioner_logger.info("Updated graph table with statistics");
+        
+        // Insert partition records
+        for (size_t i = 0; i < numPartitions; i++) {
+            string partitionInsert =
+                "INSERT INTO partition (idpartition, graph_idgraph, vertexcount, central_vertexcount, edgecount) "
+                "VALUES('" + to_string(i) + "', '" + to_string(graphID) + "', '" +
+                to_string(partitionVertexCounts[i]) + "', '0', '" +
+                to_string(partitionEdgeCountsVec[i]) + "')";
+            sqlite->runUpdate(partitionInsert);
+        }
+        
         sheep_partitioner_logger.info("Successfully partitioned graph " + to_string(graphID) + 
-                                     " using sheep algorithm");
+                                     " using sheep algorithm with " + to_string(numPartitions) + " partitions");
     } catch (const std::exception &e) {
         sheep_partitioner_logger.error("Error updating database: " + string(e.what()));
         return false;
