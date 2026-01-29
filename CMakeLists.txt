@@ -38,6 +38,7 @@ set(HEADERS globals.h
         src/ml/trainer/JasmineGraphTrainingSchedular.h
         src/partitioner/local/JSONParser.h
         src/partitioner/local/MetisPartitioner.h
+        src/partitioner/local/SheepPartitioner.h
         src/partitioner/local/RDFParser.h
         src/partitioner/local/RDFPartitioner.h
         src/partitioner/stream/Partition.h
@@ -140,6 +141,7 @@ set(SOURCES src/backend/JasmineGraphBackend.cpp
         src/ml/trainer/JasmineGraphTrainingSchedular.cpp
         src/partitioner/local/JSONParser.cpp
         src/partitioner/local/MetisPartitioner.cpp
+        src/partitioner/local/SheepPartitioner.cpp
         src/partitioner/local/RDFParser.cpp
         src/partitioner/local/RDFPartitioner.cpp
         src/partitioner/stream/Partition.cpp

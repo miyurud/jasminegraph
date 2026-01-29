@@ -34,6 +34,7 @@ limitations under the License.
 #include "../nativestore/RelationBlock.h"
 #include "../partitioner/local/JSONParser.h"
 #include "../partitioner/local/MetisPartitioner.h"
+#include "../partitioner/local/SheepPartitioner.h"
 #include "../partitioner/local/RDFParser.h"
 #include "../partitioner/local/RDFPartitioner.h"
 #include "../partitioner/stream/Partitioner.h"
@@ -123,6 +124,7 @@ static void predict_command(std::string masterIP, int connFd, SQLiteDBInterface 
 static void start_remote_worker_command(int connFd, bool *loop_exit_p);
 static void sla_command(int connFd, SQLiteDBInterface *sqlite, PerformanceSQLiteDBInterface *perfSqlite,
                         bool *loop_exit_p);
+static void sheep_command(std::string masterIP, int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_p);
 std::map<int, std::shared_ptr<::KGConstructionRate>> JasmineGraphFrontEnd::kgConstructionRates = {};
 static vector<DataPublisher *> getWorkerClients(SQLiteDBInterface *sqlite) {
     const vector<Utils::worker> &workerList = Utils::getWorkerList(sqlite);
@@ -272,6 +274,8 @@ void *frontendservicesesion(void *dummyPt) {
             start_remote_worker_command(connFd, &loop_exit);
         } else if (line.compare(SLA) == 0) {
             sla_command(connFd, sqlite, perfSqlite, &loop_exit);
+        } else if (line.compare(SHEEP) == 0) {
+            sheep_command(masterIP, connFd, sqlite, &loop_exit);
         } else {
             frontend_logger.error("Message format not recognized " + line);
             int result_wr = write(connFd, INVALID_FORMAT.c_str(), INVALID_FORMAT.size());
@@ -3442,5 +3446,86 @@ void JasmineGraphFrontEnd::stop_graph_streaming(int connFd, bool *loop_exit_p) {
     } else {
         std::string message2 = "Graph Id not Found";
         int resultWr = write(connFd, message2.c_str(), message2.length());
+    }
+}
+
+static void sheep_command(std::string masterIP, int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_p) {
+    frontend_logger.info("Starting sheep partitioning command");
+    
+    // Request graph path
+    int result_wr = write(connFd, "send graph path\r\n", 17);
+    if (result_wr < 0) {
+        frontend_logger.error("Error writing to socket");
+        *loop_exit_p = true;
+        return;
+    }
+    
+    char graph_path[FRONTEND_DATA_LENGTH + 1];
+    bzero(graph_path, FRONTEND_DATA_LENGTH + 1);
+    read(connFd, graph_path, FRONTEND_DATA_LENGTH);
+    string graphPath(graph_path);
+    graphPath = Utils::trim_copy(graphPath);
+    frontend_logger.info("Graph path received: " + graphPath);
+    
+    // Request number of partitions
+    result_wr = write(connFd, "send number of partitions\r\n", 27);
+    if (result_wr < 0) {
+        frontend_logger.error("Error writing to socket");
+        *loop_exit_p = true;
+        return;
+    }
+    
+    char partition_count[FRONTEND_DATA_LENGTH + 1];
+    bzero(partition_count, FRONTEND_DATA_LENGTH + 1);
+    read(connFd, partition_count, FRONTEND_DATA_LENGTH);
+    string partitionCount(partition_count);
+    partitionCount = Utils::trim_copy(partitionCount);
+    int numPartitions = std::stoi(partitionCount);
+    frontend_logger.info("Number of partitions: " + to_string(numPartitions));
+    
+    // Check if graph file exists
+    if (!Utils::fileExists(graphPath)) {
+        frontend_logger.error("Graph file does not exist: " + graphPath);
+        result_wr = write(connFd, "error: graph file not found\r\n", 29);
+        if (result_wr < 0) {
+            frontend_logger.error("Error writing to socket");
+        }
+        *loop_exit_p = true;
+        return;
+    }
+    
+    // Generate graph ID
+    int graphID = Utils::getNextGraphID(sqlite);
+    
+    // Prepare output path
+    string outputPath = Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder") + 
+                       "/graph_" + to_string(graphID) + "/partitions/sheep_part_";
+    
+    // Create SheepPartitioner instance and partition the graph
+    SheepPartitioner sheepPartitioner(sqlite);
+    bool success = sheepPartitioner.partitionGraph(graphID, graphPath, outputPath, numPartitions);
+    
+    if (success) {
+        frontend_logger.info("Sheep partitioning completed successfully for graph ID: " + to_string(graphID));
+        string message = "sheep partitioning completed for graph ID: " + to_string(graphID);
+        result_wr = write(connFd, message.c_str(), message.size());
+        if (result_wr < 0) {
+            frontend_logger.error("Error writing to socket");
+            *loop_exit_p = true;
+            return;
+        }
+        result_wr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
+        if (result_wr < 0) {
+            frontend_logger.error("Error writing to socket");
+            *loop_exit_p = true;
+            return;
+        }
+    } else {
+        frontend_logger.error("Sheep partitioning failed");
+        result_wr = write(connFd, "error: sheep partitioning failed\r\n", 34);
+        if (result_wr < 0) {
+            frontend_logger.error("Error writing to socket");
+        }
+        *loop_exit_p = true;
     }
 }
