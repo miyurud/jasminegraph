@@ -203,17 +203,17 @@ bool SheepPartitioner::writePartitions(const string &outputPath) {
             std::filesystem::create_directories(parentDir);
         }
         
-        // Create separate files for each partition: local store, central store, and duplicate central store
-        std::vector<ofstream> localStoreFiles(numPartitions);
-        std::vector<ofstream> centralStoreFiles(numPartitions);
-        std::vector<ofstream> duplicateCentralStoreFiles(numPartitions);
-        
         // Track vertices and edges per partition
         std::vector<std::set<vertex_id>> partitionVertices(numPartitions);
         std::vector<size_t> localEdgeCounts(numPartitions, 0);
         std::vector<size_t> centralEdgeCounts(numPartitions, 0);
         
-        // Extract graphID from outputPath (format: path/graphID_...)
+        // Build edge maps for serialization (same format as Metis)
+        std::vector<std::map<int, std::vector<int>>> localStoreMaps(numPartitions);
+        std::vector<std::map<int, std::vector<int>>> centralStoreMaps(numPartitions);
+        std::vector<std::map<int, std::vector<int>>> duplicateCentralStoreMaps(numPartitions);
+        
+        // Extract graphID from outputPath (format: path/graphID_)
         string graphID = "0";
         size_t lastSlash = outputPath.find_last_of("/\\");
         if (lastSlash != string::npos) {
@@ -224,26 +224,7 @@ bool SheepPartitioner::writePartitions(const string &outputPath) {
             }
         }
         
-        // Open all partition files
-        for (size_t i = 0; i < numPartitions; i++) {
-            string localFilename = outputPath + to_string(i);
-            string centralFilename = outputPath.substr(0, outputPath.find_last_of("/\\") + 1) + 
-                                   graphID + "_centralstore_" + to_string(i);
-            string duplicateCentralFilename = outputPath.substr(0, outputPath.find_last_of("/\\") + 1) + 
-                                            graphID + "_centralstore_dp_" + to_string(i);
-            
-            localStoreFiles[i].open(localFilename);
-            centralStoreFiles[i].open(centralFilename);
-            duplicateCentralStoreFiles[i].open(duplicateCentralFilename);
-            
-            if (!localStoreFiles[i].is_open() || !centralStoreFiles[i].is_open() || 
-                !duplicateCentralStoreFiles[i].is_open()) {
-                sheep_partitioner_logger.error("Failed to create partition files for partition " + to_string(i));
-                return false;
-            }
-        }
-        
-        // Write edges to appropriate files based on partition assignment
+        // Build edge maps from adjacency list
         for (const auto &entry : adjacencyList) {
             vertex_id source = entry.first;
             partition_id sourcePart = vertexToPartition[source];
@@ -260,26 +241,59 @@ bool SheepPartitioner::writePartitions(const string &outputPath) {
                     
                     if (sourcePart == targetPart) {
                         // Local edge - both vertices in same partition
-                        localStoreFiles[sourcePart] << source << " " << target << "\n";
+                        localStoreMaps[sourcePart][source].push_back(target);
                         localEdgeCounts[sourcePart]++;
                     } else {
                         // Cross-partition edge
                         // Write to central store of source partition
-                        centralStoreFiles[sourcePart] << source << " " << target << "\n";
+                        centralStoreMaps[sourcePart][source].push_back(target);
                         centralEdgeCounts[sourcePart]++;
                         
                         // Write to duplicate central store of target partition
-                        duplicateCentralStoreFiles[targetPart] << source << " " << target << "\n";
+                        duplicateCentralStoreMaps[targetPart][source].push_back(target);
                     }
                 }
             }
         }
         
-        // Close all files
+        // Serialize and compress files using FlatBuffers format
         for (size_t i = 0; i < numPartitions; i++) {
-            localStoreFiles[i].close();
-            centralStoreFiles[i].close();
-            duplicateCentralStoreFiles[i].close();
+            string localFilename = outputPath + to_string(i);
+            string centralFilename = outputPath.substr(0, outputPath.find_last_of("/\\") + 1) + 
+                                   graphID + "_centralstore_" + to_string(i);
+            string duplicateCentralFilename = outputPath.substr(0, outputPath.find_last_of("/\\") + 1) + 
+                                            graphID + "_centralstore_dp_" + to_string(i);
+            
+            // Store local store using FlatBuffers
+            if (!JasmineGraphHashMapLocalStore::storePartEdgeMap(localStoreMaps[i], localFilename)) {
+                sheep_partitioner_logger.error("Failed to serialize local store for partition " + to_string(i));
+                return false;
+            }
+            
+            // Compress local store file
+            Utils::compressFile(localFilename);
+            
+            // Store central store using FlatBuffers
+            if (!JasmineGraphHashMapCentralStore::storePartEdgeMap(centralStoreMaps[i], centralFilename)) {
+                sheep_partitioner_logger.error("Failed to serialize central store for partition " + to_string(i));
+                return false;
+            }
+            
+            // Compress central store file
+            Utils::compressFile(centralFilename);
+            
+            // Store duplicate central store using FlatBuffers
+            if (!JasmineGraphHashMapCentralStore::storePartEdgeMap(duplicateCentralStoreMaps[i], 
+                                                                   duplicateCentralFilename)) {
+                sheep_partitioner_logger.error("Failed to serialize duplicate central store for partition " + 
+                                             to_string(i));
+                return false;
+            }
+            
+            // Compress duplicate central store file
+            Utils::compressFile(duplicateCentralFilename);
+            
+            sheep_partitioner_logger.info("Serialized and compressed partition " + to_string(i));
         }
         
         // Store partition statistics for later metadb update

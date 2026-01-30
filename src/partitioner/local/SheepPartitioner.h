@@ -22,6 +22,8 @@ limitations under the License.
 #include <queue>
 #include "../../metadb/SQLiteDBInterface.h"
 #include "../../util/Utils.h"
+#include "../../localstore/JasmineGraphHashMapLocalStore.h"
+#include "../../centralstore/JasmineGraphHashMapCentralStore.h"
 
 using std::string;
 
