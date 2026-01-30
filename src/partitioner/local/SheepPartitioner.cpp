@@ -193,7 +193,7 @@ void SheepPartitioner::calculateEdgeCuts() {
 }
 
 bool SheepPartitioner::writePartitions(const string &outputPath) {
-    sheep_partitioner_logger.info("Writing partitions to: " + outputPath);
+    sheep_partitioner_logger.info("Writing partitions with central/local store format to: " + outputPath);
     
     try {
         // Create output directory if needed
@@ -203,26 +203,47 @@ bool SheepPartitioner::writePartitions(const string &outputPath) {
             std::filesystem::create_directories(parentDir);
         }
         
-        // Create separate file for each partition
-        std::vector<ofstream> partitionFiles(numPartitions);
+        // Create separate files for each partition: local store, central store, and duplicate central store
+        std::vector<ofstream> localStoreFiles(numPartitions);
+        std::vector<ofstream> centralStoreFiles(numPartitions);
+        std::vector<ofstream> duplicateCentralStoreFiles(numPartitions);
         
         // Track vertices and edges per partition
         std::vector<std::set<vertex_id>> partitionVertices(numPartitions);
-        std::vector<size_t> partitionEdgeCounts(numPartitions, 0);
+        std::vector<size_t> localEdgeCounts(numPartitions, 0);
+        std::vector<size_t> centralEdgeCounts(numPartitions, 0);
         
+        // Extract graphID from outputPath (format: path/graphID_...)
+        string graphID = "0";
+        size_t lastSlash = outputPath.find_last_of("/\\");
+        if (lastSlash != string::npos) {
+            string filename = outputPath.substr(lastSlash + 1);
+            size_t firstUnderscore = filename.find('_');
+            if (firstUnderscore != string::npos) {
+                graphID = filename.substr(0, firstUnderscore);
+            }
+        }
+        
+        // Open all partition files
         for (size_t i = 0; i < numPartitions; i++) {
-            string filename = outputPath + to_string(i);
-            partitionFiles[i].open(filename);
+            string localFilename = outputPath + to_string(i);
+            string centralFilename = outputPath.substr(0, outputPath.find_last_of("/\\") + 1) + 
+                                   graphID + "_centralstore_" + to_string(i);
+            string duplicateCentralFilename = outputPath.substr(0, outputPath.find_last_of("/\\") + 1) + 
+                                            graphID + "_centralstore_dp_" + to_string(i);
             
-            if (!partitionFiles[i].is_open()) {
-                sheep_partitioner_logger.error("Failed to create partition file: " + filename);
+            localStoreFiles[i].open(localFilename);
+            centralStoreFiles[i].open(centralFilename);
+            duplicateCentralStoreFiles[i].open(duplicateCentralFilename);
+            
+            if (!localStoreFiles[i].is_open() || !centralStoreFiles[i].is_open() || 
+                !duplicateCentralStoreFiles[i].is_open()) {
+                sheep_partitioner_logger.error("Failed to create partition files for partition " + to_string(i));
                 return false;
             }
         }
         
-        // Write edges to partition files
-        // Each edge is written to the partition that contains both vertices
-        // Cross-partition edges are written to both partitions
+        // Write edges to appropriate files based on partition assignment
         for (const auto &entry : adjacencyList) {
             vertex_id source = entry.first;
             partition_id sourcePart = vertexToPartition[source];
@@ -237,22 +258,28 @@ bool SheepPartitioner::writePartitions(const string &outputPath) {
                     // Track vertex in its partition
                     partitionVertices[targetPart].insert(target);
                     
-                    // Write to source partition
-                    partitionFiles[sourcePart] << source << " " << target << "\n";
-                    partitionEdgeCounts[sourcePart]++;
-                    
-                    // If cross-partition edge, also write to target partition
-                    if (sourcePart != targetPart) {
-                        partitionFiles[targetPart] << source << " " << target << "\n";
-                        partitionEdgeCounts[targetPart]++;
+                    if (sourcePart == targetPart) {
+                        // Local edge - both vertices in same partition
+                        localStoreFiles[sourcePart] << source << " " << target << "\n";
+                        localEdgeCounts[sourcePart]++;
+                    } else {
+                        // Cross-partition edge
+                        // Write to central store of source partition
+                        centralStoreFiles[sourcePart] << source << " " << target << "\n";
+                        centralEdgeCounts[sourcePart]++;
+                        
+                        // Write to duplicate central store of target partition
+                        duplicateCentralStoreFiles[targetPart] << source << " " << target << "\n";
                     }
                 }
             }
         }
         
         // Close all files
-        for (auto &file : partitionFiles) {
-            file.close();
+        for (size_t i = 0; i < numPartitions; i++) {
+            localStoreFiles[i].close();
+            centralStoreFiles[i].close();
+            duplicateCentralStoreFiles[i].close();
         }
         
         // Store partition statistics for later metadb update
@@ -260,11 +287,20 @@ bool SheepPartitioner::writePartitions(const string &outputPath) {
         partitionEdgeCountsVec.clear();
         for (size_t i = 0; i < numPartitions; i++) {
             partitionVertexCounts.push_back(partitionVertices[i].size());
-            partitionEdgeCountsVec.push_back(partitionEdgeCounts[i]);
+            // Total edges = local edges + central edges
+            partitionEdgeCountsVec.push_back(localEdgeCounts[i] + centralEdgeCounts[i]);
         }
         
         sheep_partitioner_logger.info("Successfully wrote " + to_string(numPartitions) + 
-                                     " partition files");
+                                     " partition files (local store, central store, and duplicate central store)");
+        
+        // Log statistics for each partition
+        for (size_t i = 0; i < numPartitions; i++) {
+            sheep_partitioner_logger.info("Partition " + to_string(i) + 
+                                        ": local edges=" + to_string(localEdgeCounts[i]) + 
+                                        ", central edges=" + to_string(centralEdgeCounts[i]));
+        }
+        
         return true;
         
     } catch (const std::exception &e) {

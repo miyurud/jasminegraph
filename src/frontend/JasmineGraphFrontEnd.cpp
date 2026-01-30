@@ -3533,9 +3533,10 @@ static void sheep_command(std::string masterIP, int connFd, SQLiteDBInterface *s
     
     frontend_logger.info("Graph record created with ID: " + to_string(graphID));
     
-    // Prepare output path
+    // Prepare output path in format: datafolder/graphID_
+    // The partitioner will append partition number and create central/local store files
     string outputPath = Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder") + 
-                       "/graph_" + to_string(graphID) + "/partitions/sheep_part_";
+                       "/" + to_string(graphID) + "_";
     
     // Create SheepPartitioner instance and partition the graph
     SheepPartitioner sheepPartitioner(sqlite);
