@@ -38,6 +38,40 @@ bool HDFSConnector::isPathValid(const std::string &hdfsPath) {
     }
 }
 
+bool HDFSConnector::writeGraphToHDFS(const std::string &hdfsPath, const std::string &graphData) {
+    if (!fileSystem) {
+        frontend_logger.error("HDFS connection is not established");
+        return false;
+    }
+
+    hdfsFile writeFile = hdfsOpenFile(fileSystem, hdfsPath.c_str(), O_WRONLY | O_CREAT, 0, 0, 0);
+    if (!writeFile) {
+        frontend_logger.error("Failed to open HDFS file for writing: " + hdfsPath);
+        return false;
+    }
+
+    tSize numWrittenBytes = hdfsWrite(fileSystem, writeFile, graphData.c_str(), graphData.length());
+    if (numWrittenBytes == -1) {
+        frontend_logger.error("Failed to write data to HDFS file: " + hdfsPath);
+        hdfsCloseFile(fileSystem, writeFile);
+        return false;
+    }
+
+    if (hdfsFlush(fileSystem, writeFile) != 0) {
+        frontend_logger.error("Failed to flush HDFS file: " + hdfsPath);
+        hdfsCloseFile(fileSystem, writeFile);
+        return false;
+    }
+
+    if (hdfsCloseFile(fileSystem, writeFile) != 0) {
+        frontend_logger.error("Failed to close HDFS file: " + hdfsPath);
+        return false;
+    }
+
+    frontend_logger.info("Successfully wrote graph data to HDFS: " + hdfsPath);
+    return true;
+}
+
 HDFSConnector::~HDFSConnector() {
     if (fileSystem) {
         hdfsDisconnect(fileSystem);

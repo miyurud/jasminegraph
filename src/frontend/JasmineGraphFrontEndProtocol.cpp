@@ -25,6 +25,7 @@ const string SEND = "send";
 const string ERROR = "error";
 const string ADD_STREAM_KAFKA = "adstrmk";
 const string ADD_STREAM_HDFS = "adhdfs";
+const string SAVE_GRAPH_HDFS = "sdhdfs";
 const string CONSTRUCT_KG = "constructkg";
 const string  STOP_CONSTRUCT_KG = "stop-constructkg";
 const string ADD_STREAM_KAFKA_CSV = "adstrmkcsv";
