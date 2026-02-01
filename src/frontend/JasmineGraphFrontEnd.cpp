@@ -1695,7 +1695,7 @@ static void save_graph_hdfs_command(std::string masterIP, int connFd, SQLiteDBIn
                 actualFile = partitionFile + ".gz";
                 // Decompress if needed
                 if (Utils::fileExists(actualFile)) {
-                    Utils::uncompressFile(actualFile);
+                    Utils::unzipFile(actualFile);
                 }
             }
             
