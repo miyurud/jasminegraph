@@ -1668,8 +1668,7 @@ static void save_graph_hdfs_command(std::string masterIP, int connFd, SQLiteDBIn
     }
 
     // Collect graph edges from partition files
-    // Note: This is a simplified approach that reads from local master partition files
-    // In a production environment, you may want to gather data from worker nodes
+    // Deserialize binary partition files and convert to text format
     std::stringstream graphData;
     std::string dataFolder = Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder");
     
@@ -1677,6 +1676,9 @@ static void save_graph_hdfs_command(std::string masterIP, int connFd, SQLiteDBIn
     
     int totalPartitions = 0;
     int processedPartitions = 0;
+    int totalEdges = 0;
+    
+    JasmineGraphHashMapLocalStore hashMapLocalStore;
     
     for (auto workerIter = graphPartitionedHosts.begin(); workerIter != graphPartitionedHosts.end(); workerIter++) {
         JasmineGraphServer::workerPartitions workerPartition = workerIter->second;
@@ -1700,18 +1702,26 @@ static void save_graph_hdfs_command(std::string masterIP, int connFd, SQLiteDBIn
             }
             
             if (Utils::fileExists(partitionFile)) {
-                std::ifstream file(partitionFile);
-                if (file.is_open()) {
-                    std::string line;
-                    while (std::getline(file, line)) {
-                        if (!line.empty()) {
-                            graphData << line << "\n";
+                try {
+                    // Load the binary partition file and deserialize
+                    std::map<int, std::vector<int>> partEdgeMap = hashMapLocalStore.getEdgeHashMap(partitionFile);
+                    
+                    // Convert to text format: source destination
+                    for (auto it = partEdgeMap.begin(); it != partEdgeMap.end(); ++it) {
+                        int vertex = it->first;
+                        std::vector<int> destinationSet = it->second;
+                        
+                        if (!destinationSet.empty()) {
+                            for (std::vector<int>::iterator destIt = destinationSet.begin(); 
+                                 destIt != destinationSet.end(); ++destIt) {
+                                graphData << vertex << " " << (*destIt) << "\n";
+                                totalEdges++;
+                            }
                         }
                     }
-                    file.close();
                     processedPartitions++;
-                } else {
-                    frontend_logger.warn("Could not open partition file: " + partitionFile);
+                } catch (const std::exception& e) {
+                    frontend_logger.error("Error reading partition file " + partitionFile + ": " + std::string(e.what()));
                 }
             } else {
                 frontend_logger.warn("Partition file not found: " + partitionFile);
@@ -1719,7 +1729,9 @@ static void save_graph_hdfs_command(std::string masterIP, int connFd, SQLiteDBIn
         }
     }
     
-    frontend_logger.info("Processed " + std::to_string(processedPartitions) + " out of " + std::to_string(totalPartitions) + " partitions");
+    frontend_logger.info("Processed " + std::to_string(processedPartitions) + " out of " + 
+                        std::to_string(totalPartitions) + " partitions with " + 
+                        std::to_string(totalEdges) + " edges");
 
     // Connect to HDFS and write graph data
     HDFSConnector *hdfsConnector = new HDFSConnector(hdfsServerIp, hdfsPort);
