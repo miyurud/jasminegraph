@@ -53,6 +53,7 @@ extern const string GRAPHID_SEND;
 extern const string SEND_MODE;
 extern const string TRIANGLES;
 extern const string STREAMING_TRIANGLES;
+extern const string HISTORY_TRIANGLE;
 extern const string K_CORE;
 extern const string K_VALUE;
 extern const string K_NN;
@@ -95,6 +96,9 @@ extern const string SEMANTIC_BEAM_SEARCH;
 extern const string PROPERTIES;
 extern const string  UPDATE_PARTITION_META;
 extern const string  META;
+extern const string TEMPORAL_QUERY;
+extern const string TEMPORAL_SNAPSHOT;
+extern const string TEMPORAL_RANGE;
 
 class JasminGraphFrontEndProtocol {
     // Note that this protocol do not need a handshake session since the communication in most of the time is conducted

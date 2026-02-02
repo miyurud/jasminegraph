@@ -21,6 +21,7 @@ limitations under the License.
 #include "../logger/Logger.h"
 #include "KafkaCC.h"
 #include "../../metadb/SQLiteDBInterface.h"
+#include "../../temporalstore/TemporalStore.h"
 
 class StreamHandler {
  public:
@@ -33,9 +34,16 @@ class StreamHandler {
     bool isEndOfStream(const cppkafka::Message &msg);
     Partitioner graphPartitioner;
     int  graphId;
+    uint32_t currentSnapshot;
+    
+    // Temporal storage: one store per partition + central store for cross-partition edges
+    std::map<int, TemporalStore*> localTemporalStores;  // partitionId -> TemporalStore
+    TemporalStore* centralTemporalStore;                // For cross-partition edges
+    
  private:
     KafkaConnector *kstream;
     Logger frontend_logger;
     std::string stream_topic_name;
     std::vector<DataPublisher *> &workerClients;
+    int numberOfPartitions;
 };

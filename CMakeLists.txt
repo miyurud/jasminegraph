@@ -150,6 +150,7 @@ set(SOURCES src/backend/JasmineGraphBackend.cpp
         src/query/algorithms/linkprediction/JasminGraphLinkPredictor.cpp
         src/query/algorithms/triangles/Triangles.cpp
         src/query/algorithms/triangles/StreamingTriangles.cpp
+        src/query/algorithms/triangles/HistoryTriangles.cpp
         src/query/processor/cypher/astbuilder/ASTBuilder.cpp
         src/query/processor/cypher/astbuilder/ASTInternalNode.cpp
         src/query/processor/cypher/astbuilder/ASTLeafNoValue.cpp
@@ -298,6 +299,10 @@ else ()
 endif ()
 
 #TODO: Need to install the library separately
+# Link CRoaring library for bitmap operations
+find_library(ROARING_LIB roaring REQUIRED)
+target_link_libraries(JasmineGraphLib PRIVATE ${ROARING_LIB})
+
 target_link_libraries(JasmineGraphLib PRIVATE sqlite3)
 target_link_libraries(JasmineGraphLib PRIVATE pthread)
 target_link_libraries(JasmineGraphLib PRIVATE rdkafka)
