@@ -78,6 +78,8 @@ static void add_graph_command(std::string masterIP,
     int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_p, std::string command);
 static void remove_graph_command(std::string masterIP,
     int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_p, std::string command);
+static void remove_all_graphs_command(std::string masterIP,
+    int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_p);
 static void triangles_command(std::string masterIP,
     int connFd, SQLiteDBInterface *sqlite, PerformanceSQLiteDBInterface *perfSqlite,
     JobScheduler *jobScheduler, bool *loop_exit_p, std::string command);
@@ -165,6 +167,8 @@ void *uifrontendservicesesion(void *dummyPt) {
             triangles_command(masterIP, connFd, sqlite, perfSqlite, jobScheduler, &loop_exit, line);
         } else if (token.compare(RMGR) == 0) {
             remove_graph_command(masterIP, connFd, sqlite, &loop_exit, line);
+        } else if (token.compare(RMALL) == 0) {
+            remove_all_graphs_command(masterIP, connFd, sqlite, &loop_exit);
         } else if (token.compare(IN_DEGREE) == 0) {
             get_degree_command(connFd, line, numberOfPartitions, "_idd_",  &loop_exit);
         } else if (token.compare(OUT_DEGREE) == 0) {
@@ -698,6 +702,59 @@ static void remove_graph_command(std::string masterIP,
             ui_frontend_logger.error("Error writing to socket");
             *loop_exit_p = true;
         }
+    }
+}
+
+static void remove_all_graphs_command(std::string masterIP,
+    int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_p) {
+    ui_frontend_logger.info("Removing all graphs");
+    
+    // Get all graph IDs
+    string sqlStatement = "SELECT idgraph FROM graph";
+    std::vector<vector<pair<string, string>>> graphIdResults = sqlite->runSelect(sqlStatement);
+    
+    if (graphIdResults.empty()) {
+        ui_frontend_logger.info("No graphs to remove");
+        int result_wr = write(connFd, DONE.c_str(), DONE.size());
+        if (result_wr < 0) {
+            ui_frontend_logger.error("Error writing to socket");
+            *loop_exit_p = true;
+            return;
+        }
+        result_wr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
+        if (result_wr < 0) {
+            ui_frontend_logger.error("Error writing to socket");
+            *loop_exit_p = true;
+        }
+        return;
+    }
+    
+    int removedCount = 0;
+    int totalCount = graphIdResults.size();
+    
+    // Remove each graph
+    for (vector<vector<pair<string, string>>>::iterator i = graphIdResults.begin(); i != graphIdResults.end(); ++i) {
+        string graphID = (*i)[0].second;
+        ui_frontend_logger.info("Removing graph with ID: " + graphID);
+        
+        if (JasmineGraphFrontEndCommon::graphExistsByID(graphID, sqlite)) {
+            JasmineGraphFrontEndCommon::removeGraph(graphID, sqlite, masterIP);
+            removedCount++;
+        }
+    }
+    
+    ui_frontend_logger.info("Removed " + to_string(removedCount) + " out of " + to_string(totalCount) + " graphs");
+    
+    int result_wr = write(connFd, DONE.c_str(), DONE.size());
+    if (result_wr < 0) {
+        ui_frontend_logger.error("Error writing to socket");
+        *loop_exit_p = true;
+        return;
+    }
+    result_wr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
+    if (result_wr < 0) {
+        ui_frontend_logger.error("Error writing to socket");
+        *loop_exit_p = true;
     }
 }
 
