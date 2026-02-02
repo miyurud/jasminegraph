@@ -708,11 +708,11 @@ static void remove_graph_command(std::string masterIP,
 static void remove_all_graphs_command(std::string masterIP,
     int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_p) {
     ui_frontend_logger.info("Removing all graphs");
-    
+
     // Get all graph IDs
     string sqlStatement = "SELECT idgraph FROM graph";
     std::vector<vector<pair<string, string>>> graphIdResults = sqlite->runSelect(sqlStatement);
-    
+
     if (graphIdResults.empty()) {
         ui_frontend_logger.info("No graphs to remove");
         int result_wr = write(connFd, DONE.c_str(), DONE.size());
@@ -728,23 +728,23 @@ static void remove_all_graphs_command(std::string masterIP,
         }
         return;
     }
-    
+
     int removedCount = 0;
     int totalCount = graphIdResults.size();
-    
+
     // Remove each graph
     for (vector<vector<pair<string, string>>>::iterator i = graphIdResults.begin(); i != graphIdResults.end(); ++i) {
         string graphID = (*i)[0].second;
         ui_frontend_logger.info("Removing graph with ID: " + graphID);
-        
+
         if (JasmineGraphFrontEndCommon::graphExistsByID(graphID, sqlite)) {
             JasmineGraphFrontEndCommon::removeGraph(graphID, sqlite, masterIP);
             removedCount++;
         }
     }
-    
+
     ui_frontend_logger.info("Removed " + to_string(removedCount) + " out of " + to_string(totalCount) + " graphs");
-    
+
     int result_wr = write(connFd, DONE.c_str(), DONE.size());
     if (result_wr < 0) {
         ui_frontend_logger.error("Error writing to socket");
