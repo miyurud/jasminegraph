@@ -3551,7 +3551,6 @@ static void temporal_snapshot_command(int connFd, SQLiteDBInterface *sqlite, boo
     int graphId = std::stoi(graphIdStr);
     
     try {
-        // List snapshot files from disk
         std::string snapshotDir = Utils::getJasmineGraphHome() + "/env/data/temporal_snapshots";
         std::vector<std::string> files = Utils::getListOfFilesInDirectory(snapshotDir);
         
@@ -3560,32 +3559,24 @@ static void temporal_snapshot_command(int connFd, SQLiteDBInterface *sqlite, boo
         
         std::string graphPrefix = "graph" + std::to_string(graphId) + "_part";
         bool foundSnapshots = false;
+        std::set<uint32_t> snapshotIds;
         
         for (const auto& file : files) {
             if (file.find(graphPrefix) != std::string::npos && file.find(".tgs") != std::string::npos) {
                 foundSnapshots = true;
                 
-                // Extract snapshot ID from filename
                 size_t snapPos = file.find("_snap");
                 if (snapPos != std::string::npos) {
                     size_t endPos = file.find(".tgs", snapPos);
                     std::string snapshotIdStr = file.substr(snapPos + 5, endPos - (snapPos + 5));
                     uint32_t snapshotId = std::stoul(snapshotIdStr);
-                    
-                    // Load this snapshot to get edge count
-                    uint64_t timeThreshold = 60;
-                    uint64_t edgeThreshold = 10000;
-                    auto temporalStore = std::make_shared<TemporalStore>(graphId, 0, timeThreshold, edgeThreshold, 
-                                                                         SnapshotManager::SnapshotMode::HYBRID);
-                    std::string filePath = snapshotDir + "/" + file;
-                    
-                    if (temporalStore->loadSnapshotFromDisk(filePath)) {
-                        TemporalQueryExecutor executor(temporalStore);
-                        auto result = executor.getEdgesAtSnapshot(snapshotId);
-                        response << "Snapshot " << snapshotId << ": " << result.edges.size() << " edges (" << result.executionTimeMs << "ms)\n";
-                    }
+                    snapshotIds.insert(snapshotId);
                 }
             }
+        }
+        
+        for (const auto& snapshotId : snapshotIds) {
+            response << "Snapshot " << snapshotId << "\n";
         }
         
         if (!foundSnapshots) {
@@ -3736,9 +3727,7 @@ static void history_triangle_command(int connFd, SQLiteDBInterface *sqlite, bool
         } else {
             std::stringstream response;
             response << "Triangle count at snapshot " << snapshotId << ": " << result.triangleCount << "\n";
-            response << "Algorithm: Merged local + central stores with SIMD bitmap intersections\n";
-            response << "Edges: " << result.totalEdges << " total";
-            response << " (" << result.localEdges << " local + " << result.centralEdges << " central)\n";
+            response << "Edges: " << result.totalEdges << "\n";
             response << "Unique nodes: " << result.uniqueNodes << "\n";
             response << "Partitions processed: " << result.partitionsProcessed << "\n";
             response << "Time taken: " << result.durationMs << "ms\n";
