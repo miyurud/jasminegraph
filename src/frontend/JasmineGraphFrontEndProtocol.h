@@ -54,6 +54,7 @@ extern const string SEND_MODE;
 extern const string TRIANGLES;
 extern const string STREAMING_TRIANGLES;
 extern const string HISTORY_TRIANGLE;
+extern const string HISTORY_TRIANGLE_TIMESTAMP;
 extern const string K_CORE;
 extern const string K_VALUE;
 extern const string K_NN;

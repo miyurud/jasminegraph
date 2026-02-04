@@ -36,6 +36,7 @@ const string REFORMAT = "reformat";
 const string TRIANGLES = "trian";
 const string STREAMING_TRIANGLES = "strian";
 const string HISTORY_TRIANGLE = "histrian";
+const string HISTORY_TRIANGLE_TIMESTAMP = "histriat";
 const string GRAPHID_SEND = "graphid-send";
 const string SEND_MODE = "mode-send";
 const string VCOUNT = "vcnt";

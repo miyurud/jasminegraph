@@ -50,7 +50,9 @@ limitations under the License.
 #include "../server/JasmineGraphInstanceProtocol.h"
 #include "../server/JasmineGraphInstanceService.h"
 #include "../server/JasmineGraphServer.h"
+#include "../query/algorithms/triangles/HistoryTriangles.h"
 #include "../temporalstore/TemporalQueryExecutor.h"
+#include "../temporalstore/TemporalStorePersistence.h"
 #include "../util/Conts.h"
 #include "../util/hdfs/HDFSConnector.h"
 #include "../util/hdfs/HDFSStreamHandler.h"
@@ -113,6 +115,7 @@ static void triangles_command(std::string masterIP, int connFd, SQLiteDBInterfac
 static void streaming_triangles_command(std::string masterIP, int connFd, JobScheduler *jobScheduler, bool *loop_exit_p,
                                         int numberOfPartitions, bool *strian_exit);
 static void history_triangle_command(int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_p);
+static void history_triangle_timestamp_command(int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_p);
 static void stop_strian_command(int connFd, bool *strian_exit);
 static void vertex_count_command(int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_p);
 static void edge_count_command(int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_p);
@@ -253,6 +256,8 @@ void *frontendservicesesion(void *dummyPt) {
                                         &JasmineGraphFrontEnd::strian_exit);
         } else if (line.compare(HISTORY_TRIANGLE) == 0) {
             history_triangle_command(connFd, sqlite, &loop_exit);
+        } else if (line.compare(HISTORY_TRIANGLE_TIMESTAMP) == 0) {
+            history_triangle_timestamp_command(connFd, sqlite, &loop_exit);
         } else if (line.compare(STOP_STRIAN) == 0) {
             stop_strian_command(connFd, &JasmineGraphFrontEnd::strian_exit);
         } else if (line.compare(VCOUNT) == 0) {
@@ -3559,24 +3564,29 @@ static void temporal_snapshot_command(int connFd, SQLiteDBInterface *sqlite, boo
         
         std::string graphPrefix = "graph" + std::to_string(graphId) + "_part";
         bool foundSnapshots = false;
-        std::set<uint32_t> snapshotIds;
+        std::map<uint32_t, uint64_t> snapshotTimestamps;
         
         for (const auto& file : files) {
             if (file.find(graphPrefix) != std::string::npos && file.find(".tgs") != std::string::npos) {
                 foundSnapshots = true;
                 
-                size_t snapPos = file.find("_snap");
-                if (snapPos != std::string::npos) {
-                    size_t endPos = file.find(".tgs", snapPos);
-                    std::string snapshotIdStr = file.substr(snapPos + 5, endPos - (snapPos + 5));
-                    uint32_t snapshotId = std::stoul(snapshotIdStr);
-                    snapshotIds.insert(snapshotId);
+                std::string filePath = snapshotDir + "/" + file;
+                uint32_t gId, pId, sId;
+                uint64_t eCount, timestamp;
+                
+                if (TemporalStorePersistence::getFileInfo(filePath, gId, pId, sId, eCount, timestamp)) {
+                    if (snapshotTimestamps.find(sId) == snapshotTimestamps.end()) {
+                        snapshotTimestamps[sId] = timestamp;
+                    }
                 }
             }
         }
         
-        for (const auto& snapshotId : snapshotIds) {
-            response << "Snapshot " << snapshotId << "\n";
+        for (const auto& [snapshotId, timestamp] : snapshotTimestamps) {
+            std::time_t time = timestamp / 1000000000;
+            char timeStr[100];
+            std::strftime(timeStr, sizeof(timeStr), "%Y-%m-%d %H:%M:%S", std::localtime(&time));
+            response << "Snapshot " << snapshotId << " (created: " << timeStr << ")\n";
         }
         
         if (!foundSnapshots) {
@@ -3745,5 +3755,126 @@ static void history_triangle_command(int connFd, SQLiteDBInterface *sqlite, bool
         resultWr = write(connFd, error.c_str(), error.length());
         resultWr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
         frontend_logger.error("Snapshot triangle count error: " + std::string(e.what()));
+    }
+}
+// History Triangle Count by Timestamp Command
+static void history_triangle_timestamp_command(int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_p) {
+    frontend_logger.info("History triangle count by timestamp command received");
+    
+    std::string message = "Graph ID?";
+    int resultWr = write(connFd, message.c_str(), message.length());
+    resultWr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
+    
+    char graphIdBuf[FRONTEND_DATA_LENGTH + 1];
+    memset(graphIdBuf, 0, FRONTEND_DATA_LENGTH + 1);
+    read(connFd, graphIdBuf, FRONTEND_DATA_LENGTH);
+    std::string graphIdStr(graphIdBuf);
+    graphIdStr = Utils::trim_copy(graphIdStr);
+    int graphId = std::stoi(graphIdStr);
+    
+    message = "Timestamp (YYYY-MM-DD HH:MM:SS or Unix epoch)?";
+    resultWr = write(connFd, message.c_str(), message.length());
+    resultWr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
+    
+    char timestampBuf[FRONTEND_DATA_LENGTH + 1];
+    memset(timestampBuf, 0, FRONTEND_DATA_LENGTH + 1);
+    read(connFd, timestampBuf, FRONTEND_DATA_LENGTH);
+    std::string timestampStr(timestampBuf);
+    timestampStr = Utils::trim_copy(timestampStr);
+    
+    try {
+        uint64_t targetTimestamp;
+        
+        if (timestampStr.find("-") != std::string::npos || timestampStr.find(":") != std::string::npos) {
+            struct tm tm = {};
+            if (strptime(timestampStr.c_str(), "%Y-%m-%d %H:%M:%S", &tm) != nullptr) {
+                targetTimestamp = static_cast<uint64_t>(std::mktime(&tm)) * 1000000000ULL;
+            } else {
+                std::string error = "Error: Invalid timestamp format";
+                resultWr = write(connFd, error.c_str(), error.length());
+                resultWr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
+                return;
+            }
+        } else {
+            targetTimestamp = std::stoull(timestampStr);
+            if (targetTimestamp < 1000000000000ULL) {
+                targetTimestamp *= 1000000000ULL;
+            }
+        }
+        
+        std::string snapshotDir = Utils::getJasmineGraphHome() + "/env/data/temporal_snapshots";
+        std::vector<std::string> files = Utils::getListOfFilesInDirectory(snapshotDir);
+        
+        std::string graphPrefix = "graph" + std::to_string(graphId) + "_part";
+        std::map<uint32_t, uint64_t> snapshotTimestamps;
+        
+        for (const auto& file : files) {
+            if (file.find(graphPrefix) != std::string::npos && file.find(".tgs") != std::string::npos) {
+                std::string filePath = snapshotDir + "/" + file;
+                uint32_t gId, pId, sId;
+                uint64_t eCount, timestamp;
+                
+                if (TemporalStorePersistence::getFileInfo(filePath, gId, pId, sId, eCount, timestamp)) {
+                    if (snapshotTimestamps.find(sId) == snapshotTimestamps.end()) {
+                        snapshotTimestamps[sId] = timestamp;
+                    }
+                }
+            }
+        }
+        
+        if (snapshotTimestamps.empty()) {
+            std::string error = "Error: No snapshots found for graph " + std::to_string(graphId);
+            resultWr = write(connFd, error.c_str(), error.length());
+            resultWr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
+            return;
+        }
+        
+        uint32_t closestSnapshotId = 0;
+        uint64_t minDiff = UINT64_MAX;
+        
+        for (const auto& [snapshotId, timestamp] : snapshotTimestamps) {
+            uint64_t diff = (timestamp <= targetTimestamp) ? 
+                          (targetTimestamp - timestamp) : 
+                          (timestamp - targetTimestamp);
+            if (diff < minDiff) {
+                minDiff = diff;
+                closestSnapshotId = snapshotId;
+            }
+        }
+        
+        uint64_t timeThreshold = 60;
+        uint64_t edgeThreshold = 10000;
+        
+        TemporalTriangleResult result = HistoryTriangles::countTrianglesAtSnapshot(
+            graphId, closestSnapshotId, snapshotDir, timeThreshold, edgeThreshold);
+        
+        if (result.partitionsProcessed == 0) {
+            std::string error = "Error: Failed to process snapshot " + std::to_string(closestSnapshotId);
+            resultWr = write(connFd, error.c_str(), error.length());
+            resultWr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
+        } else {
+            std::time_t snapshotTime = snapshotTimestamps[closestSnapshotId] / 1000000000;
+            char timeStr[100];
+            std::strftime(timeStr, sizeof(timeStr), "%Y-%m-%d %H:%M:%S", std::localtime(&snapshotTime));
+            
+            std::stringstream response;
+            response << "Closest snapshot: " << closestSnapshotId << " (created: " << timeStr << ")\n";
+            response << "Triangle count: " << result.triangleCount << "\n";
+            response << "Edges: " << result.totalEdges << "\n";
+            response << "Unique nodes: " << result.uniqueNodes << "\n";
+            response << "Partitions processed: " << result.partitionsProcessed << "\n";
+            response << "Time taken: " << result.durationMs << "ms\n";
+            
+            std::string responseStr = response.str();
+            resultWr = write(connFd, responseStr.c_str(), responseStr.length());
+            resultWr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
+            
+            frontend_logger.info("History triangle count by timestamp completed");
+        }
+    } catch (const std::exception& e) {
+        std::string error = "Error: " + std::string(e.what());
+        resultWr = write(connFd, error.c_str(), error.length());
+        resultWr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
+        frontend_logger.error("Timestamp triangle count error: " + std::string(e.what()));
     }
 }
