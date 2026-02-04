@@ -167,7 +167,7 @@ void *uifrontendservicesesion(void *dummyPt) {
             triangles_command(masterIP, connFd, sqlite, perfSqlite, jobScheduler, &loop_exit, line);
         } else if (token.compare(RMGR) == 0) {
             remove_graph_command(masterIP, connFd, sqlite, &loop_exit, line);
-        } else if (token.compare(RMALL) == 0) {
+        } else if (token.compare(TRUNCATE) == 0) {
             remove_all_graphs_command(masterIP, connFd, sqlite, &loop_exit);
         } else if (token.compare(IN_DEGREE) == 0) {
             get_degree_command(connFd, line, numberOfPartitions, "_idd_",  &loop_exit);

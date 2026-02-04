@@ -240,7 +240,7 @@ void *frontendservicesesion(void *dummyPt) {
             stop_stream_kafka_command(connFd, kstream, &loop_exit);
         } else if (line.compare(RMGR) == 0) {
             remove_graph_command(masterIP, connFd, sqlite, &loop_exit);
-        } else if (line.compare(RMALL) == 0) {
+        } else if (line.compare(TRUNCATE) == 0) {
             remove_all_graphs_command(masterIP, connFd, sqlite, &loop_exit);
         } else if (line.compare(PROCESS_DATASET) == 0) {
             process_dataset_command(connFd, &loop_exit);
