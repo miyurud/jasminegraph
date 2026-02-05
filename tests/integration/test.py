@@ -49,6 +49,7 @@ DONE = b'done'
 ADHDFS = b'adhdfs'
 LINE_END = b'\r\n'
 CYPHER = b'cypher'
+TRUNCATE = b'truncate'
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 UPLOAD_SCRIPT = os.path.join(BASE_DIR, 'utils/datasets/upload-hdfs-file.sh')
@@ -701,6 +702,11 @@ def test(host, port):  # pylint: disable=too-many-branches
                                                      b'ORDER BY n.code ASC',
                                       'tests/integration/utils/expected_output/'
                                       'orderby_expected_output_file.txt',exit_on_failure=True)
+
+        # removing all the uploaded graphs after testing
+        print()
+        logging.info('Removing all uploaded graphs after testing')
+        send_and_expect_response(sock, 'truncate', TRUNCATE, DONE, exit_on_failure=True)
 
         # shutting down workers after testing
         print()
