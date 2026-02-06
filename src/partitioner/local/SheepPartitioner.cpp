@@ -233,24 +233,28 @@ bool SheepPartitioner::writePartitions(const string &outputPath) {
             partitionVertices[sourcePart].insert(source);
             
             for (vertex_id target : entry.second) {
-                if (source < target) {  // Write each edge once
-                    partition_id targetPart = vertexToPartition[target];
-                    
-                    // Track vertex in its partition
-                    partitionVertices[targetPart].insert(target);
-                    
-                    if (sourcePart == targetPart) {
-                        // Local edge - both vertices in same partition
-                        localStoreMaps[sourcePart][source].push_back(target);
+                partition_id targetPart = vertexToPartition[target];
+                
+                // Track vertex in its partition
+                partitionVertices[targetPart].insert(target);
+                
+                if (sourcePart == targetPart) {
+                    // Local edge - both vertices in same partition
+                    // Add both directions to maintain undirected graph
+                    localStoreMaps[sourcePart][source].push_back(target);
+                    if (source < target) {  // Count each edge only once
                         localEdgeCounts[sourcePart]++;
-                    } else {
-                        // Cross-partition edge
-                        // Write to central store of source partition
-                        centralStoreMaps[sourcePart][source].push_back(target);
+                    }
+                } else {
+                    // Cross-partition edge
+                    // To maintain undirected graph for triangle counting, we need both directions:
+                    // 1. Add source->target to source partition's central store
+                    centralStoreMaps[sourcePart][source].push_back(target);
+                    // 2. Add source->target to target partition's duplicate central store
+                    duplicateCentralStoreMaps[targetPart][source].push_back(target);
+                    
+                    if (source < target) {  // Count each edge only once
                         centralEdgeCounts[sourcePart]++;
-                        
-                        // Write to duplicate central store of target partition
-                        duplicateCentralStoreMaps[targetPart][source].push_back(target);
                     }
                 }
             }
@@ -272,6 +276,7 @@ bool SheepPartitioner::writePartitions(const string &outputPath) {
             
             // Compress local store file
             Utils::compressFile(localFilename);
+            partitionFileMap[i] = localFilename + ".gz";
             
             // Store central store using FlatBuffers
             if (!JasmineGraphHashMapCentralStore::storePartEdgeMap(centralStoreMaps[i], centralFilename)) {
@@ -281,6 +286,7 @@ bool SheepPartitioner::writePartitions(const string &outputPath) {
             
             // Compress central store file
             Utils::compressFile(centralFilename);
+            centralStoreFileList[i] = centralFilename + ".gz";
             
             // Store duplicate central store using FlatBuffers
             if (!JasmineGraphHashMapCentralStore::storePartEdgeMap(duplicateCentralStoreMaps[i], 
@@ -292,6 +298,7 @@ bool SheepPartitioner::writePartitions(const string &outputPath) {
             
             // Compress duplicate central store file
             Utils::compressFile(duplicateCentralFilename);
+            centralStoreDuplicateFileList[i] = duplicateCentralFilename + ".gz";
             
             sheep_partitioner_logger.info("Serialized and compressed partition " + to_string(i));
         }
@@ -323,8 +330,8 @@ bool SheepPartitioner::writePartitions(const string &outputPath) {
     }
 }
 
-bool SheepPartitioner::partitionGraph(int graphID, const string &graphPath, 
-                                     const string &outputPath, int numPartitions) {
+std::vector<std::map<int, std::string>> SheepPartitioner::partitionGraph(int graphID, const string &graphPath, 
+                                                                          const string &outputPath, int numPartitions) {
     sheep_partitioner_logger.info("Starting sheep partitioning for graph ID: " + to_string(graphID));
     sheep_partitioner_logger.info("Input graph: " + graphPath);
     sheep_partitioner_logger.info("Output path: " + outputPath);
@@ -335,12 +342,12 @@ bool SheepPartitioner::partitionGraph(int graphID, const string &graphPath,
     // Check if input graph exists
     if (!std::filesystem::exists(graphPath)) {
         sheep_partitioner_logger.error("Input graph file does not exist: " + graphPath);
-        return false;
+        return fullFileList;
     }
     
     // Load the graph
     if (!loadGraph(graphPath)) {
-        return false;
+        return fullFileList;
     }
     
     // Assign vertices to partitions
@@ -351,7 +358,7 @@ bool SheepPartitioner::partitionGraph(int graphID, const string &graphPath,
     
     // Write partitions to files
     if (!writePartitions(outputPath)) {
-        return false;
+        return fullFileList;
     }
     
     // Update metadata database
@@ -379,10 +386,18 @@ bool SheepPartitioner::partitionGraph(int graphID, const string &graphPath,
                                      " using sheep algorithm with " + to_string(numPartitions) + " partitions");
     } catch (const std::exception &e) {
         sheep_partitioner_logger.error("Error updating database: " + string(e.what()));
-        return false;
+        return fullFileList;
     }
     
-    return true;
+    // Build and return file lists for worker distribution
+    fullFileList.push_back(partitionFileMap);
+    fullFileList.push_back(centralStoreFileList);
+    fullFileList.push_back(centralStoreDuplicateFileList);
+    fullFileList.push_back(std::map<int, std::string>());  // Empty attribute files
+    fullFileList.push_back(std::map<int, std::string>());  // Empty central attribute files
+    fullFileList.push_back(std::map<int, std::string>());  // Empty composite central files
+    
+    return fullFileList;
 }
 
 void SheepPartitioner::getPartitioningStats() {

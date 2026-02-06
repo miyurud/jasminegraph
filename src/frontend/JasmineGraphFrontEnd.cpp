@@ -3540,20 +3540,20 @@ static void sheep_command(std::string masterIP, int connFd, SQLiteDBInterface *s
     
     // Create SheepPartitioner instance and partition the graph
     SheepPartitioner sheepPartitioner(sqlite);
-    bool success = sheepPartitioner.partitionGraph(graphID, graphPath, outputPath, numPartitions);
+    vector<std::map<int, string>> fullFileList = sheepPartitioner.partitionGraph(graphID, graphPath, outputPath, numPartitions);
     
-    if (success) {
+    if (!fullFileList.empty()) {
         frontend_logger.info("Sheep partitioning completed successfully for graph ID: " + to_string(graphID));
         
-        // Update graph status to operational
-        std::time_t endTime = chrono::system_clock::to_time_t(chrono::system_clock::now());
-        string uploadEndTime = ctime(&endTime);
-        uploadEndTime = Utils::trim_copy(uploadEndTime);
+        // Upload partition files to workers
+        JasmineGraphServer *server = JasmineGraphServer::getInstance();
+        server->uploadGraphLocally(graphID, Conts::GRAPH_TYPE_NORMAL, fullFileList, masterIP);
         
-        string updateStatement = "UPDATE graph SET upload_end_time = '" + uploadEndTime +
-                               "', graph_status_idgraph_status = '" + to_string(Conts::GRAPH_STATUS::OPERATIONAL) +
-                               "' WHERE idgraph = '" + to_string(graphID) + "'";
-        sqlite->runUpdate(updateStatement);
+        // Clean up temporary directory if it exists
+        string tempDir = Utils::getHomeDir() + "/.jasminegraph/tmp/" + to_string(graphID);
+        if (Utils::fileExists(tempDir)) {
+            Utils::deleteDirectory(tempDir);
+        }
         
         JasmineGraphFrontEndCommon::getAndUpdateUploadTime(to_string(graphID), sqlite);
         

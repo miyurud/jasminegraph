@@ -47,10 +47,10 @@ class SheepPartitioner {
      * @param graphPath Path to the input graph file (edge list format)
      * @param outputPath Base path for output partition files
      * @param numPartitions Number of partitions to create
-     * @return true if partitioning succeeded, false otherwise
+     * @return vector of file maps for distribution to workers
      */
-    bool partitionGraph(int graphID, const string &graphPath, const string &outputPath, 
-                       int numPartitions);
+    std::vector<std::map<int, std::string>> partitionGraph(int graphID, const string &graphPath, 
+                                                            const string &outputPath, int numPartitions);
 
     /**
      * Get partitioning statistics after partitioning
@@ -71,6 +71,12 @@ class SheepPartitioner {
     size_t numPartitions;
     std::vector<size_t> partitionVertexCounts;
     std::vector<size_t> partitionEdgeCountsVec;
+    
+    // File lists for worker distribution
+    std::map<int, std::string> partitionFileMap;
+    std::map<int, std::string> centralStoreFileList;
+    std::map<int, std::string> centralStoreDuplicateFileList;
+    std::vector<std::map<int, std::string>> fullFileList;
     
     /**
      * Load graph from edge list file
