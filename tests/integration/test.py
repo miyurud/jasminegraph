@@ -680,8 +680,8 @@ def test(host, port):  # pylint: disable=too-many-branches
         print()
         logging.info('Removing all uploaded graphs after testing')
         send_and_expect_response(sock, 'lst before truncate', LIST,
-            b'|2|/home/graph_with_properties.txt|/home/graph_with_properties.txt|op|' + LINE_END +
-            b'|3|/home/graph_with_properties_large.txt|/home/graph_with_properties_large.txt|op|')
+            b'|2|/home/graph_with_properties.txt|hdfs:/home/graph_with_properties.txt|op|' + LINE_END +
+            b'|3|/home/graph_with_properties_large.txt|hdfs:/home/graph_with_properties_large.txt|op|')
         send_and_expect_response(sock, 'truncate', TRUNCATE, DONE)
         send_and_expect_response(sock, 'lst after truncate', LIST, EMPTY)
 
