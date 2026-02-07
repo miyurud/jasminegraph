@@ -997,17 +997,37 @@ void JasmineGraphServer::uploadGraphLocally(int graphID, const string graphType,
     }
     int count = 0;
     int file_count = 0;
+    
+    // Use thread pool approach - limit concurrent threads to avoid overwhelming system
+    const int MAX_CONCURRENT_THREADS = std::min(total_threads, 50);
     std::thread *workerThreads = new std::thread[total_threads];
+    int threadsLaunched = 0;
+    int threadsCompleted = 0;
+    
     while (count < total_threads) {
         const auto &workerList = getWorkers(partitionFileMap.size());
         while (true) {
             if (count >= total_threads) {
                 break;
             }
+            
+            // Wait if we've hit the concurrent thread limit
+            while (threadsLaunched - threadsCompleted >= MAX_CONCURRENT_THREADS) {
+                for (int i = threadsCompleted; i < threadsLaunched; i++) {
+                    if (workerThreads[i].joinable()) {
+                        workerThreads[i].join();
+                        threadsCompleted++;
+                        server_logger.info("Thread " + to_string(i) + " completed (progressive join)");
+                        break;
+                    }
+                }
+            }
+            
             worker worker = workerList[graphUploadWorkerTracker];
             std::string partitionFileName = partitionFileMap[file_count];
             workerThreads[count++] = std::thread(batchUploadFile, worker.hostname, worker.port, worker.dataPort,
                                                  graphID, partitionFileName, masterHost);
+            threadsLaunched++;
             copyCentralStoreToAggregateLocation(centralStoreFileMap[file_count]);
             workerThreads[count++] = std::thread(batchUploadCentralStore, worker.hostname, worker.port, worker.dataPort,
                                                  graphID, centralStoreFileMap[file_count], masterHost);
@@ -1037,10 +1057,13 @@ void JasmineGraphServer::uploadGraphLocally(int graphID, const string graphType,
         }
     }
 
-    server_logger.info("Total number of threads to join : " + to_string(count));
-    for (int threadCount = 0; threadCount < count; threadCount++) {
-        workerThreads[threadCount].join();
-        server_logger.info("Thread " + to_string(threadCount) + " joined");
+    server_logger.info("Waiting for remaining threads to complete...");
+    // Join any remaining threads that haven't been joined yet
+    for (int threadCount = threadsCompleted; threadCount < count; threadCount++) {
+        if (workerThreads[threadCount].joinable()) {
+            workerThreads[threadCount].join();
+            server_logger.info("Thread " + to_string(threadCount) + " completed");
+        }
     }
 
     std::time_t time = chrono::system_clock::to_time_t(chrono::system_clock::now());

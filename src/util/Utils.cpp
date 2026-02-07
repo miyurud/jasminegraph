@@ -17,6 +17,7 @@ limitations under the License.
 #include <dirent.h>
 #include <jsoncpp/json/json.h>
 #include <netdb.h>
+#include <netinet/tcp.h>
 #include <pwd.h>
 #include <sys/stat.h>
 #include <unistd.h>
@@ -26,6 +27,7 @@ limitations under the License.
 #include <iomanip>
 #include <regex>
 #include <sstream>
+#include <thread>
 #include <vector>
 
 #include "../../globals.h"
@@ -1123,6 +1125,10 @@ bool Utils::uploadFileToWorker(std::string host, int port, int dataPort, int gra
     if (Utils::connect_wrapper(sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
         return false;
     }
+    
+    // Enable TCP_NODELAY to reduce latency for control messages
+    int flag = 1;
+    setsockopt(sockfd, IPPROTO_TCP, TCP_NODELAY, (char *)&flag, sizeof(int));
 
     if (!Utils::performHandshake(sockfd, data, FED_DATA_LENGTH, masterIP)) {
         Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::CLOSE);
@@ -1161,52 +1167,73 @@ bool Utils::uploadFileToWorker(std::string host, int port, int dataPort, int gra
         return false;
     }
 
-    util_logger.info("Going to send file" + filePath + "/" + fileName + "through file transfer service to worker");
+    util_logger.info("Sending file " + fileName + " through file transfer service to worker");
     Utils::sendFileThroughService(host, dataPort, fileName, filePath);
 
     string response;
     int count = 0;
-    while (true) {
+    int maxRetries = 300; // 5 minutes max with exponential backoff
+    int sleepMs = 50; // Start with 50ms
+    
+    // Wait for file reception with exponential backoff
+    while (count < maxRetries) {
         if (!Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::FILE_RECV_CHK)) {
             Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::CLOSE);
             close(sockfd);
             return false;
         }
-        util_logger.info("Sent: " + JasmineGraphInstanceProtocol::FILE_RECV_CHK);
 
-        util_logger.info("Checking if file is received");
         response = Utils::read_str_trim_wrapper(sockfd, data, FED_DATA_LENGTH);
         if (response.compare(JasmineGraphInstanceProtocol::FILE_RECV_WAIT) == 0) {
-            util_logger.info("Received: " + JasmineGraphInstanceProtocol::FILE_RECV_WAIT);
-            util_logger.info("Checking file status : " + to_string(count));
             count++;
-            sleep(1);
+            std::this_thread::sleep_for(std::chrono::milliseconds(sleepMs));
+            // Exponential backoff up to 1 second
+            if (sleepMs < 1000) {
+                sleepMs = std::min(sleepMs * 2, 1000);
+            }
             continue;
         } else if (response.compare(JasmineGraphInstanceProtocol::FILE_ACK) == 0) {
-            util_logger.info("Received: " + JasmineGraphInstanceProtocol::FILE_ACK);
-            util_logger.info("File transfer completed for file : " + filePath);
+            util_logger.info("File transfer completed for: " + fileName);
             break;
         }
     }
-    // Next we wait till the batch upload completes
-    while (true) {
+    
+    if (count >= maxRetries) {
+        util_logger.error("File reception timeout for: " + fileName);
+        Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::CLOSE);
+        close(sockfd);
+        return false;
+    }
+    
+    // Wait for batch upload completion with exponential backoff
+    count = 0;
+    sleepMs = 50;
+    while (count < maxRetries) {
         if (!Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::BATCH_UPLOAD_CHK)) {
             Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::CLOSE);
             close(sockfd);
             return false;
         }
-        util_logger.info("Sent: " + JasmineGraphInstanceProtocol::BATCH_UPLOAD_CHK);
 
         response = Utils::read_str_trim_wrapper(sockfd, data, FED_DATA_LENGTH);
         if (response.compare(JasmineGraphInstanceProtocol::BATCH_UPLOAD_WAIT) == 0) {
-            util_logger.info("Received: " + JasmineGraphInstanceProtocol::BATCH_UPLOAD_WAIT);
-            sleep(1);
+            count++;
+            std::this_thread::sleep_for(std::chrono::milliseconds(sleepMs));
+            if (sleepMs < 1000) {
+                sleepMs = std::min(sleepMs * 2, 1000);
+            }
             continue;
         } else if (response.compare(JasmineGraphInstanceProtocol::BATCH_UPLOAD_ACK) == 0) {
-            util_logger.info("Received: " + JasmineGraphInstanceProtocol::BATCH_UPLOAD_ACK);
             util_logger.info("Batch upload completed: " + fileName);
             break;
         }
+    }
+    
+    if (count >= maxRetries) {
+        util_logger.error("Batch upload timeout for: " + fileName);
+        Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::CLOSE);
+        close(sockfd);
+        return false;
     }
     Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::CLOSE);
     close(sockfd);
@@ -1376,6 +1403,10 @@ bool Utils::sendFileThroughService(std::string host, int dataPort, std::string f
     if (Utils::connect_wrapper(sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
         return false;
     }
+    
+    // Enable TCP_NODELAY to reduce latency
+    int flag = 1;
+    setsockopt(sockfd, IPPROTO_TCP, TCP_NODELAY, (char *)&flag, sizeof(int));
 
     if (!Utils::sendExpectResponse(sockfd, data, INSTANCE_DATA_LENGTH, fileName,
                                    JasmineGraphInstanceProtocol::SEND_FILE_LEN)) {
@@ -1391,9 +1422,12 @@ bool Utils::sendFileThroughService(std::string host, int dataPort, std::string f
     }
 
     bool status = true;
+    // Use larger buffer for better throughput (64KB)
+    const int BUFFER_SIZE = 65536;
+    unsigned char *buff = new unsigned char[BUFFER_SIZE];
+    
     while (true) {
-        unsigned char buff[1024];
-        int nread = fread(buff, 1, sizeof(buff), fp);
+        int nread = fread(buff, 1, BUFFER_SIZE, fp);
 
         /* If read was success, send data. */
         if (nread > 0) {
@@ -1408,6 +1442,7 @@ bool Utils::sendFileThroughService(std::string host, int dataPort, std::string f
         }
     }
 
+    delete[] buff;
     fclose(fp);
     close(sockfd);
     return status;
