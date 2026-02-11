@@ -1171,17 +1171,27 @@ static void remove_all_graphs_command(std::string masterIP, int connFd, SQLiteDB
     int totalCount = graphIdResults.size();
 
     // Remove each graph
-    for (vector<vector<pair<string, string>>>::iterator i = graphIdResults.begin(); i != graphIdResults.end(); ++i) {
-        string graphID = (*i)[0].second;
+    for (const auto& result : graphIdResults) {
+        string graphID = result[0].second;
         frontend_logger.info("Removing graph with ID: " + graphID);
 
         if (JasmineGraphFrontEndCommon::graphExistsByID(graphID, sqlite)) {
             JasmineGraphFrontEndCommon::removeGraph(graphID, sqlite, masterIP);
             removedCount++;
+        } else {
+            frontend_logger.warn("Graph with ID " + graphID + " does not exist or cannot be removed");
         }
     }
 
-    frontend_logger.info("Removed " + to_string(removedCount) + " out of " + to_string(totalCount) + " graphs");
+    // Differentiate between complete success and partial failure
+    if (removedCount == totalCount) {
+        frontend_logger.info("Successfully removed all " + to_string(totalCount) + " graphs");
+    } else if (removedCount > 0) {
+        frontend_logger.error("Partial failure: Removed only " + to_string(removedCount) + " out of " +
+                              to_string(totalCount) + " graphs");
+    } else {
+        frontend_logger.error("Failed to remove any graphs (0 out of " + to_string(totalCount) + ")");
+    }
 
     int result_wr = write(connFd, DONE.c_str(), DONE.size());
     if (result_wr < 0) {
