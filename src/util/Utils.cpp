@@ -1126,9 +1126,18 @@ bool Utils::uploadFileToWorker(std::string host, int port, int dataPort, int gra
         return false;
     }
     
-    // Enable TCP_NODELAY to reduce latency for control messages
+    // Optimize TCP socket for file uploads
     int flag = 1;
     setsockopt(sockfd, IPPROTO_TCP, TCP_NODELAY, (char *)&flag, sizeof(int));
+    
+    // Increase send/receive buffer sizes for better throughput (1MB)
+    int bufsize = 1024 * 1024;
+    setsockopt(sockfd, SOL_SOCKET, SO_SNDBUF, (char *)&bufsize, sizeof(bufsize));
+    setsockopt(sockfd, SOL_SOCKET, SO_RCVBUF, (char *)&bufsize, sizeof(bufsize));
+    
+    // Enable address reuse
+    int reuse = 1;
+    setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, (char *)&reuse, sizeof(reuse));
 
     if (!Utils::performHandshake(sockfd, data, FED_DATA_LENGTH, masterIP)) {
         Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::CLOSE);
@@ -1404,9 +1413,18 @@ bool Utils::sendFileThroughService(std::string host, int dataPort, std::string f
         return false;
     }
     
-    // Enable TCP_NODELAY to reduce latency
+    // Optimize TCP socket for high-throughput file transfers
     int flag = 1;
     setsockopt(sockfd, IPPROTO_TCP, TCP_NODELAY, (char *)&flag, sizeof(int));
+    
+    // Increase send/receive buffer sizes for better throughput (1MB)
+    int bufsize = 1024 * 1024;
+    setsockopt(sockfd, SOL_SOCKET, SO_SNDBUF, (char *)&bufsize, sizeof(bufsize));
+    setsockopt(sockfd, SOL_SOCKET, SO_RCVBUF, (char *)&bufsize, sizeof(bufsize));
+    
+    // Enable address reuse
+    int reuse = 1;
+    setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, (char *)&reuse, sizeof(reuse));
 
     if (!Utils::sendExpectResponse(sockfd, data, INSTANCE_DATA_LENGTH, fileName,
                                    JasmineGraphInstanceProtocol::SEND_FILE_LEN)) {
