@@ -208,10 +208,10 @@ bool SheepPartitioner::writePartitions(const string &outputPath) {
         std::vector<size_t> localEdgeCounts(numPartitions, 0);
         std::vector<size_t> centralEdgeCounts(numPartitions, 0);
         
-        // Build edge maps for serialization (same format as Metis)
-        std::vector<std::map<int, std::vector<int>>> localStoreMaps(numPartitions);
-        std::vector<std::map<int, std::vector<int>>> centralStoreMaps(numPartitions);
-        std::vector<std::map<int, std::vector<int>>> duplicateCentralStoreMaps(numPartitions);
+        // Use sets for automatic deduplication during construction, then convert to vectors
+        std::vector<std::map<int, std::unordered_set<int>>> localStoreSets(numPartitions);
+        std::vector<std::map<int, std::unordered_set<int>>> centralStoreSets(numPartitions);
+        std::vector<std::map<int, std::unordered_set<int>>> duplicateCentralStoreSets(numPartitions);
         
         // Extract graphID from outputPath (format: path/graphID_)
         string graphID = "0";
@@ -224,39 +224,57 @@ bool SheepPartitioner::writePartitions(const string &outputPath) {
             }
         }
         
-        // Build edge maps from adjacency list
+        // Build edge maps from adjacency list with deduplication
+        // adjacencyList has both directions (A->B and B->A for each edge)
+        // Process only once per edge using source < target check for efficiency
         for (const auto &entry : adjacencyList) {
             vertex_id source = entry.first;
             partition_id sourcePart = vertexToPartition[source];
             
-            // Track vertex in its partition
+            // Track vertex in its partition (do this once per source)
             partitionVertices[sourcePart].insert(source);
             
             for (vertex_id target : entry.second) {
-                partition_id targetPart = vertexToPartition[target];
+                // Skip reverse direction to avoid duplicate processing
+                if (source > target) continue;
                 
-                // Track vertex in its partition
+                partition_id targetPart = vertexToPartition[target];
                 partitionVertices[targetPart].insert(target);
                 
                 if (sourcePart == targetPart) {
-                    // Local edge - both vertices in same partition
-                    // Add both directions to maintain undirected graph
-                    localStoreMaps[sourcePart][source].push_back(target);
-                    if (source < target) {  // Count each edge only once
-                        localEdgeCounts[sourcePart]++;
-                    }
+                    // Local edge - add both directions for undirected graph
+                    localStoreSets[sourcePart][source].insert(target);
+                    localStoreSets[sourcePart][target].insert(source);
+                    localEdgeCounts[sourcePart]++;
                 } else {
-                    // Cross-partition edge
-                    // To maintain undirected graph for triangle counting, we need both directions:
-                    // 1. Add source->target to source partition's central store
-                    centralStoreMaps[sourcePart][source].push_back(target);
-                    // 2. Add source->target to target partition's duplicate central store
-                    duplicateCentralStoreMaps[targetPart][source].push_back(target);
+                    // Cross-partition edge - add to appropriate stores for undirected graph
+                    // Each partition's central store contains outgoing edges from its vertices
+                    centralStoreSets[sourcePart][source].insert(target);
+                    centralStoreSets[targetPart][target].insert(source);
                     
-                    if (source < target) {  // Count each edge only once
-                        centralEdgeCounts[sourcePart]++;
-                    }
+                    // Duplicate central stores contain incoming edges from other partitions
+                    duplicateCentralStoreSets[targetPart][source].insert(target);
+                    duplicateCentralStoreSets[sourcePart][target].insert(source);
+                    
+                    centralEdgeCounts[sourcePart]++;
                 }
+            }
+        }
+        
+        // Convert sets to vectors for serialization
+        std::vector<std::map<int, std::vector<int>>> localStoreMaps(numPartitions);
+        std::vector<std::map<int, std::vector<int>>> centralStoreMaps(numPartitions);
+        std::vector<std::map<int, std::vector<int>>> duplicateCentralStoreMaps(numPartitions);
+        
+        for (size_t i = 0; i < numPartitions; i++) {
+            for (const auto &entry : localStoreSets[i]) {
+                localStoreMaps[i][entry.first] = std::vector<int>(entry.second.begin(), entry.second.end());
+            }
+            for (const auto &entry : centralStoreSets[i]) {
+                centralStoreMaps[i][entry.first] = std::vector<int>(entry.second.begin(), entry.second.end());
+            }
+            for (const auto &entry : duplicateCentralStoreSets[i]) {
+                duplicateCentralStoreMaps[i][entry.first] = std::vector<int>(entry.second.begin(), entry.second.end());
             }
         }
         
