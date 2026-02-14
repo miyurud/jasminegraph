@@ -55,7 +55,7 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 UPLOAD_SCRIPT = os.path.join(BASE_DIR, 'utils/datasets/upload-hdfs-file.sh')
 OLLAMA_SETUP_SCRIPT = os.path.join(BASE_DIR, 'graphRAG/utils/start-ollama.sh')
 TEXT_FOLDER = os.path.join(BASE_DIR, 'graphRAG/KG/gold')
-def expect_response(conn: socket.socket, expected: bytes, timeout: float = 60000.0):
+def expect_response(conn: socket.socket, expected: bytes, timeout: float = 45000.0):
     """Check if the response is equal to the expected response within a timeout.
     Return True if they are equal, False otherwise.
     """
@@ -90,8 +90,13 @@ def expect_response(conn: socket.socket, expected: bytes, timeout: float = 60000
             buffer.extend(received)
             data = bytes(buffer)
             logging.warning(
-                'Output mismatch\nexpected : %s\nreceived : %s',
-                expected.decode(), data.decode())
+                'Output mismatch\n'
+                'expected (bytes): %s\n'
+                'expected (str)  : %s\n'
+                'received (bytes): %s\n'
+                'received (str)  : %s',
+                expected, expected.decode(),
+                data, data.decode())
             passed_all = False
             return False
 
