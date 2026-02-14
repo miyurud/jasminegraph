@@ -224,39 +224,39 @@ bool SheepPartitioner::writePartitions(const string &outputPath) {
             }
         }
         
-        // Build edge maps from adjacency list with deduplication
-        // adjacencyList has both directions (A->B and B->A for each edge)
-        // Process only once per edge using source < target check for efficiency
+        // Build edge maps from adjacency list
+        // Key insight: adjacencyList has both A->B and B->A for each edge
+        // We process ALL edges where source vertex is in each partition (like Metis)
+        // This ensures each partition gets all edges involving its vertices
         for (const auto &entry : adjacencyList) {
             vertex_id source = entry.first;
             partition_id sourcePart = vertexToPartition[source];
             
-            // Track vertex in its partition (do this once per source)
+            // Track vertex in its partition
             partitionVertices[sourcePart].insert(source);
             
             for (vertex_id target : entry.second) {
-                // Skip reverse direction to avoid duplicate processing
-                if (source > target) continue;
-                
                 partition_id targetPart = vertexToPartition[target];
                 partitionVertices[targetPart].insert(target);
                 
                 if (sourcePart == targetPart) {
-                    // Local edge - add both directions for undirected graph
+                    // Local edge - both vertices in same partition
+                    // Using set ensures no duplicates even if input has them
                     localStoreSets[sourcePart][source].insert(target);
-                    localStoreSets[sourcePart][target].insert(source);
-                    localEdgeCounts[sourcePart]++;
+                    // Count edges only once (when processing from lower vertex ID)
+                    if (source < target) {
+                        localEdgeCounts[sourcePart]++;
+                    }
                 } else {
-                    // Cross-partition edge - add to appropriate stores for undirected graph
-                    // Each partition's central store contains outgoing edges from its vertices
+                    // Cross-partition edge
+                    // Add to source partition's central store
                     centralStoreSets[sourcePart][source].insert(target);
-                    centralStoreSets[targetPart][target].insert(source);
-                    
-                    // Duplicate central stores contain incoming edges from other partitions
+                    // Add to target partition's duplicate central store
                     duplicateCentralStoreSets[targetPart][source].insert(target);
-                    duplicateCentralStoreSets[sourcePart][target].insert(source);
-                    
-                    centralEdgeCounts[sourcePart]++;
+                    // Count edges only once
+                    if (source < target) {
+                        centralEdgeCounts[sourcePart]++;
+                    }
                 }
             }
         }

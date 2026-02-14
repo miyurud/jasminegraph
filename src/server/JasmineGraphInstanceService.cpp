@@ -27,6 +27,7 @@ limitations under the License.
 #include "../knowledgegraph/construction/Pipeline.h"
 #include "../knowledgegraph/construction/VLLMTupleStreamer.h"
 #include "../query/algorithms/triangles/StreamingTriangles.h"
+#include "../query/algorithms/triangles/SheepTriangles.h"
 #include "../query/processor/cypher/runtime/InstanceHandler.h"
 #include "../query/processor/nlp/semanticbeamsearch/SemanticBeamSearch.h"
 #include "../server/JasmineGraphServer.h"
@@ -496,7 +497,30 @@ long countLocalTriangles(
     JasmineGraphHashMapDuplicateCentralStore duplicateCentralGraphDB =
         graphDBMapDuplicateCentralStores[duplicateCentralGraphIdentifier];
 
-    result = Triangles::run(graphDB, centralGraphDB, duplicateCentralGraphDB, graphId, partitionId, threadPriority);
+    // Check which algorithm was used for partitioning
+    std::string algorithm = "metis";  // default
+    try {
+        SQLiteDBInterface *refToSqlite = new SQLiteDBInterface();
+        refToSqlite->init();
+        std::string query = "SELECT id_algorithm FROM graph WHERE idgraph = '" + graphId + "'";
+        std::vector<vector<pair<string, string>>> queryResults = refToSqlite->runSelect(query);
+        if (!queryResults.empty() && !queryResults[0].empty()) {
+            algorithm = queryResults[0][0].second;
+        }
+        refToSqlite->finalize();
+        delete refToSqlite;
+    } catch (const std::exception &e) {
+        instance_logger.error("Error checking graph algorithm: " + std::string(e.what()));
+    }
+
+    // Use appropriate triangle counting algorithm
+    if (algorithm == "sheep") {
+        instance_logger.info("###INSTANCE### Using SheepTriangles algorithm for sheep-partitioned graph");
+        result = SheepTriangles::run(graphDB, centralGraphDB, duplicateCentralGraphDB, graphId, partitionId);
+    } else {
+        instance_logger.info("###INSTANCE### Using standard Triangles algorithm");
+        result = Triangles::run(graphDB, centralGraphDB, duplicateCentralGraphDB, graphId, partitionId, threadPriority);
+    }
 
     instance_logger.info("###INSTANCE### Local Triangle Count : Completed: Triangles: " + to_string(result));
 
