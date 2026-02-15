@@ -63,3 +63,4 @@ const string PROPERTIES = "prp";
 const string UPDATE_PARTITION_META = "update-partition-meta";
 const string META = "meta";
 const string SHEEP = "sheep";
+const string SHTRIAN = "shtrian";
