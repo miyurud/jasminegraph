@@ -11,8 +11,8 @@ See the License for the specific language governing permissions and
 limitations under the License.
  */
 
-#ifndef JASMINEGRAPH_TRIANGLECOUNTEXECUTOR_H
-#define JASMINEGRAPH_TRIANGLECOUNTEXECUTOR_H
+#ifndef JASMINEGRAPH_SHEEPTRIANGLECOUNTEXECUTOR_H
+#define JASMINEGRAPH_SHEEPTRIANGLECOUNTEXECUTOR_H
 
 #include <chrono>
 #include <unordered_map>
@@ -27,17 +27,22 @@ limitations under the License.
 #include "../../CoreConstants.h"
 #include "../AbstractExecutor.h"
 
-class TriangleCountExecutor : public AbstractExecutor {
+/**
+ * Dedicated executor for sheep-partitioned graph triangle counting.
+ * This executor is specialized for graphs partitioned using the sheep algorithm
+ * and uses optimized triangle counting methods.
+ */
+class SheepTriangleCountExecutor : public AbstractExecutor {
  public:
-    TriangleCountExecutor();
+    SheepTriangleCountExecutor();
 
-    TriangleCountExecutor(SQLiteDBInterface *db, PerformanceSQLiteDBInterface *perfDb, JobRequest jobRequest);
+    SheepTriangleCountExecutor(SQLiteDBInterface *db, PerformanceSQLiteDBInterface *perfDb, JobRequest jobRequest);
 
     void execute();
 
     int getUid();
 
-    static long getTriangleCount(
+    static long getSheepTriangleCount(
         int graphId, std::string host, int port, int dataPort, int partitionId, std::string masterIP, int uniqueId,
         bool isCompositeAggregation, int threadPriority, std::vector<std::vector<string>> fileCombinations,
         std::map<std::string, std::string> *combinationWorkerMap_p,
@@ -58,21 +63,10 @@ class TriangleCountExecutor : public AbstractExecutor {
                                                     std::string aggregatorDataPort, int graphId, int partitionId,
                                                     std::string masterIP);
 
-    static long aggregateCentralStoreTriangles(SQLiteDBInterface *sqlite, std::string graphId, std::string masterIP,
-                                               int threadPriority,
-                                               const std::map<string, std::vector<string>> &partitionMap);
-
-    static string countCentralStoreTriangles(std::string aggregatorPort, std::string host, std::string partitionId,
-                                             std::string partitionIdList, std::string graphId, std::string masterIP,
-                                             int threadPriority, std::string traceContext);
-
-    static bool proceedOrNot(std::set<string> partitionSet, int partitionId);
-
-    static void updateMap(int partitionId);
-
  private:
     SQLiteDBInterface *sqlite;
     PerformanceSQLiteDBInterface *perfDB;
+    JobRequest request;
 };
 
-#endif  // JASMINEGRAPH_TRIANGLECOUNTEXECUTOR_H
+#endif  // JASMINEGRAPH_SHEEPTRIANGLECOUNTEXECUTOR_H

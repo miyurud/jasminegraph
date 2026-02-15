@@ -1083,7 +1083,7 @@ static int updateTriangleTreeAndGetTriangleCount(
     return aggregateCount;
 }
 
-static long aggregateCentralStoreTriangles(SQLiteDBInterface *sqlite, std::string graphId, std::string masterIP,
+long TriangleCountExecutor::aggregateCentralStoreTriangles(SQLiteDBInterface *sqlite, std::string graphId, std::string masterIP,
                                            int threadPriority,
                                            const std::map<string, std::vector<string>> &partitionMap) {
     OTEL_TRACE_FUNCTION();

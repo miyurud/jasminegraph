@@ -3674,12 +3674,12 @@ static void sheep_triangles_command(std::string masterIP, int connFd, SQLiteDBIn
     auto begin = chrono::high_resolution_clock::now();
     JobRequest jobDetails;
     jobDetails.setJobId(std::to_string(uniqueId));
-    jobDetails.setJobType(TRIANGLES);  // Using same job type since backend handles algorithm selection
+    jobDetails.setJobType(SHEEP_TRIANGLES);  // Dedicated job type for sheep triangle counting
 
     long graphSLA = -1;
     if (threadPriority > Conts::DEFAULT_THREAD_PRIORITY) {
         threadPriority = Conts::HIGH_PRIORITY_DEFAULT_VALUE;
-        graphSLA = JasmineGraphFrontEndCommon::getSLAForGraphId(sqlite, perfSqlite, graph_id, TRIANGLES,
+        graphSLA = JasmineGraphFrontEndCommon::getSLAForGraphId(sqlite, perfSqlite, graph_id, SHEEP_TRIANGLES,
                                                                 Conts::SLA_CATEGORY::LATENCY);
         jobDetails.addParameter(Conts::PARAM_KEYS::GRAPH_SLA, std::to_string(graphSLA));
     }
