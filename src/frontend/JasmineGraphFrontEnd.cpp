@@ -3725,7 +3725,7 @@ static void sheep_triangles_command(std::string masterIP, int connFd, SQLiteDBIn
         return;
     }
 
-    std::string triangleCount = jobResponse.getParameter(Conts::PARAM_KEYS::TRIANGLE_COUNT);
+    std::string sheepTriangleCount = jobResponse.getParameter(Conts::PARAM_KEYS::TRIANGLE_COUNT);
 
     if (threadPriority == Conts::HIGH_PRIORITY_DEFAULT_VALUE) {
         highPriorityTaskCount--;
@@ -3734,9 +3734,9 @@ static void sheep_triangles_command(std::string masterIP, int connFd, SQLiteDBIn
     auto end = chrono::high_resolution_clock::now();
     auto dur = end - begin;
     auto msDuration = std::chrono::duration_cast<std::chrono::milliseconds>(dur).count();
-    frontend_logger.info("Req: " + reqId + " Sheep Triangle Count: " + triangleCount +
+    frontend_logger.info("Req: " + reqId + " Sheep-Partitioned Triangle Count: " + sheepTriangleCount +
                          " Time Taken: " + to_string(msDuration) + " milliseconds");
-    result_wr = write(connFd, triangleCount.c_str(), triangleCount.length());
+    result_wr = write(connFd, sheepTriangleCount.c_str(), sheepTriangleCount.length());
     if (result_wr < 0) {
         frontend_logger.error("Error writing to socket");
         *loop_exit_p = true;
