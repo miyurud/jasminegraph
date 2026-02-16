@@ -95,4 +95,10 @@ int alloc_net_plan(std::map<int, std::string> &alloc, std::vector<int> &parts,
 void filter_partitions(std::map<std::string, std::vector<std::string>> &partitionMap, SQLiteDBInterface *sqlite,
                       std::string graphId);
 
+// Shared synchronization primitives and state
+extern std::mutex processStatusMutex;
+extern std::mutex responseVectorMutex;
+extern bool isStatCollect;
+extern time_t last_exec_time;
+
 #endif  // JASMINEGRAPH_TRIANGLECOUNTEXECUTOR_H
