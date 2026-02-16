@@ -27,6 +27,7 @@ set(HEADERS globals.h
         src/frontend/core/executor/AbstractExecutor.h
         src/frontend/core/executor/impl/TriangleCountExecutor.h
         src/frontend/core/executor/impl/StreamingTriangleCountExecutor.h
+        src/frontend/core/executor/impl/SheepTriangleCountExecutor.h
         src/frontend/core/factory/ExecutorFactory.h
         src/frontend/core/scheduler/JobScheduler.h
         src/knowledgegraph/construction/Pipeline.h
@@ -130,6 +131,7 @@ set(SOURCES src/backend/JasmineGraphBackend.cpp
         src/frontend/core/executor/AbstractExecutor.cpp
         src/frontend/core/executor/impl/TriangleCountExecutor.cpp
         src/frontend/core/executor/impl/StreamingTriangleCountExecutor.cpp
+        src/frontend/core/executor/impl/SheepTriangleCountExecutor.cpp
         src/frontend/core/factory/ExecutorFactory.cpp
         src/frontend/core/scheduler/JobScheduler.cpp
         src/knowledgegraph/construction/Pipeline.cpp
