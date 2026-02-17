@@ -322,9 +322,9 @@ void SheepTriangleCountExecutor::execute() {
     JobResponse jobResponse;
     jobResponse.setJobId(request.getJobId());
     jobResponse.addParameter(Conts::PARAM_KEYS::TRIANGLE_COUNT, std::to_string(result));
-    responseVector.push_back(jobResponse);
-
+    
     responseVectorMutex.lock();
+    responseVector.push_back(jobResponse);
     responseMap[request.getJobId()] = jobResponse;
     responseVectorMutex.unlock();
 
