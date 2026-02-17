@@ -474,8 +474,8 @@ long countLocalTriangles(
     std::string duplicateCentralGraphIdentifier = graphId + "_centralstore_dp_" + partitionId;
 
     auto localMapIterator = graphDBMapLocalStores.find(graphIdentifier);
-    auto centralStoreIterator = graphDBMapCentralStores.find(graphIdentifier);
-    auto duplicateCentralStoreIterator = graphDBMapDuplicateCentralStores.find(graphIdentifier);
+    auto centralStoreIterator = graphDBMapCentralStores.find(centralGraphIdentifier);
+    auto duplicateCentralStoreIterator = graphDBMapDuplicateCentralStores.find(duplicateCentralGraphIdentifier);
 
     if (localMapIterator == graphDBMapLocalStores.end() &&
         JasmineGraphInstanceService::isGraphDBExists(graphId, partitionId)) {
