@@ -202,3 +202,33 @@ std::string DBInterface::getPartitionAlgoByGraphID(std::string graphID) {
 
     return result;
 }
+
+std::string DBInterface::getDirectionByGraphID(std::string graphID) {
+    std::string query = "SELECT is_directed FROM graph WHERE idgraph = ?;";
+    sqlite3_stmt* stmt;
+
+    if (sqlite3_prepare_v2(database, query.c_str(), -1, &stmt, NULL) != SQLITE_OK) {
+        interface_logger.error("SQL Error: Failed to prepare statement");
+        return "";
+    }
+
+    if (sqlite3_bind_text(stmt, 1, graphID.c_str(), -1, SQLITE_STATIC) != SQLITE_OK) {
+        interface_logger.error("SQL Error: Failed to bind parameter");
+        sqlite3_finalize(stmt);
+        return "";
+    }
+
+    std::string result = "";
+
+    if (sqlite3_step(stmt) == SQLITE_ROW) {
+        if (sqlite3_column_type(stmt, 0) != SQLITE_NULL) {
+            result = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 0));
+        }
+    } else {
+        interface_logger.info("No record found for graphID: " + graphID);
+    }
+
+    sqlite3_finalize(stmt);
+
+    return result;
+}

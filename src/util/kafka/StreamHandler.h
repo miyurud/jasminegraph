@@ -28,6 +28,7 @@ class StreamHandler {
     StreamHandler(KafkaConnector *kstream, int numberOfPartitions,
                   std::vector<DataPublisher *> &workerClients, SQLiteDBInterface* sqlite,
                   int graphId, bool isDirected, spt::Algorithms algo = spt::Algorithms::HASH);
+    ~StreamHandler();
     void listen_to_kafka_topic();
     cppkafka::Message pollMessage();
     bool isErrorInMessage(const cppkafka::Message &msg);

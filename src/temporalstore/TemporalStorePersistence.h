@@ -19,6 +19,7 @@ limitations under the License.
 #include <vector>
 #include <map>
 #include <cstring>
+#include <dirent.h>
 #include "EdgeLifespanBitmap.h"
 #include "PropertyIntervalDictionary.h"
 #include "BitmapCompression.h"
@@ -328,6 +329,59 @@ public:
         return baseDir + "/graph" + std::to_string(graphId) + 
                "_part" + std::to_string(partitionId) +
                "_snap" + std::to_string(snapshotId) + ".tgs";
+    }
+    
+    /**
+     * Find the highest snapshot ID for a given graph and partition
+     * Returns 0 if no snapshots exist
+     * 
+     * This scans the snapshot directory and finds the maximum snapshot ID
+     * for the specified graph/partition combination. Used when restarting
+     * to continue from the last saved snapshot.
+     */
+    static uint32_t findHighestSnapshotId(const std::string& baseDir,
+                                          uint32_t graphId,
+                                          uint32_t partitionId) {
+        uint32_t maxSnapshotId = 0;
+        
+        // Generate prefix pattern for this graph/partition
+        std::string prefix = "graph" + std::to_string(graphId) + 
+                           "_part" + std::to_string(partitionId) + 
+                           "_snap";
+        
+        // Try to open directory
+        DIR* dir = opendir(baseDir.c_str());
+        if (!dir) {
+            return 0;
+        }
+        
+        struct dirent* entry;
+        while ((entry = readdir(dir)) != nullptr) {
+            std::string filename(entry->d_name);
+            
+            // Check if this file matches our pattern
+            if (filename.find(prefix) == 0 && filename.find(".tgs") != std::string::npos) {
+                // Extract snapshot ID from filename
+                // Format: graph{ID}_part{ID}_snap{ID}.tgs
+                size_t snapPos = filename.find("_snap") + 5;  // Position after "_snap"
+                size_t dotPos = filename.find(".tgs");
+                
+                if (snapPos != std::string::npos && dotPos != std::string::npos) {
+                    std::string snapIdStr = filename.substr(snapPos, dotPos - snapPos);
+                    try {
+                        uint32_t snapshotId = std::stoul(snapIdStr);
+                        if (snapshotId > maxSnapshotId) {
+                            maxSnapshotId = snapshotId;
+                        }
+                    } catch (...) {
+                        // Skip invalid filenames
+                    }
+                }
+            }
+        }
+        
+        closedir(dir);
+        return maxSnapshotId;
     }
 };
 

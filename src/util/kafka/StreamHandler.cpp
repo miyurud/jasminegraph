@@ -17,10 +17,12 @@ limitations under the License.
 #include <nlohmann/json.hpp>
 #include <string>
 #include <stdlib.h>
+#include <sys/stat.h>
 
 #include "../logger/Logger.h"
 #include "../Utils.h"
 #include "../../server/JasmineGraphServer.h"
+#include "../../temporalstore/TemporalStorePersistence.h"
 
 using json = nlohmann::json;
 using namespace std;
@@ -65,8 +67,88 @@ StreamHandler::StreamHandler(KafkaConnector *kstream, int numberOfPartitions,
             SnapshotManager::SnapshotMode::HYBRID
         );
         
+        // Restore snapshot state from disk if snapshots exist
+        std::string snapshotDir = Utils::getJasmineGraphHome() + "/env/data/temporal_snapshots";
+        
+        // Check if directory exists
+        struct stat st;
+        if (stat(snapshotDir.c_str(), &st) == 0 && S_ISDIR(st.st_mode)) {
+            // Restore local partition stores
+            for (int partitionId = 0; partitionId < numberOfPartitions; partitionId++) {
+                uint32_t maxSnapshotId = TemporalStorePersistence::findHighestSnapshotId(
+                    snapshotDir, graphId, partitionId);
+                
+                // Continue from the NEXT snapshot after the highest one found
+                // Note: Snapshot 0 is valid! We check for UINT32_MAX (not found) instead
+                if (maxSnapshotId != UINT32_MAX) {
+                    // Load the snapshot data from disk
+                    std::string snapshotFilePath = TemporalStorePersistence::generateFilePath(
+                        snapshotDir, graphId, partitionId, maxSnapshotId);
+                    
+                    if (localTemporalStores[partitionId]->loadSnapshotFromDisk(snapshotFilePath)) {
+                        // Set to the loaded snapshot ID first
+                        localTemporalStores[partitionId]->getSnapshotManager()->setCurrentSnapshotId(maxSnapshotId);
+                        
+                        // Open new snapshot to mark all loaded edges as active in next snapshot (cumulative semantics)
+                        uint32_t newSnapshotId = localTemporalStores[partitionId]->openNewSnapshot();
+                        
+                        stream_handler_logger.info("Restored temporal state for graph " + std::to_string(graphId) + 
+                                                  " partition " + std::to_string(partitionId) + 
+                                                  " from snapshot " + std::to_string(maxSnapshotId) +
+                                                  ", continuing with snapshot " + std::to_string(newSnapshotId));
+                    } else {
+                        stream_handler_logger.error("Failed to load snapshot for graph " + std::to_string(graphId) + 
+                                                   " partition " + std::to_string(partitionId) + 
+                                                   " from snapshot " + std::to_string(maxSnapshotId));
+                    }
+                }
+            }
+            
+            // Restore central store (partitionId = numberOfPartitions)
+            uint32_t maxCentralSnapshotId = TemporalStorePersistence::findHighestSnapshotId(
+                snapshotDir, graphId, numberOfPartitions);
+            
+            if (maxCentralSnapshotId != UINT32_MAX) {
+                // Load the central snapshot data from disk
+                std::string centralSnapshotFilePath = TemporalStorePersistence::generateFilePath(
+                    snapshotDir, graphId, numberOfPartitions, maxCentralSnapshotId);
+                
+                if (centralTemporalStore->loadSnapshotFromDisk(centralSnapshotFilePath)) {
+                    // Set to the loaded snapshot ID first
+                    centralTemporalStore->getSnapshotManager()->setCurrentSnapshotId(maxCentralSnapshotId);
+                    
+                    // Open new snapshot to mark all loaded edges as active in next snapshot (cumulative semantics)
+                    uint32_t newCentralSnapshotId = centralTemporalStore->openNewSnapshot();
+                    
+                    stream_handler_logger.info("Restored central temporal state for graph " + std::to_string(graphId) + 
+                                              " from snapshot " + std::to_string(maxCentralSnapshotId) +
+                                              ", continuing with snapshot " + std::to_string(newCentralSnapshotId));
+                } else {
+                    stream_handler_logger.error("Failed to load central snapshot for graph " + std::to_string(graphId) + 
+                                               " from snapshot " + std::to_string(maxCentralSnapshotId));
+                }
+            }
+        }
+        
         stream_handler_logger.info("Temporal storage enabled for graph " + std::to_string(graphId) + 
                                   " with " + std::to_string(numberOfPartitions) + " partitions");
+    }
+}
+
+// Destructor: Clean up temporal stores to prevent memory leaks
+StreamHandler::~StreamHandler() {
+    // Clean up local partition stores
+    for (auto& [partitionId, store] : localTemporalStores) {
+        if (store != nullptr) {
+            delete store;
+        }
+    }
+    localTemporalStores.clear();
+    
+    // Clean up central store
+    if (centralTemporalStore != nullptr) {
+        delete centralTemporalStore;
+        centralTemporalStore = nullptr;
     }
 }
 
@@ -84,7 +166,7 @@ bool StreamHandler::isErrorInMessage(const cppkafka::Message &msg) {
         auto errorCode = msg.get_error().get_error();
         if (errorCode == RD_KAFKA_RESP_ERR__PARTITION_EOF) {
             // Reached end of partition - this is expected, not an error
-            stream_handler_logger.info("Reached end of partition " + std::to_string(msg.get_partition()));
+            return true;
         } else if (errorCode == RD_KAFKA_RESP_ERR__TIMED_OUT) {
             // Poll timeout - normal, just no messages available
             return true;
@@ -153,12 +235,6 @@ void StreamHandler::listen_to_kafka_topic() {
                 lastProgressCheck = messagesProcessed;
             }
             
-            if (emptyPolls % 10 == 0 && emptyPolls > 0) {
-                stream_handler_logger.info("Waiting for messages (empty polls: " + 
-                                          std::to_string(emptyPolls) + ", processed: " + 
-                                          std::to_string(messagesProcessed) + ")");
-            }
-            
             if (messagesProcessed > 0 && emptyPolls >= MAX_CONSECUTIVE_EMPTY_POLLS) {
                 stream_handler_logger.info("Stream timeout: No messages for " + 
                                           std::to_string(MAX_CONSECUTIVE_EMPTY_POLLS) + " seconds");
@@ -176,10 +252,6 @@ void StreamHandler::listen_to_kafka_topic() {
         if (messagesProcessed > lastProgressCheck) {
             emptyPolls = 0;
             lastProgressCheck = messagesProcessed;
-        }
-        
-        if (messagesProcessed % 1000 == 0) {
-            stream_handler_logger.info("Progress: Processed " + std::to_string(messagesProcessed) + " messages");
         }
         
         string data(msg.get_payload());
@@ -210,51 +282,90 @@ void StreamHandler::listen_to_kafka_topic() {
         long temp_d = part_d % n_workers;
 
         if (!localTemporalStores.empty()) {
-            if (part_s == part_d) {
-                // Local edge: both nodes in same partition
-                if (localTemporalStores.find(part_s) == localTemporalStores.end()) {
-                    stream_handler_logger.error("Invalid partition ID " + std::to_string(part_s) + 
-                                               " for edge " + sId + "-" + dId);
-                    continue;
-                }
-                uint64_t partitionSnapshot = localTemporalStores[part_s]->getCurrentSnapshotId();
-                localTemporalStores[part_s]->addEdge(sId, dId, partitionSnapshot);
-                localEdgesAdded++;
-                
-                if (localTemporalStores[part_s]->shouldCreateSnapshot()) {
-                    stream_handler_logger.info("Finalizing temporal snapshot " + std::to_string(partitionSnapshot) + 
-                                              " for partition " + std::to_string(part_s));
+            try {
+                if (part_s == part_d) {
+                    // Local edge: both nodes in same partition
+                    if (localTemporalStores.find(part_s) == localTemporalStores.end()) {
+                        stream_handler_logger.error("Invalid partition ID " + std::to_string(part_s) + 
+                                                   " for edge " + sId + "-" + dId);
+                        continue;
+                    }
+                    uint64_t partitionSnapshot = localTemporalStores[part_s]->getCurrentSnapshotId();
+                    localTemporalStores[part_s]->addEdge(sId, dId, partitionSnapshot);
+                    localEdgesAdded++;
                     
-                    std::string snapshotDir = Utils::getJasmineGraphHome() + "/env/data/temporal_snapshots";
-                    Utils::createDirectory(snapshotDir);
+                    if (localTemporalStores[part_s]->shouldCreateSnapshot()) {
+                        stream_handler_logger.info("Finalizing temporal snapshot " + std::to_string(partitionSnapshot) + 
+                                                  " for partition " + std::to_string(part_s));
+                        
+                        std::string snapshotDir = Utils::getJasmineGraphHome() + "/env/data/temporal_snapshots";
+                        Utils::createDirectory(snapshotDir);
+                        
+                        if (localTemporalStores[part_s]->saveSnapshotToDisk(snapshotDir, false)) {
+                            stream_handler_logger.info("Saved snapshot " + std::to_string(partitionSnapshot) + 
+                                                      " partition " + std::to_string(part_s) + " to disk");
+                            localTemporalStores[part_s]->openNewSnapshot();
+                        } else {
+                            stream_handler_logger.error("Failed to save snapshot for partition " + std::to_string(part_s));
+                        }
+                    }
+                } else {
+                    // Central edge: cross-partition
+                    if (centralTemporalStore == nullptr) {
+                        stream_handler_logger.error("Central temporal store is null for edge " + sId + "-" + dId);
+                        continue;
+                    }
+                    uint64_t centralSnapshot = centralTemporalStore->getCurrentSnapshotId();
+                    centralTemporalStore->addEdge(sId, dId, centralSnapshot);
+                    centralEdgesAdded++;
                     
-                    if (localTemporalStores[part_s]->saveSnapshotToDisk(snapshotDir, false)) {
-                        stream_handler_logger.info("Saved snapshot " + std::to_string(partitionSnapshot) + 
-                                                  " partition " + std::to_string(part_s) + " to disk");
-                        localTemporalStores[part_s]->openNewSnapshot();
+                    if (centralTemporalStore->shouldCreateSnapshot()) {
+                        stream_handler_logger.info("Finalizing central snapshot " + std::to_string(centralSnapshot));
+                        
+                        std::string snapshotDir = Utils::getJasmineGraphHome() + "/env/data/temporal_snapshots";
+                        Utils::createDirectory(snapshotDir);
+                        
+                        if (centralTemporalStore->saveSnapshotToDisk(snapshotDir, false)) {
+                            stream_handler_logger.info("Saved central snapshot " + std::to_string(centralSnapshot) + " to disk");
+                            centralTemporalStore->openNewSnapshot();
+                        } else {
+                            stream_handler_logger.error("Failed to save central snapshot");
+                        }
                     }
                 }
-            } else {
-                // Central edge: cross-partition
-                if (centralTemporalStore == nullptr) {
-                    stream_handler_logger.error("Central temporal store is null for edge " + sId + "-" + dId);
-                    continue;
-                }
-                uint64_t centralSnapshot = centralTemporalStore->getCurrentSnapshotId();
-                centralTemporalStore->addEdge(sId, dId, centralSnapshot);
-                centralEdgesAdded++;
+            } catch (const std::bad_alloc& e) {
+                // Critical: Memory exhaustion - try emergency snapshot save
+                stream_handler_logger.error("CRITICAL: Memory allocation failed at edge " + 
+                                          std::to_string(messagesProcessed) + 
+                                          ". Attempting emergency snapshot save...");
                 
-                if (centralTemporalStore->shouldCreateSnapshot()) {
-                    stream_handler_logger.info("Finalizing central snapshot " + std::to_string(centralSnapshot));
-                    
-                    std::string snapshotDir = Utils::getJasmineGraphHome() + "/env/data/temporal_snapshots";
-                    Utils::createDirectory(snapshotDir);
-                    
-                    if (centralTemporalStore->saveSnapshotToDisk(snapshotDir, false)) {
-                        stream_handler_logger.info("Saved central snapshot " + std::to_string(centralSnapshot) + " to disk");
-                        centralTemporalStore->openNewSnapshot();
+                std::string snapshotDir = Utils::getJasmineGraphHome() + "/env/data/temporal_snapshots";
+                Utils::createDirectory(snapshotDir);
+                
+                // Try to save all snapshots before crashing
+                bool savedAny = false;
+                for (auto& [partitionId, store] : localTemporalStores) {
+                    if (store != nullptr && store->saveSnapshotToDisk(snapshotDir, false)) {
+                        stream_handler_logger.info("Emergency saved partition " + std::to_string(partitionId));
+                        savedAny = true;
                     }
                 }
+                if (centralTemporalStore != nullptr && centralTemporalStore->saveSnapshotToDisk(snapshotDir, false)) {
+                    stream_handler_logger.info("Emergency saved central store");
+                    savedAny = true;
+                }
+                
+                if (savedAny) {
+                    stream_handler_logger.error("Emergency snapshots saved. Terminating stream processing.");
+                } else {
+                    stream_handler_logger.error("Failed to save emergency snapshots. Data may be lost.");
+                }
+                
+                // Re-throw to terminate processing gracefully
+                throw;
+            } catch (const std::exception& e) {
+                stream_handler_logger.error("Exception while adding edge " + sId + "-" + dId + ": " + e.what());
+                // Continue processing other edges
             }
         }
 
@@ -288,14 +399,12 @@ void StreamHandler::listen_to_kafka_topic() {
         
         // Save all local partition snapshots
         for (auto& [partitionId, store] : localTemporalStores) {
-            if (store->saveSnapshotToDisk(snapshotDir, false)) {
+            if (store != nullptr && store->saveSnapshotToDisk(snapshotDir, false)) {
                 stream_handler_logger.info("Saved final snapshot for partition " + std::to_string(partitionId));
             } else {
                 stream_handler_logger.error("Failed to save final snapshot for partition " + std::to_string(partitionId));
             }
-            delete store;
         }
-        localTemporalStores.clear();
         
         // Save central store snapshot
         if (centralTemporalStore != nullptr) {
@@ -304,8 +413,8 @@ void StreamHandler::listen_to_kafka_topic() {
             } else {
                 stream_handler_logger.error("Failed to save final central snapshot");
             }
-            delete centralTemporalStore;
-            centralTemporalStore = nullptr;
         }
+        
+        // Note: Memory cleanup is handled by StreamHandler destructor
     }
 }

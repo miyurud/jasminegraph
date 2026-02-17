@@ -1290,6 +1290,7 @@ static void add_stream_kafka_command(int connFd, std::string &kafka_server_IP, c
         }
         graphId = existingGraphId;
         partitionAlgo = sqlite->getPartitionAlgoByGraphID(graphId);
+        direction = sqlite->getDirectionByGraphID(graphId);
 
     } else {
         int nextID = sqlite->getNextGraphId();

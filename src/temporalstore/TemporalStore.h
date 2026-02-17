@@ -110,6 +110,7 @@ public:
      * @param destId Destination node ID
      * @param snapshotId Current snapshot ID
      * @return true if edge was newly added, false if it already existed
+     * @throws std::bad_alloc if memory allocation fails
      */
     bool addEdge(const std::string& sourceId, 
                 const std::string& destId,
@@ -121,15 +122,20 @@ public:
         // Check if edge already exists
         auto it = edgeBitmaps_.find(key);
         if (it == edgeBitmaps_.end()) {
-            // New edge - create bitmap
-            EdgeLifespanBitmap bitmap(snapshotId + 100);  // Allocate extra space
-            bitmap.setBit(snapshotId, true);
-            edgeBitmaps_[key] = bitmap;
-            totalEdgesTracked_++;
-            
-            // Record in snapshot manager
-            snapshotManager_->recordEdge();
-            return true;
+            try {
+                // New edge - create bitmap
+                EdgeLifespanBitmap bitmap(snapshotId + 100);  // Allocate extra space
+                bitmap.setBit(snapshotId, true);
+                edgeBitmaps_[key] = bitmap;
+                totalEdgesTracked_++;
+                
+                // Record in snapshot manager
+                snapshotManager_->recordEdge();
+                return true;
+            } catch (const std::bad_alloc& e) {
+                // Memory allocation failed - re-throw with context
+                throw std::bad_alloc();
+            }
         } else {
             // Existing edge - update bitmap
             it->second.setBit(snapshotId, true);

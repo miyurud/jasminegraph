@@ -15,6 +15,9 @@ limitations under the License.
 #include "../../JasmineGraphFrontEndProtocol.h"
 #include "../../../server/JasmineGraphServer.h"
 #include "../../../util/logger/Logger.h"
+#include "../../../util/Utils.h"
+#include <dirent.h>
+#include <sys/stat.h>
 
 Logger common_logger;
 
@@ -75,6 +78,33 @@ void JasmineGraphFrontEndCommon::removeGraph(std::string graphID, SQLiteDBInterf
                       " WHERE idgraph = " + graphID);
 
     JasmineGraphServer::removeGraph(hostHasPartition, graphID, masterIP);
+
+    // Remove temporal snapshots if they exist
+    std::string snapshotDir = Utils::getJasmineGraphHome() + "/env/data/temporal_snapshots";
+    DIR* dir = opendir(snapshotDir.c_str());
+    if (dir != nullptr) {
+        std::string graphPrefix = "graph" + graphID + "_";
+        struct dirent* entry;
+        int removedCount = 0;
+        
+        while ((entry = readdir(dir)) != nullptr) {
+            std::string filename(entry->d_name);
+            // Check if filename starts with graphX_ (e.g., graph1_part0_snap0.tgs)
+            if (filename.find(graphPrefix) == 0 && filename.find(".tgs") != std::string::npos) {
+                std::string fullPath = snapshotDir + "/" + filename;
+                if (remove(fullPath.c_str()) == 0) {
+                    removedCount++;
+                } else {
+                    common_logger.error("Failed to remove snapshot file: " + filename);
+                }
+            }
+        }
+        closedir(dir);
+        
+        if (removedCount > 0) {
+            common_logger.info("Removed " + std::to_string(removedCount) + " snapshot files for graph " + graphID);
+        }
+    }
 
     sqlite->runUpdate("DELETE FROM worker_has_partition WHERE partition_graph_idgraph = " + graphID);
     sqlite->runUpdate("DELETE FROM partition WHERE graph_idgraph = " + graphID);

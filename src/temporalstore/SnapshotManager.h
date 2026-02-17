@@ -210,6 +210,17 @@ public:
     }
     
     /**
+     * Set current snapshot ID (used when restoring from disk)
+     * This is typically called when restarting and continuing from existing snapshots
+     */
+    void setCurrentSnapshotId(uint32_t snapshotId) {
+        std::lock_guard<std::mutex> lock(mutex_);
+        currentSnapshotId_ = snapshotId;
+        currentEdgeCount_ = 0;
+        snapshotStartTime_ = std::chrono::system_clock::now();
+    }
+    
+    /**
      * Convert string to SnapshotMode enum
      */
     static SnapshotMode stringToMode(const std::string& modeStr) {
