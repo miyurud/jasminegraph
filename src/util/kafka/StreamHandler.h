@@ -15,6 +15,13 @@ limitations under the License.
 
 #include <string>
 #include <vector>
+#include <thread>
+#include <queue>
+#include <mutex>
+#include <condition_variable>
+#include <atomic>
+#include <unordered_map>
+#include <memory>
 
 #include "../../nativestore/DataPublisher.h"
 #include "../../partitioner/stream/Partitioner.h"
@@ -31,6 +38,7 @@ class StreamHandler {
     ~StreamHandler();
     void listen_to_kafka_topic();
     cppkafka::Message pollMessage();
+    std::vector<cppkafka::Message> pollMessageBatch(size_t maxMessages = 500);
     bool isErrorInMessage(const cppkafka::Message &msg);
     bool isEndOfStream(const cppkafka::Message &msg);
     Partitioner graphPartitioner;
@@ -40,6 +48,7 @@ class StreamHandler {
     // Temporal storage: one store per partition + central store for cross-partition edges
     std::map<int, TemporalStore*> localTemporalStores;  // partitionId -> TemporalStore
     TemporalStore* centralTemporalStore;                // For cross-partition edges
+    uint32_t globalSnapshotId;                          // Global snapshot counter (synchronized across all partitions)
     
  private:
     KafkaConnector *kstream;
@@ -47,4 +56,31 @@ class StreamHandler {
     std::string stream_topic_name;
     std::vector<DataPublisher *> &workerClients;
     int numberOfPartitions;
+    
+    // Batch publishing optimization
+    static constexpr size_t BATCH_SIZE = 200;  // Flush after 200 edges per worker
+    std::vector<std::vector<std::string>> workerBatches;  // Per-worker edge batches
+    std::vector<std::unique_ptr<std::mutex>> workerBatchMutexes;  // Protect batch access
+    void flushWorkerBatch(int workerId, bool force = false);
+    
+    // Async publishing with thread pool
+    static constexpr int PUBLISH_THREADS = 4;
+    std::vector<std::thread> publishThreads;
+    std::queue<std::function<void()>> publishQueue;
+    std::mutex queueMutex;
+    std::condition_variable queueCV;
+    std::atomic<bool> stopPublishing;
+    std::atomic<bool> snapshotsFinalized;  // Track if final snapshots already saved
+    void startPublishThreads();
+    void stopPublishThreads();
+    void publishWorker();
+    void enqueuePublish(std::function<void()> task);
+    void finalizeAllSnapshots();  // Save all open snapshots
+    void createGlobalSnapshot();  // Create synchronized snapshot across ALL partitions
+    
+    // Partition caching optimization
+    std::unordered_map<std::string, long> partitionCache;  // nodeId -> partitionId
+    std::mutex cacheMutex;
+    long getCachedPartition(const std::string& nodeId, bool* cacheHit);
+    void cachePartition(const std::string& nodeId, long partition);
 };

@@ -1434,7 +1434,11 @@ static void add_stream_kafka_command(int connFd, std::string &kafka_server_IP, c
     if (default_kafka == "y") {
         kafka_server_IP = Utils::getJasmineGraphProperty("org.jasminegraph.server.streaming.kafka.host");
         configs = {
-            {"metadata.broker.list", kafka_server_IP}, {"group.id", group_id}, {"auto.offset.reset", "earliest"}};
+            {"metadata.broker.list", kafka_server_IP}, 
+            {"group.id", group_id}, 
+            {"auto.offset.reset", "earliest"},
+            {"enable.auto.commit", "false"},
+        };
     } else {
         // user need to start relevant kafka cluster using relevant IP address
         // read relevant IP address from given file path
