@@ -58,7 +58,7 @@ class StreamHandler {
     int numberOfPartitions;
     
     // Batch publishing optimization
-    static constexpr size_t BATCH_SIZE = 200;  // Flush after 200 edges per worker
+    static constexpr size_t BATCH_SIZE = 1000;  // Flush after 1000 edges per worker (optimized for high throughput)
     std::vector<std::vector<std::string>> workerBatches;  // Per-worker edge batches
     std::vector<std::unique_ptr<std::mutex>> workerBatchMutexes;  // Protect batch access
     void flushWorkerBatch(int workerId, bool force = false);

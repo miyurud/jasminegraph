@@ -489,7 +489,7 @@ void StreamHandler::listen_to_kafka_topic() {
     stream_handler_logger.info("Starting Kafka consumer loop for graph " + std::to_string(graphId));
     
     // Batch processing mode: consume multiple messages at once
-    const size_t KAFKA_BATCH_SIZE = 500;  // Process up to 500 messages per batch
+    const size_t KAFKA_BATCH_SIZE = 2000;  // Process up to 2000 messages per batch (optimized for high throughput)
     bool useTerminationSignal = true;
 
     while (true) {
