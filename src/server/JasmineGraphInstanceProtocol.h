@@ -102,6 +102,8 @@ class JasmineGraphInstanceProtocol {
     static const string FILE_TYPE_DATA;
     static const string GRAPH_STREAM_START;
     static const string GRAPH_STREAM_START_ACK;
+    static const string GRAPH_STREAM_BATCH_START;         // Batch streaming of multiple edges
+    static const string GRAPH_STREAM_BATCH_START_ACK;
     static const string GRAPH_CSV_STREAM_START;
     static const string GRAPH_CSV_STREAM_START_ACK;
     static const string GRAPH_CSV_STREAM_C_length_ACK;

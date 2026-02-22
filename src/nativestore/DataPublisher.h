@@ -19,6 +19,8 @@
 #include <unistd.h>
 
 #include <iostream>
+#include <string>
+#include <vector>
 
 #ifndef WORKER_DATA_PUBLISHER
 #define WORKER_DATA_PUBLISHER
@@ -36,6 +38,7 @@ class DataPublisher {
  public:
     DataPublisher(int, std::string, int);
     void publish(std::string);
+    void publishBatch(const std::vector<std::string>& messages);
     void queryPublish(std::string, std::string, std::string);
 
     ~DataPublisher();

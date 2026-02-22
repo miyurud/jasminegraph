@@ -20,6 +20,7 @@ limitations under the License.
 #include <algorithm>
 #include <cctype>
 #include <cmath>
+#include <sstream>
 #include <string>
 #include <thread>
 
@@ -129,6 +130,7 @@ static void initiate_model_collection_command(int connFd, bool *loop_exit_p);
 static void initiate_fragment_resolution_command(int connFd, bool *loop_exit_p);
 static void check_file_accessible_command(int connFd, bool *loop_exit_p);
 static void graph_stream_start_command(int connFd, InstanceStreamHandler &instanceStreamHandler, bool *loop_exit_p);
+static void graph_stream_batch_start_command(int connFd, InstanceStreamHandler &instanceStreamHandler, bool *loop_exit_p);
 static void send_priority_command(int connFd, bool *loop_exit_p);
 static std::string initiate_command_common(int connFd, bool *loop_exit_p);
 static void batch_upload_common(int connFd, bool *loop_exit_p, bool batch_upload);
@@ -299,6 +301,8 @@ void *instanceservicesession(void *dummyPt) {
             check_file_accessible_command(connFd, &loop_exit);
         } else if (line.compare(JasmineGraphInstanceProtocol::GRAPH_STREAM_START) == 0) {
             graph_stream_start_command(connFd, streamHandler, &loop_exit);
+        } else if (line.compare(JasmineGraphInstanceProtocol::GRAPH_STREAM_BATCH_START) == 0) {
+            graph_stream_batch_start_command(connFd, streamHandler, &loop_exit);
         } else if (line.compare(JasmineGraphInstanceProtocol::SEND_PRIORITY) == 0) {
             send_priority_command(connFd, &loop_exit);
         } else if (line.compare(JasmineGraphInstanceProtocol::PUSH_PARTITION) == 0) {
@@ -4508,6 +4512,86 @@ static void graph_stream_start_command(int connFd, InstanceStreamHandler &instan
         return;
     }
     instance_logger.debug("Sent CRLF string to mark the end");
+}
+
+static void graph_stream_batch_start_command(int connFd, InstanceStreamHandler &instanceStreamHandler, bool *loop_exit_p) {
+    // Send batch start acknowledgment
+    if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::GRAPH_STREAM_BATCH_START_ACK)) {
+        *loop_exit_p = true;
+        return;
+    }
+    instance_logger.debug("Sent : " + JasmineGraphInstanceProtocol::GRAPH_STREAM_BATCH_START_ACK);
+
+    // Receive batch size (number of edges in this batch)
+    int batch_size;
+    instance_logger.debug("Waiting for batch size");
+    ssize_t return_status = recv(connFd, &batch_size, sizeof(int), 0);
+    if (return_status > 0) {
+        batch_size = ntohl(batch_size);
+        instance_logger.debug("Received batch_size = " + std::to_string(batch_size));
+    } else {
+        instance_logger.error("Error while reading batch size");
+        *loop_exit_p = true;
+        return;
+    }
+
+    // Send batch size acknowledgment
+    if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::GRAPH_STREAM_C_length_ACK)) {
+        *loop_exit_p = true;
+        return;
+    }
+    instance_logger.debug("Acked for batch size");
+
+    // Receive total content length
+    int content_length;
+    instance_logger.debug("Waiting for batch content length");
+    return_status = recv(connFd, &content_length, sizeof(int), 0);
+    if (return_status > 0) {
+        content_length = ntohl(content_length);
+        instance_logger.debug("Received content_length = " + std::to_string(content_length));
+    } else {
+        instance_logger.error("Error while reading content length");
+        *loop_exit_p = true;
+        return;
+    }
+
+    // Send content length acknowledgment
+    if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::GRAPH_STREAM_C_length_ACK)) {
+        *loop_exit_p = true;
+        return;
+    }
+    instance_logger.debug("Acked for content length");
+
+    // Receive the entire batch message
+    instance_logger.debug("Waiting for batch edge data");
+    std::string batchData(content_length, 0);
+    return_status = recv(connFd, &batchData[0], content_length, 0);
+    if (return_status > 0) {
+        instance_logger.debug("Received batch edge data: " + std::to_string(batch_size) + " edges");
+    } else {
+        instance_logger.error("Error while reading batch data");
+        *loop_exit_p = true;
+        return;
+    }
+
+    // Process each edge in the batch (newline-separated)
+    std::stringstream ss(batchData);
+    std::string edgeString;
+    int processed = 0;
+    while (std::getline(ss, edgeString)) {
+        if (!edgeString.empty()) {
+            instanceStreamHandler.handleRequest(edgeString);
+            processed++;
+        }
+    }
+    instance_logger.debug("Processed " + std::to_string(processed) + " edges from batch");
+
+    // Send end acknowledgment
+    if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::GRAPH_STREAM_END_OF_EDGE)) {
+        *loop_exit_p = true;
+        return;
+    }
+    instance_logger.debug("Sent CRLF string to mark the end of batch");
 }
 
 static void send_priority_command(int connFd, bool *loop_exit_p) {
