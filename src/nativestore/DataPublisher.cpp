@@ -53,6 +53,8 @@ DataPublisher::~DataPublisher() {
 void DataPublisher::publishBatch(const std::vector<std::string>& messages) {
     if (messages.empty()) return;
     
+    std::lock_guard<std::mutex> lock(socket_mutex);  // Protect socket from concurrent access
+    
     // Send batch start signal
     send(this->sock, JasmineGraphInstanceProtocol::GRAPH_STREAM_BATCH_START.c_str(),
          JasmineGraphInstanceProtocol::GRAPH_STREAM_BATCH_START.length(), 0);
@@ -117,6 +119,8 @@ void DataPublisher::publishBatch(const std::vector<std::string>& messages) {
 }
 
 void DataPublisher::publish(std::string message) {
+    std::lock_guard<std::mutex> lock(socket_mutex);  // Protect socket from concurrent access
+    
     char receiver_buffer[MAX_STREAMING_DATA_LENGTH] = {0};
 
     send(this->sock, JasmineGraphInstanceProtocol::GRAPH_STREAM_START.c_str(),
@@ -165,6 +169,8 @@ void DataPublisher::publish(std::string message) {
 
 
 void DataPublisher::queryPublish(std::string graphId, std::string partitionId, std::string message) {
+    std::lock_guard<std::mutex> lock(socket_mutex);  // Protect socket from concurrent access
+    
     char receiver_buffer[MAX_STREAMING_DATA_LENGTH] = {0};
 
     send(this->sock, JasmineGraphInstanceProtocol::QUERY_START.c_str(),
