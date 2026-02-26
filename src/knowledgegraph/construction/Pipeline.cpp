@@ -221,7 +221,7 @@ void Pipeline::streamFromHDFSIntoBuffer() {
     // Push leftover partial line if any (last chunk)
     if (!leftover.empty()) {
         chunk_idx++;
-        kg_pipeline_stream_handler_logger.debug("Pushing leftover data to dataBuffer");
+        kg_pipeline_stream_handler_logger.debug("Pushing leftover data to data buffer");
         std::unique_lock<std::mutex> lock(dataBufferMutex);
         dataBufferCV.wait(lock, [this] { return dataBuffer.size() < workerList.size() || !isReading; });
         dataBuffer.push(Chunk{to_string(chunk_idx), std::move(leftover), read_bytes});
@@ -459,7 +459,8 @@ json Pipeline::processTupleAndSaveInPartition(const std::vector<std::unique_ptr<
     auto nextTick = steady_clock::now();
         std::this_thread::sleep_for(std::chrono::milliseconds(10000));
     while (metaThreadRunning.load(std::memory_order_relaxed)) {
-        std::this_thread::sleep_for(std::chrono::milliseconds(60000));
+        std::this_thread::sleep_for(std::chrono::milliseconds(Conts::TIME_PERIOD_OF_META_DATA_UPDATE_TO_MASTER_SECS*
+            60000));
 
         kg_pipeline_stream_handler_logger.debug("Meta thread running");
 
@@ -741,7 +742,7 @@ void Pipeline::extractTuples(std::string host, int port, std::string masterIP, i
             close(sockfd);
             return;
         }
-        kg_pipeline_stream_handler_logger.info("LLM  sent successfully");
+        kg_pipeline_stream_handler_logger.info("LLM model name sent successfully");
         // Streaming loop
         while (true) {
             if (stopFlag) {
@@ -840,7 +841,7 @@ void Pipeline::extractTuples(std::string host, int port, std::string masterIP, i
                 break;
                                               }
 
-            kg_pipeline_stream_handler_logger.debug("Sending currentTraceContext data:" +currentTraceContext);
+            kg_pipeline_stream_handler_logger.debug("Sending currentTraceContext data:" + currentTraceContext);
             if (!Utils::send_str_wrapper(sockfd, currentTraceContext)) {
                 kg_pipeline_stream_handler_logger.error("Failed to send chunk data");
                 retry = true;
@@ -922,23 +923,23 @@ void Pipeline::extractTuples(std::string host, int port, std::string masterIP, i
                 }
 
                 tuple_count++;
-                // if (tuple_count % 100 == 0) {
-                //     realTimeBytesMutex.lock();
-                //     realtime_bytes_read_so_far += (static_cast<long>(std::stod(chunkSize) * 0.2));
-                //     realTimeBytesMutex.unlock();
-                // }
+                if (tuple_count % 100 == 0) {
+                    realTimeBytesMutex.lock();
+                    realtime_bytes_read_so_far += (static_cast<long>(std::stod(chunkSize) * 0.2));
+                    realTimeBytesMutex.unlock();
+                }
                 // Check for non-UTF8 safely
-                // if (!std::regex_search(tuple, std::regex(R"([^\x20-\x7E])"))) {
-                //     // Log only if it looks printable ASCII
-                //     kg_pipeline_stream_handler_logger.debug("Tuple: " + tuple);
-                // } else {
-                //     // Hex dump instead of logging raw binary
-                //     std::ostringstream hexStream;
-                //     for (unsigned char c : tuple) {
-                //         hexStream << std::hex << std::setw(2) << std::setfill('0') << (int)c;
-                //     }
-                //     kg_pipeline_stream_handler_logger.error("Tuple contains non-printable data (hex): " + tuple);
-                // }
+                if (!std::regex_search(tuple, std::regex(R"([^\x20-\x7E])"))) {
+                    // Log only if it looks printable ASCII
+                    kg_pipeline_stream_handler_logger.debug("Tuple: " + tuple);
+                } else {
+                    // Hex dump instead of logging raw binary
+                    std::ostringstream hexStream;
+                    for (unsigned char c : tuple) {
+                        hexStream << std::hex << std::setw(2) << std::setfill('0') << (int)c;
+                    }
+                    kg_pipeline_stream_handler_logger.error("Tuple contains non-printable data (hex): " + tuple);
+                }
 
                 sharedBuffer.add(tuple);
             }
@@ -1231,7 +1232,7 @@ bool Pipeline::streamGraphToDesignatedWorker(std::string host, int port, std::st
             std::chrono::duration<double> elapsed_seconds = now - previousTimeStampTriplesPerSecond;
             double elapsed = elapsed_seconds.count();
 
-            if (elapsed > 0.000001) {
+            if (elapsed > Conts::TIME_ELAPSED_LOWER_BOUND) {
                 kgConstructionRates->triplesPerSecond =
                     static_cast<double>(edgeCount - previousEdgeCount) / elapsed;
             }
@@ -1290,7 +1291,7 @@ bool Pipeline::streamGraphToDesignatedWorker(std::string host, int port, std::st
                 std::chrono::duration<double> elapsed_seconds = now - previousTimeStampBytesPerSecond;
                 double elapsed = elapsed_seconds.count();
 
-                if (elapsed > 0.000001) {
+                if (elapsed > Conts::TIME_ELAPSED_LOWER_BOUND) {
                     kgConstructionRates->bytesPerSecond = (completedBytes - previousBytesCount) / elapsed;
                 }
 
@@ -1633,7 +1634,7 @@ bool Pipeline::streamLocalGraphToDesignatedWorker(std::string host, int port, in
             std::chrono::duration<double> elapsed_seconds = now - previousTimeStampTriplesPerSecond;
             double elapsed = elapsed_seconds.count();
 
-            if (elapsed > 0.000001) {
+            if (elapsed > Conts::TIME_ELAPSED_LOWER_BOUND) {
                 kgConstructionRates->triplesPerSecond =
                     static_cast<double>(edgeCount - previousEdgeCount) / elapsed;
             }
@@ -1692,7 +1693,7 @@ bool Pipeline::streamLocalGraphToDesignatedWorker(std::string host, int port, in
                 std::chrono::duration<double> elapsed_seconds = now - previousTimeStampBytesPerSecond;
                 double elapsed = elapsed_seconds.count();
 
-                if (elapsed > 0.000001) {
+                if (elapsed > Conts::TIME_ELAPSED_LOWER_BOUND) {
                     kgConstructionRates->bytesPerSecond = (completedBytes - previousBytesCount) / elapsed;
                 } else {
                     kgConstructionRates->bytesPerSecond = 0.0;
