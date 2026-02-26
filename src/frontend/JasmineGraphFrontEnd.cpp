@@ -1550,7 +1550,12 @@ static void add_stream_kafka_command(int connFd, std::string &kafka_server_IP, c
         sqlite->runUpdate(sqlStatement);
     }
     frontend_logger.info("Start listening to " + topic_name_s);
-    input_stream_handler_thread = thread(&StreamHandler::listen_to_kafka_topic, stream_handler);
+    input_stream_handler_thread = thread([stream_handler, connFd]() {
+        stream_handler->listen_to_kafka_topic();
+        frontend_logger.info("Streaming complete — sending done reply to client");
+        string doneMsg = DONE + "\r\n";
+        write(connFd, doneMsg.c_str(), doneMsg.size());
+    });
 }
 
 void addStreamHDFSCommand(std::string masterIP, int connFd, std::string &hdfsServerIp,

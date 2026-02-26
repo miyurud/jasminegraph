@@ -44,25 +44,25 @@ class StreamHandler {
     Partitioner graphPartitioner;
     int  graphId;
     uint32_t currentSnapshot;
-    
+
     // Temporal storage: one store per partition + central store for cross-partition edges
     std::map<int, TemporalStore*> localTemporalStores;  // partitionId -> TemporalStore
     TemporalStore* centralTemporalStore;                // For cross-partition edges
     uint32_t globalSnapshotId;                          // Global snapshot counter (synchronized across all partitions)
-    
+
  private:
     KafkaConnector *kstream;
     Logger frontend_logger;
     std::string stream_topic_name;
     std::vector<DataPublisher *> &workerClients;
     int numberOfPartitions;
-    
+
     // Batch publishing optimization
-    static constexpr size_t BATCH_SIZE = 1000;  // Flush after 1000 edges per worker (optimized for high throughput)
-    std::vector<std::vector<std::string>> workerBatches;  // Per-worker edge batches
-    std::vector<std::unique_ptr<std::mutex>> workerBatchMutexes;  // Protect batch access
+    static constexpr size_t BATCH_SIZE = 1000;
+    std::vector<std::vector<std::string>> workerBatches;
+    std::vector<std::unique_ptr<std::mutex>> workerBatchMutexes;
     void flushWorkerBatch(int workerId, bool force = false);
-    
+
     // Async publishing with thread pool
     static constexpr int PUBLISH_THREADS = 4;
     std::vector<std::thread> publishThreads;
@@ -70,17 +70,38 @@ class StreamHandler {
     std::mutex queueMutex;
     std::condition_variable queueCV;
     std::atomic<bool> stopPublishing;
-    std::atomic<bool> snapshotsFinalized;  // Track if final snapshots already saved
+    std::atomic<bool> snapshotsFinalized;
     void startPublishThreads();
     void stopPublishThreads();
     void publishWorker();
     void enqueuePublish(std::function<void()> task);
-    void finalizeAllSnapshots();  // Save all open snapshots
-    void createGlobalSnapshot();  // Create synchronized snapshot across ALL partitions
-    
+    void finalizeAllSnapshots();
+    void createGlobalSnapshot();
+
     // Partition caching optimization
-    std::unordered_map<std::string, long> partitionCache;  // nodeId -> partitionId
+    std::unordered_map<std::string, long> partitionCache;
     std::mutex cacheMutex;
     long getCachedPartition(const std::string& nodeId, bool* cacheHit);
     void cachePartition(const std::string& nodeId, long partition);
+
+    // ---- Parallel consumer support ----
+    // Number of parallel Kafka consumer threads; ideally equals the number of
+    // Kafka topic partitions (docker-compose: KAFKA_NUM_PARTITIONS=3).
+    // Override via org.jasminegraph.kafka.consumer.threads property.
+    static constexpr int DEFAULT_CONSUMER_THREADS = 3;
+
+    // Mutexes protecting shared state accessed by multiple consumer threads
+    std::mutex partitionerMutex_;   // guards graphPartitioner.addEdge()
+    std::mutex temporalMutex_;      // guards localTemporalStores / centralTemporalStore
+    std::mutex snapshotMutex_;      // guards createGlobalSnapshot() (one at a time)
+
+    // Per-thread entry point for parallel Kafka consumption
+    void consumerThreadFunc(int threadId,
+                            cppkafka::Consumer* consumer,
+                            const std::string& topic,
+                            int n_workers,
+                            std::atomic<uint64_t>& totalMessages,
+                            std::atomic<uint64_t>& totalLocal,
+                            std::atomic<uint64_t>& totalCentral,
+                            std::atomic<bool>& endSignalReceived);
 };

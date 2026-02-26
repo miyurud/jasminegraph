@@ -63,7 +63,7 @@ partitionedEdge Partitioner::ldgPartitioning(std::pair<std::string, std::string>
             (1 - (partitionSize / ((double)this->totalVertices / (double)this->numberOfPartitions)));
 
         if (partition.isExist(edge.first) && partition.isExist(edge.second)) {
-            partition.addEdge(edge);
+            partition.addEdge(edge, this->isDirect);
             this->totalEdges += 1;  // TODO: Check whether edge already exist
             return {{edge.first, id}, {edge.second, id}};
         }
@@ -99,7 +99,7 @@ partitionedEdge Partitioner::ldgPartitioning(std::pair<std::string, std::string>
     int secondIndex = distance(partitionScoresSecond.begin(),
                                max_element(partitionScoresSecond.begin(), partitionScoresSecond.end()));
     if (firstIndex == secondIndex) {
-        partitions[firstIndex].addEdge(edge);
+        partitions[firstIndex].addEdge(edge, this->isDirect);
     } else {
         partitions[firstIndex].addToEdgeCuts(edge.first, edge.second, secondIndex);
         partitions[secondIndex].addToEdgeCuts(edge.second, edge.first, firstIndex);
@@ -190,7 +190,7 @@ partitionedEdge Partitioner::fennelPartitioning(std::pair<std::string, std::stri
         double firstVertextIntraCost;
         double secondVertextIntraCost;
         if (partition.isExist(edge.first) && partition.isExist(edge.second)) {
-            partition.addEdge(edge);
+            partition.addEdge(edge, this->isDirect);
             this->totalEdges += 1;  // TODO: Check whether edge already exist
             return {{edge.first, id}, {edge.second, id}};
         }
@@ -219,7 +219,7 @@ partitionedEdge Partitioner::fennelPartitioning(std::pair<std::string, std::stri
     int secondIndex = distance(partitionScoresSecond.begin(),
                                max_element(partitionScoresSecond.begin(), partitionScoresSecond.end()));
     if (firstIndex == secondIndex) {
-        partitions[firstIndex].addEdge(edge);
+        partitions[firstIndex].addEdge(edge, this->isDirect);
     } else {
         partitions[firstIndex].addToEdgeCuts(edge.first, edge.second, secondIndex);
         partitions[secondIndex].addToEdgeCuts(edge.second, edge.first, firstIndex);

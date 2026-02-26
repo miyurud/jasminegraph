@@ -455,122 +455,65 @@ void StreamHandler::cachePartition(const std::string& nodeId, long partition) {
     }
 }
 
-void StreamHandler::listen_to_kafka_topic() {
-    // Start automatic OpenTelemetry tracing for entire streaming session
-    OTEL_TRACE_FUNCTION();
-    
-    // Add attributes to identify this streaming session
-    OpenTelemetryUtil::addSpanAttribute("graph.id", std::to_string(graphId));
-    OpenTelemetryUtil::addSpanAttribute("partitions", std::to_string(numberOfPartitions));
-    OpenTelemetryUtil::addSpanAttribute("temporal.enabled", !localTemporalStores.empty() ? "true" : "false");
-    
-    // get workers
-    JasmineGraphServer *server = JasmineGraphServer::getInstance();
-    std::vector<JasmineGraphServer::worker> workers = server->workers(workerClients.size());
+// ============================================================================
+// PARALLEL CONSUMER THREAD FUNCTION
+// Each thread owns a subset of Kafka topic partitions (Kafka assigns them
+// automatically when multiple consumers join the same consumer group).
+// Shared mutable state is protected by partitionerMutex_, temporalMutex_,
+// and snapshotMutex_.  Per-worker batch vectors are already protected by
+// workerBatchMutexes.
+// ============================================================================
+void StreamHandler::consumerThreadFunc(int threadId,
+                                       cppkafka::Consumer* consumer,
+                                       const std::string& topic,
+                                       int n_workers,
+                                       std::atomic<uint64_t>& totalMessages,
+                                       std::atomic<uint64_t>& totalLocal,
+                                       std::atomic<uint64_t>& totalCentral,
+                                       std::atomic<bool>& endSignalReceived) {
+    consumer->subscribe({topic});
+    stream_handler_logger.info("Consumer thread " + std::to_string(threadId) +
+                               " subscribed to topic " + topic);
 
-    // assign partitions to workers
-    for (int i = 0; i < workerClients.size(); i++) {
-        Utils::assignPartitionToWorker(graphId, i, workers.at(i).hostname, workers.at(i).port);
-    }
-
-    uint64_t messagesProcessed = 0;
+    const size_t KAFKA_BATCH_SIZE = 2000;
+    const uint64_t MAX_EMPTY_POLLS = 60;
     uint64_t emptyPolls = 0;
-    uint64_t localEdgesAdded = 0;
-    uint64_t centralEdgesAdded = 0;
-    uint64_t lastProgressCheck = 0;
-    const uint64_t MAX_CONSECUTIVE_EMPTY_POLLS = 60;
-    
-    // Timing accumulators for performance analysis
-    auto total_parse_time = std::chrono::microseconds(0);
-    auto total_partition_time = std::chrono::microseconds(0);
-    auto total_temporal_time = std::chrono::microseconds(0);
-    auto total_publish_time = std::chrono::microseconds(0);
-    
-    stream_handler_logger.info("Starting Kafka consumer loop for graph " + std::to_string(graphId));
-    
-    // Batch processing mode: consume multiple messages at once
-    const size_t KAFKA_BATCH_SIZE = 2000;  // Process up to 2000 messages per batch (optimized for high throughput)
-    bool useTerminationSignal = true;
 
-    while (true) {
-        // Poll batch of messages instead of single message
-        std::vector<cppkafka::Message> messageBatch = this->pollMessageBatch(KAFKA_BATCH_SIZE);
-        
-        // Check for empty batch (timeout)
+    // Per-thread timing accumulators
+    auto total_parse_time      = std::chrono::microseconds(0);
+    auto total_partition_time  = std::chrono::microseconds(0);
+    auto total_temporal_time   = std::chrono::microseconds(0);
+    auto total_publish_time    = std::chrono::microseconds(0);
+    uint64_t threadMessages    = 0;
+
+    while (!endSignalReceived) {
+        auto messageBatch = consumer->poll_batch(KAFKA_BATCH_SIZE, std::chrono::milliseconds(1000));
+
         if (messageBatch.empty()) {
             emptyPolls++;
-            
-            if (messagesProcessed > 0 && emptyPolls >= MAX_CONSECUTIVE_EMPTY_POLLS) {
-                stream_handler_logger.info("Stream timeout: No messages for " + 
-                                          std::to_string(MAX_CONSECUTIVE_EMPTY_POLLS) + " seconds");
-                stream_handler_logger.info("Edges added: " + std::to_string(localEdgesAdded) + " local, " + 
-                                          std::to_string(centralEdgesAdded) + " central");
-                stream_handler_logger.warn("Did not receive termination signal (-1). Exiting due to timeout.");
+            uint64_t processed = totalMessages.load();
+            if (processed > 0 && emptyPolls >= MAX_EMPTY_POLLS) {
+                stream_handler_logger.warn("Thread " + std::to_string(threadId) +
+                                           ": no messages for " + std::to_string(MAX_EMPTY_POLLS) +
+                                           "s — exiting");
                 break;
             }
             continue;
         }
-        
         emptyPolls = 0;
-        
-        // Process all messages in batch
+
         for (auto& msg : messageBatch) {
-            // Check for termination or error
-            if (this->isEndOfStream(msg)) {
-                stream_handler_logger.info("Received termination signal (-1) from Kafka");
-                stream_handler_logger.info("Total messages processed: " + std::to_string(messagesProcessed));
-                stream_handler_logger.info("Edges added: " + std::to_string(localEdgesAdded) + " local, " + 
-                                          std::to_string(centralEdgesAdded) + " central");
-                
-                // Flush all batches before sending termination signal
-                stream_handler_logger.info("Flushing all batches before termination...");
-                for (size_t i = 0; i < workerBatches.size(); i++) {
-                    flushWorkerBatch(i, true);
-                }
-                
-                // Wait for async publish queue to drain
-                int waitCount = 0;
-                while (waitCount < 50) {
-                    std::unique_lock<std::mutex> lock(queueMutex);
-                    if (publishQueue.empty()) break;
-                    lock.unlock();
-                    std::this_thread::sleep_for(std::chrono::milliseconds(100));
-                    waitCount++;
-                }
-                
-                // Send termination signal to all workers
-                for (auto &workerClient : workerClients) {
-                    if (workerClient != nullptr) {
-                        workerClient->publish("-1");
-                    }
-                }
-                useTerminationSignal = false;
+            if (endSignalReceived) break;
+
+            if (isEndOfStream(msg)) {
+                stream_handler_logger.info("Thread " + std::to_string(threadId) +
+                                           " received termination signal (-1)");
+                endSignalReceived = true;
                 break;
             }
-            
-            if (this->isErrorInMessage(msg)) {
-                continue;  // Skip error messages, continue with batch
-            }
-            
-            // Increment message counter
-            messagesProcessed++;
-            
-            if (messagesProcessed > lastProgressCheck) {
-                lastProgressCheck = messagesProcessed;
-            }
-            
-            // Reduce tracing overhead: only trace every 1000th message in batch mode
-            bool shouldTrace = (messagesProcessed % 1000 == 0);
-            ScopedTracer* message_tracer = nullptr;
-            if (shouldTrace) {
-                message_tracer = new ScopedTracer("process_kafka_batch", {
-                    {"batch.size", std::to_string(messageBatch.size())},
-                    {"messages.processed", std::to_string(messagesProcessed)},
-                    {"graph.id", std::to_string(graphId)}
-                });
-            }
-            
-            // 1. JSON PARSING
+            if (isErrorInMessage(msg)) continue;
+
+            // ---- 1. JSON PARSE ----
             auto parse_start = std::chrono::high_resolution_clock::now();
             string data(msg.get_payload());
             auto edgeJson = json::parse(data);
@@ -581,253 +524,250 @@ void StreamHandler::listen_to_kafka_topic() {
             auto destinationJson = edgeJson["destination"];
             string sId = std::string(sourceJson["id"]);
             string dId = std::string(destinationJson["id"]);
-            auto parse_duration = std::chrono::duration_cast<std::chrono::microseconds>(
+            total_parse_time += std::chrono::duration_cast<std::chrono::microseconds>(
                 std::chrono::high_resolution_clock::now() - parse_start);
-            total_parse_time += parse_duration;
-            
-            // 2. PARTITIONING
+
+            // ---- 2. PARTITION (mutex-protected) ----
             auto partition_start = std::chrono::high_resolution_clock::now();
-            partitionedEdge partEdge = graphPartitioner.addEdge({sId, dId});
+            partitionedEdge partEdge;
+            {
+                std::lock_guard<std::mutex> lock(partitionerMutex_);
+                partEdge = graphPartitioner.addEdge({sId, dId});
+            }
             long part_s = partEdge[0].second;
             long part_d = partEdge[1].second;
-            auto partition_duration = std::chrono::duration_cast<std::chrono::microseconds>(
+            total_partition_time += std::chrono::duration_cast<std::chrono::microseconds>(
                 std::chrono::high_resolution_clock::now() - partition_start);
-            total_partition_time += partition_duration;            
+
             sourceJson["pid"] = part_s;
             destinationJson["pid"] = part_d;
             json obj;
             obj["source"] = sourceJson;
             obj["destination"] = destinationJson;
             obj["properties"] = prop;
-            
-            int n_workers = atoi((Utils::getJasmineGraphProperty("org.jasminegraph.server.nworkers")).c_str());
+
             long temp_s = part_s % n_workers;
             long temp_d = part_d % n_workers;
 
-            // 3. TEMPORAL STORE OPERATIONS
+            // ---- 3. TEMPORAL STORE (mutex-protected) ----
             auto temporal_start = std::chrono::high_resolution_clock::now();
             bool shouldCreateGlobalSnapshot = false;
-            
+
             if (!localTemporalStores.empty()) {
                 try {
+                    std::lock_guard<std::mutex> tlock(temporalMutex_);
                     if (part_s == part_d) {
-                        // Local edge: both nodes in same partition
                         if (localTemporalStores.find(part_s) == localTemporalStores.end()) {
-                            stream_handler_logger.error("Invalid partition ID " + std::to_string(part_s) + 
-                                                       " for edge " + sId + "-" + dId);
-                            if (message_tracer) delete message_tracer;
+                            stream_handler_logger.error("Invalid partition " + std::to_string(part_s) +
+                                                        " for edge " + sId + "-" + dId);
                             continue;
                         }
-                        // Use global snapshot ID for consistency across all partitions
                         localTemporalStores[part_s]->addEdge(sId, dId, globalSnapshotId);
-                        localEdgesAdded++;
-                        
-                        // Check if THIS partition reached threshold (trigger global snapshot for ALL)
-                        if (localTemporalStores[part_s]->shouldCreateSnapshot()) {
+                        totalLocal++;
+                        if (localTemporalStores[part_s]->shouldCreateSnapshot())
                             shouldCreateGlobalSnapshot = true;
-                        }
                     } else {
-                        // Central edge: cross-partition
                         if (centralTemporalStore == nullptr) {
-                            stream_handler_logger.error("Central temporal store is null for edge " + sId + "-" + dId);
-                            if (message_tracer) delete message_tracer;
+                            stream_handler_logger.error("Central store null for edge " + sId + "-" + dId);
                             continue;
                         }
                         centralTemporalStore->addEdge(sId, dId, globalSnapshotId);
-                        centralEdgesAdded++;
-                    
-                    // Check if central store reached threshold (trigger global snapshot for ALL)
-                    if (centralTemporalStore->shouldCreateSnapshot()) {
-                        shouldCreateGlobalSnapshot = true;
+                        totalCentral++;
+                        if (centralTemporalStore->shouldCreateSnapshot())
+                            shouldCreateGlobalSnapshot = true;
                     }
+                } catch (const std::exception& e) {
+                    stream_handler_logger.error("Temporal error for edge " + sId + "-" + dId + ": " + e.what());
                 }
-                
-                // GLOBAL SNAPSHOT COORDINATION: When ANY partition/central store reaches threshold,
-                // create snapshot for ALL partitions simultaneously with the same snapshot ID
-                if (shouldCreateGlobalSnapshot) {
-                    // Trace snapshot save operation
-                    OTEL_TRACE_OPERATION("save_global_snapshot");
-                    OpenTelemetryUtil::addSpanAttribute("snapshot.id", std::to_string(globalSnapshotId));
-                    OpenTelemetryUtil::addSpanAttribute("trigger.partition", std::to_string(part_s));
-                    
-                    createGlobalSnapshot();
-                }
-            } catch (const std::bad_alloc& e) {
-                // Critical: Memory exhaustion - try emergency snapshot save
-                stream_handler_logger.error("CRITICAL: Memory allocation failed at edge " + 
-                                          std::to_string(messagesProcessed) + 
-                                          ". Attempting emergency snapshot save...");
-                
-                if (message_tracer) {
-                    message_tracer->setStatus(trace_api::StatusCode::kError, "Memory allocation failed");
-                    delete message_tracer;
-                }
-                
-                std::string snapshotDir = Utils::getJasmineGraphHome() + "/env/data/temporal_snapshots";
-                Utils::createDirectory(snapshotDir);
-                
-                // Try to save all snapshots before crashing
-                bool savedAny = false;
-                for (auto& [partitionId, store] : localTemporalStores) {
-                    if (store != nullptr && store->saveSnapshotToDisk(snapshotDir, false)) {
-                        stream_handler_logger.info("Emergency saved partition " + std::to_string(partitionId));
-                        savedAny = true;
-                    }
-                }
-                if (centralTemporalStore != nullptr && centralTemporalStore->saveSnapshotToDisk(snapshotDir, false)) {
-                    stream_handler_logger.info("Emergency saved central store");
-                    savedAny = true;
-                }
-                
-                if (savedAny) {
-                    stream_handler_logger.error("Emergency snapshots saved. Terminating stream processing.");
-                } else {
-                    stream_handler_logger.error("Failed to save emergency snapshots. Data may be lost.");
-                }
-                
-                // Re-throw to terminate processing gracefully
-                throw;
-            } catch (const std::exception& e) {
-                stream_handler_logger.error("Exception while adding edge " + sId + "-" + dId + ": " + e.what());
-                if (message_tracer) {
-                    message_tracer->setStatus(trace_api::StatusCode::kError, e.what());
-                }
-                // Continue processing other edges
-            }
-        }
-        auto temporal_duration = std::chrono::duration_cast<std::chrono::microseconds>(
-            std::chrono::high_resolution_clock::now() - temporal_start);
-        total_temporal_time += temporal_duration;
 
-        // 4. WORKERPublishing - batch publishing (minimal overhead)
-        auto publish_start = std::chrono::high_resolution_clock::now();
-        
-        // Add to batch instead of immediate publish
-        std::string edgeData = obj.dump();
-        if (part_s == part_d) {
-            // Local edge
-            obj["EdgeType"] = "Local";
-            obj["PID"] = part_s;
-            std::string localEdgeData = obj.dump();
-            
-            std::unique_lock<std::mutex> lock(*workerBatchMutexes[temp_s]);
-            workerBatches[temp_s].push_back(localEdgeData);
-            size_t batchSize = workerBatches[temp_s].size();
-            lock.unlock();
-            
-            // Flush if batch is full
-            if (batchSize >= BATCH_SIZE) {
-                flushWorkerBatch(temp_s, false);
-            }
-        } else {
-            // Central edge - send to both workers
-            obj["EdgeType"] = "Central";
-            obj["PID"] = part_s;
-            std::string centralEdgeData_s = obj.dump();
-            
-            obj["PID"] = part_d;
-            std::string centralEdgeData_d = obj.dump();
-            
-            // Add to both worker batches
-            {
-                std::unique_lock<std::mutex> lock(*workerBatchMutexes[temp_s]);
-                workerBatches[temp_s].push_back(centralEdgeData_s);
-                size_t batchSize = workerBatches[temp_s].size();
-                lock.unlock();
-                if (batchSize >= BATCH_SIZE) {
-                    flushWorkerBatch(temp_s, false);
+                if (shouldCreateGlobalSnapshot) {
+                    std::lock_guard<std::mutex> slock(snapshotMutex_);
+                    // Re-check inside lock: another thread may have already snapshotted
+                    if (localTemporalStores.begin()->second->shouldCreateSnapshot() ||
+                        (centralTemporalStore && centralTemporalStore->shouldCreateSnapshot())) {
+                        createGlobalSnapshot();
+                    }
                 }
             }
-            {
-                std::unique_lock<std::mutex> lock(*workerBatchMutexes[temp_d]);
-                workerBatches[temp_d].push_back(centralEdgeData_d);
-                size_t batchSize = workerBatches[temp_d].size();
-                lock.unlock();
-                if (batchSize >= BATCH_SIZE) {
-                    flushWorkerBatch(temp_d, false);
+            total_temporal_time += std::chrono::duration_cast<std::chrono::microseconds>(
+                std::chrono::high_resolution_clock::now() - temporal_start);
+
+            // ---- 4. BATCH PUBLISH (workerBatchMutexes already per-worker) ----
+            auto publish_start = std::chrono::high_resolution_clock::now();
+            if (part_s == part_d) {
+                // Local edge — only one dump() needed
+                obj["EdgeType"] = "Local";
+                obj["PID"] = part_s;
+                std::string localEdgeData = obj.dump();
+
+                {
+                    std::unique_lock<std::mutex> lock(*workerBatchMutexes[temp_s]);
+                    workerBatches[temp_s].push_back(localEdgeData);
+                    size_t batchSize = workerBatches[temp_s].size();
+                    lock.unlock();
+                    if (batchSize >= BATCH_SIZE) flushWorkerBatch(temp_s, false);
+                }
+            } else {
+                // Central edge — two dump() calls (src worker, dst worker)
+                obj["EdgeType"] = "Central";
+                obj["PID"] = part_s;
+                std::string centralEdgeData_s = obj.dump();
+
+                obj["PID"] = part_d;
+                std::string centralEdgeData_d = obj.dump();
+
+                {
+                    std::unique_lock<std::mutex> lock(*workerBatchMutexes[temp_s]);
+                    workerBatches[temp_s].push_back(centralEdgeData_s);
+                    size_t batchSize = workerBatches[temp_s].size();
+                    lock.unlock();
+                    if (batchSize >= BATCH_SIZE) flushWorkerBatch(temp_s, false);
+                }
+                {
+                    std::unique_lock<std::mutex> lock(*workerBatchMutexes[temp_d]);
+                    workerBatches[temp_d].push_back(centralEdgeData_d);
+                    size_t batchSize = workerBatches[temp_d].size();
+                    lock.unlock();
+                    if (batchSize >= BATCH_SIZE) flushWorkerBatch(temp_d, false);
                 }
             }
-        }
-        
-        auto publish_duration = std::chrono::duration_cast<std::chrono::microseconds>(
-            std::chrono::high_resolution_clock::now() - publish_start);
-        total_publish_time += publish_duration;
-        if (message_tracer) {
-            delete message_tracer;  // Clean up tracer
-        }
-        }  // End of message batch processing (for loop)
-        
-        // Check if we should break from main loop (termination signal received)
-        if (!useTerminationSignal) {
-            break;
-        }
-        
-        // Periodically flush all batches to ensure timely delivery
-        if (messagesProcessed % 1000 == 0) {
-            for (size_t i = 0; i < workerBatches.size(); i++) {
-                flushWorkerBatch(i, false);
+            total_publish_time += std::chrono::duration_cast<std::chrono::microseconds>(
+                std::chrono::high_resolution_clock::now() - publish_start);
+
+            threadMessages++;
+            totalMessages++;
+
+            // Periodic partial flush to ensure timely delivery
+            if (threadMessages % 1000 == 0) {
+                for (size_t i = 0; i < workerBatches.size(); i++) flushWorkerBatch(i, false);
             }
-        }
-        
-        // Log performance statistics every 10000 messages
-        if (messagesProcessed % 10000 == 0) {
-            OTEL_TRACE_OPERATION("streaming_performance_checkpoint");
-            
-            auto avg_parse = total_parse_time.count() / messagesProcessed;
-            auto avg_partition = total_partition_time.count() / messagesProcessed;
-            auto avg_temporal = total_temporal_time.count() / messagesProcessed;
-            auto avg_publish = total_publish_time.count() / messagesProcessed;
-            auto avg_total = avg_parse + avg_partition + avg_temporal + avg_publish;
-            
-            // Add performance metrics as span attributes
-            OpenTelemetryUtil::addSpanAttribute("messages.processed", std::to_string(messagesProcessed));
-            OpenTelemetryUtil::addSpanAttribute("avg.parse_us", std::to_string(avg_parse));
-            OpenTelemetryUtil::addSpanAttribute("avg.partition_us", std::to_string(avg_partition));
-            OpenTelemetryUtil::addSpanAttribute("avg.temporal_us", std::to_string(avg_temporal));
-            OpenTelemetryUtil::addSpanAttribute("avg.publish_us", std::to_string(avg_publish));
-            OpenTelemetryUtil::addSpanAttribute("avg.total_us", std::to_string(avg_total));
-            
-            // Calculate percentages
-            if (avg_total > 0) {
-                OpenTelemetryUtil::addSpanAttribute("pct.parse", std::to_string(100 * avg_parse / avg_total));
-                OpenTelemetryUtil::addSpanAttribute("pct.partition", std::to_string(100 * avg_partition / avg_total));
-                OpenTelemetryUtil::addSpanAttribute("pct.temporal", std::to_string(100 * avg_temporal / avg_total));
-                OpenTelemetryUtil::addSpanAttribute("pct.publish", std::to_string(100 * avg_publish / avg_total));
+
+            // Per-thread performance log every 10 000 messages
+            if (threadMessages % 10000 == 0 && threadMessages > 0) {
+                auto avg_parse     = total_parse_time.count()     / threadMessages;
+                auto avg_partition = total_partition_time.count() / threadMessages;
+                auto avg_temporal  = total_temporal_time.count()  / threadMessages;
+                auto avg_publish   = total_publish_time.count()   / threadMessages;
+                auto avg_total     = avg_parse + avg_partition + avg_temporal + avg_publish;
+                if (avg_total > 0) {
+                    stream_handler_logger.info(
+                        "[T" + std::to_string(threadId) + "] Performance @ " +
+                        std::to_string(threadMessages) + " msgs: " +
+                        "parse=" + std::to_string(avg_parse) + "us (" +
+                        std::to_string(100 * avg_parse / avg_total) + "%), " +
+                        "partition=" + std::to_string(avg_partition) + "us (" +
+                        std::to_string(100 * avg_partition / avg_total) + "%), " +
+                        "temporal=" + std::to_string(avg_temporal) + "us (" +
+                        std::to_string(100 * avg_temporal / avg_total) + "%), " +
+                        "publish=" + std::to_string(avg_publish) + "us (" +
+                        std::to_string(100 * avg_publish / avg_total) + "%)");
+                }
             }
-            
-            stream_handler_logger.info("Performance @ " + std::to_string(messagesProcessed) + " messages: " +
-                "parse=" + std::to_string(avg_parse) + "us (" + std::to_string(100 * avg_parse / avg_total) + "%), " +
-                "partition=" + std::to_string(avg_partition) + "us (" + std::to_string(100 * avg_partition / avg_total) + "%), " +
-                "temporal=" + std::to_string(avg_temporal) + "us (" + std::to_string(100 * avg_temporal / avg_total) + "%), " +
-                "publish=" + std::to_string(avg_publish) + "us (" + std::to_string(100 * avg_publish / avg_total) + "%)");;
-        }
+        }  // end message batch loop
+    }  // end while
+
+    stream_handler_logger.info("Consumer thread " + std::to_string(threadId) +
+                               " finished. Processed " + std::to_string(threadMessages) + " messages.");
+}
+
+// ============================================================================
+// COORDINATOR: spawns N parallel consumer threads then handles teardown
+// ============================================================================
+void StreamHandler::listen_to_kafka_topic() {
+    OTEL_TRACE_FUNCTION();
+    OpenTelemetryUtil::addSpanAttribute("graph.id", std::to_string(graphId));
+    OpenTelemetryUtil::addSpanAttribute("partitions", std::to_string(numberOfPartitions));
+    OpenTelemetryUtil::addSpanAttribute("temporal.enabled", !localTemporalStores.empty() ? "true" : "false");
+
+    // Assign partitions to workers
+    JasmineGraphServer *server = JasmineGraphServer::getInstance();
+    std::vector<JasmineGraphServer::worker> workers = server->workers(workerClients.size());
+    for (int i = 0; i < (int)workerClients.size(); i++) {
+        Utils::assignPartitionToWorker(graphId, i, workers.at(i).hostname, workers.at(i).port);
     }
-    
-    stream_handler_logger.info("Edges added: " + std::to_string(localEdgesAdded) + " local, " + 
-                              std::to_string(centralEdgesAdded) + " central, " +
-                              std::to_string(localEdgesAdded + centralEdgesAdded) + " total");
-    stream_handler_logger.info("Kafka consumption completed. Total messages processed: " + std::to_string(messagesProcessed));
-    
-    // Flush all remaining batches before finishing
+
+    // Read n_workers ONCE (fix: was read inside per-message loop previously)
+    int n_workers = atoi(Utils::getJasmineGraphProperty("org.jasminegraph.server.nworkers").c_str());
+
+    // Determine number of consumer threads from property, fallback to default
+    int numConsumerThreads = DEFAULT_CONSUMER_THREADS;
+    std::string threadsProp = Utils::getJasmineGraphProperty("org.jasminegraph.kafka.consumer.threads");
+    if (!threadsProp.empty()) {
+        int val = std::atoi(threadsProp.c_str());
+        if (val > 0) numConsumerThreads = val;
+    }
+
+    // Get the topic that the original consumer already subscribed to
+    std::vector<std::string> subscription = kstream->consumer.get_subscription();
+    if (subscription.empty()) {
+        stream_handler_logger.error("KafkaConnector has no topic subscription — cannot start consumers");
+        return;
+    }
+    const std::string topic = subscription[0];
+
+    stream_handler_logger.info("Starting " + std::to_string(numConsumerThreads) +
+                               " parallel Kafka consumer threads for topic '" + topic + "'");
+
+    // Shared state for all consumer threads
+    std::atomic<uint64_t> totalMessages{0};
+    std::atomic<uint64_t> totalLocal{0};
+    std::atomic<uint64_t> totalCentral{0};
+    std::atomic<bool>     endSignalReceived{false};
+
+    // Spawn N consumer threads; each creates its own cppkafka::Consumer so that
+    // Kafka can distribute topic partitions across the group automatically.
+    // Use a lambda to avoid std::thread's rvalue-conversion issues with
+    // reference parameters and move-only types (cppkafka::Consumer).
+    std::vector<std::thread> consumerThreads;
+    consumerThreads.reserve(numConsumerThreads);
+    for (int i = 0; i < numConsumerThreads; i++) {
+        auto consumerPtr = std::make_unique<cppkafka::Consumer>(kstream->getConfig());
+        consumerThreads.emplace_back(
+            [this, threadId = i, c = std::move(consumerPtr), topic, n_workers,
+             &totalMessages, &totalLocal, &totalCentral, &endSignalReceived]() mutable {
+                this->consumerThreadFunc(threadId, c.get(), topic, n_workers,
+                                         totalMessages, totalLocal, totalCentral,
+                                         endSignalReceived);
+            }
+        );
+    }
+
+    // Wait for all consumer threads to finish
+    for (auto& t : consumerThreads) {
+        if (t.joinable()) t.join();
+    }
+
+    stream_handler_logger.info("All consumer threads finished. Total messages: " +
+                               std::to_string(totalMessages.load()) +
+                               " (local=" + std::to_string(totalLocal.load()) +
+                               ", central=" + std::to_string(totalCentral.load()) + ")");
+
+    // Flush all remaining worker batches
     stream_handler_logger.info("Flushing remaining worker batches...");
-    for (size_t i = 0; i < workerBatches.size(); i++) {
-        flushWorkerBatch(i, true);
-    }
-    
-    // Wait for async publish queue to drain
+    for (size_t i = 0; i < workerBatches.size(); i++) flushWorkerBatch(i, true);
+
+    // Wait for async publish queue to drain (up to 5 s)
     int waitCount = 0;
-    while (waitCount < 50) {  // Wait up to 5 seconds
+    while (waitCount < 50) {
         std::unique_lock<std::mutex> lock(queueMutex);
         if (publishQueue.empty()) break;
         lock.unlock();
         std::this_thread::sleep_for(std::chrono::milliseconds(100));
         waitCount++;
     }
-    stream_handler_logger.info("All batches flushed and published");
-    
+
+    // Signal workers that the stream is done
+    for (auto& workerClient : workerClients) {
+        if (workerClient != nullptr) workerClient->publish("-1");
+    }
+    stream_handler_logger.info("Termination signal sent to all workers");
+
     graphPartitioner.updateMetaDB();
     graphPartitioner.printStats();
-    
-    // Save final snapshots for all partitions (even if below threshold)
     finalizeAllSnapshots();
+
+    // Unsubscribe the original (unused) consumer cleanly
+    kstream->Unsubscribe();
+
 }
+
