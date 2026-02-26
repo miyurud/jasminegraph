@@ -3933,7 +3933,8 @@ void JasmineGraphFrontEnd::stop_graph_streaming(int connFd, SQLiteDBInterface *s
             int resultWr = write(connFd, message3.c_str(), message3.length());
         }
         int result_wr = write(connFd, DONE.c_str(), FRONTEND_COMMAND_LENGTH);
-             std::string sqlStatement = "UPDATE graph SET kg_construction_status = 'paused'  WHERE idgraph = " + userResS;
+             std::string sqlStatement =
+                 "UPDATE graph SET kg_construction_status = 'paused'  WHERE idgraph = " + userResS;
 
         sqlite->runUpdate(sqlStatement);
     } else {
