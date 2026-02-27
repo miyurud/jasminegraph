@@ -117,7 +117,7 @@ def expect_response_file(conn: socket.socket, expected: bytes, timeout=5000):
             if received:
                 buffer.extend(received)
                 start = time.time()
-                if b'done' in buffer:
+                if b'done\r\n' in buffer:
                     break
             else:
                 time.sleep(0.01)
