@@ -148,8 +148,9 @@ void AgentPlanExecutor::execute() {
         }
 
         if (c == '\n') {
-            if (!lineBuffer.empty() && lineBuffer.back() == '\r')
+            if (!lineBuffer.empty() && lineBuffer.back() == '\r') {
                 lineBuffer.pop_back();
+            }
 
             std::string line = Utils::trim_copy(lineBuffer);
             lineBuffer.clear();
