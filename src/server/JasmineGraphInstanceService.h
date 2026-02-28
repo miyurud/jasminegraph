@@ -1,4 +1,4 @@
-/**
+    /**
 Copyright 2018 JasminGraph Team
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -104,6 +104,7 @@ struct instanceservicesessionargs {
     int connFd;
     int port;
     int dataPort;
+    string cmd;
     std::map<std::string, JasmineGraphHashMapLocalStore> *graphDBMapLocalStores;
     std::map<std::string, JasmineGraphHashMapCentralStore> *graphDBMapCentralStores;
     std::map<std::string, JasmineGraphHashMapDuplicateCentralStore> *graphDBMapDuplicateCentralStores;

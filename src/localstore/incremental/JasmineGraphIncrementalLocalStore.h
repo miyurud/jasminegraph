@@ -11,13 +11,14 @@ See the License for the specific language governing permissions and
 limitations under the License.
  */
 
+#include <atomic>
 #include <nlohmann/json.hpp>
 #include <string>
 
 #include "../../vectorstore/FaissIndex.h"
 #include "../../vectorstore/TextEmbedder.h"
 using json = nlohmann::json;
-
+using namespace std;
 #include "../../nativestore/NodeManager.h"
 #ifndef Incremental_LocalStore
 #define Incremental_LocalStore
@@ -31,9 +32,21 @@ class JasmineGraphIncrementalLocalStore {
  public:
     GraphConfig gc;
     NodeManager* nm;
-    FaissIndex* faissStore;
+    FaissIndex* faissNodeStore;
+    FaissIndex* faissEdgeStore;
     TextEmbedder* textEmbedder;
-    std::vector<EmbeddingRequest>* embedding_requests;
+    std::unique_ptr<unordered_map<string, string>> node_embedding_requests;
+    std::unique_ptr<set<string>> edge_embedding_requests;
+    bool processing_done = false;
+    pthread_mutex_t embeddingQueueMutex;
+    pthread_cond_t  embeddingQueueCond;
+    std::unordered_map<std::string, unsigned int> nodeIndex;
+    std::unordered_map<std::string, unsigned int> edgeIndex;
+    unsigned int nextNodeIndex = 0;
+    unsigned long nextEdgeIndex = 0;
+
+
+
     // batch texts to embed
 
     bool embedNode;
@@ -41,14 +54,17 @@ class JasmineGraphIncrementalLocalStore {
     static std::pair<std::string, unsigned int> getIDs(std::string edgeString);
     JasmineGraphIncrementalLocalStore(unsigned int graphID = 0, unsigned int partitionID = 0,
                                       std::string openMode = "trunk", bool embedNode = false);
-    bool getAndStoreEmbeddings();
+    void setNodeManger(NodeManager* node_manager);
+    void getAndStoreEmbeddings();
+    bool getAndStoreEdgeEmbeddings();
+    void getAndStoreEmbeddings() const;
     void addLocalEdge(std::string edge);
     void addCentralEdge(std::string edge);
     void addNodeMetaProperty(NodeBlock* nodeBlock, std::string propertyKey, std::string propertyValue);
     void addRelationMetaProperty(RelationBlock* relationBlock, std::string propertyKey, std::string propertyValue);
     void addLocalEdgeProperties(RelationBlock* relationBlock, const json& edgeJson);
     void addCentralEdgeProperties(RelationBlock* relationBlock, const json& edgeJson);
-    void addSourceProperties(RelationBlock* relationBlock, const json& sourceJson);
+    void addSourceProperties(RelationBlock* relationBlock, const json& sourceJson, string destId);
     void addDestinationProperties(RelationBlock* relationBlock, const json& destinationJson);
 };
 

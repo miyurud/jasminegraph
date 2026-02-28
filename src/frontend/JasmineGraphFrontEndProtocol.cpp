@@ -26,6 +26,8 @@ const string ERROR = "error";
 const string ADD_STREAM_KAFKA = "adstrmk";
 const string ADD_STREAM_HDFS = "adhdfs";
 const string CONSTRUCT_KG = "constructkg";
+const string CONSTRUCT_KG_LOCAL = "constructkgl";
+
 const string  STOP_CONSTRUCT_KG = "stop-constructkg";
 const string ADD_STREAM_KAFKA_CSV = "adstrmkcsv";
 const string STOP_STREAM_KAFKA = "stopstrm";
@@ -59,6 +61,7 @@ const string PRIORITY = "priority(>=1)";
 const string INVALID_FORMAT = "Invalid message format";
 const string CYPHER = "cypher";
 const string SEMANTIC_BEAM_SEARCH = "sbs";
+const string AGENT_PLAN = "graphrag";
 const string PROPERTIES = "prp";
 const string UPDATE_PARTITION_META = "update-partition-meta";
 const string META = "meta";

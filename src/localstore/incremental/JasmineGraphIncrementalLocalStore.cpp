@@ -26,7 +26,7 @@ limitations under the License.
 #include "../../vectorstore/TextEmbedder.h"
 
 Logger incremental_localstore_logger;
-
+#define BATCH_SIZE 64
 JasmineGraphIncrementalLocalStore::JasmineGraphIncrementalLocalStore(
     unsigned int graphID, unsigned int partitionID, std::string openMode,
     bool embedNode) {
@@ -35,36 +35,141 @@ JasmineGraphIncrementalLocalStore::JasmineGraphIncrementalLocalStore(
   gc.maxLabelSize = std::stoi(Utils::getJasmineGraphProperty(
       "org.jasminegraph.nativestore.max.label.size"));
   this->embedNode = embedNode;
-  this->embedding_requests = new std::vector<EmbeddingRequest>();
+  this->node_embedding_requests = std::make_unique<std::unordered_map<string, string>>();
+  this->edge_embedding_requests = std::make_unique<std::set<string>>();
+  this->embeddingQueueMutex = PTHREAD_MUTEX_INITIALIZER;
+  this->embeddingQueueCond = PTHREAD_COND_INITIALIZER;
+
+
 
   gc.openMode = openMode;
   this->nm = new NodeManager(gc);
   if (this->embedNode) {
-    incremental_localstore_logger.info("Embedding enabled for the local store");
-    this->faissStore =
+    incremental_localstore_logger.debug("Embedding enabled for the local store");
+    this->faissNodeStore =
         FaissIndex::getInstance(std::stoi(Utils::getJasmineGraphProperty(
                                     "org.jasminegraph.vectorstore.dimension")),
                                 this->nm->getDbPrefix() + "_faiss.index");
+      this->faissEdgeStore =
+     FaissIndex::getInstance(std::stoi(Utils::getJasmineGraphProperty(
+                                 "org.jasminegraph.vectorstore.dimension")),
+                             this->nm->getDbPrefix() + "_faiss_edge.index");
     this->textEmbedder = new TextEmbedder(
-        Utils::getJasmineGraphProperty("org.jasminegraph.vectorstore.embedding."
-                                       "ollama.endpoint"),  // Ollama endpoint
+        Utils::getJasmineGraphProperty("org.jasminegraph.vectorstore.embedding.ollama.endpoint"),  // Ollama endpoint
         Utils::getJasmineGraphProperty(
             "org.jasminegraph.vectorstore.embedding.model"));
   }
 };
-bool JasmineGraphIncrementalLocalStore::getAndStoreEmbeddings() {
-  std::vector<string> batch_request;
-  for (EmbeddingRequest& request : *embedding_requests) {
-    batch_request.emplace_back(request.nodeText);
-  }
-  vector<vector<float>> results = textEmbedder->batch_embed(batch_request);
 
-  for (size_t i = 0; i < results.size(); ++i) {
-    faissStore->add(results[i], embedding_requests->at(i).nodeId);
-  }
-  embedding_requests->clear();
-  faissStore->save();
+void JasmineGraphIncrementalLocalStore::setNodeManger(NodeManager* node_manager) {
+    this->nm = node_manager;
 }
+void JasmineGraphIncrementalLocalStore::getAndStoreEmbeddings() {
+    try {
+        incremental_localstore_logger.debug(
+            "Starting thread for embedding generation and indexing for Partition: " +
+            std::to_string(gc.partitionID));
+
+        std::vector<std::string> node_ids;
+        std::vector<std::string> node_texts;
+        std::vector<std::string> edge_texts;
+
+        node_ids.reserve(BATCH_SIZE);
+        node_texts.reserve(BATCH_SIZE);
+        edge_texts.reserve(BATCH_SIZE);
+
+        while (true) {
+            node_ids.clear();
+            node_texts.clear();
+            edge_texts.clear();
+
+            /* ==============================
+             * WAIT FOR WORK OR SHUTDOWN
+             * ============================== */
+            pthread_mutex_lock(&embeddingQueueMutex);
+
+            while (!processing_done &&
+                   node_embedding_requests->empty() &&
+                   edge_embedding_requests->empty()) {
+                pthread_cond_wait(&embeddingQueueCond, &embeddingQueueMutex);
+            }
+
+            /* Shutdown condition:
+             * - processing_done is set
+             * - no pending work
+             */
+            if (processing_done &&
+                node_embedding_requests->empty() &&
+                edge_embedding_requests->empty()) {
+                pthread_mutex_unlock(&embeddingQueueMutex);
+                break;
+            }
+
+            /* ==============================
+             * COLLECT NODE BATCH
+             * ============================== */
+            auto nit = node_embedding_requests->begin();
+            for (size_t i = 0;
+                 i < BATCH_SIZE && nit != node_embedding_requests->end();
+                 ++i) {
+                node_ids.emplace_back(nit->first);
+                node_texts.emplace_back(nit->second);
+                nit = node_embedding_requests->erase(nit);
+            }
+
+            /* ==============================
+             * COLLECT EDGE BATCH
+             * ============================== */
+            auto eit = edge_embedding_requests->begin();
+            for (size_t i = 0;
+                 i < BATCH_SIZE && eit != edge_embedding_requests->end();
+                 ++i) {
+                edge_texts.emplace_back(*eit);
+                eit = edge_embedding_requests->erase(eit);
+            }
+
+            pthread_mutex_unlock(&embeddingQueueMutex);
+
+            /* ==============================
+             * NODE EMBEDDINGS
+             * ============================== */
+            if (!node_texts.empty()) {
+                incremental_localstore_logger.info(
+                    "Node embedding batch size: " +
+                    std::to_string(node_texts.size()));
+
+                auto node_vectors = textEmbedder->batch_embed(node_texts);
+
+                for (size_t i = 0; i < node_vectors.size(); ++i) {
+                    faissNodeStore->add(node_vectors[i], node_ids[i]);
+                }
+            }
+
+            /* ==============================
+             * EDGE EMBEDDINGS
+             * ============================== */
+            if (!edge_texts.empty()) {
+                incremental_localstore_logger.debug(
+                    "Edge embedding batch size: " +
+                    std::to_string(edge_texts.size()));
+
+                auto edge_vectors = textEmbedder->batch_embed(edge_texts);
+
+                for (size_t i = 0; i < edge_vectors.size(); ++i) {
+                    faissEdgeStore->add(edge_vectors[i], edge_texts[i]);
+                }
+            }
+        }
+        incremental_localstore_logger.debug(
+            "Embedding thread exiting cleanly for Partition: " +
+            std::to_string(gc.partitionID));
+    } catch (const std::exception &e) {
+        incremental_localstore_logger.debug(
+            "Error while processing embeddings = " + std::string(e.what()));
+    }
+}
+
+
 
 std::pair<std::string, unsigned int> JasmineGraphIncrementalLocalStore::getIDs(
     std::string edgeString) {
@@ -139,7 +244,7 @@ void JasmineGraphIncrementalLocalStore::addEdgeFromString(
       addCentralEdgeProperties(newRelation, edgeJson);
     }
 
-    addSourceProperties(newRelation, sourceJson);
+    addSourceProperties(newRelation, sourceJson, dId);
     addDestinationProperties(newRelation, destinationJson);
     incremental_localstore_logger.debug("Edge (" + sId + ", " + dId +
                                         ") Added successfully!");
@@ -175,62 +280,60 @@ void JasmineGraphIncrementalLocalStore::addEdgeFromString(
 }
 
 void JasmineGraphIncrementalLocalStore::addLocalEdge(std::string edge) {
-  auto jsonEdge = json::parse(edge);
-  auto jsonSource = jsonEdge["source"];
-  auto jsonDestination = jsonEdge["destination"];
+    try {
+        auto jsonEdge = json::parse(edge);
+        auto jsonSource = jsonEdge["source"];
+        auto jsonDestination = jsonEdge["destination"];
 
-  // log the edge information
-  if (!jsonSource.contains("id") || !jsonDestination.contains("id")) {
-    incremental_localstore_logger.error(
-        "Source or destination ID missing in edge data: " + edge);
-    return;
-  }
-  if (!jsonEdge.contains("source") || !jsonEdge.contains("destination")) {
-    incremental_localstore_logger.error(
-        "Source or destination missing in edge data: " + edge);
-    return;
-  }
-  if (!jsonEdge.contains("properties")) {
-    incremental_localstore_logger.error("Properties missing in edge data: " +
-                                        edge);
-    return;
-  }
-  if (!jsonSource.contains("pid") || !jsonDestination.contains("pid")) {
-    incremental_localstore_logger.error(
-        "Partition ID missing in source or destination: " + edge);
-    return;
-  }
+        if (!jsonSource.contains("id") || !jsonDestination.contains("id")) {
+            incremental_localstore_logger.error(
+                "Source or destination ID missing in edge data: " + edge);
+            return;
+        }
+        if (!jsonEdge.contains("source") || !jsonEdge.contains("destination")) {
+            incremental_localstore_logger.error(
+                "Source or destination missing in edge data: " + edge);
+            return;
+        }
+        if (!jsonEdge.contains("properties")) {
+            incremental_localstore_logger.error("Properties missing in edge data: " +
+                                                edge);
+            return;
+        }
+        if (!jsonSource.contains("pid") || !jsonDestination.contains("pid")) {
+            incremental_localstore_logger.error(
+                "Partition ID missing in source or destination: " + edge);
+            return;
+        }
+        std::string sId = std::string(jsonSource["id"]);
+        std::string dId = std::string(jsonDestination["id"]);
+        RelationBlock* newRelation = nullptr;
 
-  std::string sId = std::string(jsonSource["id"]);
-  std::string dId = std::string(jsonDestination["id"]);
-  RelationBlock* newRelation = nullptr;
-  if (jsonEdge["properties"].contains("id")) {
-    std::string edgeId = std::string(jsonEdge["properties"]["id"]);
+        newRelation = this->nm->addLocalEdge({sId, dId});
 
-    if (this->nm->edgeIndex.find(edgeId) == this->nm->edgeIndex.end()) {
-      incremental_localstore_logger.debug("Edge Id not found: " + edgeId);
+        if (newRelation == nullptr) {
+            incremental_localstore_logger.error("Error while adding new Relation: " + edge);
 
-      newRelation = this->nm->addLocalEdge({sId, dId});
-      this->nm->edgeIndex.insert({edgeId, this->nm->nextEdgeIndex});
-    } else {
-      incremental_localstore_logger.debug("Edge Id already found: " + edgeId);
+            return;
+        }
+        incremental_localstore_logger.debug("edge: " + jsonEdge.dump());
+        addLocalEdgeProperties(newRelation, jsonEdge);
+        addSourceProperties(newRelation, jsonSource, dId);
+        addDestinationProperties(newRelation, jsonDestination);
+        newRelation->getDestination()->setLocalRelationHead(*newRelation);
+        newRelation->getSource()->setLocalRelationHead(*newRelation);
+
+        delete newRelation->getSource();
+        delete newRelation->getDestination();
+        delete newRelation;
+        incremental_localstore_logger.debug("Local edge (" + sId + "-> " + dId +
+                                            " ) added successfully");
+        if (node_embedding_requests->size() > BATCH_SIZE || edge_embedding_requests->size() > BATCH_SIZE) {
+            pthread_cond_signal(&embeddingQueueCond);
+        }
+    } catch (const std::exception&  e) {
+        incremental_localstore_logger.error(e.what());
     }
-  } else {
-    newRelation = this->nm->addLocalEdge({sId, dId});
-  }
-
-  if (newRelation == nullptr) {
-    return;
-  }
-
-  addLocalEdgeProperties(newRelation, jsonEdge);
-  addSourceProperties(newRelation, jsonSource);
-  addDestinationProperties(newRelation, jsonDestination);
-  delete newRelation->getSource();
-  delete newRelation->getDestination();
-  delete newRelation;
-  incremental_localstore_logger.debug("Local edge (" + sId + "-> " + dId +
-                                      " ) added successfully");
 }
 
 void JasmineGraphIncrementalLocalStore::addCentralEdge(std::string edge) {
@@ -263,7 +366,7 @@ void JasmineGraphIncrementalLocalStore::addCentralEdge(std::string edge) {
   }
 
   addCentralEdgeProperties(newRelation, jsonEdge);
-  addSourceProperties(newRelation, jsonSource);
+  addSourceProperties(newRelation, jsonSource, jsonDestination["id"].get<std::string>());
   addDestinationProperties(newRelation, jsonDestination);
   delete newRelation->getSource();
   delete newRelation->getDestination();
@@ -281,7 +384,15 @@ void JasmineGraphIncrementalLocalStore::addCentralEdgeProperties(
     for (auto it = edgeProperties.begin(); it != edgeProperties.end(); it++) {
       strcpy(value, it.value().get<std::string>().c_str());
       if (std::string(it.key()) == "type") {
+          string property = it.value().get<std::string>();
         strcpy(type, it.value().get<std::string>().c_str());
+          if (embedNode && !faissEdgeStore->isEmbeddingExist(property) &&
+             edge_embedding_requests->find(property) == edge_embedding_requests->end()) {
+              incremental_localstore_logger.debug(" Adding embedding request: "+ property);
+              pthread_mutex_lock(&embeddingQueueMutex);
+              edge_embedding_requests->insert(property);
+              pthread_mutex_unlock(&embeddingQueueMutex);
+             }
         relationBlock->addCentralRelationshipType(&type[0]);
       }
       relationBlock->addCentralProperty(std::string(it.key()), &value[0]);
@@ -301,7 +412,15 @@ void JasmineGraphIncrementalLocalStore::addLocalEdgeProperties(
     for (auto it = edgeProperties.begin(); it != edgeProperties.end(); it++) {
       strcpy(value, it.value().get<std::string>().c_str());
       if (std::string(it.key()) == "type") {
+          string property = it.value().get<std::string>();
         strcpy(type, it.value().get<std::string>().c_str());
+          if (embedNode && !faissEdgeStore->isEmbeddingExist(property) &&
+              edge_embedding_requests->find(property) == edge_embedding_requests->end()) {
+              incremental_localstore_logger.debug(" Adding embedding request: "+ property);
+              pthread_mutex_lock(&embeddingQueueMutex);
+              edge_embedding_requests->insert(property);
+              pthread_mutex_unlock(&embeddingQueueMutex);
+          }
         relationBlock->addLocalRelationshipType(&type[0]);
       }
       relationBlock->addLocalProperty(std::string(it.key()), &value[0]);
@@ -310,43 +429,44 @@ void JasmineGraphIncrementalLocalStore::addLocalEdgeProperties(
 }
 
 void JasmineGraphIncrementalLocalStore::addSourceProperties(
-    RelationBlock* relationBlock, const json& sourceJson) {
+    RelationBlock* relationBlock, const json& sourceJson, string destId) {
   char value[PropertyLink::MAX_VALUE_SIZE] = {};
   char label[NodeBlock::LABEL_SIZE] = {0};
   std::ostringstream textForEmbedding;
-
+incremental_localstore_logger.debug("Adding source properties: " + sourceJson.dump());
   if (sourceJson.contains("properties")) {
     auto sourceProps = json(sourceJson["properties"]);
 
     if (!sourceProps.empty()) {
       for (auto it = sourceProps.begin(); it != sourceProps.end(); it++) {
-        strcpy(value, it.value().get<std::string>().c_str());
-        if (std::string(it.key()) == "label") {
+          string property = it.value().get<std::string>();
+          strcpy(value, it.value().get<std::string>().c_str());
+          if (std::string(it.key()) == "label") {
           strcpy(label, it.value().get<std::string>().c_str());
           relationBlock->getSource()->addLabel(&label[0]);
-        }
-        textForEmbedding << it.key() << ":" << value << " ";
-        relationBlock->getSource()->addProperty(std::string(it.key()),
-                                                &value[0]);
+         }
+          if (it.key() != "id") {
+              textForEmbedding << value << "\n";
+          }
+          relationBlock->getSource()->addProperty(std::string(it.key()),
+                                                     &value[0]);
       }
 
       if (this->embedNode) {
+          incremental_localstore_logger.debug("Embedding node:" + textForEmbedding.str());
         std::string nodeText = textForEmbedding.str();
         if (!nodeText.empty()) {
-          if (faissStore->getEmbeddingById(sourceJson["id"]).size() == 0) {
-            incremental_localstore_logger.error(
-                "Node with ID " + sourceJson["id"].get<std::string>() +
-                " found . Skipping ");
-            return;
+          if (!faissNodeStore->isEmbeddingExist(sourceJson["id"]) &&
+              node_embedding_requests->find(sourceJson["id"]) == node_embedding_requests->end()) {
+              incremental_localstore_logger.debug(" Adding embedding request: "+ nodeText);
+              pthread_mutex_lock(&embeddingQueueMutex);              // node
+              node_embedding_requests->insert({sourceJson["id"].get<std::string>(), nodeText});
+              pthread_mutex_unlock(&embeddingQueueMutex);
           }
-          EmbeddingRequest request = {sourceJson["id"].get<std::string>(),
-                                      nodeText};
-          embedding_requests->emplace_back(request);
         }
       }
     }
   }
-
   std::string sourcePid = std::to_string(sourceJson["pid"].get<int>());
   addNodeMetaProperty(relationBlock->getSource(),
                       MetaPropertyLink::PARTITION_ID, sourcePid);
@@ -368,23 +488,22 @@ void JasmineGraphIncrementalLocalStore::addDestinationProperties(
           strcpy(label, it.value().get<std::string>().c_str());
           relationBlock->getDestination()->addLabel(&label[0]);
         }
-        textForEmbedding << it.key() << ":" << value << " ";
-
-        relationBlock->getDestination()->addProperty(std::string(it.key()),
-                                                     &value[0]);
+          if (it.key() != "id") {
+              textForEmbedding << value << "\n";
+          }
+              relationBlock->getDestination()->addProperty(std::string(it.key()),
+                                                           &value[0]);
       }
       if (this->embedNode) {
         std::string nodeText = textForEmbedding.str();
         if (!nodeText.empty()) {
-          if (faissStore->getEmbeddingById(destinationJson["id"]).empty()) {
-            incremental_localstore_logger.error(
-                "Node with ID " + destinationJson["id"].get<std::string>() +
-                " found . Skipping ");
-            return;
+          if (!faissNodeStore->isEmbeddingExist(destinationJson["id"]) &&
+              node_embedding_requests->find(destinationJson["id"]) == node_embedding_requests->end()) {
+              incremental_localstore_logger.debug(" Adding embedding request: "+ nodeText);
+              pthread_mutex_lock(&embeddingQueueMutex);
+              node_embedding_requests->insert({destinationJson["id"].get<std::string>(), nodeText});
+              pthread_mutex_unlock(&embeddingQueueMutex);
           }
-          EmbeddingRequest request = {destinationJson["id"].get<std::string>(),
-                                      nodeText};
-          embedding_requests->emplace_back(request);
         }
       }
     }

@@ -182,8 +182,11 @@ void *uifrontendservicesesion(void *dummyPt) {
         } else if (line.compare(CONSTRUCT_KG) == 0) {
             JasmineGraphFrontEnd::constructKGStreamHDFSCommand(masterIP, connFd, numberOfPartitions,
                 sqlite, &loop_exit);
+        } else if (line.compare(CONSTRUCT_KG_LOCAL) == 0) {
+            JasmineGraphFrontEnd::constructKGStreamLocalTXTCommand(masterIP, connFd, numberOfPartitions,
+                sqlite, &loop_exit);
         } else if (line.compare(STOP_CONSTRUCT_KG) == 0) {
-            JasmineGraphFrontEnd::stop_graph_streaming(connFd, &loop_exit);
+            JasmineGraphFrontEnd::stop_graph_streaming(connFd, sqlite, &loop_exit);
         } else if (token.compare("UPBYTES") == 0) {
            send_uploaded_bytes(connFd, sqlite, &loop_exit, line);
         } else {
@@ -455,7 +458,6 @@ static void send_uploaded_bytes(int connFd, SQLiteDBInterface *sqlite, bool *loo
     while (std::getline(ss, token, delimiter)) {
         if (JasmineGraphFrontEndCommon::graphExistsByID(token, sqlite)) {
             graphIDs.push_back(token);
-            ui_frontend_logger.info("Will fetch uploaded_bytes of graph id: " + token);
         } else {
             ui_frontend_logger.warn("Graph ID " + token + " not found. Skipping.");
         }
@@ -463,7 +465,6 @@ static void send_uploaded_bytes(int connFd, SQLiteDBInterface *sqlite, bool *loo
 
     // Fetch all if none specified
     if (graphIDs.empty()) {
-        ui_frontend_logger.info("No graph IDs specified. Fetching all graphs.");
         std::string sqlAll = "SELECT idgraph FROM graph";
         auto result = sqlite->runSelect(sqlAll);
         for (const auto &row : result) {
@@ -473,13 +474,13 @@ static void send_uploaded_bytes(int connFd, SQLiteDBInterface *sqlite, bool *loo
         }
     }
 
-    ui_frontend_logger.info("Fetching uploaded_bytes for " + std::to_string(graphIDs.size()) + " graph(s).");
 
     std::string msg = "UPBYTES";
 
     for (const auto &graphID : graphIDs) {
         std::string sql =
-            "SELECT uploaded_bytes, file_size_bytes, edgecount, upload_start_time, upload_path "
+            "SELECT uploaded_bytes, file_size_bytes, edge_count, upload_start_time, upload_path, llm_runner_string, "
+            "inference_engine, model, chunk_size_bytes, kg_construction_status, hdfs_host, hdfs_port "
             "FROM graph WHERE idgraph=" +
             graphID;
         auto result = sqlite->runSelect(sql);
@@ -491,7 +492,8 @@ static void send_uploaded_bytes(int connFd, SQLiteDBInterface *sqlite, bool *loo
 
         double uploadedBytes = 0.0, fileSizeBytes = 0.0, edgeCount = 0.0;
 
-        std::string startTimeStr;
+        std::string startTimeStr, llmRunnerString, inferenceEngine, model, chunkSizeBytes, kgConstructionStatus,
+        hdfsIp, hdfsPort;
 
         try {
             uploadedBytes = stod(result[0][0].second);
@@ -499,6 +501,13 @@ static void send_uploaded_bytes(int connFd, SQLiteDBInterface *sqlite, bool *loo
 
             if (!result[0][2].second.empty()) edgeCount = stod(result[0][2].second);
             startTimeStr = result[0][3].second;
+            llmRunnerString = result[0][4].second;
+            inferenceEngine = result[0][5].second;
+            model = result[0][6].second;
+            chunkSizeBytes = result[0][7].second;
+            kgConstructionStatus = result[0][8].second;
+            hdfsIp = result[0][9].second;
+            hdfsPort = result[0][10].second;
         } catch (std::exception &e) {
             ui_frontend_logger.error(e.what());
             continue;
@@ -519,8 +528,7 @@ static void send_uploaded_bytes(int connFd, SQLiteDBInterface *sqlite, bool *loo
         } catch (...) {
             ui_frontend_logger.warn("Failed to parse upload_start_time for graph " + graphID);
         }
-        ui_frontend_logger.info("elapsed time: " + std::to_string(elapsedSeconds));
-        ui_frontend_logger.info("edge count: " + std::to_string(elapsedSeconds));
+
 
         int id = std::stoi(graphID);
         auto rate = JasmineGraphFrontEnd::kgConstructionRates[id];
@@ -530,7 +538,9 @@ static void send_uploaded_bytes(int connFd, SQLiteDBInterface *sqlite, bool *loo
         if (percent < 100.0) {
             msg += "|" + graphID + "|" + std::to_string(uploadedBytes) + "|" + std::to_string(fileSizeBytes) + "|" +
                    std::to_string(percent) + "|" + std::to_string(bytesPerSecond) + "|" +
-                   std::to_string(triplesPerSecond) + "|" + startTimeStr;
+                   std::to_string(triplesPerSecond) + "|" + startTimeStr+"|"+  llmRunnerString + "|" +
+                       inferenceEngine + "|" + model + "|" +
+                       chunkSizeBytes + "|" + kgConstructionStatus + "|" + hdfsIp + "|" + hdfsPort;
         }
     }
 
@@ -540,7 +550,7 @@ static void send_uploaded_bytes(int connFd, SQLiteDBInterface *sqlite, bool *loo
     if (wr < 0) {
         ui_frontend_logger.error("Client disconnected while sending UPBYTES.");
     } else {
-        ui_frontend_logger.info("UPBYTES sent successfully.");
+        ui_frontend_logger.debug("UPBYTES sent successfully.");
     }
 }
 
@@ -976,7 +986,7 @@ static void cypher_ast_command(int connFd, vector<DataPublisher *> &workerClient
 
     // send query plan
     JasmineGraphServer *server = JasmineGraphServer::getInstance();
-    server->sendQueryPlan(stoi(user_res_1), workerClients.size(), obj, std::ref(bufferPool));
+    server->sendQueryPlan(stoi(user_res_1), numberOfPartitions, obj, std::ref(bufferPool));
 
     int closeFlag = 0;
     if (Operator::isAggregate) {
@@ -1172,6 +1182,9 @@ static void semantic_beam_search_command(int connFd, std::string command, int nu
         *loop_exit_p = true;
         return;
     }
+    string done =  R"({"done":"true"})";
+    write(connFd,  done.c_str(), done.size());
+    write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
 
     ui_frontend_logger.info("Semantic beam search completed successfully for graph " + graph_id);
 }

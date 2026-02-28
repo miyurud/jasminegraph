@@ -64,6 +64,7 @@ extern const string ADD_STREAM;
 extern const string ADD_STREAM_KAFKA;
 extern const string ADD_STREAM_HDFS;
 extern const string CONSTRUCT_KG;
+extern const string CONSTRUCT_KG_LOCAL;
 extern const string  STOP_CONSTRUCT_KG;
 extern const string STRM_ACK;
 extern const string ADD_STREAM_KAFKA;
@@ -92,6 +93,7 @@ extern const string MERGE;
 extern const string INVALID_FORMAT;
 extern const string CYPHER;
 extern const string SEMANTIC_BEAM_SEARCH;
+extern const string  AGENT_PLAN;
 extern const string PROPERTIES;
 extern const string  UPDATE_PARTITION_META;
 extern const string  META;
@@ -108,6 +110,6 @@ const int FRONTEND_GRAPH_TYPE_LENGTH = 20;
 
 const double PAGE_RANK_ALPHA = 0.85;
 const int PAGE_RANK_ITERATIONS = 10;
-const int MASTER_BUFFER_SIZE = 100;
+const int MASTER_BUFFER_SIZE = 10000;
 
 #endif  // JASMINGRAPH_JASMINGRAPHFRONTENDPROTOCOL_H

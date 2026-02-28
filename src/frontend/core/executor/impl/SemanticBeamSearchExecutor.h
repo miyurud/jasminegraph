@@ -22,7 +22,8 @@ class SemanticBeamSearchExecutor : public AbstractExecutor {
 
     void execute() override;
     static void doSemanticBeamSearch(std::string host, int port, std::string masterIP, int graphID, int partitionId,
-                                     std::string query, SharedBuffer &sharedBuffer, int noOfPartitions);
+                                     std::string query, SharedBuffer &sharedBuffer, int noOfPartitions,
+                                     const std::string &workerListString);
     static int getUid();
 
  private:

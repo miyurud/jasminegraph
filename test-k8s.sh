@@ -30,6 +30,59 @@ mkdir -p "${WORKER_LOG_DIR}"
 
 MASTER_LOG_PID=""
 
+setup_gemma3_ollama() {
+
+    NUM_PARALLEL=${1:-4}
+    HOST_PORT=${2:-11441}
+    CONTAINER_NAME="gemma3"
+    DOCKER_IMAGE="ollama/ollama"
+    MODELS=("jina/jina-embeddings-v2-small-en")
+
+    # GPU detection
+    if command -v nvidia-smi &>/dev/null && nvidia-smi >/dev/null 2>&1; then
+        GPU_FLAG="--gpus all"
+        echo "GPU detected"
+    else
+        GPU_FLAG=""
+        echo "Running on CPU"
+    fi
+
+    MODEL_DIR="$(pwd)/ollama_models"
+    mkdir -p "$MODEL_DIR"
+
+    if docker ps -a -q -f name="^${CONTAINER_NAME}$" | grep -q .; then
+        echo "Starting existing container"
+        docker start "$CONTAINER_NAME"
+    else
+        echo "Creating Ollama container"
+        docker run -d $GPU_FLAG \
+            --name "$CONTAINER_NAME" \
+            -p "${HOST_PORT}:11434" \
+            -v "${MODEL_DIR}:/root/.ollama" \
+            -e OLLAMA_NUM_PARALLEL="$NUM_PARALLEL" \
+            "$DOCKER_IMAGE"
+    fi
+
+    echo "Waiting for Ollama to start..."
+    sleep 5
+
+    for MODEL_NAME in "${MODELS[@]}"; do
+        echo "Pulling model: $MODEL_NAME"
+        docker exec "$CONTAINER_NAME" ollama pull "$MODEL_NAME"
+    done
+
+    # Hostname mapping
+    HOST_IP=$(hostname -I | awk '{print $1}')
+    echo "Mapping gemma3 → $HOST_IP"
+
+    sudo sed -i "/[[:space:]]gemma3$/d" /etc/hosts
+    echo "$HOST_IP gemma3" | sudo tee -a /etc/hosts >/dev/null
+
+    getent hosts gemma3
+
+    echo "✅ Gemma3 ready at http://gemma3:${HOST_PORT}"
+}
+
 # Function to start capturing master logs
 start_master_logs() {
     echo "Starting to capture JasmineGraph master logs..."
@@ -266,6 +319,22 @@ cp -r env_init env
 
 cd "$PROJECT_ROOT"
 build_and_run_on_k8s
+
+docker ps -a --filter "ancestor=grafana/grafana-enterprise" -q | xargs -r docker stop
+docker ps -a --filter "ancestor=grafana/grafana-enterprise" -q | xargs -r docker rm
+docker images | grep "grafana/grafana-enterprise" | awk '{print $3}' | xargs -r docker rmi -f
+docker images
+
+docker system prune -af
+
+# Remove dangling volumes
+docker volume prune -f
+
+# Remove unused networks
+docker network prune -f
+
+# Optional: check disk usage
+df -h
 ready_hdfs
 start_master_logs
 
@@ -297,8 +366,57 @@ echo '------------------ services -----------------------------------'
 kubectl get services -o wide
 echo
 
-timeout "$TIMEOUT_SECONDS" python3 -u "${TEST_ROOT}/test-k8s.py" "$masterIP" |& tee "$TEST_LOG"
-exit_code="${PIPESTATUS[0]}"
+# Expand comma-separated or space-separated list into array TEST_LIST
+TEST_LIST=()
+
+if [ -z "$TEST_NAME" ]; then
+    # No arguments → run ALL tests
+    echo "No specific test provided — running ALL tests under $TEST_ROOT"
+    TEST_LIST=($(find "$TEST_ROOT" -maxdepth 2 -type f -name "test-k8s.py"))
+else
+    # Arguments provided → support multiple or comma-separated test names
+    IFS=',' read -ra RAW_LIST <<<"$TEST_NAME"
+
+    for name in "${RAW_LIST[@]}"; do
+        if [ "$name" = "main" ]; then
+            # Add main/test.py first if exists
+            if [ -f "${TEST_ROOT}/test-k8s.py" ]; then
+                TEST_LIST+="${TEST_ROOT}/test-k8s.py"
+            else
+                echo "ERROR: test-k8s.py does not exist"
+                exit 1
+            fi
+
+        else
+            # Regular test under integration folder
+            TEST_PY="${TEST_ROOT}/${name}/test-k8s.py"
+            if [ -f "$TEST_PY" ]; then
+                TEST_LIST+=("$TEST_PY")
+            else
+                echo "ERROR: Test does not exist: $name"
+                exit 1
+            fi
+        fi
+    done
+fi
+
+# --- Run the collected test files ---
+exit_code=0
+
+for test_file in "${TEST_LIST[@]}"; do
+    echo "--------------------------------------------------"
+    echo "Running: $test_file"
+    echo "--------------------------------------------------"
+
+    timeout "$TIMEOUT_SECONDS" python3 -u "$test_file" "$masterIP" |& tee -a "$TEST_LOG"
+    test_exit=${PIPESTATUS[0]}
+
+    if [ "$test_exit" != "0" ]; then
+        echo "❌ Test failed: $test_file"
+        exit_code="$test_exit"
+        break
+    fi
+done
 
 set +ex
 if [ "$exit_code" != '0' ]; then

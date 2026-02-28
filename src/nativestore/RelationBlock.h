@@ -110,7 +110,7 @@ class RelationBlock {
     static thread_local std::fstream *relationsDB;
     static thread_local std::fstream *centralRelationsDB;
     static const int RECORD_SIZE = sizeof(unsigned int);
-    static const int MAX_TYPE_SIZE = 18;
+    static const int MAX_TYPE_SIZE = 100;
     static const std::string DEFAULT_TYPE;
     static const int NUMBER_OF_CENTRAL_RELATION_RECORDS = 14;
     static const int CENTRAL_RELATIONSHIP_TYPE_OFFSET = 14;
