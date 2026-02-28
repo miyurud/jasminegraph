@@ -1171,15 +1171,19 @@ static void remove_all_graphs_command(std::string masterIP, int connFd, SQLiteDB
     int totalCount = graphIdResults.size();
 
     // Remove each graph
-    for (const auto& result : graphIdResults) {
-        string graphID = result[0].second;
-        frontend_logger.info("Removing graph with ID: " + graphID);
+    for (const auto& row : graphIdResults) {
+        try {
+            std::string graphID = row.at(0).second;
+            frontend_logger.info("Removing graph with ID: " + graphID);
 
-        if (JasmineGraphFrontEndCommon::graphExistsByID(graphID, sqlite)) {
-            JasmineGraphFrontEndCommon::removeGraph(graphID, sqlite, masterIP);
-            removedCount++;
-        } else {
-            frontend_logger.warn("Graph with ID " + graphID + " does not exist or cannot be removed");
+            if (JasmineGraphFrontEndCommon::graphExistsByID(graphID, sqlite)) {
+                JasmineGraphFrontEndCommon::removeGraph(graphID, sqlite, masterIP);
+                removedCount++;
+            } else {
+                frontend_logger.warn("Graph with ID " + graphID + " does not exist or cannot be removed");
+            }
+        } catch (const std::out_of_range& e) {
+            frontend_logger.error("Invalid row structure: " + std::string(e.what()) + "\n");
         }
     }
 
