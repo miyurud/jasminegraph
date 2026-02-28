@@ -374,7 +374,7 @@ void Pipeline::startStreamingFromBufferToWorkers() {
 
     std::thread readerThread;
 
-    // Start the appropriate reader thread based on fileSystem
+    // Start the appropriate reader thread based on file system
     if (fileSystem == nullptr) {
         // Local file streaming
         kg_pipeline_stream_handler_logger.info("Starting local file streaming thread...");
