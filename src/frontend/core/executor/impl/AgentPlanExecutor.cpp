@@ -155,8 +155,9 @@ void AgentPlanExecutor::execute() {
             std::string line = Utils::trim_copy(lineBuffer);
             lineBuffer.clear();
 
-            if (line.empty())
+            if (line.empty()) {
                 continue;
+             }
 
             try {
                 json payload = json::parse(line);
