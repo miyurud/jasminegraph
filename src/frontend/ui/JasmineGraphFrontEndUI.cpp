@@ -479,7 +479,7 @@ static void send_uploaded_bytes(int connFd, SQLiteDBInterface *sqlite, bool *loo
 
     for (const auto &graphID : graphIDs) {
         std::string sql =
-            "SELECT uploaded_bytes, file_size_bytes, edgecount, upload_start_time, upload_path, llm_runner_string, "
+            "SELECT uploaded_bytes, file_size_bytes, edge_count, upload_start_time, upload_path, llm_runner_string, "
             "inference_engine, model, chunk_size_bytes, kg_construction_status, hdfs_host, hdfs_port "
             "FROM graph WHERE idgraph=" +
             graphID;
