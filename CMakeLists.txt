@@ -70,6 +70,7 @@ set(HEADERS globals.h
         src/util/kafka/KafkaCC.h
         src/util/kafka/StreamHandler.h
         src/util/kafka/InstanceStreamHandler.h
+        src/util/kafka/WorkerKafkaConsumer.h
         src/util/logger/Logger.h
         src/util/scheduler/Cron.h
         src/util/scheduler/InterruptableSleep.h
@@ -170,6 +171,7 @@ set(SOURCES src/backend/JasmineGraphBackend.cpp
         src/util/kafka/KafkaCC.cpp
         src/util/kafka/StreamHandler.cpp
         src/util/kafka/InstanceStreamHandler.cpp
+        src/util/kafka/WorkerKafkaConsumer.cpp
         src/util/logger/Logger.cpp
         src/util/scheduler/SchedulerService.cpp
         src/util/telemetry/OpenTelemetryUtil.cpp

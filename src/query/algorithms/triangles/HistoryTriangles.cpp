@@ -36,10 +36,13 @@ TemporalTriangleResult HistoryTriangles::countTrianglesAtSnapshot(
     int partitionsProcessed = 0;
     
     // Phase 1: Load edges from LOCAL partition snapshots
+    // Scan partition IDs 0..99 but don't break on first miss — some partitions
+    // may be absent if workers didn't own them or if numbering has gaps.
     history_triangle_logger.info("Loading local partition snapshots for graph " + 
                                 std::to_string(graphId) + " at snapshot " + 
                                 std::to_string(snapshotId));
     
+    int maxPartitionFound = -1;
     for (int partitionId = 0; partitionId < 100; partitionId++) {
         std::string filePath = TemporalStorePersistence::generateFilePath(
             snapshotDir, graphId, partitionId, snapshotId);
@@ -49,6 +52,7 @@ TemporalTriangleResult HistoryTriangles::countTrianglesAtSnapshot(
         
         if (localStore.loadSnapshotFromDisk(filePath)) {
             partitionsProcessed++;
+            if (partitionId > maxPartitionFound) maxPartitionFound = partitionId;
             
             // Extract edges at this snapshot
             auto edgesAtSnapshot = localStore.getEdgesAtSnapshot(snapshotId);
@@ -56,8 +60,8 @@ TemporalTriangleResult HistoryTriangles::countTrianglesAtSnapshot(
             
             history_triangle_logger.info("Loaded local partition " + std::to_string(partitionId) + 
                                        ": " + std::to_string(edgesAtSnapshot.size()) + " edges");
-        } else {
-            // No more local partitions
+        } else if (partitionsProcessed > 0 && partitionId > maxPartitionFound + 5) {
+            // Stop scanning after a reasonable gap past the last found partition
             break;
         }
     }
@@ -65,12 +69,18 @@ TemporalTriangleResult HistoryTriangles::countTrianglesAtSnapshot(
     result.localEdges = allEdges.size();
     result.partitionsProcessed = partitionsProcessed;
     
-    // Phase 2: Load edges from CENTRAL store snapshot (cross-partition edges)
-    history_triangle_logger.info("Loading central store snapshot for graph " + 
+    // Phase 2: Load edges from CENTRAL store snapshot(s) (cross-partition edges)
+    // Central stores live at partition IDs >= numberOfPartitions:
+    //   - Old master path:        ID = numberOfPartitions
+    //   - New worker-direct path: ID = numberOfPartitions + workerIndex (one per worker)
+    // Scan a range to find all central stores from all workers.
+    history_triangle_logger.info("Loading central store snapshot(s) for graph " + 
                                 std::to_string(graphId));
     
+    int centralStart = (partitionsProcessed > 0) ? partitionsProcessed : 1;
     size_t centralEdgesLoaded = 0;
-    for (int centralId = partitionsProcessed; centralId < partitionsProcessed + 10; centralId++) {
+    int centralStoresFound = 0;
+    for (int centralId = centralStart; centralId < centralStart + 20; centralId++) {
         std::string filePath = TemporalStorePersistence::generateFilePath(
             snapshotDir, graphId, centralId, snapshotId);
         
@@ -81,16 +91,31 @@ TemporalTriangleResult HistoryTriangles::countTrianglesAtSnapshot(
             auto edgesAtSnapshot = centralStore.getEdgesAtSnapshot(snapshotId);
             allEdges.insert(allEdges.end(), edgesAtSnapshot.begin(), edgesAtSnapshot.end());
             centralEdgesLoaded += edgesAtSnapshot.size();
+            centralStoresFound++;
             
             history_triangle_logger.info("Loaded central store (partition " + 
                                        std::to_string(centralId) + "): " + 
                                        std::to_string(edgesAtSnapshot.size()) + " edges");
-            break;  // Usually only one central store
+            // Don't break: there may be multiple central stores from different workers
         }
     }
     
     result.centralEdges = centralEdgesLoaded;
     result.totalEdges = allEdges.size();
+    
+    // Deduplicate edges: with multi-worker central stores, the same cross-partition
+    // edge may appear in multiple stores. Deduplicate for an accurate unique edge count.
+    {
+        std::set<std::pair<std::string, std::string>> uniqueEdgeSet;
+        for (const auto& edge : allEdges) {
+            std::string u = edge.sourceId, v = edge.destId;
+            if (u > v) std::swap(u, v);
+            uniqueEdgeSet.insert({u, v});
+        }
+        result.totalEdges = uniqueEdgeSet.size();
+        history_triangle_logger.info("Raw edges: " + std::to_string(allEdges.size()) +
+                                   " Unique edges: " + std::to_string(result.totalEdges));
+    }
     
     if (partitionsProcessed == 0) {
         history_triangle_logger.error("No snapshot files found for graph " + 

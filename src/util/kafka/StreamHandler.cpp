@@ -17,13 +17,18 @@ limitations under the License.
 #include <nlohmann/json.hpp>
 #include <string>
 #include <stdlib.h>
+#include <sys/socket.h>
+#include <netdb.h>
+#include <unistd.h>
 #include <sys/stat.h>
 
 #include "../logger/Logger.h"
 #include "../Utils.h"
 #include "../../server/JasmineGraphServer.h"
+#include "../../server/JasmineGraphInstanceProtocol.h"
 #include "../../temporalstore/TemporalStorePersistence.h"
 #include "../telemetry/OpenTelemetryUtil.h"
+#include "WorkerKafkaConsumer.h"
 
 using json = nlohmann::json;
 using namespace std;
@@ -32,7 +37,8 @@ Logger stream_handler_logger;
 
 StreamHandler::StreamHandler(KafkaConnector *kstream, int numberOfPartitions,
                              vector<DataPublisher *> &workerClients, SQLiteDBInterface* sqlite,
-                             int graphId, bool isDirected, spt::Algorithms algorithms)
+                             int graphId, bool isDirected, spt::Algorithms algorithms,
+                             bool isNewGraph)
         : kstream(kstream),
           graphId(graphId),
           workerClients(workerClients),
@@ -58,6 +64,17 @@ StreamHandler::StreamHandler(KafkaConnector *kstream, int numberOfPartitions,
                               " workers, batch size " + std::to_string(BATCH_SIZE) + 
                               ", " + std::to_string(PUBLISH_THREADS) + " publish threads");
     
+    // When starting a fresh (non-existing) graph, remove any stale snapshot files
+    // from a previous run with the same graph ID so workers start from a clean state.
+    if (isNewGraph) {
+        std::string snapshotDir = Utils::getJasmineGraphHome() + "/env/data/temporal_snapshots";
+        stream_handler_logger.info("[NEW GRAPH] Deleting stale snapshot files for graph " +
+                                   std::to_string(graphId) + " in " + snapshotDir);
+        // Delete all files matching graph<N>_part*_snap*.tgs
+        std::string pattern = snapshotDir + "/graph" + std::to_string(graphId) + "_part";
+        Utils::deleteAllMatchingFiles(pattern);
+    }
+
     std::string temporalEnabled = Utils::getJasmineGraphProperty("org.jasminegraph.temporal.enabled");
     if (temporalEnabled == "true") {
         uint64_t timeThreshold = 60;
@@ -421,17 +438,18 @@ void StreamHandler::flushWorkerBatch(int workerId, bool force) {
     workerBatches[workerId].clear();
     lock.unlock();
     
-    // Enqueue each edge for async publishing
-    for (const auto& edgeData : edges) {
-        enqueuePublish([this, workerId, edgeData]() {
+    // Enqueue ONE task that publishes the entire batch — avoids 1000 heap allocs
+    // and 1000 string copies per flush that the per-edge lambda approach incurred.
+    enqueuePublish([this, workerId, edges = std::move(edges)]() mutable {
+        for (const auto& edgeData : edges) {
             try {
                 workerClients[workerId]->publish(edgeData);
             } catch (const std::exception& e) {
-                stream_handler_logger.error("Failed to publish edge to worker " + 
+                stream_handler_logger.error("Failed to publish edge to worker " +
                                            std::to_string(workerId) + ": " + e.what());
             }
-        });
-    }
+        }
+    });
 }
 
 // Get cached partition for a node (with cache hit tracking)
@@ -527,10 +545,16 @@ void StreamHandler::consumerThreadFunc(int threadId,
             total_parse_time += std::chrono::duration_cast<std::chrono::microseconds>(
                 std::chrono::high_resolution_clock::now() - parse_start);
 
-            // ---- 2. PARTITION (mutex-protected) ----
+            // ---- 2. PARTITION ---- 
+            // HASH partitioning is lock-free: the destination partition is purely
+            // deterministic (hash % n) and each Partition protects its own state
+            // with an internal per-partition mutex.  FENNEL/LDG touch shared
+            // totalVertices/totalEdges counters so still need the global lock.
             auto partition_start = std::chrono::high_resolution_clock::now();
             partitionedEdge partEdge;
-            {
+            if (graphPartitioner.isHashAlgorithm()) {
+                partEdge = graphPartitioner.addEdge({sId, dId});
+            } else {
                 std::lock_guard<std::mutex> lock(partitionerMutex_);
                 partEdge = graphPartitioner.addEdge({sId, dId});
             }
@@ -608,13 +632,21 @@ void StreamHandler::consumerThreadFunc(int threadId,
                     if (batchSize >= BATCH_SIZE) flushWorkerBatch(temp_s, false);
                 }
             } else {
-                // Central edge — two dump() calls (src worker, dst worker)
+                // Central edge — serialize once, patch PID in the string for dst worker
                 obj["EdgeType"] = "Central";
                 obj["PID"] = part_s;
                 std::string centralEdgeData_s = obj.dump();
 
-                obj["PID"] = part_d;
-                std::string centralEdgeData_d = obj.dump();
+                // Build dst variant by replacing "PID":part_s with "PID":part_d
+                // (nlohmann dumps without spaces, e.g. "PID":3)
+                std::string centralEdgeData_d = centralEdgeData_s;
+                {
+                    std::string pidOld = "\"PID\":" + std::to_string(part_s);
+                    std::string pidNew = "\"PID\":" + std::to_string(part_d);
+                    auto pos = centralEdgeData_d.find(pidOld);
+                    if (pos != std::string::npos)
+                        centralEdgeData_d.replace(pos, pidOld.size(), pidNew);
+                }
 
                 {
                     std::unique_lock<std::mutex> lock(*workerBatchMutexes[temp_s]);
@@ -708,6 +740,13 @@ void StreamHandler::listen_to_kafka_topic() {
     stream_handler_logger.info("Starting " + std::to_string(numConsumerThreads) +
                                " parallel Kafka consumer threads for topic '" + topic + "'");
 
+    // For HASH partitioning: workers consume directly from Kafka (eliminates master relay bottleneck)
+    if (graphPartitioner.isHashAlgorithm()) {
+        stream_handler_logger.info("Hash partitioning detected: dispatching direct Kafka consuming to workers");
+        listenViaDirectWorkers(topic, workers);
+        return;
+    }
+
     // Shared state for all consumer threads
     std::atomic<uint64_t> totalMessages{0};
     std::atomic<uint64_t> totalLocal{0};
@@ -771,3 +810,231 @@ void StreamHandler::listen_to_kafka_topic() {
 
 }
 
+void StreamHandler::listenViaDirectWorkers(
+        const std::string& topic,
+        const std::vector<JasmineGraphServer::worker>& workers) {
+
+    const int n_workers = static_cast<int>(workers.size());
+
+    // Kafka broker address
+    std::string brokers = Utils::getJasmineGraphProperty("org.jasminegraph.server.streaming.kafka.host");
+
+    // Master IP for worker handshake verification
+    std::string masterIP = Utils::getJasmineGraphProperty("org.jasminegraph.server.host");
+
+    // Number of consumer threads per worker
+    int numConsumerThreads = DEFAULT_CONSUMER_THREADS;
+    std::string threadsProp = Utils::getJasmineGraphProperty("org.jasminegraph.kafka.consumer.threads");
+    if (!threadsProp.empty()) {
+        int val = std::atoi(threadsProp.c_str());
+        if (val > 0) numConsumerThreads = val;
+    }
+
+    // Temporal config
+    bool temporalEnabled = !localTemporalStores.empty();
+    uint64_t timeThreshold = 0, edgeThreshold = 0;
+    uint32_t initialSnapshotId = globalSnapshotId;
+    if (temporalEnabled) {
+        std::string tProp = Utils::getJasmineGraphProperty(
+            "org.jasminegraph.server.streaming.temporal.time.threshold");
+        std::string eProp = Utils::getJasmineGraphProperty(
+            "org.jasminegraph.server.streaming.temporal.edge.threshold");
+        if (!tProp.empty()) timeThreshold = std::stoull(tProp);
+        if (!eProp.empty()) edgeThreshold = std::stoull(eProp);
+        stream_handler_logger.info("[TEMPORAL CFG] listenViaDirectWorkers:"
+            " temporalEnabled=true edgeThreshold=" + std::to_string(edgeThreshold) +
+            " timeThreshold=" + std::to_string(timeThreshold) +
+            " initialSnapshotId=" + std::to_string(initialSnapshotId) +
+            " (rawEdgeProp='" + eProp + "' rawTimeProp='" + tProp + "')");
+        if (edgeThreshold == 0 && timeThreshold == 0) {
+            stream_handler_logger.warn("[TEMPORAL CFG] BOTH thresholds are 0 — workers will never"
+                " auto-snapshot. Check org.jasminegraph.server.streaming.temporal.edge.threshold"
+                " and org.jasminegraph.server.streaming.temporal.time.threshold in properties.");
+        }
+    } else {
+        stream_handler_logger.warn("[TEMPORAL CFG] listenViaDirectWorkers: temporalEnabled=false"
+            " (localTemporalStores empty — was org.jasminegraph.temporal.enabled=true?)");
+    }
+
+    // Unique timestamp suffix so each run initializes fresh consumer groups
+    std::string tsuffix = std::to_string(
+        std::chrono::system_clock::now().time_since_epoch().count());
+
+    // Build owned-partition list per worker: worker i owns partitions p where (p % n_workers) == i
+    std::vector<std::vector<int>> workerOwnedPartitions(n_workers);
+    for (int p = 0; p < numberOfPartitions; p++) {
+        workerOwnedPartitions[p % n_workers].push_back(p);
+    }
+
+    stream_handler_logger.info("Dispatching direct Kafka stream to " +
+                               std::to_string(n_workers) + " workers for topic '" + topic + "'");
+
+    // ── Two-phase dispatch ────────────────────────────────────────────────
+    //
+    // Phase 1 (synchronous): connect to every worker, send Kafka config,
+    //   confirm the command was accepted.
+    //
+    // Phase 2 (blocking): one thread per worker reads the
+    //   WORKER_DIRECT_KAFKA_DONE reply when the worker finishes consuming.
+    //   We join all threads before returning so "done" only reaches the user
+    //   after all workers are truly done.
+
+    struct DoneStats {
+        std::atomic<uint64_t> totalMessages{0}, totalLocal{0}, totalCentral{0};
+        std::atomic<int> successCount{0};
+    };
+    auto doneStats = std::make_shared<DoneStats>();
+    int n_started = 0;
+    std::vector<std::thread> doneThreads;
+
+    for (int wi = 0; wi < n_workers; wi++) {
+        const JasmineGraphServer::worker& w = workers[wi];
+
+        // Build unique consumer group per worker (fan-out: each reads ALL messages)
+        std::string groupId = "jasminegraph_direct_g" + std::to_string(graphId) +
+                              "_w" + std::to_string(wi) + "_" + tsuffix;
+
+        // Build JSON config for this worker
+        nlohmann::json configJson;
+        configJson["brokers"]            = brokers;
+        configJson["topic"]              = topic;
+        configJson["groupId"]            = groupId;
+        configJson["graphId"]            = graphId;
+        configJson["numberOfPartitions"] = numberOfPartitions;
+        configJson["ownedPartitions"]    = workerOwnedPartitions[wi];
+        configJson["temporalEnabled"]    = temporalEnabled;
+        configJson["timeThreshold"]      = timeThreshold;
+        configJson["edgeThreshold"]      = edgeThreshold;
+        configJson["initialSnapshotId"]  = initialSnapshotId;
+        configJson["numConsumerThreads"] = numConsumerThreads;
+        configJson["workerIndex"]        = wi;
+        std::string configStr = configJson.dump();
+
+        // ── Phase 1: open TCP connection and deliver config ───────────────
+        int sockfd = socket(AF_INET, SOCK_STREAM, 0);
+        if (sockfd < 0) {
+            stream_handler_logger.error("Worker " + std::to_string(wi) + ": cannot create socket");
+            continue;
+        }
+
+        std::string host = w.hostname;
+        if (host.find('@') != std::string::npos) host = Utils::split(host, '@')[1];
+
+        struct hostent *server = gethostbyname(host.c_str());
+        if (!server) {
+            stream_handler_logger.error("Worker " + std::to_string(wi) + ": unknown host " + host);
+            close(sockfd);
+            continue;
+        }
+
+        struct sockaddr_in serv_addr;
+        bzero((char*)&serv_addr, sizeof(serv_addr));
+        serv_addr.sin_family = AF_INET;
+        bcopy((char*)server->h_addr, (char*)&serv_addr.sin_addr.s_addr, server->h_length);
+        serv_addr.sin_port = htons(w.port);
+
+        if (Utils::connect_wrapper(sockfd, (struct sockaddr*)&serv_addr, sizeof(serv_addr)) < 0) {
+            stream_handler_logger.error("Worker " + std::to_string(wi) +
+                                        ": connect failed to " + host + ":" + std::to_string(w.port));
+            close(sockfd);
+            continue;
+        }
+
+        char data[FED_DATA_LENGTH + 1];
+        if (!Utils::performHandshake(sockfd, data, FED_DATA_LENGTH, masterIP)) {
+            stream_handler_logger.error("Worker " + std::to_string(wi) + ": handshake failed");
+            Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::CLOSE);
+            close(sockfd);
+            continue;
+        }
+
+        if (!Utils::sendExpectResponse(sockfd, data, INSTANCE_DATA_LENGTH,
+                    JasmineGraphInstanceProtocol::WORKER_DIRECT_KAFKA_STREAM,
+                    JasmineGraphInstanceProtocol::WORKER_DIRECT_KAFKA_STREAM_ACK)) {
+            stream_handler_logger.error("Worker " + std::to_string(wi) +
+                                        ": failed to get ACK for direct kafka stream command");
+            Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::CLOSE);
+            close(sockfd);
+            continue;
+        }
+
+        stream_handler_logger.info("[WORKER CFG] Sending to worker " + std::to_string(wi) +
+                                   ": " + configStr);
+        if (!Utils::send_str_wrapper(sockfd, configStr)) {
+            stream_handler_logger.error("Worker " + std::to_string(wi) + ": failed to send config JSON");
+            close(sockfd);
+            continue;
+        }
+
+        stream_handler_logger.info("Worker " + std::to_string(wi) +
+                                   " config delivered. Handing socket to background thread.");
+        n_started++;
+
+        // ── Phase 2: background thread waits for DONE from this worker ────
+        //   We join these threads below so "done" returns only AFTER all
+        //   workers have finished consuming (matches listen_to_kafka_topic
+        //   behavior).
+        doneThreads.emplace_back([doneStats, sockfd, wi]() {
+            char longData[INSTANCE_LONG_DATA_LENGTH + 1];
+            std::string doneMsg = Utils::read_str_trim_wrapper(sockfd, longData, INSTANCE_LONG_DATA_LENGTH);
+
+            // Log raw bytes for diagnostics
+            std::string rawHex;
+            for (unsigned char c : doneMsg.substr(0, std::min(doneMsg.size(), (size_t)80)))
+                rawHex += (c < 32 ? "[" + std::to_string((int)c) + "]" : std::string(1, c));
+            stream_handler_logger.info("[DONE MSG] Worker " + std::to_string(wi) +
+                                       " rawBytes=" + rawHex +
+                                       " len=" + std::to_string(doneMsg.size()));
+
+            const std::string& donePrefix = JasmineGraphInstanceProtocol::WORKER_DIRECT_KAFKA_DONE;
+            if (doneMsg.size() >= donePrefix.size() &&
+                doneMsg.substr(0, donePrefix.size()) == donePrefix) {
+                auto parts = Utils::split(doneMsg, '|');
+                if (parts.size() >= 4) {
+                    doneStats->totalMessages.fetch_add(std::stoull(parts[1]));
+                    doneStats->totalLocal.fetch_add(std::stoull(parts[2]));
+                    doneStats->totalCentral.fetch_add(std::stoull(parts[3]));
+                } else {
+                    stream_handler_logger.warn("[DONE MSG] Worker " + std::to_string(wi) +
+                                               " done msg had only " + std::to_string(parts.size()) +
+                                               " parts: '" + doneMsg + "'");
+                }
+                doneStats->successCount.fetch_add(1);
+                stream_handler_logger.info("[DONE MSG] Worker " + std::to_string(wi) +
+                                           " finished. Cumulative total=" +
+                                           std::to_string(doneStats->totalMessages.load()));
+            } else {
+                stream_handler_logger.error("[DONE MSG] Worker " + std::to_string(wi) +
+                                            ": unexpected done message: " + doneMsg);
+            }
+
+            Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::CLOSE);
+            close(sockfd);
+        });
+    }
+
+    // Block until ALL workers finish consuming (idle-timeout or end-of-stream).
+    // This matches the behavior of listen_to_kafka_topic() — "done" only
+    // returns after consumption is complete.
+    if (n_started > 0) {
+        stream_handler_logger.info("[READY] Config delivered to " + std::to_string(n_started) +
+                                   "/" + std::to_string(n_workers) +
+                                   " workers. Waiting for all workers to finish consuming...");
+        for (auto& t : doneThreads) {
+            if (t.joinable()) t.join();
+        }
+        stream_handler_logger.info("[DONE] All workers finished. total=" +
+                                   std::to_string(doneStats->totalMessages.load()) +
+                                   " local=" + std::to_string(doneStats->totalLocal.load()) +
+                                   " central=" + std::to_string(doneStats->totalCentral.load()) +
+                                   " successCount=" + std::to_string(doneStats->successCount.load()) +
+                                   "/" + std::to_string(n_started));
+    } else {
+        stream_handler_logger.warn("[READY] No workers started successfully for topic '" + topic + "'.");
+    }
+
+    // Update partition metadata DB now (does not require streaming to be complete).
+    graphPartitioner.updateMetaDB();
+    graphPartitioner.printStats();
+    kstream->Unsubscribe();
+}

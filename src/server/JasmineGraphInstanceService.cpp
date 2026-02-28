@@ -33,6 +33,7 @@ limitations under the License.
 #include "../server/JasmineGraphServer.h"
 #include "../util/hdfs/HDFSConnector.h"
 #include "../util/kafka/InstanceStreamHandler.h"
+#include "../util/kafka/WorkerKafkaConsumer.h"
 #include "../util/logger/Logger.h"
 #include "../util/telemetry/OpenTelemetryUtil.h"
 #include "JasmineGraphInstance.h"
@@ -131,6 +132,11 @@ static void initiate_fragment_resolution_command(int connFd, bool *loop_exit_p);
 static void check_file_accessible_command(int connFd, bool *loop_exit_p);
 static void graph_stream_start_command(int connFd, InstanceStreamHandler &instanceStreamHandler, bool *loop_exit_p);
 static void graph_stream_batch_start_command(int connFd, InstanceStreamHandler &instanceStreamHandler, bool *loop_exit_p);
+// Worker-direct Kafka streaming: worker consumes from Kafka independently
+static void worker_direct_kafka_stream_command(
+    int connFd,
+    std::map<std::string, JasmineGraphIncrementalLocalStore*>& incrementalLocalStoreMap,
+    bool *loop_exit_p);
 static void send_priority_command(int connFd, bool *loop_exit_p);
 static std::string initiate_command_common(int connFd, bool *loop_exit_p);
 static void batch_upload_common(int connFd, bool *loop_exit_p, bool batch_upload);
@@ -303,6 +309,8 @@ void *instanceservicesession(void *dummyPt) {
             graph_stream_start_command(connFd, streamHandler, &loop_exit);
         } else if (line.compare(JasmineGraphInstanceProtocol::GRAPH_STREAM_BATCH_START) == 0) {
             graph_stream_batch_start_command(connFd, streamHandler, &loop_exit);
+        } else if (line.compare(JasmineGraphInstanceProtocol::WORKER_DIRECT_KAFKA_STREAM) == 0) {
+            worker_direct_kafka_stream_command(connFd, incrementalLocalStoreMap, &loop_exit);
         } else if (line.compare(JasmineGraphInstanceProtocol::SEND_PRIORITY) == 0) {
             send_priority_command(connFd, &loop_exit);
         } else if (line.compare(JasmineGraphInstanceProtocol::PUSH_PARTITION) == 0) {
@@ -4592,6 +4600,83 @@ static void graph_stream_batch_start_command(int connFd, InstanceStreamHandler &
         return;
     }
     instance_logger.debug("Sent CRLF string to mark the end of batch");
+}
+
+static void worker_direct_kafka_stream_command(
+        int connFd,
+        std::map<std::string, JasmineGraphIncrementalLocalStore*>& incrementalLocalStoreMap,
+        bool *loop_exit_p) {
+    // Acknowledge the command
+    if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::WORKER_DIRECT_KAFKA_STREAM_ACK)) {
+        *loop_exit_p = true;
+        return;
+    }
+    instance_logger.info("Sent WORKER_DIRECT_KAFKA_STREAM_ACK, waiting for config JSON");
+
+    // Receive JSON config (may be large — use INSTANCE_LONG_DATA_LENGTH buffer)
+    char longData[INSTANCE_LONG_DATA_LENGTH + 1];
+    std::string configStr = Utils::read_str_trim_wrapper(connFd, longData, INSTANCE_LONG_DATA_LENGTH);
+    if (configStr.empty()) {
+        instance_logger.error("Received empty config for worker direct kafka stream");
+        *loop_exit_p = true;
+        return;
+    }
+    instance_logger.info("Received worker direct kafka config (" + std::to_string(configStr.size()) + " bytes)");
+
+    // Parse config JSON
+    WorkerKafkaConfig cfg;
+    try {
+        auto configJson = nlohmann::json::parse(configStr);
+        cfg.brokers            = configJson["brokers"].get<std::string>();
+        cfg.topic              = configJson["topic"].get<std::string>();
+        cfg.groupId            = configJson["groupId"].get<std::string>();
+        cfg.graphId            = configJson["graphId"].get<int>();
+        cfg.numberOfPartitions = configJson["numberOfPartitions"].get<int>();
+        cfg.temporalEnabled    = configJson["temporalEnabled"].get<bool>();
+        cfg.timeThreshold      = configJson["timeThreshold"].get<uint64_t>();
+        cfg.edgeThreshold      = configJson["edgeThreshold"].get<uint64_t>();
+        cfg.initialSnapshotId  = configJson["initialSnapshotId"].get<uint32_t>();
+        cfg.numConsumerThreads = configJson["numConsumerThreads"].get<int>();
+        cfg.workerIndex        = configJson.value("workerIndex", 0);
+        for (auto& p : configJson["ownedPartitions"]) {
+            cfg.ownedPartitions.push_back(p.get<int>());
+        }
+    } catch (const nlohmann::json::exception& e) {
+        instance_logger.error("Failed to parse worker direct kafka config: " + std::string(e.what()));
+        *loop_exit_p = true;
+        return;
+    }
+
+    instance_logger.info("Starting worker direct Kafka consumer for graph " +
+                         std::to_string(cfg.graphId) + ", partitions: " +
+                         std::to_string(cfg.ownedPartitions.size()) +
+                         ", threads: " + std::to_string(cfg.numConsumerThreads));
+
+    // Run the worker-side Kafka consumer (blocking until stream ends or error)
+    WorkerKafkaStats stats{0, 0, 0};
+    try {
+        WorkerKafkaConsumer wkc(cfg, incrementalLocalStoreMap);
+        stats = wkc.run();
+        instance_logger.info("Worker direct Kafka consumer finished for graph " +
+                             std::to_string(cfg.graphId) +
+                             ": totalMessages=" + std::to_string(stats.totalMessages) +
+                             " totalLocal=" + std::to_string(stats.totalLocal) +
+                             " totalCentral=" + std::to_string(stats.totalCentral));
+    } catch (const std::exception& e) {
+        instance_logger.error("[CRASH] WorkerKafkaConsumer threw exception: " + std::string(e.what()));
+    } catch (...) {
+        instance_logger.error("[CRASH] WorkerKafkaConsumer threw unknown exception");
+    }
+
+    // Notify master that this worker is done — always, even on exception
+    std::string doneMsg = JasmineGraphInstanceProtocol::WORKER_DIRECT_KAFKA_DONE +
+                          "|" + std::to_string(stats.totalMessages) +
+                          "|" + std::to_string(stats.totalLocal) +
+                          "|" + std::to_string(stats.totalCentral);
+    if (!Utils::send_str_wrapper(connFd, doneMsg)) {
+        instance_logger.error("Failed to send WORKER_DIRECT_KAFKA_DONE to master");
+    }
+    *loop_exit_p = true;
 }
 
 static void send_priority_command(int connFd, bool *loop_exit_p) {

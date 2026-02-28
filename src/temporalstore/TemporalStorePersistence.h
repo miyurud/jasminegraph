@@ -109,16 +109,17 @@ public:
     /**
      * Save snapshot to file
      */
-    template<typename EdgeKey>
+    template<typename EdgeBitmapMap, typename EdgePropMap>
     static bool saveSnapshot(
         const std::string& filePath,
         uint32_t graphId,
         uint32_t partitionId,
         uint32_t snapshotId,
-        const std::map<EdgeKey, EdgeLifespanBitmap>& edgeBitmaps,
+        const EdgeBitmapMap& edgeBitmaps,
         const std::map<std::string, PropertyIntervalDictionary>& nodeProperties,
-        const std::map<EdgeKey, PropertyIntervalDictionary>& edgeProperties,
+        const EdgePropMap& edgeProperties,
         bool compress = true) {
+        using EdgeKey = typename EdgeBitmapMap::key_type;
         
         std::ofstream file(filePath, std::ios::binary);
         if (!file.is_open()) {
@@ -195,15 +196,16 @@ public:
     /**
      * Load snapshot from file
      */
-    template<typename EdgeKey>
+    template<typename EdgeBitmapMap, typename EdgePropMap>
     static bool loadSnapshot(
         const std::string& filePath,
         uint32_t& graphId,
         uint32_t& partitionId,
         uint32_t& snapshotId,
-        std::map<EdgeKey, EdgeLifespanBitmap>& edgeBitmaps,
+        EdgeBitmapMap& edgeBitmaps,
         std::map<std::string, PropertyIntervalDictionary>& nodeProperties,
-        std::map<EdgeKey, PropertyIntervalDictionary>& edgeProperties) {
+        EdgePropMap& edgeProperties) {
+        using EdgeKey = typename EdgeBitmapMap::key_type;
         
         std::ifstream file(filePath, std::ios::binary);
         if (!file.is_open()) {

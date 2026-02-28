@@ -104,6 +104,10 @@ class JasmineGraphInstanceProtocol {
     static const string GRAPH_STREAM_START_ACK;
     static const string GRAPH_STREAM_BATCH_START;         // Batch streaming of multiple edges
     static const string GRAPH_STREAM_BATCH_START_ACK;
+    // Worker-direct Kafka streaming (worker consumes Kafka directly — no master relay)
+    static const string WORKER_DIRECT_KAFKA_STREAM;       // Master → Worker: start direct Kafka consumption
+    static const string WORKER_DIRECT_KAFKA_STREAM_ACK;  // Worker → Master: acknowledged, starting
+    static const string WORKER_DIRECT_KAFKA_DONE;        // Worker → Master: consumption finished
     static const string GRAPH_CSV_STREAM_START;
     static const string GRAPH_CSV_STREAM_START_ACK;
     static const string GRAPH_CSV_STREAM_C_length_ACK;

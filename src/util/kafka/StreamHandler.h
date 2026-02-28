@@ -25,6 +25,7 @@ limitations under the License.
 
 #include "../../nativestore/DataPublisher.h"
 #include "../../partitioner/stream/Partitioner.h"
+#include "../../server/JasmineGraphServer.h"
 #include "../logger/Logger.h"
 #include "KafkaCC.h"
 #include "../../metadb/SQLiteDBInterface.h"
@@ -34,9 +35,12 @@ class StreamHandler {
  public:
     StreamHandler(KafkaConnector *kstream, int numberOfPartitions,
                   std::vector<DataPublisher *> &workerClients, SQLiteDBInterface* sqlite,
-                  int graphId, bool isDirected, spt::Algorithms algo = spt::Algorithms::HASH);
+                  int graphId, bool isDirected, spt::Algorithms algo = spt::Algorithms::HASH,
+                  bool isNewGraph = false);
     ~StreamHandler();
     void listen_to_kafka_topic();
+    void listenViaDirectWorkers(const std::string& topic,
+                                 const std::vector<JasmineGraphServer::worker>& workers);
     cppkafka::Message pollMessage();
     std::vector<cppkafka::Message> pollMessageBatch(size_t maxMessages = 500);
     bool isErrorInMessage(const cppkafka::Message &msg);

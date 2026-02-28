@@ -58,11 +58,14 @@ void InstanceStreamHandler::threadFunction(const std::string& nodeString) {
         auto graphIdPartitionId = JasmineGraphIncrementalLocalStore::getIDs(nodeString);
         std::string graphId = graphIdPartitionId.first;
         std::string partitionId = std::to_string(graphIdPartitionId.second);
+        instance_stream_logger.info("[PROC THREAD] Creating store for " + graphIdentifier +
+                                    " on thread (thread_local fstreams will be set here)");
         loadStreamingStore(graphId, partitionId, incrementalLocalStoreMap);
     }
     JasmineGraphIncrementalLocalStore* localStore = incrementalLocalStoreMap[graphIdentifier];
-    instance_stream_logger.info("Thread Function");
+    instance_stream_logger.info("[PROC THREAD] Processing thread ready for " + graphIdentifier);
 
+    uint64_t edgesProcessed = 0;
     while (!terminateThreads) {
         std::string nodeString;
         {
@@ -78,7 +81,14 @@ void InstanceStreamHandler::threadFunction(const std::string& nodeString) {
             queues[graphIdentifier].pop();
         }
         localStore->addEdgeFromString(nodeString);
+        ++edgesProcessed;
+        if (edgesProcessed % 50000 == 0 || (edgesProcessed <= 1000 && edgesProcessed % 100 == 0)) {
+            instance_stream_logger.info("[PROC THREAD " + graphIdentifier + "] "
+                                        + std::to_string(edgesProcessed) + " edges written to store");
+        }
     }
+    instance_stream_logger.info("[PROC THREAD " + graphIdentifier + "] Terminated after "
+                                + std::to_string(edgesProcessed) + " edges");
 }
 
 std::string InstanceStreamHandler::extractGraphIdentifier(const std::string& nodeString) {
@@ -104,24 +114,50 @@ InstanceStreamHandler::loadStreamingStore(std::string graphId, std::string parti
     return jasmineGraphStreamingLocalStore;
 }
 
+void InstanceStreamHandler::preInitPartitions(int graphId, const std::vector<int>& partitions) {
+    std::lock_guard<std::mutex> guard(mapLock_);
+    for (int p : partitions) {
+        std::string graphIdent = std::to_string(graphId) + "_" + std::to_string(p);
+        // Pre-create mutex/queue/condvar entries for thread safety.
+        // Do NOT create stores here — NodeManager uses static thread_local fstream
+        // pointers, so the store MUST be created on the thread that will use it.
+        // threadFunction() (spawned by handleRequest) will create the store lazily.
+        queue_mutexes[graphIdent];
+        queues[graphIdent] = std::queue<std::string>();
+        cond_vars[graphIdent];
+        instance_stream_logger.info("Pre-initialized mutex/queue for partition " + graphIdent);
+    }
+}
+
 void InstanceStreamHandler::handleLocalEdge(std::string edge, std::string graphId,
                                             std::string partitionId, std::string graphIdentifier , bool isEmbed) {
-    std::unique_lock<std::mutex> lock(queue_mutexes[graphIdentifier]);
-    if (incrementalLocalStoreMap.find(graphIdentifier) == incrementalLocalStoreMap.end()) {
-        loadStreamingStore(graphId, partitionId, incrementalLocalStoreMap, NodeManager::FILE_MODE, isEmbed);
-        // append mode
+    JasmineGraphIncrementalLocalStore* localStore;
+    std::mutex* partMutex;
+    {
+        std::lock_guard<std::mutex> guard(mapLock_);
+        if (incrementalLocalStoreMap.find(graphIdentifier) == incrementalLocalStoreMap.end()) {
+            loadStreamingStore(graphId, partitionId, incrementalLocalStoreMap, NodeManager::FILE_MODE, isEmbed);
+        }
+        localStore = incrementalLocalStoreMap[graphIdentifier];
+        partMutex = &queue_mutexes[graphIdentifier];
     }
-    JasmineGraphIncrementalLocalStore* localStore = incrementalLocalStoreMap[graphIdentifier];
+    std::unique_lock<std::mutex> lock(*partMutex);
     localStore->addLocalEdge(edge);
 }
 
 void InstanceStreamHandler::handleCentralEdge(std::string edge, std::string graphId,
                                               std::string partitionId, std::string graphIdentifier, bool isEmbed) {
-    std::unique_lock<std::mutex> lock(queue_mutexes[graphIdentifier]);
-    if (incrementalLocalStoreMap.find(graphIdentifier) == incrementalLocalStoreMap.end()) {
-        loadStreamingStore(graphId, partitionId, incrementalLocalStoreMap, NodeManager::FILE_MODE ,
-            isEmbed);  // append mode
+    JasmineGraphIncrementalLocalStore* localStore;
+    std::mutex* partMutex;
+    {
+        std::lock_guard<std::mutex> guard(mapLock_);
+        if (incrementalLocalStoreMap.find(graphIdentifier) == incrementalLocalStoreMap.end()) {
+            loadStreamingStore(graphId, partitionId, incrementalLocalStoreMap, NodeManager::FILE_MODE,
+                isEmbed);
+        }
+        localStore = incrementalLocalStoreMap[graphIdentifier];
+        partMutex = &queue_mutexes[graphIdentifier];
     }
-    JasmineGraphIncrementalLocalStore* localStore = incrementalLocalStoreMap[graphIdentifier];
+    std::unique_lock<std::mutex> lock(*partMutex);
     localStore->addCentralEdge(edge);
 }

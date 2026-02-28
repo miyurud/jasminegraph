@@ -1529,8 +1529,10 @@ static void add_stream_kafka_command(int connFd, std::string &kafka_server_IP, c
 
     kstream = new KafkaConnector(configs);
     kstream->Subscribe(topic_name_s);
+    bool isNewGraph = (existingGraph != "y");
     StreamHandler *stream_handler = new StreamHandler(kstream, numberOfPartitions, workerClients, sqlite, stoi(graphId),
-                                                      direction == Conts::DIRECTED, spt::getPartitioner(partitionAlgo));
+                                                      direction == Conts::DIRECTED, spt::getPartitioner(partitionAlgo),
+                                                      isNewGraph);
 
     if (existingGraph != "y") {
         string path = "kafka:\\" + topic_name_s + ":" + group_id;

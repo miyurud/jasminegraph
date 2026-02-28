@@ -15,6 +15,8 @@ limitations under the License.
 #define TEMPORAL_STORE_H
 
 #include <map>
+#include <unordered_map>
+#include <functional>
 #include <string>
 #include <vector>
 #include <memory>
@@ -60,6 +62,18 @@ public:
             return destId < other.destId;
         }
         
+        bool operator==(const EdgeKey& other) const {
+            return sourceId == other.sourceId && destId == other.destId;
+        }
+        
+        struct Hash {
+            size_t operator()(const EdgeKey& k) const noexcept {
+                size_t h1 = std::hash<std::string>{}(k.sourceId);
+                size_t h2 = std::hash<std::string>{}(k.destId);
+                return h1 ^ (h2 * 2654435761ULL);  // FNV-inspired mixing
+            }
+        };
+        
         std::string toString() const {
             return sourceId + "->" + destId;
         }
@@ -70,9 +84,9 @@ private:
     uint32_t partitionId_;
     
     // Core data structures
-    std::map<EdgeKey, EdgeLifespanBitmap> edgeBitmaps_;
+    std::unordered_map<EdgeKey, EdgeLifespanBitmap, EdgeKey::Hash> edgeBitmaps_;
     std::map<std::string, PropertyIntervalDictionary> nodeProperties_;
-    std::map<EdgeKey, PropertyIntervalDictionary> edgeProperties_;
+    std::unordered_map<EdgeKey, PropertyIntervalDictionary, EdgeKey::Hash> edgeProperties_;
     
     // Snapshot management
     std::unique_ptr<SnapshotManager> snapshotManager_;
@@ -170,7 +184,7 @@ public:
         EdgeKey key(sourceId, destId);
         auto it = edgeBitmaps_.find(key);
         if (it != edgeBitmaps_.end()) {
-            return it->second.getBit(snapshotId);
+            return it->second.intersectsRange(0, snapshotId);  // lazy inheritance: edge present in [firstSnap, query]
         }
         return false;
     }
@@ -247,7 +261,7 @@ public:
         
         std::vector<EdgeKey> edges;
         for (const auto& [key, bitmap] : edgeBitmaps_) {
-            if (bitmap.contains(snapshotId)) {
+            if (bitmap.intersectsRange(0, snapshotId)) {  // lazy inheritance
                 edges.push_back(key);
             }
         }
@@ -275,7 +289,7 @@ public:
         // Collect all edges at this snapshot and build node index
         std::vector<EdgeKey> edges;
         for (const auto& [key, bitmap] : edgeBitmaps_) {
-            if (bitmap.contains(snapshotId)) {
+            if (bitmap.intersectsRange(0, snapshotId)) {  // lazy inheritance
                 edges.push_back(key);
                 
                 if (nodeToIndex.find(key.sourceId) == nodeToIndex.end()) {
@@ -381,11 +395,10 @@ public:
         
         uint32_t newSnapshotId = snapshotManager_->openNewSnapshot();
         
-        // CUMULATIVE SEMANTICS: Mark all existing edges in the new snapshot
-        // This ensures edges persist across snapshots (since we don't delete)
-        for (auto& [edgeKey, bitmap] : edgeBitmaps_) {
-            bitmap.setBit(newSnapshotId, true);
-        }
+        // LAZY INHERITANCE: No need to iterate all edges to copy bits.
+        // edgeExistsAtSnapshot / getEdgesAtSnapshot now use intersectsRange(0, snapshotId)
+        // so any edge added in snapshot N is implicitly visible in all snapshots >= N.
+        // This turns a blocking O(N_edges) iteration into O(1).
         
         return newSnapshotId;
     }
@@ -453,15 +466,28 @@ public:
      * Returns true if successful
      */
     bool saveSnapshotToDisk(const std::string& baseDir, bool compress = true) {
-        std::lock_guard<std::mutex> lock(mutex_);
-        
-        uint32_t snapshotId = snapshotManager_->getCurrentSnapshotId();
-        std::string filePath = TemporalStorePersistence::generateFilePath(
-            baseDir, graphId_, partitionId_, snapshotId);
-        
+        // Phase 1: copy shared state under lock (fast — in-memory copy)
+        // Phase 2: serialize to disk WITHOUT holding the lock (expensive I/O)
+        // This reduces the lock-hold from ~2 s (I/O) to ~tens of ms (copy).
+        uint32_t snapshotId;
+        std::string filePath;
+        decltype(edgeBitmaps_)      bitmapsCopy;
+        decltype(nodeProperties_)   nodesCopy;
+        decltype(edgeProperties_)   edgePropsCopy;
+
+        {
+            std::lock_guard<std::mutex> lock(mutex_);
+            snapshotId = snapshotManager_->getCurrentSnapshotId();
+            filePath   = TemporalStorePersistence::generateFilePath(
+                baseDir, graphId_, partitionId_, snapshotId);
+            bitmapsCopy   = edgeBitmaps_;
+            nodesCopy     = nodeProperties_;
+            edgePropsCopy = edgeProperties_;
+        }  // lock released here — producers can continue immediately
+
         return TemporalStorePersistence::saveSnapshot(
             filePath, graphId_, partitionId_, snapshotId,
-            edgeBitmaps_, nodeProperties_, edgeProperties_, compress);
+            bitmapsCopy, nodesCopy, edgePropsCopy, compress);
     }
     
     /**
@@ -472,9 +498,9 @@ public:
         std::lock_guard<std::mutex> lock(mutex_);
         
         uint32_t graphId, partitionId, snapshotId;
-        std::map<EdgeKey, EdgeLifespanBitmap> edgeBitmaps;
+        std::unordered_map<EdgeKey, EdgeLifespanBitmap, EdgeKey::Hash> edgeBitmaps;
         std::map<std::string, PropertyIntervalDictionary> nodeProps;
-        std::map<EdgeKey, PropertyIntervalDictionary> edgeProps;
+        std::unordered_map<EdgeKey, PropertyIntervalDictionary, EdgeKey::Hash> edgeProps;
         
         bool success = TemporalStorePersistence::loadSnapshot(
             filePath, graphId, partitionId, snapshotId,
