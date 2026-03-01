@@ -1531,13 +1531,13 @@ static void add_stream_kafka_command(int connFd, std::string &kafka_server_IP, c
     input_stream_handler_thread = thread(&StreamHandler::listen_to_kafka_topic, stream_handler);
 }
 
-static void send_graph_hdfs_command(std::string masterIP, int clientConnFd, SQLiteDBInterface *sqlite,
+static void send_graph_hdfs_command(std::string masterIP, int connFd, SQLiteDBInterface *sqlite,
         bool *loop_exit_p) {
     frontend_logger.info("Save graph to HDFS command received");
 
     // Ask for graph ID
     std::string graphIdMsg = "Graph ID:";
-    int resultWr = write(clientConnFd, graphIdMsg.c_str(), graphIdMsg.length());
+    int resultWr = write(connFd, graphIdMsg.c_str(), graphIdMsg.length());
     if (resultWr < 0) {
         frontend_logger.error("Error writing to socket");
         *loop_exit_p = true;
@@ -1568,8 +1568,8 @@ static void send_graph_hdfs_command(std::string masterIP, int clientConnFd, SQLi
     if (graphResults.empty()) {
         frontend_logger.error("Graph not found: " + graphId);
         std::string errorMsg = "Graph not found";
-        write(clientConnFd, errorMsg.c_str(), errorMsg.length());
-        write(clientConnFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
+        write(connFd, errorMsg.c_str(), errorMsg.length());
+        write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
         *loop_exit_p = true;
         return;
     }
@@ -1593,7 +1593,7 @@ static void send_graph_hdfs_command(std::string masterIP, int clientConnFd, SQLi
 
     std::string userResBuf;
     userResBuf.resize(FRONTEND_DATA_LENGTH);
-    int userBytesRead = read(clientConnFd, &userResBuf[0], FRONTEND_DATA_LENGTH);
+    int userBytesRead = read(connFd, &userResBuf[0], FRONTEND_DATA_LENGTH);
     if (userBytesRead > 0) {
         userResBuf.resize(static_cast<size_t>(userBytesRead));
     } else {
@@ -1622,7 +1622,7 @@ static void send_graph_hdfs_command(std::string masterIP, int clientConnFd, SQLi
 
         std::string ipBuf;
         ipBuf.resize(FRONTEND_DATA_LENGTH);
-        int ipBytesRead = read(clientConnFd, &ipBuf[0], FRONTEND_DATA_LENGTH);
+        int ipBytesRead = read(connFd, &ipBuf[0], FRONTEND_DATA_LENGTH);
         if (ipBytesRead > 0) {
             ipBuf.resize(static_cast<size_t>(ipBytesRead));
         } else {
@@ -1646,7 +1646,7 @@ static void send_graph_hdfs_command(std::string masterIP, int clientConnFd, SQLi
 
         std::string portBuf;
         portBuf.resize(FRONTEND_DATA_LENGTH);
-        int portBytesRead = read(clientConnFd, &portBuf[0], FRONTEND_DATA_LENGTH);
+        int portBytesRead = read(connFd, &portBuf[0], FRONTEND_DATA_LENGTH);
         if (portBytesRead > 0) {
             portBuf.resize(static_cast<size_t>(portBytesRead));
         } else {
@@ -1674,7 +1674,7 @@ static void send_graph_hdfs_command(std::string masterIP, int clientConnFd, SQLi
 
     std::string pathBuf;
     pathBuf.resize(FRONTEND_DATA_LENGTH);
-    int bytesRead = read(clientConnFd, &pathBuf[0], FRONTEND_DATA_LENGTH);
+    int bytesRead = read(connFd, &pathBuf[0], FRONTEND_DATA_LENGTH);
     if (bytesRead > 0) {
         pathBuf.resize(static_cast<size_t>(bytesRead));
     } else {
@@ -1690,8 +1690,8 @@ static void send_graph_hdfs_command(std::string masterIP, int clientConnFd, SQLi
     if (graphPartitionedHosts.empty()) {
         frontend_logger.error("No partitions found for graph ID: " + graphId);
         std::string errorMsg = "Graph not found or has no partitions";
-        write(clientConnFd, errorMsg.c_str(), errorMsg.length());
-        write(clientConnFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
+        write(connFd, errorMsg.c_str(), errorMsg.length());
+        write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
         *loop_exit_p = true;
         return;
     }
@@ -1782,12 +1782,12 @@ static void send_graph_hdfs_command(std::string masterIP, int clientConnFd, SQLi
 
     if (writeSuccess) {
         frontend_logger.info("Successfully saved graph to HDFS: " + hdfsOutputPath);
-        write(clientConnFd, DONE.c_str(), DONE.length());
-        write(clientConnFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
+        write(connFd, DONE.c_str(), DONE.length());
+        write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
     } else {
         frontend_logger.error("Failed to write graph to HDFS");
-        write(clientConnFd, ERROR.c_str(), ERROR.length());
-        write(clientConnFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
+        write(connFd, ERROR.c_str(), ERROR.length());
+        write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
         *loop_exit_p = true;
     }
 }
