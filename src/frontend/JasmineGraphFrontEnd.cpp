@@ -1531,7 +1531,7 @@ static void add_stream_kafka_command(int connFd, std::string &kafka_server_IP, c
 
 static void save_graph_hdfs_command(std::string masterIP, int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_p) {
     frontend_logger.info("Save graph to HDFS command received");
-    
+
     // Ask for graph ID
     std::string graphIdMsg = "Graph ID:";
     int resultWr = write(connFd, graphIdMsg.c_str(), graphIdMsg.length());
@@ -1556,7 +1556,7 @@ static void save_graph_hdfs_command(std::string masterIP, int connFd, SQLiteDBIn
     // Verify graph exists
     std::string graphQuery = "SELECT idgraph, name FROM graph WHERE idgraph = '" + graphId + "'";
     std::vector<std::vector<std::pair<std::string, std::string>>> graphResults = sqlite->runSelect(graphQuery);
-    
+
     if (graphResults.empty()) {
         frontend_logger.error("Graph not found: " + graphId);
         std::string errorMsg = "Graph not found";
@@ -1671,26 +1671,25 @@ static void save_graph_hdfs_command(std::string masterIP, int connFd, SQLiteDBIn
     // Deserialize binary partition files and convert to text format
     std::stringstream graphData;
     std::string dataFolder = Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder");
-    
+
     frontend_logger.info("Collecting graph data from " + std::to_string(graphPartitionedHosts.size()) + " workers");
-    
+
     int totalPartitions = 0;
     int processedPartitions = 0;
     int totalEdges = 0;
-    
+
     JasmineGraphHashMapLocalStore hashMapLocalStore;
-    
-    for (auto workerIter = graphPartitionedHosts.begin(); workerIter != graphPartitionedHosts.end(); workerIter++) {
+
+    for (auto workerIter = graphPartitionedHosts.begin(); workerIter != graphPartitionedHosts.end(); ++workerIter) {
         JasmineGraphServer::workerPartitions workerPartition = workerIter->second;
-        totalPartitions += workerPartition.partitionID.size();
-        
-        for (std::vector<std::string>::iterator partitionIt = workerPartition.partitionID.begin();
-             partitionIt != workerPartition.partitionID.end(); partitionIt++) {
+        totalPartitions += static_cast<int>(workerPartition.partitionID.size());
+
+        for (auto partitionIt = workerPartition.partitionID.begin(); partitionIt != workerPartition.partitionID.end(); ++partitionIt) {
             std::string partitionId = *partitionIt;
             std::string partitionFile = dataFolder + "/" + graphId + "_" + partitionId;
-            
+
             frontend_logger.info("Reading partition file: " + partitionFile);
-            
+
             // Try to read the partition file (it might be compressed)
             std::string actualFile = partitionFile;
             if (!Utils::fileExists(partitionFile) && Utils::fileExists(partitionFile + ".gz")) {
@@ -1700,27 +1699,26 @@ static void save_graph_hdfs_command(std::string masterIP, int connFd, SQLiteDBIn
                     Utils::unzipFile(actualFile);
                 }
             }
-            
+
             if (Utils::fileExists(partitionFile)) {
                 try {
                     // Load the binary partition file and deserialize
                     std::map<int, std::vector<int>> partEdgeMap = hashMapLocalStore.getEdgeHashMap(partitionFile);
-                    
+
                     // Convert to text format: source destination
                     for (auto it = partEdgeMap.begin(); it != partEdgeMap.end(); ++it) {
                         int vertex = it->first;
                         std::vector<int> destinationSet = it->second;
-                        
                         if (!destinationSet.empty()) {
-                            for (std::vector<int>::iterator destIt = destinationSet.begin(); 
-                                 destIt != destinationSet.end(); ++destIt) {
+                            for (std::vector<int>::iterator destIt = destinationSet.begin();
+                                destIt != destinationSet.end(); ++destIt) {
                                 graphData << vertex << " " << (*destIt) << "\n";
                                 totalEdges++;
                             }
                         }
                     }
                     processedPartitions++;
-                } catch (const std::exception& e) {
+                } catch (const std::exception &e) {
                     frontend_logger.error("Error reading partition file " + partitionFile + ": " + std::string(e.what()));
                 }
             } else {
@@ -1728,14 +1726,17 @@ static void save_graph_hdfs_command(std::string masterIP, int connFd, SQLiteDBIn
             }
         }
     }
-    
-    frontend_logger.info("Processed " + std::to_string(processedPartitions) + " out of " + 
-                        std::to_string(totalPartitions) + " partitions with " + 
-                        std::to_string(totalEdges) + " edges");
+
+    {
+        std::ostringstream procMsg;
+        procMsg << "Processed " << processedPartitions << " out of " << totalPartitions
+                << " partitions with " << totalEdges << " edges";
+        frontend_logger.info(procMsg.str());
+    }
 
     // Connect to HDFS and write graph data
     HDFSConnector *hdfsConnector = new HDFSConnector(hdfsServerIp, hdfsPort);
-    
+
     std::string graphDataStr = graphData.str();
     if (graphDataStr.empty()) {
         frontend_logger.error("No graph data collected");
