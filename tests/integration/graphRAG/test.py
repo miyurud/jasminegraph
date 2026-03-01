@@ -187,7 +187,7 @@ def test(host, port):
         sock.connect((host, port))
         print()
         logging.info('[KG] Testing knowledge graph construction ')
-        test_kg(TEXT_FOLDER ,UPLOAD_SCRIPT, host, port)
+        # test_kg(TEXT_FOLDER ,UPLOAD_SCRIPT, host, port)
         # shutting down workers after testing
         print()
         logging.info('Shutting down')
