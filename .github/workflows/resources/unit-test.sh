@@ -17,6 +17,7 @@ echo "Cleaning up existing test resources..."
 kubectl delete pod jasminegraph-unit-test-pod --ignore-not-found=true
 kubectl delete pvc host-volume-claim --ignore-not-found=true
 kubectl delete pv host-volume --ignore-not-found=true
+kubectl wait --for=delete pv host-volume --timeout=60s 2>/dev/null || true
 kubectl delete deployment -l deployment=jasminegraph-worker --ignore-not-found=true
 kubectl delete service -l service=jasminegraph-worker --ignore-not-found=true
 kubectl delete service jasminegraph-master-service --ignore-not-found=true
@@ -25,7 +26,7 @@ kubectl delete pv -l application=jasminegraph --ignore-not-found=true
 
 # Wait for resources to be fully deleted
 echo "Waiting for cleanup to complete..."
-kubectl wait --for=delete pv -l application=jasminegraph --timeout=60s 2>/dev/null || true
+kubectl wait --for=delete pv -l application=jasminegraph --timeout=120s 2>/dev/null || true
 sleep 10
 
 mkdir -p coverage
