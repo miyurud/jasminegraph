@@ -1684,7 +1684,8 @@ static void save_graph_hdfs_command(std::string masterIP, int connFd, SQLiteDBIn
         JasmineGraphServer::workerPartitions workerPartition = workerIter->second;
         totalPartitions += static_cast<int>(workerPartition.partitionID.size());
 
-        for (auto partitionIt = workerPartition.partitionID.begin(); partitionIt != workerPartition.partitionID.end(); ++partitionIt) {
+        for (auto partitionIt = workerPartition.partitionID.begin();
+            partitionIt != workerPartition.partitionID.end(); ++partitionIt) {
             std::string partitionId = *partitionIt;
             std::string partitionFile = dataFolder + "/" + graphId + "_" + partitionId;
 
@@ -1719,7 +1720,8 @@ static void save_graph_hdfs_command(std::string masterIP, int connFd, SQLiteDBIn
                     }
                     processedPartitions++;
                 } catch (const std::exception &e) {
-                    frontend_logger.error("Error reading partition file " + partitionFile + ": " + std::string(e.what()));
+                    frontend_logger.error("Error reading partition file " + partitionFile + ": " +
+                        std::string(e.what()));
                 }
             } else {
                 frontend_logger.warn("Partition file not found: " + partitionFile);
