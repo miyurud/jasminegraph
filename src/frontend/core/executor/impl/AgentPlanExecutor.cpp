@@ -117,8 +117,8 @@ void AgentPlanExecutor::execute() {
     };
 
     std::vector<JasmineGraphServer::worker> workers = JasmineGraphServer::getWorkers(numberOfPartitions);
-
-    for (size_t i = 0; i < workers.size(); i++) {
+    size_t workerCount = workers.size();
+    for (size_t i = 0; i < workerCount; i++) {
         workerListStr +=
             workers[i].hostname + ":" + std::to_string(workers[i].port) + ":" + std::to_string(workers[i].dataPort);
         if (i + 1 < workers.size()) {
