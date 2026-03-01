@@ -104,7 +104,7 @@ static void add_stream_kafka_command(int connFd, std::string &kafka_server_IP, c
 static void addStreamHDFSCommand(std::string masterIP, int connFd, std::string &hdfsServerIp,
                                  std::thread &inputStreamHandlerThread, int numberOfPartitions,
                                  SQLiteDBInterface *sqlite, bool *loop_exit_p);
-static void save_graph_hdfs_command(std::string masterIP, int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_p);
+static void send_graph_hdfs_command(std::string masterIP, int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_p);
 static void stop_stream_kafka_command(int connFd, KafkaConnector *kstream, bool *loop_exit_p);
 static void process_dataset_command(int connFd, bool *loop_exit_p);
 static void triangles_command(std::string masterIP, int connFd, SQLiteDBInterface *sqlite,
@@ -233,8 +233,8 @@ void *frontendservicesesion(void *dummyPt) {
         } else if (line.compare(ADD_STREAM_HDFS) == 0) {
             addStreamHDFSCommand(masterIP, connFd, hdfsServerIp, input_stream_handler, numberOfPartitions, sqlite,
                                  &loop_exit);
-        } else if (line.compare(SAVE_GRAPH_HDFS) == 0) {
-            save_graph_hdfs_command(masterIP, connFd, sqlite, &loop_exit);
+        } else if (line.compare(SEND_GRAPH_HDFS) == 0) {
+            send_graph_hdfs_command(masterIP, connFd, sqlite, &loop_exit);
         } else if (line.compare(CONSTRUCT_KG) == 0) {
             JasmineGraphFrontEnd::constructKGStreamHDFSCommand(masterIP, connFd, numberOfPartitions, sqlite,
                                                                &loop_exit);
@@ -1531,7 +1531,8 @@ static void add_stream_kafka_command(int connFd, std::string &kafka_server_IP, c
     input_stream_handler_thread = thread(&StreamHandler::listen_to_kafka_topic, stream_handler);
 }
 
-static void save_graph_hdfs_command(std::string masterIP, int clientConnFd, SQLiteDBInterface *sqlite, bool *loop_exit_p) {
+static void send_graph_hdfs_command(std::string masterIP, int clientConnFd, SQLiteDBInterface *sqlite,
+        bool *loop_exit_p) {
     frontend_logger.info("Save graph to HDFS command received");
 
     // Ask for graph ID
