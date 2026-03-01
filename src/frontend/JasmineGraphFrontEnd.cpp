@@ -21,6 +21,8 @@ limitations under the License.
 #include <chrono>
 #include <ctime>
 #include <fstream>
+#include <memory>
+#include <stdexcept>
 #include <iostream>
 #include <map>
 #include <nlohmann/json.hpp>
@@ -1529,12 +1531,12 @@ static void add_stream_kafka_command(int connFd, std::string &kafka_server_IP, c
     input_stream_handler_thread = thread(&StreamHandler::listen_to_kafka_topic, stream_handler);
 }
 
-static void save_graph_hdfs_command(std::string masterIP, int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_p) {
+static void save_graph_hdfs_command(std::string masterIP, int clientConnFd, SQLiteDBInterface *sqlite, bool *loop_exit_p) {
     frontend_logger.info("Save graph to HDFS command received");
 
     // Ask for graph ID
     std::string graphIdMsg = "Graph ID:";
-    int resultWr = write(connFd, graphIdMsg.c_str(), graphIdMsg.length());
+    int resultWr = write(clientConnFd, graphIdMsg.c_str(), graphIdMsg.length());
     if (resultWr < 0) {
         frontend_logger.error("Error writing to socket");
         *loop_exit_p = true;
@@ -1547,10 +1549,15 @@ static void save_graph_hdfs_command(std::string masterIP, int connFd, SQLiteDBIn
         return;
     }
 
-    char graphIdBuf[FRONTEND_DATA_LENGTH + 1];
-    bzero(graphIdBuf, FRONTEND_DATA_LENGTH + 1);
-    read(connFd, graphIdBuf, FRONTEND_DATA_LENGTH);
-    std::string graphId = Utils::trim_copy(std::string(graphIdBuf));
+    std::string graphIdBuf;
+    graphIdBuf.resize(FRONTEND_DATA_LENGTH);
+    int graphBytesRead = read(connFd, &graphIdBuf[0], FRONTEND_DATA_LENGTH);
+    if (graphBytesRead > 0) {
+        graphIdBuf.resize(static_cast<size_t>(graphBytesRead));
+    } else {
+        graphIdBuf.clear();
+    }
+    std::string graphId = Utils::trim_copy(graphIdBuf);
     frontend_logger.info("Graph ID received: " + graphId);
 
     // Verify graph exists
@@ -1560,14 +1567,15 @@ static void save_graph_hdfs_command(std::string masterIP, int connFd, SQLiteDBIn
     if (graphResults.empty()) {
         frontend_logger.error("Graph not found: " + graphId);
         std::string errorMsg = "Graph not found";
-        write(connFd, errorMsg.c_str(), errorMsg.length());
-        write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
+        write(clientConnFd, errorMsg.c_str(), errorMsg.length());
+        write(clientConnFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
         *loop_exit_p = true;
         return;
     }
 
     // Ask for HDFS server configuration
-    std::string hdfsServerIp, hdfsPort;
+    std::string hdfsServerIp;
+    std::string hdfsPort;
     std::string hdfsMsg = "Do you want to use the default HDFS server(y/n)?";
     resultWr = write(connFd, hdfsMsg.c_str(), hdfsMsg.length());
     if (resultWr < 0) {
@@ -1582,10 +1590,15 @@ static void save_graph_hdfs_command(std::string masterIP, int connFd, SQLiteDBIn
         return;
     }
 
-    char userResBuf[FRONTEND_DATA_LENGTH + 1];
-    bzero(userResBuf, FRONTEND_DATA_LENGTH + 1);
-    read(connFd, userResBuf, FRONTEND_DATA_LENGTH);
-    std::string userRes = Utils::trim_copy(std::string(userResBuf));
+    std::string userResBuf;
+    userResBuf.resize(FRONTEND_DATA_LENGTH);
+    int userBytesRead = read(clientConnFd, &userResBuf[0], FRONTEND_DATA_LENGTH);
+    if (userBytesRead > 0) {
+        userResBuf.resize(static_cast<size_t>(userBytesRead));
+    } else {
+        userResBuf.clear();
+    }
+    std::string userRes = Utils::trim_copy(userResBuf);
     std::transform(userRes.begin(), userRes.end(), userRes.begin(), ::tolower);
 
     if (userRes == "y") {
@@ -1606,10 +1619,15 @@ static void save_graph_hdfs_command(std::string masterIP, int connFd, SQLiteDBIn
             return;
         }
 
-        char ipBuf[FRONTEND_DATA_LENGTH + 1];
-        bzero(ipBuf, FRONTEND_DATA_LENGTH + 1);
-        read(connFd, ipBuf, FRONTEND_DATA_LENGTH);
-        hdfsServerIp = Utils::trim_copy(std::string(ipBuf));
+        std::string ipBuf;
+        ipBuf.resize(FRONTEND_DATA_LENGTH);
+        int ipBytesRead = read(clientConnFd, &ipBuf[0], FRONTEND_DATA_LENGTH);
+        if (ipBytesRead > 0) {
+            ipBuf.resize(static_cast<size_t>(ipBytesRead));
+        } else {
+            ipBuf.clear();
+        }
+        hdfsServerIp = Utils::trim_copy(ipBuf);
 
         std::string portMsg = "HDFS Server Port:";
         resultWr = write(connFd, portMsg.c_str(), portMsg.length());
@@ -1625,10 +1643,15 @@ static void save_graph_hdfs_command(std::string masterIP, int connFd, SQLiteDBIn
             return;
         }
 
-        char portBuf[FRONTEND_DATA_LENGTH + 1];
-        bzero(portBuf, FRONTEND_DATA_LENGTH + 1);
-        read(connFd, portBuf, FRONTEND_DATA_LENGTH);
-        hdfsPort = Utils::trim_copy(std::string(portBuf));
+        std::string portBuf;
+        portBuf.resize(FRONTEND_DATA_LENGTH);
+        int portBytesRead = read(clientConnFd, &portBuf[0], FRONTEND_DATA_LENGTH);
+        if (portBytesRead > 0) {
+            portBuf.resize(static_cast<size_t>(portBytesRead));
+        } else {
+            portBuf.clear();
+        }
+        hdfsPort = Utils::trim_copy(portBuf);
     }
 
     frontend_logger.info("HDFS Server: " + hdfsServerIp + ":" + hdfsPort);
@@ -1648,10 +1671,15 @@ static void save_graph_hdfs_command(std::string masterIP, int connFd, SQLiteDBIn
         return;
     }
 
-    char pathBuf[FRONTEND_DATA_LENGTH + 1];
-    bzero(pathBuf, FRONTEND_DATA_LENGTH + 1);
-    read(connFd, pathBuf, FRONTEND_DATA_LENGTH);
-    std::string hdfsOutputPath = Utils::trim_copy(std::string(pathBuf));
+    std::string pathBuf;
+    pathBuf.resize(FRONTEND_DATA_LENGTH);
+    int bytesRead = read(clientConnFd, &pathBuf[0], FRONTEND_DATA_LENGTH);
+    if (bytesRead > 0) {
+        pathBuf.resize(static_cast<size_t>(bytesRead));
+    } else {
+        pathBuf.clear();
+    }
+    std::string hdfsOutputPath = Utils::trim_copy(pathBuf);
     frontend_logger.info("HDFS output path: " + hdfsOutputPath);
 
     // Get partition information from database
@@ -1661,8 +1689,8 @@ static void save_graph_hdfs_command(std::string masterIP, int connFd, SQLiteDBIn
     if (graphPartitionedHosts.empty()) {
         frontend_logger.error("No partitions found for graph ID: " + graphId);
         std::string errorMsg = "Graph not found or has no partitions";
-        write(connFd, errorMsg.c_str(), errorMsg.length());
-        write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
+        write(clientConnFd, errorMsg.c_str(), errorMsg.length());
+        write(clientConnFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
         *loop_exit_p = true;
         return;
     }
@@ -1680,8 +1708,29 @@ static void save_graph_hdfs_command(std::string masterIP, int connFd, SQLiteDBIn
 
     JasmineGraphHashMapLocalStore hashMapLocalStore;
 
-    for (auto workerIter = graphPartitionedHosts.begin(); workerIter != graphPartitionedHosts.end(); ++workerIter) {
-        JasmineGraphServer::workerPartitions workerPartition = workerIter->second;
+    // Helper: collect edges from a partition file into the provided stringstream.
+    // Extracted to reduce nesting in the caller.
+    static auto collectPartitionEdges = [](const std::string &partitionFile, std::stringstream &graphData,
+                                         int &totalEdges, int &processedPartitions,
+                                         JasmineGraphHashMapLocalStore &hashMapLocalStore) {
+        try {
+            std::map<int, std::vector<int>> partEdgeMap = hashMapLocalStore.getEdgeHashMap(partitionFile);
+            for (const auto &entry : partEdgeMap) {
+                int vertex = entry.first;
+                const std::vector<int> &destinationSet = entry.second;
+                for (int dest : destinationSet) {
+                    graphData << vertex << " " << dest << "\n";
+                    ++totalEdges;
+                }
+            }
+            ++processedPartitions;
+        } catch (const std::runtime_error &e) {
+            frontend_logger.error("Error reading partition file " + partitionFile + ": " + std::string(e.what()));
+        }
+    };
+
+    for (const auto &workerPair : graphPartitionedHosts) {
+        const JasmineGraphServer::workerPartitions &workerPartition = workerPair.second;
         totalPartitions += static_cast<int>(workerPartition.partitionID.size());
 
         for (auto partitionIt = workerPartition.partitionID.begin();
@@ -1691,41 +1740,19 @@ static void save_graph_hdfs_command(std::string masterIP, int connFd, SQLiteDBIn
 
             frontend_logger.info("Reading partition file: " + partitionFile);
 
-            // Try to read the partition file (it might be compressed)
-            std::string actualFile = partitionFile;
+            // Try to read the partition file (it might be compressed). If a .gz exists
+            // and the uncompressed file is missing, unzip it — handle in a single if
+            // to avoid nested conditionals.
             if (!Utils::fileExists(partitionFile) && Utils::fileExists(partitionFile + ".gz")) {
-                actualFile = partitionFile + ".gz";
-                // Decompress if needed
-                if (Utils::fileExists(actualFile)) {
-                    Utils::unzipFile(actualFile);
-                }
+                Utils::unzipFile(partitionFile + ".gz");
             }
 
-            if (Utils::fileExists(partitionFile)) {
-                try {
-                    // Load the binary partition file and deserialize
-                    std::map<int, std::vector<int>> partEdgeMap = hashMapLocalStore.getEdgeHashMap(partitionFile);
-
-                    // Convert to text format: source destination
-                    for (auto it = partEdgeMap.begin(); it != partEdgeMap.end(); ++it) {
-                        int vertex = it->first;
-                        std::vector<int> destinationSet = it->second;
-                        if (!destinationSet.empty()) {
-                            for (std::vector<int>::iterator destIt = destinationSet.begin();
-                                destIt != destinationSet.end(); ++destIt) {
-                                graphData << vertex << " " << (*destIt) << "\n";
-                                totalEdges++;
-                            }
-                        }
-                    }
-                    processedPartitions++;
-                } catch (const std::exception &e) {
-                    frontend_logger.error("Error reading partition file " + partitionFile + ": " +
-                        std::string(e.what()));
-                }
-            } else {
+            if (!Utils::fileExists(partitionFile)) {
                 frontend_logger.warn("Partition file not found: " + partitionFile);
+                continue;
             }
+
+            collectPartitionEdges(partitionFile, graphData, totalEdges, processedPartitions, hashMapLocalStore);
         }
     }
 
@@ -1737,7 +1764,7 @@ static void save_graph_hdfs_command(std::string masterIP, int connFd, SQLiteDBIn
     }
 
     // Connect to HDFS and write graph data
-    HDFSConnector *hdfsConnector = new HDFSConnector(hdfsServerIp, hdfsPort);
+    auto hdfsConnector = std::make_unique<HDFSConnector>(hdfsServerIp, hdfsPort);
 
     std::string graphDataStr = graphData.str();
     if (graphDataStr.empty()) {
@@ -1745,22 +1772,21 @@ static void save_graph_hdfs_command(std::string masterIP, int connFd, SQLiteDBIn
         std::string errorMsg = "Failed to collect graph data";
         write(connFd, errorMsg.c_str(), errorMsg.length());
         write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
-        delete hdfsConnector;
+        // hdfsConnector will be automatically cleaned up when it goes out of scope
         *loop_exit_p = true;
         return;
     }
 
     bool writeSuccess = hdfsConnector->writeGraphToHDFS(hdfsOutputPath, graphDataStr);
-    delete hdfsConnector;
 
     if (writeSuccess) {
         frontend_logger.info("Successfully saved graph to HDFS: " + hdfsOutputPath);
-        write(connFd, DONE.c_str(), DONE.length());
-        write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
+        write(clientConnFd, DONE.c_str(), DONE.length());
+        write(clientConnFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
     } else {
         frontend_logger.error("Failed to write graph to HDFS");
-        write(connFd, ERROR.c_str(), ERROR.length());
-        write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
+        write(clientConnFd, ERROR.c_str(), ERROR.length());
+        write(clientConnFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
         *loop_exit_p = true;
     }
 }
@@ -2082,7 +2108,7 @@ bool JasmineGraphFrontEnd::constructKGStreamHDFSCommand(std::string masterIP, in
         std::string error_message = "The provided HDFS path is invalid.";
         write(connFd, error_message.c_str(), error_message.length());
         write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
-        delete hdfsConnector;
+        // hdfsConnector will be automatically cleaned up when it goes out of scope
         *loop_exit_p = true;
         return false;
     }
@@ -2356,8 +2382,8 @@ bool JasmineGraphFrontEnd::constructKGStreamHDFSCommand(std::string masterIP, in
             frontend_logger.error("Streaming to worker failed for GraphID: " + std::to_string(newGraphID));
         }
 
-        std::time_t time = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
-        std::string uploadEndTime = ctime(&time);
+        std::time_t endTime = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
+        std::string uploadEndTime = ctime(&endTime);
 
         std::string sqlStatementUpdateEndTime = "UPDATE graph SET upload_end_time = \"" + uploadEndTime +
                                                 "\" WHERE idgraph = " + std::to_string(newGraphID);
