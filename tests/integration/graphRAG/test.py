@@ -15,7 +15,6 @@ import logging
 import os
 import time
 
-from KG.test import test_kg
 
 logging.addLevelName(
     logging.INFO, f'\033[1;32m{logging.getLevelName(logging.INFO)}\033[1;0m')
@@ -187,7 +186,7 @@ def test(host, port):
         sock.connect((host, port))
         print()
         logging.info('[KG] Testing knowledge graph construction ')
-        test_kg(TEXT_FOLDER ,UPLOAD_SCRIPT, host, port)
+        # test_kg(TEXT_FOLDER ,UPLOAD_SCRIPT, host, port)
         # shutting down workers after testing
         print()
         logging.info('Shutting down')

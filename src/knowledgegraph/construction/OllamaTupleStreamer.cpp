@@ -101,8 +101,8 @@ size_t OllamaTupleStreamer::StreamCallback(char* ptr, size_t size, size_t nmemb,
                                                 ctx->current_tuple);
 
               try {
-                auto triple = json::parse(ctx->current_tuple);
-                  if (!triple.is_array() || triple.size() != 5) {
+                auto tuple = json::parse(ctx->current_tuple);
+                  if (!tuple.is_array() || tuple.size() != 5) {
                       ollama_tuple_streamer_logger.error(
                           "Invalid tuple size detected. Retrying entire chunk.");
 
@@ -112,12 +112,12 @@ size_t OllamaTupleStreamer::StreamCallback(char* ptr, size_t size, size_t nmemb,
                       ctx->retryReason = "Tuple size less than 5. Tuple size should be 5 or more.";
                       return 0;   // IMMEDIATE ABORT of curl_easy_perform
                   }
-                 if (triple.is_array()) {
-                  std::string subject = triple[0].get<std::string>();
-                  std::string predicate = triple[1].get<std::string>();
-                  std::string object = triple[2].get<std::string>();
-                  std::string subject_type = triple[3].get<std::string>();
-                  std::string object_type = triple[4].get<std::string>();
+                 if (tuple.is_array()) {
+                  std::string subject = tuple[0].get<std::string>();
+                  std::string predicate = tuple[1].get<std::string>();
+                  std::string object = tuple[2].get<std::string>();
+                  std::string subject_type = tuple[3].get<std::string>();
+                  std::string object_type = tuple[4].get<std::string>();
 
 
 
@@ -145,18 +145,18 @@ size_t OllamaTupleStreamer::StreamCallback(char* ptr, size_t size, size_t nmemb,
                        {{"id", edge_id},
                         {"type", predicate}}}};
 
-                    if (triple.size() == 6) {
-                        formattedTriple["properties"]["when"] = triple[5].get<std::string>();
+                    if (tuple.size() == Conts::TUPLE_SIZE_WITH_ONLY_WHEN_FIELD) {
+                        formattedTriple["properties"]["when"] = tuple[5].get<std::string>();
                     }
 
-                    if (triple.size() == 7) {
-                        formattedTriple["properties"]["when"] = triple[5].get<std::string>();
-                        formattedTriple["properties"]["where"] = triple[6].get<std::string>();
+                    if (tuple.size() == Conts::TUPLE_SIZE_WITH_WHEN_AND_WHERE_FIELD) {
+                        formattedTriple["properties"]["when"] = tuple[5].get<std::string>();
+                        formattedTriple["properties"]["where"] = tuple[6].get<std::string>();
                     }
 
                   ctx->buffer->add(formattedTriple.dump());
                   ollama_tuple_streamer_logger.debug(
-                      "✅ Added formatted triple: " + formattedTriple.dump());
+                      "✅ Added formatted tuple: " + formattedTriple.dump());
                 }
               } catch (const std::exception& ex) {
                 ollama_tuple_streamer_logger.error(

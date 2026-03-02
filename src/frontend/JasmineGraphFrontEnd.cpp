@@ -1615,7 +1615,7 @@ static void add_stream_kafka_command(int connFd, std::string& kafka_server_IP, c
     // Get user response.
     string default_kafka = Utils::getFrontendInput(connFd);
     //          use default kafka consumer details
-    string group_id = Conts::KAFKA_GROUP_ID;  // TODO(sakeerthan): MOVE TO CONSTANT LATER
+    string group_id = Conts::KAFKA_GROUP_ID;
     if (default_kafka == "y") {
         kafka_server_IP = Utils::getJasmineGraphProperty("org.jasminegraph.server.streaming.kafka.host");
         configs = {
@@ -2048,7 +2048,7 @@ bool JasmineGraphFrontEnd::constructKGStreamHDFSCommand(std::string masterIP, in
     }
 
     std::string url =
-        "http://" + hdfsServerIp + ":9870/webhdfs/v1/?op=GETHOMEDIRECTORY";
+        "https://" + hdfsServerIp + ":9870/webhdfs/v1/?op=GETHOMEDIRECTORY";
 
     long http_code = 0;
 
@@ -2165,8 +2165,8 @@ bool JasmineGraphFrontEnd::constructKGStreamHDFSCommand(std::string masterIP, in
         } else if (llmInferenceEngineS == "vllm") {
             endpointPath = "/v1/models";
         } else {
-            frontend_logger.error("Unknown inference engine: " + llmInferenceEngineS);
             std::string msg = "Unknown inference engine '" + llmInferenceEngineS + "'";
+            frontend_logger.error(msg);
             write(connFd, msg.c_str(), msg.length());
             write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
             *loop_exit_p = true;
@@ -3936,7 +3936,8 @@ void JasmineGraphFrontEnd::stop_graph_streaming(int connFd, SQLiteDBInterface *s
             int resultWr = write(connFd, message3.c_str(), message3.length());
         }
         int result_wr = write(connFd, DONE.c_str(), FRONTEND_COMMAND_LENGTH);
-             std::string sqlStatement = "UPDATE graph SET kg_construction_status = paused  WHERE idgraph = " + userResS;
+             std::string sqlStatement =
+                 "UPDATE graph SET kg_construction_status = 'paused'  WHERE idgraph = " + userResS;
 
         sqlite->runUpdate(sqlStatement);
     } else {
