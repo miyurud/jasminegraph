@@ -282,10 +282,16 @@ void WorkerKafkaConsumer::consumerThreadFunc(
                              " subscribed to " + cfg.topic);
 
     const size_t   KAFKA_BATCH   = 2000;
-    const uint64_t MAX_IDLE_POLLS = 600;   // seconds of no REAL messages before giving up
+    const uint64_t MAX_IDLE_POLLS = 30;    // seconds with zero real messages before giving up
+                                           // (primary stop = endSignalReceived via -1 sentinel)
     uint64_t       idleSeconds    = 0;     // counts seconds with zero valid messages
     uint64_t       threadMsgs    = 0;
     uint64_t       errorMsgs     = 0;      // total error/EOF messages seen
+
+    // Thread-local done flag: this thread exits only when IT receives -1
+    // from its own assigned Kafka partition.  The shared endSignalReceived
+    // is kept only as an emergency stop (exceptions / crashes).
+    bool myDone = false;
 
     // Hash functor used for deterministic partition assignment (HASH algo)
     std::hash<std::string> hasher;
@@ -294,7 +300,7 @@ void WorkerKafkaConsumer::consumerThreadFunc(
                              " entering consume loop (MAX_IDLE=" +
                              std::to_string(MAX_IDLE_POLLS) + "s)");
 
-    while (!endSignalReceived) {
+    while (!endSignalReceived && !myDone) {
         auto batch = consumer->poll_batch(KAFKA_BATCH, std::chrono::milliseconds(1000));
 
         // Count how many messages in this batch are actual data (not errors)
@@ -336,11 +342,29 @@ void WorkerKafkaConsumer::consumerThreadFunc(
         }
 
         for (auto& msg : batch) {
-            if (endSignalReceived) break;
+            if (myDone) break;
 
             if (isEndOfStream(msg)) {
                 worker_kafka_logger.info("Worker thread " + std::to_string(threadId) +
-                                         " received end-of-stream signal");
+                                         " received end-of-stream signal on its Kafka partition"
+                                         " — signalling all threads to stop");
+                // Set BOTH flags:
+                //   myDone          → this thread exits its inner batch loop immediately
+                //   endSignalReceived → all other threads exit their outer while loop
+                //                      before their cppkafka::Consumer is destroyed.
+                //
+                // Why both? When this thread exits and its Consumer goes out of scope,
+                // librdkafka triggers a Kafka consumer-group REBALANCE which revokes
+                // partition assignments from every other thread in the group.  After
+                // rebalance those threads get no new messages (committed offset is already
+                // at end-of-topic) and they would idle for MAX_IDLE_POLLS seconds before
+                // timing out.  Setting endSignalReceived=true here lets all threads exit
+                // cleanly in the CURRENT poll iteration — before the rebalance fires.
+                //
+                // Safety: -1 is only published AFTER the Python producer has flushed and
+                // closed all connections (all edges are in Kafka before -1 arrives), so it
+                // is always safe to stop every thread the moment any thread sees -1.
+                myDone = true;
                 endSignalReceived = true;
                 break;
             }
