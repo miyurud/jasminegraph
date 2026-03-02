@@ -92,7 +92,7 @@ class StreamHandler {
     // Number of parallel Kafka consumer threads; ideally equals the number of
     // Kafka topic partitions (docker-compose: KAFKA_NUM_PARTITIONS=3).
     // Override via org.jasminegraph.kafka.consumer.threads property.
-    static constexpr int DEFAULT_CONSUMER_THREADS = 3;
+    static constexpr int DEFAULT_CONSUMER_THREADS = 8;
 
     // Mutexes protecting shared state accessed by multiple consumer threads
     std::mutex partitionerMutex_;   // guards graphPartitioner.addEdge()
