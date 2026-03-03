@@ -29,3 +29,4 @@ class Planner {
 
     nlohmann::json buildSemanticBeamSearchPlan(const std::string& query);
 };
+

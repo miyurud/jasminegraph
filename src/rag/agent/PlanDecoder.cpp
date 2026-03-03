@@ -58,3 +58,4 @@ DecodedPlan PlanDecoder::decode(const json& jsonPlan) {
 
     return decoded;
 }
+
