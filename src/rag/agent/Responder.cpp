@@ -87,3 +87,4 @@ json Responder::generateResponse(const std::string& query, const json& execution
 
     return {{"query", query}, {"answer", llmResponse}};
 }
+

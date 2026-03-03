@@ -40,3 +40,4 @@ std::string AgentProtocol::getResponse(const AgentRequestContext& ctx, const std
     }
     return agent->generateResponse(ctx.query, retrievedData);
 }
+

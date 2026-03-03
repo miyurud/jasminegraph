@@ -33,3 +33,4 @@ struct DecodedPlan {
     int planId;
     std::optional<SBSPlan> sbsPlan;
 };
+

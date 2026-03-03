@@ -137,3 +137,4 @@ json Planner::buildSemanticBeamSearchPlan(const std::string& query) {
         return fallback;
     }
 }
+

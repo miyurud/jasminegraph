@@ -20,3 +20,4 @@ class PlanDecoder {
  public:
     static DecodedPlan decode(const nlohmann::json& jsonPlan);
 };
+
