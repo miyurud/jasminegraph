@@ -1,5 +1,5 @@
 /**
-Copyright 2025 JasmineGraph Team
+Copyright 2026 JasmineGraph Team
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
@@ -62,8 +62,9 @@ std::string callLLM(const std::string& prompt, const std::string& host, const st
                     const std::string& engine) {
     std::string result;
     CURL* curl = curl_easy_init();
-    if (!curl)
+    if (!curl) {
         return "";
+    }
 
     std::string url;
     if (engine == "vllm") {
