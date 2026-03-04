@@ -74,7 +74,7 @@ extern const string REFORMAT;
 extern const string TRIANGLES;
 extern const string PAGE_RANK;
 extern const string OUT_DEGREE_DISTRIBUTION;
-extern const string EGONET;
+extern const string EGO_NET;
 extern const string DPCNTRL;
 extern const string TRAIN;
 extern const string PREDICT;

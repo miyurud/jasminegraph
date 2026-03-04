@@ -2302,7 +2302,7 @@ void JasmineGraphServer::egoNet(std::string graphID) {
                 return;
             }
 
-            if (!Utils::sendExpectResponse(sockfd, data, INSTANCE_DATA_LENGTH, JasmineGraphInstanceProtocol::EGONET,
+            if (!Utils::sendExpectResponse(sockfd, data, INSTANCE_DATA_LENGTH, JasmineGraphInstanceProtocol::EGO_NET,
                                            JasmineGraphInstanceProtocol::OK)) {
                 Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::CLOSE);
                 close(sockfd);

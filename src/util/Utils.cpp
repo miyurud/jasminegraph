@@ -1273,11 +1273,6 @@ bool Utils::sendFileChunkToWorker(std::string host, int port, int dataPort, std:
         return false;
     }
 
-    // if (!Utils::performHandshake(sockfd, data, FED_DATA_LENGTH, masterIP)) {
-    //     Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::CLOSE);
-    //     close(sockfd);
-    //     return false;
-    // }
 
     if (!Utils::sendExpectResponse(sockfd, data, INSTANCE_DATA_LENGTH, uploadType,
                                    JasmineGraphInstanceProtocol::HDFS_STREAM_START_ACK)) {

@@ -70,7 +70,7 @@ class JasmineGraphInstanceProtocol {
     static const string WORKER_OUT_DEGREE_DISTRIBUTION;
     static const string WORKER_IN_DEGREE_DISTRIBUTION;
     static const string WORKER_PAGE_RANK_DISTRIBUTION;
-    static const string EGONET;
+    static const string EGO_NET;
     static const string WORKER_EGO_NET;
     static const string DP_CENTRALSTORE;
     static const string SEND_CENTRALSTORE_TO_AGGREGATOR;

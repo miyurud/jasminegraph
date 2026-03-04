@@ -59,13 +59,11 @@ PropertyEdgeLink::PropertyEdgeLink(unsigned int propertyBlockAddress) : blockAdd
 
 PropertyEdgeLink::PropertyEdgeLink(unsigned int blockAddress, std::string name, char* rvalue, unsigned int nextAddress)
     : blockAddress(blockAddress), nextPropAddress(nextAddress), name(name) {
-    property_edge_link_logger.debug("test 62");
     // Can't use just string copyer here because of binary data formats
     for (size_t i = 0; i < PropertyEdgeLink::MAX_VALUE_SIZE; i++) {
         this->value[i] = rvalue[i];
         // property_edge_link_logger.debug("test 66"+ std::to_string(rvalue[i]));
     }
-    property_edge_link_logger.debug("test 67");
 };
 
 /**
@@ -102,9 +100,6 @@ unsigned int PropertyEdgeLink::insert(std::string name, char* value) {
     property_edge_link_logger.debug("Received name = " + name);
     property_edge_link_logger.debug("Received value = " + std::string(value));
     unsigned int nextAddress = 0;
-
-    // property_edge_link_logger.info("current property name  = " + (this->name));
-    // property_edge_link_logger.info("new property name  = " + (name));
 
     if (this->name == name) {
         // TODO[tmkasun]: update existing property value

@@ -56,13 +56,13 @@ class Pipeline {
 
     static bool streamGraphToDesignatedWorker(std::string host, int port, std::string masterIP, std::string graphId,
                                               int numberOfPartitions, std::string hdfsServerIp, std::string hdfsPort,
-                                              std::string hostnamePort, std::string llmInferenceEngine, std::string llm,
+                                              std::string hostNamePort, std::string llmInferenceEngine, std::string llm,
                                               std::string chunkSize, std::string hdfsFilePath,
                                               bool continueKGConstruction, SQLiteDBInterface* sqlite,
                                               shared_ptr<atomic<bool>>& stopFlag,
                                               shared_ptr<KGConstructionRate>& kgConstructionRates);
      static bool streamLocalGraphToDesignatedWorker(string host, int port, int dataPort, string masterIP,
-                                                    string graphId, int numberOfPartitions, string hostnamePort,
+                                                    string graphId, int numberOfPartitions, string hostNamePort,
                                                    string llmInferenceEngine, string llm, string chunkSize,
                                                    string localFilePath, bool continueKGConstruction,
                                                    SQLiteDBInterface* sqlite, shared_ptr<atomic<bool>>& stopFlag,
@@ -117,11 +117,7 @@ class Pipeline {
     std::mutex entityResolutionMutex;
 
     string currentTraceContext;
-
     std::atomic<bool> metaThreadRunning{true};
-    // std::atomic<bool> stopFlag{false};
-
-    // std::atomic<long> realtime_bytes_read_so_far{0};
     std::atomic<long> vertexCount{0};
     std::atomic<long> edgeCount{0};
 };

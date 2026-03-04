@@ -273,7 +273,7 @@ void* frontendservicesesion(void* dummyPt) {
             out_degree_command(connFd, &loop_exit);
         } else if (line.compare(PAGE_RANK) == 0) {
             page_rank_command(masterIP, connFd, sqlite, perfSqlite, jobScheduler, &loop_exit);
-        } else if (line.compare(EGONET) == 0) {
+        } else if (line.compare(EGO_NET) == 0) {
             egonet_command(connFd, &loop_exit);
         } else if (line.compare(DPCNTRL) == 0) {
             duplicate_centralstore_command(connFd, &loop_exit);

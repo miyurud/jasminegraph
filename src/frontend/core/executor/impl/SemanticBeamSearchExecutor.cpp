@@ -115,9 +115,8 @@ void SemanticBeamSearchExecutor::execute() {
     std::sort(results.begin(), results.end(), [](const json& a, const json& b) { return a["score"] > b["score"]; });
 
     // trim to top k
-    int k = 10;
-    if ((int)results.size() > k)
-        results.resize(k);
+    if ((int)results.size() > Conts::TOP_RELEVANT_INFORMATION_COUNT)
+        results.resize(Conts::TOP_RELEVANT_INFORMATION_COUNT);
 
     // write to socket
     count = 0;
@@ -134,10 +133,10 @@ void SemanticBeamSearchExecutor::execute() {
         }
     }
     semantic_beam_search_logger_executor.info(
-        "###CYPHER-QUERY-EXECUTOR### Executing Query : Fetching Results");
+        "###SBS-QUERY-EXECUTOR### Executing Query : Fetching Results");
 
     semantic_beam_search_logger_executor.info(
-        "###CYPHER-QUERY-EXECUTOR### Executing Query : Completed");
+        "###SBS-QUERY-EXECUTOR### Executing Query : Completed");
 
     workerResponded = true;
     JobResponse jobResponse;
