@@ -79,7 +79,8 @@ json Responder::generateResponse(const std::string& query, const json& execution
     }
 
     if (llmResponse.empty()) {
-        responder_logger.error("LLM failed to generate a response after " + std::to_string(Conts::LLM_MAX_TRY) + " attempts");
+        responder_logger.error("LLM failed to generate a response after " + std::to_string(Conts::LLM_MAX_TRY)
+                                + " attempts");
 
         llmResponse = "I'm sorry, I couldn't generate a response at this time.";
     }
