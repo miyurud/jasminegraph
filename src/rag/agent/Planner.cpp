@@ -116,7 +116,8 @@ json Planner::buildSemanticBeamSearchPlan(const std::string& query) {
         if (!llmResponse.empty())
             break;
 
-        planner_logger.info("Retrying LLM call in " + std::to_string(Conts::LLM_RETRY_SLEEP_TIME_S * (attempt + 1)) + " seconds...");
+        planner_logger.info("Retrying LLM call in " + std::to_string(Conts::LLM_RETRY_SLEEP_TIME_S * (attempt + 1)) 
+                                + " seconds...");
         std::this_thread::sleep_for(std::chrono::seconds(Conts::LLM_RETRY_SLEEP_TIME_S * (attempt + 1)));
         attempt++;
     }
