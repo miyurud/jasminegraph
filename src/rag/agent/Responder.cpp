@@ -62,20 +62,19 @@ json Responder::generateResponse(const std::string& query, const json& execution
                          std::string("\n\nFinal Answer:");
 
     responder_logger.debug("Responder Prompt: " + prompt);
-    const int maxRetries = 3;
-    const int baseDelaySeconds = 2;
+
     int attempt = 0;
     std::string llmResponse;
 
-    while (attempt < maxRetries) {
+    while (attempt < Conts::LLM_MAX_TRY) {
         llmResponse = LLMUtils::callLLM(prompt, host, model, engine);
         if (!llmResponse.empty())
             break;
 
         responder_logger.info("Retrying LLM response generation in " +
-                              std::to_string(baseDelaySeconds * (attempt + 1)) + " seconds...");
+                              std::to_string(Conts::LLM_RETRY_SLEEP_TIME_S * (attempt + 1)) + " seconds...");
 
-        std::this_thread::sleep_for(std::chrono::seconds(baseDelaySeconds * (attempt + 1)));
+        std::this_thread::sleep_for(std::chrono::seconds(Conts::LLM_RETRY_SLEEP_TIME_S * (attempt + 1)));
         attempt++;
     }
 
