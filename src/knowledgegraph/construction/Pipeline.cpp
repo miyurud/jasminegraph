@@ -169,7 +169,6 @@ void Pipeline::streamFromHDFSIntoBuffer() {
         if (split_pos == std::string::npos) {
             // If no paragraph boundary, split at last newline
             split_pos = chunk_text.find_last_of('\n');
-
         }
         // Find last newline to keep only complete lines in chunk pushed to
         // dataBuffer

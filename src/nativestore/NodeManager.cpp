@@ -296,7 +296,6 @@ RelationBlock *NodeManager::addCentralRelation(NodeBlock source, NodeBlock desti
 }
 
 NodeBlock *NodeManager::addNode(std::string nodeId) {
-
     unsigned int assignedNodeIndex;
     node_manager_logger.debug("Adding node index " + std::to_string(this->nextNodeIndex));
     if (this->nodeIndex.find(nodeId) == this->nodeIndex.end()) {
