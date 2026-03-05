@@ -65,6 +65,8 @@ class Conts {
     static const int TIME_PERIOD_OF_META_DATA_UPDATE_TO_MASTER_SECS;
     static const int TUPLE_SIZE_WITH_WHEN_AND_WHERE_FIELD;
     static const int TUPLE_SIZE_WITH_ONLY_WHEN_FIELD;
+    static const int LLM_MAX_TRY;
+    static const int LLM_RETRY_SLEEP_TIME_S;
     static std::string JASMINEGRAPH_EXECUTABLE;
     static std::string JASMINEGRAPH_HOME;
     static std::string GRAPH_TYPE_RDF;

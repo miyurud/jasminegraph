@@ -1,5 +1,5 @@
 /**
-Copyright 2025 JasmineGraph Team
+Copyright 2026 JasmineGraph Team
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
@@ -62,8 +62,9 @@ std::string callLLM(const std::string& prompt, const std::string& host, const st
                     const std::string& engine) {
     std::string result;
     CURL* curl = curl_easy_init();
-    if (!curl)
+    if (!curl) {
         return "";
+    }
 
     std::string url;
     if (engine == "vllm") {
@@ -72,6 +73,10 @@ std::string callLLM(const std::string& prompt, const std::string& host, const st
         url = host + "/api/generate";
     }
 
+    // TLS + connection settings
+    curl_easy_setopt(curl, CURLOPT_SSLVERSION, CURL_SSLVERSION_DEFAULT);
+    curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 1L);
+    curl_easy_setopt(curl, CURLOPT_SSL_VERIFYHOST, 2L);
     curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
     curl_easy_setopt(curl, CURLOPT_POST, 1L);
 
@@ -130,3 +135,4 @@ std::string callLLM(const std::string& prompt, const std::string& host, const st
     return "";
 }
 }  // namespace LLMUtils
+

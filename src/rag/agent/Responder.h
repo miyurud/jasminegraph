@@ -1,5 +1,5 @@
 /**
-Copyright 2025 JasmineGraph Team
+Copyright 2026 JasmineGraph Team
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
@@ -14,6 +14,7 @@ limitations under the License.
 #pragma once
 #include <nlohmann/json.hpp>
 #include <string>
+#include "../../util/Conts.h"
 
 class Responder {
  public:
@@ -26,3 +27,4 @@ class Responder {
     std::string host;
     std::string engine;
 };
+

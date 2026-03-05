@@ -1,5 +1,5 @@
 /**
-Copyright 2025 JasmineGraph Team
+Copyright 2026 JasmineGraph Team
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
@@ -28,3 +28,4 @@ class AgentProtocol {
     static std::string getPlan(const AgentRequestContext& agentRequestCtx);
     static std::string getResponse(const AgentRequestContext& ctx, const std::string& retrievedData);
 };
+

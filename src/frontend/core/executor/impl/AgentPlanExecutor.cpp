@@ -1,5 +1,5 @@
 /**
-Copyright 2025 JasmineGraph Team
+Copyright 2026 JasmineGraph Team
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
@@ -117,8 +117,8 @@ void AgentPlanExecutor::execute() {
     };
 
     std::vector<JasmineGraphServer::worker> workers = JasmineGraphServer::getWorkers(numberOfPartitions);
-
-    for (size_t i = 0; i < workers.size(); i++) {
+    size_t workerCount = workers.size();
+    for (size_t i = 0; i < workerCount; i++) {
         workerListStr +=
             workers[i].hostname + ":" + std::to_string(workers[i].port) + ":" + std::to_string(workers[i].dataPort);
         if (i + 1 < workers.size()) {
@@ -148,14 +148,16 @@ void AgentPlanExecutor::execute() {
         }
 
         if (c == '\n') {
-            if (!lineBuffer.empty() && lineBuffer.back() == '\r')
+            if (!lineBuffer.empty() && lineBuffer.back() == '\r') {
                 lineBuffer.pop_back();
+            }
 
             std::string line = Utils::trim_copy(lineBuffer);
             lineBuffer.clear();
 
-            if (line.empty())
+            if (line.empty()) {
                 continue;
+             }
 
             try {
                 json payload = json::parse(line);
