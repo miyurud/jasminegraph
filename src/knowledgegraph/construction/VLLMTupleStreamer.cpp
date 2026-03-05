@@ -243,8 +243,8 @@ void VLLMTupleStreamer::streamChunk(const std::string& chunkKey,
           userPrompt =
               Prompts::KNOWLEDGE_EXTRACTION +
               "\n PREVIOUS OUTPUT WAS INVALID.\n"
-          +"Previous OUTPUT TUPLE : " + ctx.current_tuple+ " \n"
-          +"Invalid Reason: " + ctx.retryReason+ " \n"
+          + "Previous OUTPUT TUPLE : " + ctx.current_tuple + " \n"
+          + "Invalid Reason: " + ctx.retryReason + " \n"
               "\nNow RE-EXTRACT from the SAME text:\n" +
               chunkText +
               "\n\nArray:";
@@ -261,7 +261,6 @@ void VLLMTupleStreamer::streamChunk(const std::string& chunkKey,
     jsonRequest["max_tokens"] = 10000;
 
     std::string postFields = jsonRequest.dump();
-    // vllm_tuple_streamer_logger.info("Post fields: " + postFields);
     ctx.current_tuple = "";
     curl_easy_setopt(curl, CURLOPT_POSTFIELDS, postFields.c_str());
     curl_easy_setopt(curl, CURLOPT_POSTFIELDSIZE, postFields.size());

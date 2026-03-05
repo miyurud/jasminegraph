@@ -142,8 +142,6 @@ void HDFSStreamHandler::streamFromBufferToProcessingQueueEdgeListGraph(HDFSMulti
                     partitionedEdge partitioned_edge = fennelPartitioner.addEdge({sourceId, destId});
                     int sourceIndex =  partitioned_edge[0].second;
                     int destIndex =  partitioned_edge[1].second;
-                    // int sourceIndex = std::stoi(sourceId) % this->numberOfPartitions;
-                    // int destIndex = std::stoi(destId) % this->numberOfPartitions;
 
                     // Construct source and destination node objects
                     json source = {

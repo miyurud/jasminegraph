@@ -106,12 +106,18 @@ const std::string Conts::FLAGS::MODEL_ID = "model_id";
 
 
 
+
+
+
 const int Conts::HDFS::EDGE_SEPARATION_LAYER_THREAD_COUNT = 20;
 const int Conts::NUMBER_OF_PARTITION_DATA = 7;
 
 const int Conts::TUPLE_SIZE_WITH_ONLY_WHEN_FIELD = 6;
 const int Conts::TUPLE_SIZE_WITH_WHEN_AND_WHERE_FIELD = 7;
 const int Conts::TIME_PERIOD_OF_META_DATA_UPDATE_TO_MASTER_SECS = 1;
-const int Conts::TIME_ELAPSED_LOWER_BOUND = 0.000001;
+const int Conts::TIME_ELAPSED_LOWER_BOUND_SECONDS = 0.000001;
+const int Conts::TOP_RELEVANT_INFORMATION_COUNT = 50;
+const int Conts::SEMANTIC_LOWER_THRESHOLD = 0.55;
+
 const int Conts::LLM_MAX_TRY = 3;
 const int Conts::LLM_RETRY_SLEEP_TIME_S = 2;

@@ -107,7 +107,6 @@ NodeManager::NodeManager(GraphConfig gConfig) {
     //        node_manager_logger.error("Failed to open propertiesDB file.");
     //    }
     //
-    //    node_manager_logger.log("Checking NextAddress : " + nextAddress, "debug");
 
     if (dbSize(nodesDBPath) % NodeBlock::BLOCK_SIZE != 0) {
         node_manager_logger.warn("NodesDB size: " + std::to_string(dbSize(nodesDBPath)) +
@@ -297,8 +296,6 @@ RelationBlock *NodeManager::addCentralRelation(NodeBlock source, NodeBlock desti
 }
 
 NodeBlock *NodeManager::addNode(std::string nodeId) {
-    // pthread_mutex_lock(&lockNodeAdd);
-
     unsigned int assignedNodeIndex;
     node_manager_logger.debug("Adding node index " + std::to_string(this->nextNodeIndex));
     if (this->nodeIndex.find(nodeId) == this->nodeIndex.end()) {
@@ -312,7 +309,6 @@ NodeBlock *NodeManager::addNode(std::string nodeId) {
         sourceBlk->save();
         return sourceBlk;
     }
-    // pthread_mutex_unlock(&lockNodeAdd);
 
     node_manager_logger.debug("NodeId found in index for node ID " + nodeId);
     return this->get(nodeId);

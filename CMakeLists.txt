@@ -258,7 +258,6 @@ endif()
 add_library(JasmineGraphLib ${HEADERS} ${SOURCES} ${GENERATED_SRC}
         src/localstore/incremental/JasmineGraphIncrementalLocalStore.cpp)
 add_executable(JasmineGraph main.h main.cpp
-        src/localstore/incremental/JasmineGraphIncrementalLocalStore.cpp
         src/localstore/incremental/JasmineGraphIncrementalLocalStore.cpp)
 
 target_compile_definitions(JasmineGraphLib PUBLIC ROOT_DIR="${CMAKE_CURRENT_SOURCE_DIR}/")

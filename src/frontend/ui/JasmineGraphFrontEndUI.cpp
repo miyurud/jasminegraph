@@ -538,7 +538,7 @@ static void send_uploaded_bytes(int connFd, SQLiteDBInterface *sqlite, bool *loo
         if (percent < 100.0) {
             msg += "|" + graphID + "|" + std::to_string(uploadedBytes) + "|" + std::to_string(fileSizeBytes) + "|" +
                    std::to_string(percent) + "|" + std::to_string(bytesPerSecond) + "|" +
-                   std::to_string(triplesPerSecond) + "|" + startTimeStr + "|"+  llmRunnerString + "|" +
+                   std::to_string(triplesPerSecond) + "|" + startTimeStr + "|" +  llmRunnerString + "|" +
                        inferenceEngine + "|" + model + "|" +
                        chunkSizeBytes + "|" + kgConstructionStatus + "|" + hdfsIp + "|" + hdfsPort;
         }

@@ -169,14 +169,9 @@ void Pipeline::streamFromHDFSIntoBuffer() {
         if (split_pos == std::string::npos) {
             // If no paragraph boundary, split at last newline
             split_pos = chunk_text.find_last_of('\n');
-            // if (split_pos == std::string::npos) {
-            //     // If no newline, split at last space
-            //     split_pos = chunk_text.find_last_of(' ');
-            // }
         }
         // Find last newline to keep only complete lines in chunk pushed to
         // dataBuffer
-        // size_t last_newline = chunk_text.find_last_of('\n');
         if (split_pos == std::string::npos) {
             kg_pipeline_stream_handler_logger.debug("No newline found in chunk " + std::to_string(chunk_idx) +
                                                    ", storing as leftover");
@@ -841,7 +836,7 @@ void Pipeline::extractTuples(std::string host, int port, std::string masterIP, i
                 break;
                                               }
 
-            kg_pipeline_stream_handler_logger.debug("Sending currentTraceContext data:" + currentTraceContext);
+            kg_pipeline_stream_handler_logger.debug("Sending currentTraceContext data: " + currentTraceContext);
             if (!Utils::send_str_wrapper(sockfd, currentTraceContext)) {
                 kg_pipeline_stream_handler_logger.error("Failed to send chunk data");
                 retry = true;
@@ -956,7 +951,7 @@ void Pipeline::extractTuples(std::string host, int port, std::string masterIP, i
 
 bool Pipeline::streamGraphToDesignatedWorker(std::string host, int port, std::string masterIP, std::string graphId,
                                              int numberOfPartitions, std::string hdfsServerIp, std::string hdfsPort,
-                                             std::string hostnamePort, std::string llmInferenceEngine, std::string llm,
+                                             std::string hostNamePort, std::string llmInferenceEngine, std::string llm,
                                              std::string chunkSize, std::string hdfsFilePath,
                                              bool continueKGConstruction, SQLiteDBInterface* sqlite,
                                              shared_ptr<atomic<bool>>& stopFlag,
@@ -1026,7 +1021,7 @@ bool Pipeline::streamGraphToDesignatedWorker(std::string host, int port, std::st
 
 
     std::vector<std::string> llmRunnerSockets;
-    std::stringstream ss(hostnamePort);
+    std::stringstream ss(hostNamePort);
     std::string entry;
 
     while (std::getline(ss, entry, ',')) {
@@ -1135,7 +1130,7 @@ bool Pipeline::streamGraphToDesignatedWorker(std::string host, int port, std::st
         }
     }
 
-    if (!sendAndExpect(hostnamePort, "ok")) {
+    if (!sendAndExpect(hostNamePort, "ok")) {
         close(sockfd);
         return false;
     }
@@ -1232,7 +1227,7 @@ bool Pipeline::streamGraphToDesignatedWorker(std::string host, int port, std::st
             std::chrono::duration<double> elapsed_seconds = now - previousTimeStampTriplesPerSecond;
             double elapsed = elapsed_seconds.count();
 
-            if (elapsed > Conts::TIME_ELAPSED_LOWER_BOUND) {
+            if (elapsed > Conts::TIME_ELAPSED_LOWER_BOUND_SECONDS) {
                 kgConstructionRates->triplesPerSecond =
                     static_cast<double>(edgeCount - previousEdgeCount) / elapsed;
             }
@@ -1291,7 +1286,7 @@ bool Pipeline::streamGraphToDesignatedWorker(std::string host, int port, std::st
                 std::chrono::duration<double> elapsed_seconds = now - previousTimeStampBytesPerSecond;
                 double elapsed = elapsed_seconds.count();
 
-                if (elapsed > Conts::TIME_ELAPSED_LOWER_BOUND) {
+                if (elapsed > Conts::TIME_ELAPSED_LOWER_BOUND_SECONDS) {
                     kgConstructionRates->bytesPerSecond = (completedBytes - previousBytesCount) / elapsed;
                 }
 
@@ -1319,7 +1314,7 @@ bool Pipeline::streamLocalGraphToDesignatedWorker(std::string host, int port, in
     std::string  graphId,
 
                                              int numberOfPartitions,
-                                             std::string hostnamePort, std::string llmInferenceEngine, std::string llm,
+                                             std::string hostNamePort, std::string llmInferenceEngine, std::string llm,
                                              std::string chunkSize, string localFilePath,
                                              bool continueKGConstruction, SQLiteDBInterface* sqlite,
                                              shared_ptr<atomic<bool>>& stopFlag,
@@ -1389,7 +1384,7 @@ bool Pipeline::streamLocalGraphToDesignatedWorker(std::string host, int port, in
 
 
     std::vector<std::string> llmRunnerSockets;
-    std::stringstream ss(hostnamePort);
+    std::stringstream ss(hostNamePort);
     std::string entry;
 
     while (std::getline(ss, entry, ',')) {
@@ -1508,7 +1503,7 @@ bool Pipeline::streamLocalGraphToDesignatedWorker(std::string host, int port, in
         }
     }
 
-    if (!sendAndExpect(hostnamePort, "ok")) {
+    if (!sendAndExpect(hostNamePort, "ok")) {
         close(sockfd);
         return false;
     }
@@ -1634,7 +1629,7 @@ bool Pipeline::streamLocalGraphToDesignatedWorker(std::string host, int port, in
             std::chrono::duration<double> elapsed_seconds = now - previousTimeStampTriplesPerSecond;
             double elapsed = elapsed_seconds.count();
 
-            if (elapsed > Conts::TIME_ELAPSED_LOWER_BOUND) {
+            if (elapsed > Conts::TIME_ELAPSED_LOWER_BOUND_SECONDS) {
                 kgConstructionRates->triplesPerSecond =
                     static_cast<double>(edgeCount - previousEdgeCount) / elapsed;
             }
@@ -1693,7 +1688,7 @@ bool Pipeline::streamLocalGraphToDesignatedWorker(std::string host, int port, in
                 std::chrono::duration<double> elapsed_seconds = now - previousTimeStampBytesPerSecond;
                 double elapsed = elapsed_seconds.count();
 
-                if (elapsed > Conts::TIME_ELAPSED_LOWER_BOUND) {
+                if (elapsed > Conts::TIME_ELAPSED_LOWER_BOUND_SECONDS) {
                     kgConstructionRates->bytesPerSecond = (completedBytes - previousBytesCount) / elapsed;
                 } else {
                     kgConstructionRates->bytesPerSecond = 0.0;
@@ -1719,6 +1714,3 @@ bool Pipeline::streamLocalGraphToDesignatedWorker(std::string host, int port, in
     kg_pipeline_stream_handler_logger.info("Worker completed streaming upload for graph " + (graphId));
     return true;
 }
-
-
-

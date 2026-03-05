@@ -573,7 +573,7 @@ RelationBlock* RelationBlock::previousCentralSource() {
 }
 
 RelationBlock* RelationBlock::nextLocalDestination() {
-    relation_block_logger.debug("Fetching next relation of destination at: "+ std::to_string(this->destination
+    relation_block_logger.debug("Fetching next relation of destination at: " + std::to_string(this->destination
         .nextRelationId));
     return RelationBlock::getLocalRelation(this->destination.nextRelationId);
 }
@@ -872,7 +872,7 @@ std::map<std::string, std::string, std::less<>> RelationBlock::getAllProperties(
  * */
 NodeBlock* RelationBlock::getSource() {
     if (this->sourceBlock) {
-        relation_block_logger.debug("getSource: "+ std::to_string(this->sourceBlock->nodeId));
+        relation_block_logger.debug("getSource: " + std::to_string(this->sourceBlock->nodeId));
 
         return sourceBlock;
     }

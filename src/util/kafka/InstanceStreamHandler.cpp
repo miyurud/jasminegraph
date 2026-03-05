@@ -115,7 +115,7 @@ void InstanceStreamHandler::handleLocalEdge(std::string edge, std::string graphI
     }
 
     JasmineGraphIncrementalLocalStore* localStore = incrementalLocalStoreMap[graphIdentifier];
-    instance_stream_logger.debug("retrieve Increamental Store");
+    instance_stream_logger.debug("retrieve Incremental Store");
     localStore->addLocalEdge(edge);
 }
 

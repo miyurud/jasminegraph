@@ -182,7 +182,6 @@ static void semantic_search_expand_node_remote_batch(int conn_fd,
 void* instanceservicesession(void* dummyPt) {
     instanceservicesessionargs* sessionargs_p = (instanceservicesessionargs*)dummyPt;
     instanceservicesessionargs sessionargs = *sessionargs_p;
-    // delete sessionargs_p;
     int connFd = sessionargs.connFd;
     string cmd = sessionargs.cmd;
     std::map<std::string, JasmineGraphHashMapLocalStore> *graphDBMapLocalStores = sessionargs.graphDBMapLocalStores;
@@ -247,7 +246,7 @@ void* instanceservicesession(void* dummyPt) {
             page_rank_command(connFd, serverPort, *graphDBMapCentralStores, &loop_exit);
         } else if (cmd.compare(JasmineGraphInstanceProtocol::WORKER_PAGE_RANK_DISTRIBUTION) == 0) {
             worker_page_rank_distribution_command(connFd, serverPort, *graphDBMapCentralStores, &loop_exit);
-        } else if (cmd.compare(JasmineGraphInstanceProtocol::EGONET) == 0) {
+        } else if (cmd.compare(JasmineGraphInstanceProtocol::EGO_NET) == 0) {
             egonet_command(connFd, serverPort, *graphDBMapCentralStores, &loop_exit);
         } else if (cmd.compare(JasmineGraphInstanceProtocol::WORKER_EGO_NET) == 0) {
             worker_egonet_command(connFd, serverPort, *graphDBMapCentralStores, &loop_exit);
@@ -3367,7 +3366,6 @@ static void streaming_kg_construction(
     *loop_exit_p = true;
     return;
   }
-  // instance_logger.info("Sent : " + JasmineGraphInstanceProtocol::OK);
   HDFSConnector *hdfsConnector = new HDFSConnector(hdfsServerUrl, hdfsPort);
 
   Pipeline *streamHandler = new Pipeline(
@@ -3546,8 +3544,7 @@ static void streaming_kg_construction_local(
             JasmineGraphServer::worker worker;
             worker.hostname = hostname;
             worker.port = port;
-            worker.dataPort =
-         worker.port +
+            worker.dataPort = worker.port +
          1;
             workers.push_back(worker);
         }
@@ -3829,8 +3826,6 @@ static void streaming_tuple_extraction(
        {"tuples", tupleArrayString}
             });
           instance_logger.info("Received end signal from producer");
-          // instance_logger.info(chunk);
-          // instance_logger.info(tupleArrayString);
           tupleBuffer.clear();
           break;
         }
@@ -5051,7 +5046,7 @@ static void query_start_command(int connFd, InstanceHandler& instanceHandler,
     std::string masterIp(content_length, 0);
     return_status = recv(connFd, &masterIp[0], content_length, 0);
     if (return_status > 0) {
-        instance_logger.info("Received graph id: "+masterIp);
+        instance_logger.info("Received graph id: " + masterIp);
     } else {
         instance_logger.info("Error while reading content length");
         *loop_exit_p = true;
@@ -5296,7 +5291,6 @@ static void semantic_beam_search(
       gc.partitionID = stoi(partition);
       gc.maxLabelSize = std::stoi(Utils::getJasmineGraphProperty(
           "org.jasminegraph.nativestore.max.label.size"));
-      // gc.openMode = "app";
 
       incrementalLocalStoreInstance->nm = new NodeManager (gc);
       incrementalLocalStoreInstance->nm->edgeIndex = edgeIndex;
@@ -5374,9 +5368,7 @@ static void semantic_beam_search(
     if (pos != string::npos) {
       worker.hostname = workerSocket.substr(0, pos);
       worker.port = stoi(workerSocket.substr(pos + 1));
-      worker.dataPort =
-          worker.port +
-          1;  // Assuming data port is one more than the worker port
+      worker.dataPort = worker.port + 1;  // Assuming data port is one more than the worker port
     } else {
       instance_logger.error("Invalid worker socket format: " + workerSocket);
       *loop_exit_p = true;
@@ -5396,7 +5388,6 @@ static void semantic_beam_search(
       incrementalLocalStoreInstance->textEmbedder, incrementalLocalStoreInstance->textEmbedder->embed(message),
       7, incrementalLocalStoreInstance->gc,
       workers, incrementalLocalStoreInstance->nm);
-  // semanticBeamSearch->getSeedNodes();
   SharedBuffer shared(50);
   semanticBeamSearch->semanticMultiHopBeamSearch(shared, 3, 15);
   auto startTime = std::chrono::high_resolution_clock::now();
@@ -6070,7 +6061,7 @@ static void processFile(string fileName, bool isLocal, InstanceStreamHandler& ha
                                       std::to_string(graphId) + "_" + std::to_string(partitionIndex), isEmbedGraph);
         }
     }
-    instance_logger.debug("Done Uploading File");
+    instance_logger.debug("Done Uploading File: " + fileName);
     localStore->processing_done = true;
     pthread_cond_broadcast(&localStore->embeddingQueueCond);
     if (embeddingThread.joinable()) {
