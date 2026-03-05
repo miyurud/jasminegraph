@@ -108,18 +108,17 @@ json Planner::build(const std::string& query) {
 json Planner::buildSemanticBeamSearchPlan(const std::string& query) {
     std::string prompt = SBS_PLANNER_PROMPT + std::string("\nUser Query:\n") + query;
 
-    const int maxRetries = 3;
-    const int baseDelaySeconds = 2;
     int attempt = 0;
     std::string llmResponse;
 
-    while (attempt < maxRetries) {
+    while (attempt < Conts::LLM_MAX_TRY) {
         llmResponse = LLMUtils::callLLM(prompt, host, model, engine);
         if (!llmResponse.empty())
             break;
 
-        planner_logger.info("Retrying LLM call in " + std::to_string(baseDelaySeconds * (attempt + 1)) + " seconds...");
-        std::this_thread::sleep_for(std::chrono::seconds(baseDelaySeconds * (attempt + 1)));
+        planner_logger.info("Retrying LLM call in " + std::to_string(Conts::LLM_RETRY_SLEEP_TIME_S * (attempt + 1))
+                                + " seconds...");
+        std::this_thread::sleep_for(std::chrono::seconds(Conts::LLM_RETRY_SLEEP_TIME_S * (attempt + 1)));
         attempt++;
     }
 

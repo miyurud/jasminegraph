@@ -2500,7 +2500,7 @@ std::string Utils::normalizeURL(const std::string& server, const std::string& pa
 
 
 
-std::vector<std::string> Utils::getUniqueLLMRunners(const std::string &hostnamePortS) {
+std::vector<std::string> Utils::getUniqueLLMRunners(const std::string& hostnamePortS) {
     std::vector<std::string> llmRunnerServers;
     std::unordered_set<std::string> seen;
     std::stringstream ss(hostnamePortS);
@@ -2510,22 +2510,41 @@ std::vector<std::string> Utils::getUniqueLLMRunners(const std::string &hostnameP
         // Trim spaces
         token.erase(0, token.find_first_not_of(" \t\r\n"));
         token.erase(token.find_last_not_of(" \t\r\n") + 1);
+        if (token.empty())
+            continue;
 
-        if (token.empty()) continue;
+        // ===== Special rule for HTTPS =====
+        if (token.rfind("https://", 0) == 0) {  // starts with https://
+            size_t lastColon = token.rfind(':');
 
-        // ===== Remove chunk count =====
-        // Example: "10.0.10.22:11450:10" → "10.0.10.22:11450"
-        //          "https://llm.com:4"   → "https://llm.com"
-        size_t lastColon = token.rfind(':');
-        if (lastColon != std::string::npos) {
-            // Check whether the part after last colon is a number
-            std::string lastPart = token.substr(lastColon + 1);
-            bool isNumber = !lastPart.empty() &&
-                            std::all_of(lastPart.begin(), lastPart.end(), ::isdigit);
-            if (isNumber) {
+            // Make sure this colon is AFTER the scheme (not the one in https://)
+            if (lastColon != std::string::npos && lastColon > token.find("://") + 2) {
                 token = token.substr(0, lastColon);
+                util_logger.info("HTTPS rule applied, stripped to: " + token);
+            }
+        } else {
+            // ===== Count colons ignoring the scheme =====
+            size_t schemePos = token.find("://");
+            size_t startPos = (schemePos == std::string::npos) ? 0 : schemePos + 3;
+
+            size_t colonCount = 0;
+            for (size_t i = startPos; i < token.size(); ++i) {
+                if (token[i] == ':')
+                    ++colonCount;
+            }
+            util_logger.info("ColonCount: " + std::to_string(colonCount));
+            // ===== Apply your rules =====
+            if (colonCount == 2) {
+                // Remove rightmost colon and part after it
+                size_t lastColon = token.rfind(':');
+                if (lastColon != std::string::npos) {
+                    token = token.substr(0, lastColon);
+                }
+                util_logger.info("ColonCount 3");
             }
         }
+        util_logger.info("Token: " + token);
+        // If colonCount == 2 → skip (do nothing)
 
         // Convert to lowercase for deduplication
         std::string key = token;
