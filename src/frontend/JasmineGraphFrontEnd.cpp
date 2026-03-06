@@ -1707,8 +1707,6 @@ static void send_graph_hdfs_command(std::string masterIP, int connFd, SQLiteDBIn
     int processedPartitions = 0;
     int totalEdges = 0;
 
-    JasmineGraphHashMapLocalStore hashMapLocalStore;
-
     // Helper: collect edges from a partition file into the provided stringstream.
     // Extracted to reduce nesting in the caller.
     static auto collectPartitionEdges = [](const std::string &partitionFile, std::stringstream &graphData,
@@ -1753,7 +1751,8 @@ static void send_graph_hdfs_command(std::string masterIP, int connFd, SQLiteDBIn
                 continue;
             }
 
-            collectPartitionEdges(partitionFile, graphData, totalEdges, processedPartitions, hashMapLocalStore);
+            JasmineGraphHashMapLocalStore partitionLocalStore;
+            collectPartitionEdges(partitionFile, graphData, totalEdges, processedPartitions, partitionLocalStore);
         }
     }
 
