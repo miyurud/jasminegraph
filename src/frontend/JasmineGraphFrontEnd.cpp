@@ -1708,8 +1708,7 @@ static void send_graph_hdfs_command(std::string masterIP, int connFd, SQLiteDBIn
     int processedPartitions = 0;
 
     // Collect all unique edges across local partitions and central stores.
-    // Using ordered pairs (min, max) in a set ensures each undirected edge is
-    // written exactly once even when it appears in multiple central stores.
+    // Edges are stored as directed pairs (source, destination).
     std::set<std::pair<int, int>> uniqueEdges;
 
     for (const auto &workerPair : graphPartitionedHosts) {
@@ -1733,7 +1732,7 @@ static void send_graph_hdfs_command(std::string masterIP, int connFd, SQLiteDBIn
                     for (const auto &entry : partEdgeMap) {
                         int u = entry.first;
                         for (int v : entry.second) {
-                            uniqueEdges.emplace(std::min(u, v), std::max(u, v));
+                            uniqueEdges.emplace(u, v);
                         }
                     }
                     ++processedPartitions;
@@ -1753,12 +1752,15 @@ static void send_graph_hdfs_command(std::string masterIP, int connFd, SQLiteDBIn
             if (Utils::fileExists(centralFile)) {
                 try {
                     JasmineGraphHashMapCentralStore centralStore(stoi(graphId), stoi(partitionId));
-                    centralStore.loadGraph(centralFile);
-                    const auto &centralMap = centralStore.getUnderlyingHashMap();
-                    for (const auto &entry : centralMap) {
-                        long u = entry.first;
-                        for (long v : entry.second) {
-                            uniqueEdges.emplace(std::min((int)u, (int)v), std::max((int)u, (int)v));
+                    if (!centralStore.loadGraph(centralFile)) {
+                        frontend_logger.error("Failed to load central store file: " + centralFile);
+                    } else {
+                        const auto &centralMap = centralStore.getUnderlyingHashMap();
+                        for (const auto &entry : centralMap) {
+                            long u = entry.first;
+                            for (long v : entry.second) {
+                                uniqueEdges.emplace((int)u, (int)v);
+                            }
                         }
                     }
                 } catch (const std::runtime_error &e) {
