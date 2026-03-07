@@ -35,6 +35,24 @@ using namespace std;
 using namespace std::chrono;
 Logger stream_handler_logger;
 
+/// Queries the Kafka broker for the number of partitions in `topic`.
+/// Returns the partition count on success, or -1 if the query fails.
+static int getKafkaTopicPartitionCount(cppkafka::Consumer& consumer, const std::string& topic) {
+    try {
+        auto metadata = consumer.get_metadata(true);
+        for (const auto& topicMeta : metadata.get_topics()) {
+            if (topicMeta.get_name() == topic) {
+                return static_cast<int>(topicMeta.get_partitions().size());
+            }
+        }
+        stream_handler_logger.warn("[KAFKA META] Topic '" + topic + "' not found in broker metadata");
+    } catch (const std::exception& e) {
+        stream_handler_logger.warn("[KAFKA META] Failed to query partition count for topic '" +
+                                   topic + "': " + e.what());
+    }
+    return -1;
+}
+
 StreamHandler::StreamHandler(KafkaConnector *kstream, int numberOfPartitions,
                              vector<DataPublisher *> &workerClients, SQLiteDBInterface* sqlite,
                              int graphId, bool isDirected, spt::Algorithms algorithms,
@@ -722,14 +740,6 @@ void StreamHandler::listen_to_kafka_topic() {
     // Read n_workers ONCE (fix: was read inside per-message loop previously)
     int n_workers = atoi(Utils::getJasmineGraphProperty("org.jasminegraph.server.nworkers").c_str());
 
-    // Determine number of consumer threads from property, fallback to default
-    int numConsumerThreads = DEFAULT_CONSUMER_THREADS;
-    std::string threadsProp = Utils::getJasmineGraphProperty("org.jasminegraph.kafka.consumer.threads");
-    if (!threadsProp.empty()) {
-        int val = std::atoi(threadsProp.c_str());
-        if (val > 0) numConsumerThreads = val;
-    }
-
     // Get the topic that the original consumer already subscribed to
     std::vector<std::string> subscription = kstream->consumer.get_subscription();
     if (subscription.empty()) {
@@ -737,6 +747,30 @@ void StreamHandler::listen_to_kafka_topic() {
         return;
     }
     const std::string topic = subscription[0];
+
+    // Adaptive: use actual Kafka topic partition count as the thread count so
+    // each thread can own exactly one Kafka partition.
+    int numConsumerThreads = DEFAULT_CONSUMER_THREADS;
+    int detectedPartitions = getKafkaTopicPartitionCount(kstream->consumer, topic);
+    if (detectedPartitions > 0) {
+        numConsumerThreads = detectedPartitions;
+        stream_handler_logger.info("[THREAD CFG] Auto-detected " + std::to_string(numConsumerThreads) +
+                                   " Kafka partitions for topic '" + topic + "' — using as thread count");
+    } else {
+        stream_handler_logger.warn("[THREAD CFG] Could not detect Kafka partition count for topic '" +
+                                   topic + "' — using default: " + std::to_string(numConsumerThreads));
+    }
+    // Allow explicit override via property (useful for testing or tuning)
+    std::string threadsProp = Utils::getJasmineGraphProperty("org.jasminegraph.kafka.consumer.threads");
+    if (!threadsProp.empty()) {
+        int val = std::atoi(threadsProp.c_str());
+        if (val > 0) {
+            numConsumerThreads = val;
+            stream_handler_logger.info("[THREAD CFG] Thread count overridden to " +
+                                       std::to_string(numConsumerThreads) +
+                                       " via org.jasminegraph.kafka.consumer.threads");
+        }
+    }
 
     stream_handler_logger.info("Starting " + std::to_string(numConsumerThreads) +
                                " parallel Kafka consumer threads for topic '" + topic + "'");
@@ -823,12 +857,37 @@ void StreamHandler::listenViaDirectWorkers(
     // Master IP for worker handshake verification
     std::string masterIP = Utils::getJasmineGraphProperty("org.jasminegraph.server.host");
 
-    // Number of consumer threads per worker
-    int numConsumerThreads = DEFAULT_CONSUMER_THREADS;
+    // Each worker is assigned its own independent Kafka consumer group, so every
+    // worker reads ALL Kafka topic partitions (fan-out model).  The thread count
+    // must therefore equal the total number of Kafka topic partitions — NOT the
+    // number of graph partitions the worker owns.  With 8 Kafka partitions and
+    // 2 workers: each worker needs 8 threads so Kafka assigns 1 partition per thread.
+    // Using owned-graph-partition count (4) would give each thread 2 Kafka partitions
+    // and halve throughput, which is the regression that was observed.
+    int kafkaTopicPartitions = getKafkaTopicPartitionCount(kstream->consumer, topic);
+    int defaultThreadCount = (kafkaTopicPartitions > 0) ? kafkaTopicPartitions : DEFAULT_CONSUMER_THREADS;
+    if (kafkaTopicPartitions > 0) {
+        stream_handler_logger.info("[THREAD CFG] Detected " + std::to_string(kafkaTopicPartitions) +
+                                   " Kafka partitions for topic '" + topic +
+                                   "' — each worker will use " + std::to_string(defaultThreadCount) +
+                                   " consumer threads (1 per Kafka partition)");
+    } else {
+        stream_handler_logger.warn("[THREAD CFG] Could not detect Kafka partition count for topic '" +
+                                   topic + "' — falling back to default: " +
+                                   std::to_string(defaultThreadCount));
+    }
+
+    // Property override applies uniformly across all workers if set.
     std::string threadsProp = Utils::getJasmineGraphProperty("org.jasminegraph.kafka.consumer.threads");
+    int threadOverride = -1;
     if (!threadsProp.empty()) {
         int val = std::atoi(threadsProp.c_str());
-        if (val > 0) numConsumerThreads = val;
+        if (val > 0) {
+            threadOverride = val;
+            stream_handler_logger.info("[THREAD CFG] Consumer thread count globally overridden to " +
+                                       std::to_string(threadOverride) +
+                                       " via org.jasminegraph.kafka.consumer.threads");
+        }
     }
 
     // Temporal config
@@ -907,6 +966,15 @@ void StreamHandler::listenViaDirectWorkers(
         configJson["timeThreshold"]      = timeThreshold;
         configJson["edgeThreshold"]      = edgeThreshold;
         configJson["initialSnapshotId"]  = initialSnapshotId;
+        // Thread count = total Kafka topic partitions (worker reads ALL of them in its own group).
+        // Owned graph partitions are a separate concept — they control which EDGES are stored,
+        // not how many Kafka partitions this worker's consumer group is assigned.
+        int numConsumerThreads = (threadOverride > 0) ? threadOverride : defaultThreadCount;
+        stream_handler_logger.info("[THREAD CFG] Worker " + std::to_string(wi) + ": " +
+                                   std::to_string(numConsumerThreads) + " consumer threads (" +
+                                   std::to_string(kafkaTopicPartitions) + " Kafka partitions, " +
+                                   std::to_string(workerOwnedPartitions[wi].size()) +
+                                   " owned graph partitions)");
         configJson["numConsumerThreads"] = numConsumerThreads;
         configJson["workerIndex"]        = wi;
         std::string configStr = configJson.dump();
