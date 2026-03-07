@@ -52,6 +52,7 @@ limitations under the License.
 #include "../server/JasmineGraphInstanceProtocol.h"
 #include "../server/JasmineGraphInstanceService.h"
 #include "../server/JasmineGraphServer.h"
+#include "../centralstore/JasmineGraphHashMapCentralStore.h"
 #include "../util/Conts.h"
 #include "../util/hdfs/HDFSConnector.h"
 #include "../util/hdfs/HDFSStreamHandler.h"
@@ -1705,28 +1706,11 @@ static void send_graph_hdfs_command(std::string masterIP, int connFd, SQLiteDBIn
 
     int totalPartitions = 0;
     int processedPartitions = 0;
-    int totalEdges = 0;
 
-    // Helper: collect edges from a partition file into the provided stringstream.
-    // Extracted to reduce nesting in the caller.
-    static auto collectPartitionEdges = [](const std::string &partitionFile, std::stringstream &graphData,
-                                         int &totalEdges, int &processedPartitions,
-                                         JasmineGraphHashMapLocalStore &hashMapLocalStore) {
-        try {
-            std::map<int, std::vector<int>> partEdgeMap = hashMapLocalStore.getEdgeHashMap(partitionFile);
-            for (const auto &entry : partEdgeMap) {
-                int vertex = entry.first;
-                const std::vector<int> &destinationSet = entry.second;
-                for (int dest : destinationSet) {
-                    graphData << vertex << " " << dest << "\n";
-                    ++totalEdges;
-                }
-            }
-            ++processedPartitions;
-        } catch (const std::runtime_error &e) {
-            frontend_logger.error("Error reading partition file " + partitionFile + ": " + std::string(e.what()));
-        }
-    };
+    // Collect all unique edges across local partitions and central stores.
+    // Using ordered pairs (min, max) in a set ensures each undirected edge is
+    // written exactly once even when it appears in multiple central stores.
+    std::set<std::pair<int, int>> uniqueEdges;
 
     for (const auto &workerPair : graphPartitionedHosts) {
         const JasmineGraphServer::workerPartitions &workerPartition = workerPair.second;
@@ -1735,31 +1719,68 @@ static void send_graph_hdfs_command(std::string masterIP, int connFd, SQLiteDBIn
         for (auto partitionIt = workerPartition.partitionID.begin();
             partitionIt != workerPartition.partitionID.end(); ++partitionIt) {
             std::string partitionId = *partitionIt;
+
+            // --- Local partition file ---
             std::string partitionFile = dataFolder + "/" + graphId + "_" + partitionId;
-
             frontend_logger.info("Reading partition file: " + partitionFile);
-
-            // Try to read the partition file (it might be compressed). If a .gz exists
-            // and the uncompressed file is missing, unzip it — handle in a single if
-            // to avoid nested conditionals.
             if (!Utils::fileExists(partitionFile) && Utils::fileExists(partitionFile + ".gz")) {
                 Utils::unzipFile(partitionFile + ".gz");
             }
-
-            if (!Utils::fileExists(partitionFile)) {
+            if (Utils::fileExists(partitionFile)) {
+                try {
+                    JasmineGraphHashMapLocalStore localStore;
+                    std::map<int, std::vector<int>> partEdgeMap = localStore.getEdgeHashMap(partitionFile);
+                    for (const auto &entry : partEdgeMap) {
+                        int u = entry.first;
+                        for (int v : entry.second) {
+                            uniqueEdges.emplace(std::min(u, v), std::max(u, v));
+                        }
+                    }
+                    ++processedPartitions;
+                } catch (const std::runtime_error &e) {
+                    frontend_logger.error("Error reading partition file " + partitionFile + ": " + std::string(e.what()));
+                }
+            } else {
                 frontend_logger.warn("Partition file not found: " + partitionFile);
-                continue;
             }
 
-            JasmineGraphHashMapLocalStore partitionLocalStore;
-            collectPartitionEdges(partitionFile, graphData, totalEdges, processedPartitions, partitionLocalStore);
+            // --- Central store file ---
+            std::string centralFile = dataFolder + "/" + graphId + "_centralstore_" + partitionId;
+            frontend_logger.info("Reading central store file: " + centralFile);
+            if (!Utils::fileExists(centralFile) && Utils::fileExists(centralFile + ".gz")) {
+                Utils::unzipFile(centralFile + ".gz");
+            }
+            if (Utils::fileExists(centralFile)) {
+                try {
+                    JasmineGraphHashMapCentralStore centralStore(stoi(graphId), stoi(partitionId));
+                    centralStore.loadGraph(centralFile);
+                    const auto &centralMap = centralStore.getUnderlyingHashMap();
+                    for (const auto &entry : centralMap) {
+                        long u = entry.first;
+                        for (long v : entry.second) {
+                            uniqueEdges.emplace(std::min((int)u, (int)v), std::max((int)u, (int)v));
+                        }
+                    }
+                } catch (const std::runtime_error &e) {
+                    frontend_logger.error("Error reading central store file " + centralFile + ": " + std::string(e.what()));
+                }
+            } else {
+                frontend_logger.info("Central store file not found (skipping): " + centralFile);
+            }
         }
+    }
+
+    // Write deduplicated edges to the output stream
+    int totalEdges = 0;
+    for (const auto &edge : uniqueEdges) {
+        graphData << edge.first << " " << edge.second << "\n";
+        ++totalEdges;
     }
 
     {
         std::ostringstream procMsg;
         procMsg << "Processed " << processedPartitions << " out of " << totalPartitions
-                << " partitions with " << totalEdges << " edges";
+                << " partitions with " << totalEdges << " unique edges";
         frontend_logger.info(procMsg.str());
     }
 
