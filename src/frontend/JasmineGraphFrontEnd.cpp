@@ -3574,35 +3574,38 @@ static void temporal_snapshot_command(int connFd, SQLiteDBInterface *sqlite, boo
         std::stringstream response;
         response << "Temporal Snapshots for Graph " << graphId << ":\n";
         
+        // Read from _snapmeta.bin files (one per partition per graph).
+        // Collect unique snapshotId → (totalEdges, timestamp) from all partitions.
+        // We keep the FIRST occurrence of each snapshotId (they are globally
+        // synchronised, so all partitions share the same IDs).
         std::string graphPrefix = "graph" + std::to_string(graphId) + "_part";
-        bool foundSnapshots = false;
-        std::map<uint32_t, uint64_t> snapshotTimestamps;
-        
+        struct SnapInfo { uint64_t totalEdges; uint64_t timestamp; };
+        std::map<uint32_t, SnapInfo> snapMap;  // snapshotId → info
+
         for (const auto& file : files) {
-            if (file.find(graphPrefix) != std::string::npos && file.find(".tgs") != std::string::npos) {
-                foundSnapshots = true;
-                
-                std::string filePath = snapshotDir + "/" + file;
-                uint32_t gId, pId, sId;
-                uint64_t eCount, timestamp;
-                
-                if (TemporalStorePersistence::getFileInfo(filePath, gId, pId, sId, eCount, timestamp)) {
-                    if (snapshotTimestamps.find(sId) == snapshotTimestamps.end()) {
-                        snapshotTimestamps[sId] = timestamp;
-                    }
+            if (file.find(graphPrefix) == std::string::npos) continue;
+            if (file.find("_snapmeta.bin") == std::string::npos) continue;
+
+            std::string metaPath = snapshotDir + "/" + file;
+            auto records = TemporalStorePersistence::readAllSnapmeta(metaPath);
+            for (const auto& rec : records) {
+                if (snapMap.find(rec.snapshotId) == snapMap.end()) {
+                    snapMap[rec.snapshotId] = {rec.totalEdges, rec.timestamp};
                 }
             }
         }
-        
-        for (const auto& [snapshotId, timestamp] : snapshotTimestamps) {
-            std::time_t time = timestamp / 1000000000;
-            char timeStr[100];
-            std::strftime(timeStr, sizeof(timeStr), "%Y-%m-%d %H:%M:%S", std::localtime(&time));
-            response << "Snapshot " << snapshotId << " (created: " << timeStr << ")\n";
-        }
-        
-        if (!foundSnapshots) {
+
+        if (snapMap.empty()) {
             response << "No snapshots found\n";
+        } else {
+            for (const auto& [snapshotId, info] : snapMap) {
+                std::time_t t = static_cast<std::time_t>(info.timestamp / 1000000000ULL);
+                char timeStr[100];
+                std::strftime(timeStr, sizeof(timeStr), "%Y-%m-%d %H:%M:%S", std::localtime(&t));
+                response << "Snapshot " << snapshotId
+                         << "  edges=" << info.totalEdges
+                         << "  created=" << timeStr << "\n";
+            }
         }
         
         std::string responseStr = response.str();

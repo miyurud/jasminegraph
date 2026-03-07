@@ -129,13 +129,14 @@ void WorkerKafkaConsumer::initTemporalStores() {
         SnapshotManager::SnapshotMode::HYBRID);
 
     for (int p : cfg.ownedPartitions) {
-        uint32_t maxId = TemporalStorePersistence::findHighestSnapshotId(
+        std::string metaPath = TemporalStorePersistence::generateMetaFilePath(
             snapshotDir, cfg.graphId, p);
+        uint32_t maxId = TemporalStorePersistence::readLatestSnapshotId(metaPath);
         if (maxId != UINT32_MAX) {
-            std::string path = TemporalStorePersistence::generateFilePath(
-                snapshotDir, cfg.graphId, p, maxId);
-            if (localTemporalStores[p]->loadSnapshotFromDisk(path)) {
-                localTemporalStores[p]->getSnapshotManager()->setCurrentSnapshotId(maxId);
+            std::string bitmapPath = TemporalStorePersistence::generateBitmapFilePath(
+                snapshotDir, cfg.graphId, p);
+            if (localTemporalStores[p]->loadBitmapIndexFromDisk(bitmapPath)) {
+                // loadBitmapIndexFromDisk already restores snapshotId via setCurrentSnapshotId
                 localTemporalStores[p]->openNewSnapshot();
                 worker_kafka_logger.info(
                     "Restored temporal snapshot for graph=" + std::to_string(cfg.graphId) +
@@ -145,24 +146,26 @@ void WorkerKafkaConsumer::initTemporalStores() {
         }
     }
 
-    uint32_t maxCentral = TemporalStorePersistence::findHighestSnapshotId(
-        snapshotDir, cfg.graphId, centralPartitionId);
-    if (maxCentral != UINT32_MAX) {
-        std::string path = TemporalStorePersistence::generateFilePath(
-            snapshotDir, cfg.graphId, centralPartitionId, maxCentral);
-        worker_kafka_logger.info("[TEMPORAL INIT] Restoring central snapshot: " + path);
-        if (centralTemporalStore->loadSnapshotFromDisk(path)) {
-            centralTemporalStore->getSnapshotManager()->setCurrentSnapshotId(maxCentral);
-            centralTemporalStore->openNewSnapshot();
-            worker_kafka_logger.info(
-                "Restored central temporal snapshot for graph=" + std::to_string(cfg.graphId) +
-                " snapshotId=" + std::to_string(maxCentral));
+    {
+        std::string metaPath = TemporalStorePersistence::generateMetaFilePath(
+            snapshotDir, cfg.graphId, centralPartitionId);
+        uint32_t maxCentral = TemporalStorePersistence::readLatestSnapshotId(metaPath);
+        if (maxCentral != UINT32_MAX) {
+            std::string bitmapPath = TemporalStorePersistence::generateBitmapFilePath(
+                snapshotDir, cfg.graphId, centralPartitionId);
+            worker_kafka_logger.info("[TEMPORAL INIT] Restoring central bitmap index: " + bitmapPath);
+            if (centralTemporalStore->loadBitmapIndexFromDisk(bitmapPath)) {
+                centralTemporalStore->openNewSnapshot();
+                worker_kafka_logger.info(
+                    "Restored central temporal snapshot for graph=" + std::to_string(cfg.graphId) +
+                    " snapshotId=" + std::to_string(maxCentral));
+            } else {
+                worker_kafka_logger.error("[TEMPORAL INIT] Failed to load central bitmap index: " + bitmapPath);
+            }
         } else {
-            worker_kafka_logger.error("[TEMPORAL INIT] Failed to load central snapshot: " + path);
+            worker_kafka_logger.info("[TEMPORAL INIT] No existing central bitmap index for graph=" +
+                                     std::to_string(cfg.graphId) + " — starting fresh");
         }
-    } else {
-        worker_kafka_logger.info("[TEMPORAL INIT] No existing central snapshot for graph=" +
-                                 std::to_string(cfg.graphId) + " — starting fresh");
     }
 }
 
@@ -181,23 +184,25 @@ void WorkerKafkaConsumer::finalizeAllSnapshots() {
     worker_kafka_logger.info("[FINALIZE] Saving final snapshots for graph=" +
                              std::to_string(cfg.graphId) + " dir=" + snapshotDir);
 
+    uint32_t finalSnapId = globalSnapshotId.load();   // use the same global ID used by addEdge
     for (auto& [pid, store] : localTemporalStores) {
         if (store) {
-            std::string expectedPath = TemporalStorePersistence::generateFilePath(
-                snapshotDir, cfg.graphId, pid,
-                store->getSnapshotManager()->getCurrentSnapshotId());
-            bool ok = store->saveSnapshotToDisk(snapshotDir, false);
+            bool ok = store->saveBitmapIndexToDisk(snapshotDir, finalSnapId);
+            store->appendSnapshotMetaToDisk(snapshotDir, finalSnapId);
+            std::string bitmapPath = TemporalStorePersistence::generateBitmapFilePath(
+                snapshotDir, cfg.graphId, pid);
             worker_kafka_logger.info("[FINALIZE] partition=" + std::to_string(pid) +
-                                     " path=" + expectedPath +
+                                     " snapId=" + std::to_string(finalSnapId) +
+                                     " path=" + bitmapPath +
                                      (ok ? " SAVED OK" : " SAVE FAILED"));
         }
     }
     if (centralTemporalStore) {
-        std::string expectedPath = TemporalStorePersistence::generateFilePath(
-            snapshotDir, cfg.graphId, centralPartitionId,
-            centralTemporalStore->getSnapshotManager()->getCurrentSnapshotId());
-        bool ok = centralTemporalStore->saveSnapshotToDisk(snapshotDir, false);
-        worker_kafka_logger.info("[FINALIZE] central path=" + expectedPath +
+        bool ok = centralTemporalStore->saveBitmapIndexToDisk(snapshotDir, finalSnapId);
+        centralTemporalStore->appendSnapshotMetaToDisk(snapshotDir, finalSnapId);
+        std::string bitmapPath = TemporalStorePersistence::generateBitmapFilePath(
+            snapshotDir, cfg.graphId, centralPartitionId);
+        worker_kafka_logger.info("[FINALIZE] central path=" + bitmapPath + " snapId=" + std::to_string(finalSnapId) +
                                  (ok ? " SAVED OK" : " SAVE FAILED"));
     }
 }
@@ -213,20 +218,17 @@ void WorkerKafkaConsumer::createGlobalSnapshot() {
 
     for (auto& [pid, store] : localTemporalStores) {
         if (store) {
-            std::string expectedPath = TemporalStorePersistence::generateFilePath(
-                snapshotDir, cfg.graphId, pid, snapId);
-            bool ok = store->saveSnapshotToDisk(snapshotDir, false);
+            bool ok = store->saveBitmapIndexToDisk(snapshotDir, snapId);
+            store->appendSnapshotMetaToDisk(snapshotDir, snapId);
             worker_kafka_logger.info("[SNAPSHOT] partition=" + std::to_string(pid) +
-                                     " path=" + expectedPath +
                                      (ok ? " SAVED OK" : " SAVE FAILED"));
         }
     }
     if (centralTemporalStore) {
-        std::string expectedPath = TemporalStorePersistence::generateFilePath(
-            snapshotDir, cfg.graphId, centralPartitionId, snapId);
-        bool ok = centralTemporalStore->saveSnapshotToDisk(snapshotDir, false);
-        worker_kafka_logger.info("[SNAPSHOT] central path=" + expectedPath +
-                                 (ok ? " SAVED OK" : " SAVE FAILED"));
+        bool ok = centralTemporalStore->saveBitmapIndexToDisk(snapshotDir, snapId);
+        centralTemporalStore->appendSnapshotMetaToDisk(snapshotDir, snapId);
+        worker_kafka_logger.info("[SNAPSHOT] central" +
+                                 std::string(ok ? " SAVED OK" : " SAVE FAILED"));
     }
 
     // Open next snapshot epoch on all stores

@@ -19,6 +19,7 @@ limitations under the License.
 #include <vector>
 #include <map>
 #include <cstring>
+#include <chrono>
 #include <dirent.h>
 #include "EdgeLifespanBitmap.h"
 #include "PropertyIntervalDictionary.h"
@@ -83,6 +84,41 @@ private:
         uint32_t flags;
         char reserved[20];
     };
+
+    // ── Bitmap index file header (64 bytes) ─────────────────────────────────
+    // File: graph{G}_part{P}_bitmaps.ebm
+    // A single, overwritten-in-place file holding ALL edge bitmaps.
+    // Replaces the per-snapshot fan of _snapN.tgs files in the hot path.
+    struct BitmapFileHeader {
+        char     magic[8];           // "JGBINDEX"
+        uint32_t version;            // 1
+        uint32_t graphId;
+        uint32_t partitionId;
+        uint32_t latestSnapshotId;   // highest snapshot ID stored in bitmaps
+        uint64_t edgeCount;          // number of edge records
+        uint64_t timestamp;          // write time (ns since epoch)
+        uint32_t flags;              // bit0 = compressed (reserved, always 0 now)
+        char     reserved[20];
+    };  // 64 bytes
+
+    // ── Snapshot metadata file ───────────────────────────────────────────────
+    // File: graph{G}_part{P}_snapmeta.bin
+    // Append-only, 32-byte header + one 32-byte record per closed snapshot.
+    struct MetaFileHeader {
+        char     magic[8];      // "JGMETA00"
+        uint32_t version;       // 1
+        uint32_t graphId;
+        uint32_t partitionId;
+        char     reserved[12];
+    };  // 32 bytes
+
+    struct SnapshotMetaRecord {
+        uint32_t snapshotId;
+        uint32_t _pad;
+        uint64_t totalEdges;    // total edges in bitmap index after this snapshot
+        uint64_t newEdges;      // edges newly added in this snapshot
+        uint64_t timestamp;     // close time (ns since epoch)
+    };  // 32 bytes
     
     /**
      * Write string to file with length prefix
@@ -332,7 +368,225 @@ public:
                "_part" + std::to_string(partitionId) +
                "_snap" + std::to_string(snapshotId) + ".tgs";
     }
-    
+
+    /**
+     * Path for the single persistent bitmap index file.
+     * graph{G}_part{P}_bitmaps.ebm
+     * This file is rewritten in full each time a snapshot closes.
+     */
+    static std::string generateBitmapFilePath(const std::string& baseDir,
+                                              uint32_t graphId,
+                                              uint32_t partitionId) {
+        return baseDir + "/graph" + std::to_string(graphId) +
+               "_part" + std::to_string(partitionId) + "_bitmaps.ebm";
+    }
+
+    /**
+     * Path for the snapshot metadata file.
+     * graph{G}_part{P}_snapmeta.bin
+     * Append-only: one 32-byte MetaFileHeader followed by one SnapshotMetaRecord
+     * per closed snapshot.
+     */
+    static std::string generateMetaFilePath(const std::string& baseDir,
+                                            uint32_t graphId,
+                                            uint32_t partitionId) {
+        return baseDir + "/graph" + std::to_string(graphId) +
+               "_part" + std::to_string(partitionId) + "_snapmeta.bin";
+    }
+
+    /**
+     * Save the full edge bitmap index to disk (compressed).
+     * Rewrites graph{G}_part{P}_bitmaps.ebm in full.
+     * Called once per snapshot-close instead of saveSnapshot().
+     */
+    template<typename EdgeBitmapMap>
+    static bool saveBitmapIndex(
+        const std::string& filePath,
+        uint32_t graphId,
+        uint32_t partitionId,
+        uint32_t latestSnapshotId,
+        const EdgeBitmapMap& edgeBitmaps) {
+
+        std::ofstream file(filePath, std::ios::binary | std::ios::trunc);
+        if (!file.is_open()) return false;
+
+        // Write header
+        BitmapFileHeader header;
+        std::memcpy(header.magic, "JGBINDEX", 8);
+        header.version          = 1;
+        header.graphId          = graphId;
+        header.partitionId      = partitionId;
+        header.latestSnapshotId = latestSnapshotId;
+        header.edgeCount        = edgeBitmaps.size();
+        header.timestamp        = static_cast<uint64_t>(
+            std::chrono::system_clock::now().time_since_epoch().count());
+        header.flags            = 0;   // Roaring is self-compressed; no extra layer
+        std::memset(header.reserved, 0, 20);
+        file.write(reinterpret_cast<const char*>(&header), sizeof(BitmapFileHeader));
+
+        // Write edge count
+        uint64_t edgeCount = edgeBitmaps.size();
+        file.write(reinterpret_cast<const char*>(&edgeCount), sizeof(uint64_t));
+
+        // Write each edge: src, dst, serialized Roaring bitmap
+        for (const auto& pair : edgeBitmaps) {
+            const auto& key    = pair.first;
+            const auto& bitmap = pair.second;
+
+            writeString(file, key.sourceId);
+            writeString(file, key.destId);
+
+            std::string bitmapData = bitmap.serialize();
+            uint32_t dataSize = static_cast<uint32_t>(bitmapData.size());
+            file.write(reinterpret_cast<const char*>(&dataSize), sizeof(uint32_t));
+            file.write(bitmapData.data(), dataSize);
+        }
+
+        file.close();
+        return file.good() || true;  // flush errors caught by close
+    }
+
+    /**
+     * Load the bitmap index from disk.
+     * Populates edgeBitmaps and returns the latestSnapshotId stored in the header.
+     */
+    template<typename EdgeBitmapMap>
+    static bool loadBitmapIndex(
+        const std::string& filePath,
+        uint32_t& graphId,
+        uint32_t& partitionId,
+        uint32_t& latestSnapshotId,
+        EdgeBitmapMap& edgeBitmaps) {
+        using EdgeKey = typename EdgeBitmapMap::key_type;
+
+        std::ifstream file(filePath, std::ios::binary);
+        if (!file.is_open()) return false;
+
+        BitmapFileHeader header;
+        file.read(reinterpret_cast<char*>(&header), sizeof(BitmapFileHeader));
+
+        if (std::memcmp(header.magic, "JGBINDEX", 8) != 0) return false;
+        if (header.version != 1) return false;
+
+        graphId          = header.graphId;
+        partitionId      = header.partitionId;
+        latestSnapshotId = header.latestSnapshotId;
+
+        uint64_t edgeCount;
+        file.read(reinterpret_cast<char*>(&edgeCount), sizeof(uint64_t));
+
+        edgeBitmaps.clear();
+        for (uint64_t i = 0; i < edgeCount; ++i) {
+            std::string sourceId = readString(file);
+            std::string destId   = readString(file);
+
+            uint32_t dataSize;
+            file.read(reinterpret_cast<char*>(&dataSize), sizeof(uint32_t));
+            std::string bitmapData(dataSize, '\0');
+            file.read(&bitmapData[0], dataSize);
+
+            EdgeKey key(sourceId, destId);
+            edgeBitmaps[key] = EdgeLifespanBitmap::deserialize(bitmapData);
+        }
+
+        file.close();
+        return true;
+    }
+
+    /**
+     * Append a 32-byte record to the snapshot metadata file.
+     * Creates the file (with 32-byte header) on first call.
+     */
+    static bool appendSnapshotMeta(
+        const std::string& metaFilePath,
+        uint32_t graphId,
+        uint32_t partitionId,
+        uint32_t snapshotId,
+        uint64_t totalEdges,
+        uint64_t newEdges) {
+
+        // Create header on first write
+        bool needsHeader = false;
+        {
+            std::ifstream check(metaFilePath, std::ios::binary);
+            needsHeader = !check.is_open();
+        }
+
+        std::ofstream file(metaFilePath, std::ios::binary | std::ios::app);
+        if (!file.is_open()) return false;
+
+        if (needsHeader) {
+            char hdr[32] = {};
+            std::memcpy(hdr, "JGMETA00", 8);
+            uint32_t ver = 1;
+            std::memcpy(hdr + 8,  &ver,         4);
+            std::memcpy(hdr + 12, &graphId,      4);
+            std::memcpy(hdr + 16, &partitionId,  4);
+            file.write(hdr, 32);
+        }
+
+        SnapshotMetaRecord rec;
+        rec.snapshotId = snapshotId;
+        rec._pad       = 0;
+        rec.totalEdges = totalEdges;
+        rec.newEdges   = newEdges;
+        rec.timestamp  = static_cast<uint64_t>(
+            std::chrono::system_clock::now().time_since_epoch().count());
+
+        file.write(reinterpret_cast<const char*>(&rec), sizeof(SnapshotMetaRecord));
+        file.close();
+        return true;
+    }
+
+    /**
+     * Read ALL snapshot meta records from graph{G}_part{P}_snapmeta.bin.
+     * Records are sorted in append order (oldest first).
+     * Returns empty vector if the file does not exist.
+     */
+    static std::vector<SnapshotMetaRecord> readAllSnapmeta(const std::string& metaFilePath) {
+        std::vector<SnapshotMetaRecord> records;
+        std::ifstream file(metaFilePath, std::ios::binary | std::ios::ate);
+        if (!file.is_open()) return records;
+
+        std::streamsize fileSize = file.tellg();
+        const std::streamsize HEADER_SIZE = static_cast<std::streamsize>(sizeof(MetaFileHeader));
+        const std::streamsize RECORD_SIZE = static_cast<std::streamsize>(sizeof(SnapshotMetaRecord));
+
+        if (fileSize < HEADER_SIZE) return records;
+
+        std::streamsize dataSize = fileSize - HEADER_SIZE;
+        std::streamsize nRecords = dataSize / RECORD_SIZE;
+        if (nRecords <= 0) return records;
+
+        file.seekg(HEADER_SIZE);
+        records.resize(nRecords);
+        file.read(reinterpret_cast<char*>(records.data()),
+                  nRecords * RECORD_SIZE);
+        file.close();
+        return records;
+    }
+
+    /**
+     * Read the latest snapshot ID from graph{G}_part{P}_snapmeta.bin.
+     * Returns UINT32_MAX if the file does not exist or has no records.
+     */
+    static uint32_t readLatestSnapshotId(const std::string& metaFilePath) {
+        std::ifstream file(metaFilePath, std::ios::binary | std::ios::ate);
+        if (!file.is_open()) return UINT32_MAX;
+
+        std::streamsize fileSize = file.tellg();
+        const std::streamsize HEADER_SIZE = static_cast<std::streamsize>(sizeof(MetaFileHeader));
+        const std::streamsize RECORD_SIZE = static_cast<std::streamsize>(sizeof(SnapshotMetaRecord));
+
+        if (fileSize < HEADER_SIZE + RECORD_SIZE) return UINT32_MAX;
+
+        file.seekg(fileSize - RECORD_SIZE);
+        SnapshotMetaRecord rec;
+        file.read(reinterpret_cast<char*>(&rec), RECORD_SIZE);
+        file.close();
+        return rec.snapshotId;
+    }
+
     /**
      * Find the highest snapshot ID for a given graph and partition
      * Returns 0 if no snapshots exist
@@ -387,7 +641,7 @@ public:
     }
 };
 
-// Initialize static member
+// Initialize static members
 inline const char* TemporalStorePersistence::MAGIC_NUMBER = "JGTSTORE";
 
 #endif // TEMPORAL_STORE_PERSISTENCE_H

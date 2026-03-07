@@ -79,30 +79,34 @@ void JasmineGraphFrontEndCommon::removeGraph(std::string graphID, SQLiteDBInterf
 
     JasmineGraphServer::removeGraph(hostHasPartition, graphID, masterIP);
 
-    // Remove temporal snapshots if they exist
+    // Remove all temporal snapshot-related files for this graph:
+    //   graph{id}_part{n}_snap{n}.tgs   - snapshot data
+    //   graph{id}_part{n}_bitmaps.ebm   - bitmap index
+    //   graph{id}_part{n}_snapmeta.bin  - snapshot metadata
     std::string snapshotDir = Utils::getJasmineGraphHome() + "/env/data/temporal_snapshots";
     DIR* dir = opendir(snapshotDir.c_str());
     if (dir != nullptr) {
         std::string graphPrefix = "graph" + graphID + "_";
         struct dirent* entry;
         int removedCount = 0;
-        
+
         while ((entry = readdir(dir)) != nullptr) {
             std::string filename(entry->d_name);
-            // Check if filename starts with graphX_ (e.g., graph1_part0_snap0.tgs)
-            if (filename.find(graphPrefix) == 0 && filename.find(".tgs") != std::string::npos) {
+            // Remove any file that belongs to this graph (all extensions: .tgs, .ebm, .bin)
+            if (filename.find(graphPrefix) == 0) {
                 std::string fullPath = snapshotDir + "/" + filename;
                 if (remove(fullPath.c_str()) == 0) {
                     removedCount++;
                 } else {
-                    common_logger.error("Failed to remove snapshot file: " + filename);
+                    common_logger.error("Failed to remove temporal file: " + filename);
                 }
             }
         }
         closedir(dir);
-        
+
         if (removedCount > 0) {
-            common_logger.info("Removed " + std::to_string(removedCount) + " snapshot files for graph " + graphID);
+            common_logger.info("Removed " + std::to_string(removedCount) +
+                               " temporal files for graph " + graphID);
         }
     }
 

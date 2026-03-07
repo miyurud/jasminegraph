@@ -114,67 +114,58 @@ StreamHandler::StreamHandler(KafkaConnector *kstream, int numberOfPartitions,
             
             // Restore local partition stores
             for (int partitionId = 0; partitionId < numberOfPartitions; partitionId++) {
-                uint32_t maxSnapshotId = TemporalStorePersistence::findHighestSnapshotId(
+                std::string metaPath = TemporalStorePersistence::generateMetaFilePath(
                     snapshotDir, graphId, partitionId);
-                
-                // Continue from the NEXT snapshot after the highest one found
-                // Note: Snapshot 0 is valid! We check for UINT32_MAX (not found) instead
+                uint32_t maxSnapshotId = TemporalStorePersistence::readLatestSnapshotId(metaPath);
+
                 if (maxSnapshotId != UINT32_MAX) {
                     foundAnySnapshot = true;
                     if (maxSnapshotId > maxGlobalSnapshotId) {
                         maxGlobalSnapshotId = maxSnapshotId;
                     }
-                    
-                    // Load the snapshot data from disk
-                    std::string snapshotFilePath = TemporalStorePersistence::generateFilePath(
-                        snapshotDir, graphId, partitionId, maxSnapshotId);
-                    
-                    if (localTemporalStores[partitionId]->loadSnapshotFromDisk(snapshotFilePath)) {
-                        // Set to the loaded snapshot ID first
-                        localTemporalStores[partitionId]->getSnapshotManager()->setCurrentSnapshotId(maxSnapshotId);
-                        
-                        // Open new snapshot to mark all loaded edges as active in next snapshot (cumulative semantics)
+
+                    std::string bitmapPath = TemporalStorePersistence::generateBitmapFilePath(
+                        snapshotDir, graphId, partitionId);
+
+                    if (localTemporalStores[partitionId]->loadBitmapIndexFromDisk(bitmapPath)) {
+                        // loadBitmapIndexFromDisk restores snapshotId; open next snapshot
                         uint32_t newSnapshotId = localTemporalStores[partitionId]->openNewSnapshot();
-                        
-                        stream_handler_logger.info("Restored temporal state for graph " + std::to_string(graphId) + 
-                                                  " partition " + std::to_string(partitionId) + 
+
+                        stream_handler_logger.info("Restored temporal state for graph " + std::to_string(graphId) +
+                                                  " partition " + std::to_string(partitionId) +
                                                   " from snapshot " + std::to_string(maxSnapshotId) +
                                                   ", continuing with snapshot " + std::to_string(newSnapshotId));
                     } else {
-                        stream_handler_logger.error("Failed to load snapshot for graph " + std::to_string(graphId) + 
-                                                   " partition " + std::to_string(partitionId) + 
-                                                   " from snapshot " + std::to_string(maxSnapshotId));
+                        stream_handler_logger.error("Failed to load bitmap index for graph " + std::to_string(graphId) +
+                                                   " partition " + std::to_string(partitionId));
                     }
                 }
             }
             
             // Restore central store (partitionId = numberOfPartitions)
-            uint32_t maxCentralSnapshotId = TemporalStorePersistence::findHighestSnapshotId(
-                snapshotDir, graphId, numberOfPartitions);
-            
-            if (maxCentralSnapshotId != UINT32_MAX) {
-                foundAnySnapshot = true;
-                if (maxCentralSnapshotId > maxGlobalSnapshotId) {
-                    maxGlobalSnapshotId = maxCentralSnapshotId;
-                }
-                
-                // Load the central snapshot data from disk
-                std::string centralSnapshotFilePath = TemporalStorePersistence::generateFilePath(
-                    snapshotDir, graphId, numberOfPartitions, maxCentralSnapshotId);
-                
-                if (centralTemporalStore->loadSnapshotFromDisk(centralSnapshotFilePath)) {
-                    // Set to the loaded snapshot ID first
-                    centralTemporalStore->getSnapshotManager()->setCurrentSnapshotId(maxCentralSnapshotId);
-                    
-                    // Open new snapshot to mark all loaded edges as active in next snapshot (cumulative semantics)
-                    uint32_t newCentralSnapshotId = centralTemporalStore->openNewSnapshot();
-                    
-                    stream_handler_logger.info("Restored central temporal state for graph " + std::to_string(graphId) + 
-                                              " from snapshot " + std::to_string(maxCentralSnapshotId) +
-                                              ", continuing with snapshot " + std::to_string(newCentralSnapshotId));
-                } else {
-                    stream_handler_logger.error("Failed to load central snapshot for graph " + std::to_string(graphId) + 
-                                               " from snapshot " + std::to_string(maxCentralSnapshotId));
+            {
+                std::string centralMeta = TemporalStorePersistence::generateMetaFilePath(
+                    snapshotDir, graphId, numberOfPartitions);
+                uint32_t maxCentralSnapshotId = TemporalStorePersistence::readLatestSnapshotId(centralMeta);
+
+                if (maxCentralSnapshotId != UINT32_MAX) {
+                    foundAnySnapshot = true;
+                    if (maxCentralSnapshotId > maxGlobalSnapshotId) {
+                        maxGlobalSnapshotId = maxCentralSnapshotId;
+                    }
+
+                    std::string centralBitmapPath = TemporalStorePersistence::generateBitmapFilePath(
+                        snapshotDir, graphId, numberOfPartitions);
+
+                    if (centralTemporalStore->loadBitmapIndexFromDisk(centralBitmapPath)) {
+                        uint32_t newCentralSnapshotId = centralTemporalStore->openNewSnapshot();
+
+                        stream_handler_logger.info("Restored central temporal state for graph " + std::to_string(graphId) +
+                                                  " from snapshot " + std::to_string(maxCentralSnapshotId) +
+                                                  ", continuing with snapshot " + std::to_string(newCentralSnapshotId));
+                    } else {
+                        stream_handler_logger.error("Failed to load central bitmap index for graph " + std::to_string(graphId));
+                    }
                 }
             }
             
@@ -242,15 +233,19 @@ void StreamHandler::finalizeAllSnapshots() {
     for (auto& [partitionId, store] : localTemporalStores) {
         if (store != nullptr) {
             try {
-                if (store->saveSnapshotToDisk(snapshotDir, false)) {
-                    stream_handler_logger.info("Saved final snapshot for partition " + 
-                                              std::to_string(partitionId));
+                // Use globalSnapshotId — the same counter passed to addEdge() — so the
+                // snapshot meta records match the bitmap bit positions exactly.
+                bool saved = store->saveBitmapIndexToDisk(snapshotDir, globalSnapshotId);
+                store->appendSnapshotMetaToDisk(snapshotDir, globalSnapshotId);
+                if (saved) {
+                    stream_handler_logger.info("Saved final bitmap index for partition " +
+                                              std::to_string(partitionId) + " snapId=" + std::to_string(globalSnapshotId));
                 } else {
-                    stream_handler_logger.error("Failed to save final snapshot for partition " + 
+                    stream_handler_logger.error("Failed to save final bitmap index for partition " +
                                                std::to_string(partitionId));
                 }
             } catch (const std::exception& e) {
-                stream_handler_logger.error("Exception saving partition " + 
+                stream_handler_logger.error("Exception saving partition " +
                                            std::to_string(partitionId) + ": " + e.what());
             }
         }
@@ -259,13 +254,15 @@ void StreamHandler::finalizeAllSnapshots() {
     // Save central store snapshot
     if (centralTemporalStore != nullptr) {
         try {
-            if (centralTemporalStore->saveSnapshotToDisk(snapshotDir, false)) {
-                stream_handler_logger.info("Saved final central snapshot");
+            bool saved = centralTemporalStore->saveBitmapIndexToDisk(snapshotDir, globalSnapshotId);
+            centralTemporalStore->appendSnapshotMetaToDisk(snapshotDir, globalSnapshotId);
+            if (saved) {
+                stream_handler_logger.info("Saved final central bitmap index snapId=" + std::to_string(globalSnapshotId));
             } else {
-                stream_handler_logger.error("Failed to save final central snapshot");
+                stream_handler_logger.error("Failed to save final central bitmap index");
             }
         } catch (const std::exception& e) {
-            stream_handler_logger.error("Exception saving central snapshot: " + std::string(e.what()));
+            stream_handler_logger.error("Exception saving central bitmap index: " + std::string(e.what()));
         }
     }
 }
@@ -284,17 +281,19 @@ void StreamHandler::createGlobalSnapshot() {
     for (auto& [partitionId, store] : localTemporalStores) {
         if (store != nullptr) {
             try {
-                if (store->saveSnapshotToDisk(snapshotDir, false)) {
-                    stream_handler_logger.info("Saved global snapshot " + std::to_string(globalSnapshotId) + 
+                bool saved = store->saveBitmapIndexToDisk(snapshotDir, globalSnapshotId);
+                store->appendSnapshotMetaToDisk(snapshotDir, globalSnapshotId);
+                if (saved) {
+                    stream_handler_logger.info("Saved global snapshot " + std::to_string(globalSnapshotId) +
                                               " for partition " + std::to_string(partitionId));
                     partitionsSaved++;
                 } else {
-                    stream_handler_logger.error("Failed to save global snapshot " + 
-                                               std::to_string(globalSnapshotId) + 
+                    stream_handler_logger.error("Failed to save global snapshot " +
+                                               std::to_string(globalSnapshotId) +
                                                " for partition " + std::to_string(partitionId));
                 }
             } catch (const std::exception& e) {
-                stream_handler_logger.error("Exception saving partition " + std::to_string(partitionId) + 
+                stream_handler_logger.error("Exception saving partition " + std::to_string(partitionId) +
                                            " snapshot " + std::to_string(globalSnapshotId) + ": " + e.what());
             }
         }
@@ -303,15 +302,17 @@ void StreamHandler::createGlobalSnapshot() {
     // Save central store with the same snapshot ID
     if (centralTemporalStore != nullptr) {
         try {
-            if (centralTemporalStore->saveSnapshotToDisk(snapshotDir, false)) {
-                stream_handler_logger.info("Saved global snapshot " + std::to_string(globalSnapshotId) + 
+            bool saved = centralTemporalStore->saveBitmapIndexToDisk(snapshotDir, globalSnapshotId);
+            centralTemporalStore->appendSnapshotMetaToDisk(snapshotDir, globalSnapshotId);
+            if (saved) {
+                stream_handler_logger.info("Saved global snapshot " + std::to_string(globalSnapshotId) +
                                           " for central store");
             } else {
-                stream_handler_logger.error("Failed to save central store global snapshot " + 
+                stream_handler_logger.error("Failed to save central store global snapshot " +
                                            std::to_string(globalSnapshotId));
             }
         } catch (const std::exception& e) {
-            stream_handler_logger.error("Exception saving central store snapshot " + 
+            stream_handler_logger.error("Exception saving central store bitmap index " +
                                        std::to_string(globalSnapshotId) + ": " + e.what());
         }
     }

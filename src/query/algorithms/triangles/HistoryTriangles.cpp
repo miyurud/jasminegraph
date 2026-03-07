@@ -44,13 +44,13 @@ TemporalTriangleResult HistoryTriangles::countTrianglesAtSnapshot(
     
     int maxPartitionFound = -1;
     for (int partitionId = 0; partitionId < 100; partitionId++) {
-        std::string filePath = TemporalStorePersistence::generateFilePath(
-            snapshotDir, graphId, partitionId, snapshotId);
+        std::string filePath = TemporalStorePersistence::generateBitmapFilePath(
+            snapshotDir, graphId, partitionId);
         
         TemporalStore localStore(graphId, partitionId, timeThreshold, edgeThreshold, 
                                 SnapshotManager::SnapshotMode::HYBRID);
         
-        if (localStore.loadSnapshotFromDisk(filePath)) {
+        if (localStore.loadBitmapIndexFromDisk(filePath)) {
             partitionsProcessed++;
             if (partitionId > maxPartitionFound) maxPartitionFound = partitionId;
             
@@ -81,13 +81,13 @@ TemporalTriangleResult HistoryTriangles::countTrianglesAtSnapshot(
     size_t centralEdgesLoaded = 0;
     int centralStoresFound = 0;
     for (int centralId = centralStart; centralId < centralStart + 20; centralId++) {
-        std::string filePath = TemporalStorePersistence::generateFilePath(
-            snapshotDir, graphId, centralId, snapshotId);
+        std::string filePath = TemporalStorePersistence::generateBitmapFilePath(
+            snapshotDir, graphId, centralId);
         
         TemporalStore centralStore(graphId, centralId, timeThreshold, edgeThreshold,
                                   SnapshotManager::SnapshotMode::HYBRID);
         
-        if (centralStore.loadSnapshotFromDisk(filePath)) {
+        if (centralStore.loadBitmapIndexFromDisk(filePath)) {
             auto edgesAtSnapshot = centralStore.getEdgesAtSnapshot(snapshotId);
             allEdges.insert(allEdges.end(), edgesAtSnapshot.begin(), edgesAtSnapshot.end());
             centralEdgesLoaded += edgesAtSnapshot.size();
