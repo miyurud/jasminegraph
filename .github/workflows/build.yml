@@ -26,7 +26,9 @@ jobs:
       - uses: jupyterhub/action-k3s-helm@v4
         with:
           docker-enabled: true
-          network-policy: false
+          metrics-enabled: false
+          traefik-enabled: false
+          k3s-channel: stable
 
       - name: Grant permissions for default user
         run: kubectl apply -f ./k8s/rbac.yaml
@@ -78,7 +80,9 @@ jobs:
       - uses: jupyterhub/action-k3s-helm@v4
         with:
           docker-enabled: true
-          network-policy: false
+          metrics-enabled: false
+          traefik-enabled: false
+          k3s-channel: stable
 
       - name: Show system resources and StorageClass
         run: |
