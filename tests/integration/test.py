@@ -47,6 +47,7 @@ SHDN = b'shdn'
 SEND = b'send'
 DONE = b'done'
 ADHDFS = b'adhdfs'
+SDHDFS = b'sdhdfs'
 LINE_END = b'\r\n'
 CYPHER = b'cypher'
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -288,6 +289,23 @@ def test(host, port):  # pylint: disable=too-many-branches
         logging.info('Testing lst after rmgr')
         send_and_expect_response(sock, 'lst after rmgr',
                                  LIST, b'|1|powergrid|/var/tmp/data/powergrid.dl|op|')
+
+        print()
+        logging.info('Testing sdhdfs with custom HDFS server')
+        send_and_expect_response(sock, 'sdhdfs', SDHDFS, b'Graph ID:', exit_on_failure=True)
+        send_and_expect_response(sock, 'sdhdfs', b'1',
+                                 b'Do you want to use the default HDFS server(y/n)?',
+                                 exit_on_failure=True)
+        send_and_expect_response(sock, 'sdhdfs', b'n',
+                                 b'Send the file path to the HDFS configuration file.'
+                                 b' This file needs to be in some directory location '
+                                 b'that is accessible for JasmineGraph master',
+                                 exit_on_failure=True)
+        send_and_expect_response(sock, 'sdhdfs', b'/var/tmp/config/hdfs_config.txt',
+                                 b'HDFS output file path:',
+                                 exit_on_failure=True)
+        send_and_expect_response(sock, 'sdhdfs', b'/home/powergrid.dl', DONE,
+                                 exit_on_failure=True)
 
         send_and_expect_response(sock, 'rmgr', RMGR, SEND)
         send_and_expect_response(sock, 'rmgr', b'1', DONE)

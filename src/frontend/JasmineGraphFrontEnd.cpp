@@ -1607,8 +1607,11 @@ static void send_graph_hdfs_command(std::string masterIP, int connFd, SQLiteDBIn
         hdfsServerIp = Utils::getJasmineGraphProperty("org.jasminegraph.server.streaming.hdfs.host");
         hdfsPort = Utils::getJasmineGraphProperty("org.jasminegraph.server.streaming.hdfs.port");
     } else {
-        std::string ipMsg = "HDFS Server IP:";
-        resultWr = write(connFd, ipMsg.c_str(), ipMsg.length());
+        std::string configMsg =
+            "Send the file path to the HDFS configuration file."
+            " This file needs to be in some directory location"
+            " that is accessible for JasmineGraph master";
+        resultWr = write(connFd, configMsg.c_str(), configMsg.length());
         if (resultWr < 0) {
             frontend_logger.error("Error writing to socket");
             *loop_exit_p = true;
@@ -1621,39 +1624,39 @@ static void send_graph_hdfs_command(std::string masterIP, int connFd, SQLiteDBIn
             return;
         }
 
-        std::string ipBuf;
-        ipBuf.resize(FRONTEND_DATA_LENGTH);
-        int ipBytesRead = read(connFd, &ipBuf[0], FRONTEND_DATA_LENGTH);
-        if (ipBytesRead > 0) {
-            ipBuf.resize(static_cast<size_t>(ipBytesRead));
+        std::string filePathBuf;
+        filePathBuf.resize(FRONTEND_DATA_LENGTH);
+        int filePathBytesRead = read(connFd, &filePathBuf[0], FRONTEND_DATA_LENGTH);
+        if (filePathBytesRead > 0) {
+            filePathBuf.resize(static_cast<size_t>(filePathBytesRead));
         } else {
-            ipBuf.clear();
+            filePathBuf.clear();
         }
-        hdfsServerIp = Utils::trim_copy(ipBuf);
+        std::string filePathS = Utils::trim_copy(filePathBuf);
+        frontend_logger.info("Reading HDFS configuration file: " + filePathS);
 
-        std::string portMsg = "HDFS Server Port:";
-        resultWr = write(connFd, portMsg.c_str(), portMsg.length());
-        if (resultWr < 0) {
-            frontend_logger.error("Error writing to socket");
-            *loop_exit_p = true;
-            return;
-        }
-        resultWr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
-        if (resultWr < 0) {
-            frontend_logger.error("Error writing to socket");
-            *loop_exit_p = true;
-            return;
+        std::vector<std::string> vec = Utils::getFileContent(filePathS);
+        for (const auto &item : vec) {
+            if (item.length() > 0 && !(item.rfind("#", 0) == 0)) {
+                std::vector<std::string> vec2 = Utils::split(item, '=');
+                if (vec2.size() == 2) {
+                    if (vec2.at(0).compare("hdfs.host") == 0) {
+                        hdfsServerIp = vec2.at(1);
+                    } else if (vec2.at(0).compare("hdfs.port") == 0) {
+                        hdfsPort = vec2.at(1);
+                    }
+                } else {
+                    frontend_logger.error("Invalid line in configuration file: " + item);
+                }
+            }
         }
 
-        std::string portBuf;
-        portBuf.resize(FRONTEND_DATA_LENGTH);
-        int portBytesRead = read(connFd, &portBuf[0], FRONTEND_DATA_LENGTH);
-        if (portBytesRead > 0) {
-            portBuf.resize(static_cast<size_t>(portBytesRead));
-        } else {
-            portBuf.clear();
+        if (hdfsServerIp.empty()) {
+            frontend_logger.error("HDFS server IP is empty.");
         }
-        hdfsPort = Utils::trim_copy(portBuf);
+        if (hdfsPort.empty()) {
+            frontend_logger.error("HDFS server port is empty.");
+        }
     }
 
     frontend_logger.info("HDFS Server: " + hdfsServerIp + ":" + hdfsPort);

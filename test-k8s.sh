@@ -145,7 +145,6 @@ ready_hdfs() {
     LOCAL_DIRECTORY="/var/tmp/data/"
     LOCAL_FILE_PATH="${LOCAL_DIRECTORY}${FILE_NAME}"
     HDFS_DIRECTORY="/home/"
-    HDFS_FILE_PATH="${HDFS_DIRECTORY}${FILE_NAME}"
 
     echo "Ensuring local directory exists..."
     mkdir -p "${LOCAL_DIRECTORY}" || {
@@ -167,25 +166,17 @@ ready_hdfs() {
     fi
     echo "Namenode container found: ${NAMENODE_CONTAINER}"
 
-    docker exec -i "${NAMENODE_CONTAINER}" mkdir -p "${LOCAL_DIRECTORY}"
-
-    echo "Copying file to HDFS Namenode container..."
-    docker cp "${LOCAL_FILE_PATH}" "${NAMENODE_CONTAINER}:${LOCAL_FILE_PATH}" || {
-        echo "Error copying file to Namenode container."
-        return 1
-    }
-
-    echo "Uploading file to HDFS..."
+    # Create the HDFS /home directory and grant write permissions
+    # (sdhdfs will write graph data here during integration tests)
     docker exec -i "${NAMENODE_CONTAINER}" hdfs dfs -mkdir -p "${HDFS_DIRECTORY}" || {
         echo "Error creating HDFS directory."
         return 1
     }
-    docker exec -i "${NAMENODE_CONTAINER}" hdfs dfs -put -f "${LOCAL_FILE_PATH}" "${HDFS_FILE_PATH}" || {
-        echo "Error uploading file to HDFS."
+    docker exec -i "${NAMENODE_CONTAINER}" hdfs dfs -chmod 777 "${HDFS_DIRECTORY}" || {
+        echo "Error setting permissions on HDFS directory."
         return 1
     }
-
-    echo "File successfully uploaded to HDFS at ${HDFS_FILE_PATH}"
+    echo "HDFS directory ${HDFS_DIRECTORY} created with write permissions."
 
     CUSTOM_GRAPH_FILE="graph_with_properties.txt"
     CUSTOM_GRAPH_LOCAL_PATH="${LOCAL_DIRECTORY}${CUSTOM_GRAPH_FILE}"
