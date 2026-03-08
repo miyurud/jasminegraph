@@ -52,7 +52,6 @@ limitations under the License.
 #include "../server/JasmineGraphInstanceProtocol.h"
 #include "../server/JasmineGraphInstanceService.h"
 #include "../server/JasmineGraphServer.h"
-#include "../centralstore/JasmineGraphHashMapCentralStore.h"
 #include "../util/Conts.h"
 #include "../util/hdfs/HDFSConnector.h"
 #include "../util/hdfs/HDFSStreamHandler.h"
@@ -1757,10 +1756,13 @@ static void send_graph_hdfs_command(std::string masterIP, int connFd, SQLiteDBIn
     frontend_logger.info("HDFS output path: " + hdfsOutputPath);
 
     // Get partition information from database
-    std::unordered_map<std::string, JasmineGraphServer::workerPartitions> graphPartitionedHosts =
-        JasmineGraphServer::getGraphPartitionedHosts(graphId);
+    std::string partitionQuery =
+        "SELECT DISTINCT worker_idworker, partition_idpartition "
+        "FROM worker_has_partition INNER JOIN worker ON worker_has_partition.worker_idworker=worker.idworker "
+        "WHERE partition_graph_idgraph=" + graphId;
+    std::vector<std::vector<std::pair<std::string, std::string>>> partitionResults = sqlite->runSelect(partitionQuery);
 
-    if (graphPartitionedHosts.empty()) {
+    if (partitionResults.empty()) {
         frontend_logger.error("No partitions found for graph ID: " + graphId);
         std::string errorMsg = "Graph not found or has no partitions";
         write(connFd, errorMsg.c_str(), errorMsg.length());
@@ -1769,104 +1771,143 @@ static void send_graph_hdfs_command(std::string masterIP, int connFd, SQLiteDBIn
         return;
     }
 
-    // Collect graph edges from partition files
-    // Deserialize binary partition files and convert to text format
+    // Group partitions by worker ID
+    std::map<std::string, std::vector<std::string>> workerPartitionMap;
+    for (const auto &row : partitionResults) {
+        std::string workerID = row[0].second;
+        std::string partitionID = row[1].second;
+        workerPartitionMap[workerID].push_back(partitionID);
+    }
+
+    // Get worker connection details
+    std::vector<Utils::worker> workerList = Utils::getWorkerList(sqlite);
+    std::map<std::string, Utils::worker> workerMap;
+    for (const auto &w : workerList) {
+        workerMap[w.workerID] = w;
+    }
+
+    // Collect graph edge data from each worker
     std::stringstream graphData;
-    std::string dataFolder = Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder");
-
-    frontend_logger.info("Collecting graph data from " + std::to_string(graphPartitionedHosts.size()) + " workers");
-
     int totalPartitions = 0;
     int processedPartitions = 0;
 
-    // Collect all unique edges across local partitions and central stores.
-    // Edges are stored as directed pairs (source, destination).
-    std::set<std::pair<int, int>> uniqueEdges;
+    for (const auto &wp : workerPartitionMap) {
+        const std::string &workerID = wp.first;
+        const std::vector<std::string> &partitions = wp.second;
+        totalPartitions += static_cast<int>(partitions.size());
 
-    for (const auto &workerPair : graphPartitionedHosts) {
-        const JasmineGraphServer::workerPartitions &workerPartition = workerPair.second;
-        totalPartitions += static_cast<int>(workerPartition.partitionID.size());
+        auto wit = workerMap.find(workerID);
+        if (wit == workerMap.end()) {
+            frontend_logger.error("Worker " + workerID + " not found in worker list");
+            continue;
+        }
+        const Utils::worker &currentWorker = wit->second;
+        std::string host = currentWorker.hostname;
+        int workerPort = std::stoi(currentWorker.port);
 
-        for (auto partitionIt = workerPartition.partitionID.begin();
-            partitionIt != workerPartition.partitionID.end(); ++partitionIt) {
-            std::string partitionId = *partitionIt;
-
-            // --- Local partition file ---
-            std::string partitionFile = dataFolder + "/" + graphId + "_" + partitionId;
-            frontend_logger.info("Reading partition file: " + partitionFile);
-            if (!Utils::fileExists(partitionFile) && Utils::fileExists(partitionFile + ".gz")) {
-                Utils::unzipFile(partitionFile + ".gz");
+        for (const std::string &partitionId : partitions) {
+            int sockfd = socket(AF_INET, SOCK_STREAM, 0);
+            if (sockfd < 0) {
+                frontend_logger.error("Cannot create socket for worker " + workerID);
+                continue;
             }
-            if (Utils::fileExists(partitionFile)) {
-                try {
-                    JasmineGraphHashMapLocalStore localStore;
-                    std::map<int, std::vector<int>> partEdgeMap = localStore.getEdgeHashMap(partitionFile);
-                    for (const auto &entry : partEdgeMap) {
-                        int u = entry.first;
-                        for (int v : entry.second) {
-                            uniqueEdges.emplace(u, v);
-                        }
+
+            if (host.find('@') != std::string::npos) {
+                host = Utils::split(host, '@')[1];
+            }
+
+            struct hostent *server = gethostbyname(host.c_str());
+            if (server == NULL) {
+                frontend_logger.error("No host named " + host);
+                close(sockfd);
+                continue;
+            }
+
+            struct sockaddr_in serv_addr;
+            bzero((char *)&serv_addr, sizeof(serv_addr));
+            serv_addr.sin_family = AF_INET;
+            bcopy((char *)server->h_addr, (char *)&serv_addr.sin_addr.s_addr, server->h_length);
+            serv_addr.sin_port = htons(workerPort);
+
+            if (Utils::connect_wrapper(sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
+                frontend_logger.error("Error connecting to worker " + workerID + " at " + host);
+                close(sockfd);
+                continue;
+            }
+
+            char data[INSTANCE_DATA_LENGTH + 1];
+            if (!Utils::performHandshake(sockfd, data, INSTANCE_DATA_LENGTH, masterIP)) {
+                frontend_logger.error("Handshake failed with worker " + workerID);
+                Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::CLOSE);
+                close(sockfd);
+                continue;
+            }
+
+            if (!Utils::sendExpectResponse(sockfd, data, INSTANCE_DATA_LENGTH,
+                                           JasmineGraphInstanceProtocol::SEND_EDGES,
+                                           JasmineGraphInstanceProtocol::OK)) {
+                frontend_logger.error("SEND_EDGES not accepted by worker " + workerID);
+                Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::CLOSE);
+                close(sockfd);
+                continue;
+            }
+
+            if (!Utils::sendExpectResponse(sockfd, data, INSTANCE_DATA_LENGTH,
+                                           graphId,
+                                           JasmineGraphInstanceProtocol::SEND_PARTITION_ID)) {
+                frontend_logger.error("Error sending graph ID to worker " + workerID);
+                Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::CLOSE);
+                close(sockfd);
+                continue;
+            }
+
+            // Send partition ID and receive data size
+            Utils::send_str_wrapper(sockfd, partitionId);
+            std::string sizeStr = Utils::read_str_trim_wrapper(sockfd, data, INSTANCE_DATA_LENGTH);
+            long dataSize = std::stol(sizeStr);
+            frontend_logger.info("Worker " + workerID + " partition " + partitionId +
+                                 " will send " + sizeStr + " bytes");
+
+            Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::OK);
+
+            // Receive edge data
+            if (dataSize > 0) {
+                std::string edgeData;
+                edgeData.resize(dataSize);
+                long totalReceived = 0;
+                while (totalReceived < dataSize) {
+                    ssize_t received = recv(sockfd, &edgeData[totalReceived], dataSize - totalReceived, 0);
+                    if (received <= 0) {
+                        frontend_logger.error("Error receiving edge data from worker " + workerID);
+                        break;
                     }
+                    totalReceived += received;
+                }
+                if (totalReceived == dataSize) {
+                    graphData << edgeData;
                     ++processedPartitions;
-                } catch (const std::runtime_error &e) {
-                    frontend_logger.error("Error reading partition file " + partitionFile + ": " +
-                        std::string(e.what()));
                 }
             } else {
-                frontend_logger.warn("Partition file not found: " + partitionFile);
+                ++processedPartitions;
             }
 
-            // --- Central store file ---
-            std::string centralFile = dataFolder + "/" + graphId + "_centralstore_" + partitionId;
-            frontend_logger.info("Reading central store file: " + centralFile);
-            if (!Utils::fileExists(centralFile) && Utils::fileExists(centralFile + ".gz")) {
-                Utils::unzipFile(centralFile + ".gz");
-            }
-            if (Utils::fileExists(centralFile)) {
-                try {
-                    JasmineGraphHashMapCentralStore centralStore(stoi(graphId), stoi(partitionId));
-                    if (!centralStore.loadGraph(centralFile)) {
-                        frontend_logger.error("Fail1 to load central store file: " + centralFile);
-                    } else {
-                        const auto &centralMap = centralStore.getUnderlyingHashMap();
-                        for (const auto &entry : centralMap) {
-                            long u = entry.first;
-                            for (long v : entry.second) {
-                                uniqueEdges.emplace((int)u, (int)v);
-                            }
-                        }
-                    }
-                } catch (const std::runtime_error &e) {
-                    frontend_logger.error("Error reading central store file " + centralFile + ": " +
-                        std::string(e.what()));
-                }
-            } else {
-                frontend_logger.info("Central store file not found (skipping): " + centralFile);
-            }
+            Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::OK);
+            Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::CLOSE);
+            close(sockfd);
         }
     }
 
-    // Write deduplicated edges to the output stream
-    int totalEdges = 0;
-    for (const auto &edge : uniqueEdges) {
-        graphData << edge.first << " " << edge.second << "\n";
-        ++totalEdges;
-    }
+    frontend_logger.info("Processed " + std::to_string(processedPartitions) + " out of " +
+                         std::to_string(totalPartitions) + " partitions");
 
-    {
-        std::ostringstream procMsg;
-        procMsg << "Processed " << processedPartitions << " out of " << totalPartitions
-                << " partitions with " << totalEdges << " unique edges";
-        frontend_logger.info(procMsg.str());
-    }
+    std::string graphDataStr = graphData.str();
 
     // Connect to HDFS and write graph data
     auto hdfsConnector = std::make_unique<HDFSConnector>(hdfsServerIp, hdfsPort);
 
-    std::string graphDataStr = graphData.str();
     if (graphDataStr.empty()) {
-        frontend_logger.error("No graph data collected");
-        std::string errorMsg = "Fail2 to collect graph data";
+        frontend_logger.error("No graph data collected for graph ID: " + graphId);
+        std::string errorMsg = "Failed to collect graph data";
         write(connFd, errorMsg.c_str(), errorMsg.length());
         write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
         // hdfsConnector will be automatically cleaned up when it goes out of scope
@@ -1881,7 +1922,7 @@ static void send_graph_hdfs_command(std::string masterIP, int connFd, SQLiteDBIn
         write(connFd, DONE.c_str(), DONE.length());
         write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
     } else {
-        frontend_logger.error("Fail3 to write graph to HDFS");
+        frontend_logger.error("Failed to write graph to HDFS");
         write(connFd, ERROR.c_str(), ERROR.length());
         write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
         *loop_exit_p = true;
