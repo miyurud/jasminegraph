@@ -22,6 +22,7 @@ class HDFSConnector {
  public:
     HDFSConnector(const std::string &hdfsServerIP, const std::string &hdfsServerPort);
     bool isPathValid(const std::string &hdfsPath);
+    bool writeGraphToHDFS(const std::string &hdfsPath, const std::string &graphData);
     ~HDFSConnector();
     hdfsFS getFileSystem();
 

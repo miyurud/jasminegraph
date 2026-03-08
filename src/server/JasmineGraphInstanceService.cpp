@@ -138,6 +138,7 @@ static void degree_distribution_common(int connFd, int serverPort,
                                        bool *loop_exit_p, bool in);
 static void push_partition_command(int connFd, bool *loop_exit_p);
 static void push_file_command(int connFd, bool *loop_exit_p);
+static void send_edges_command(int connFd, bool *loop_exit_p);
 static void query_start_command(int connFd, InstanceHandler &instanceHandler, std::map<std::string,
                                 JasmineGraphIncrementalLocalStore *> &incrementalLocalStoreMap, bool *loop_exit_p);
 static void semantic_beam_search(int connFd, InstanceHandler &instanceHandler, std::map<std::string,
@@ -307,6 +308,8 @@ void *instanceservicesession(void *dummyPt) {
             hdfs_start_stream_command(connFd, &loop_exit, true, streamHandler);
         } else if (line.compare(JasmineGraphInstanceProtocol::HDFS_CENTRAL_STREAM_START) == 0) {
             hdfs_start_stream_command(connFd, &loop_exit, false, streamHandler);
+        } else if (line.compare(JasmineGraphInstanceProtocol::SEND_EDGES) == 0) {
+            send_edges_command(connFd, &loop_exit);
         } else if (line.compare(JasmineGraphInstanceProtocol::QUERY_START) == 0) {
             query_start_command(connFd, instanceHandler, incrementalLocalStoreMap, &loop_exit);
         } else if (line.compare(JasmineGraphInstanceProtocol::SUB_QUERY_START) == 0) {
@@ -5374,4 +5377,91 @@ static void processFile(string fileName, bool isLocal,
     instance_logger.info("Finished processing file: " + filePath);
 }
 
+static void send_edges_command(int connFd, bool *loop_exit_p) {
+    if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::OK)) {
+        *loop_exit_p = true;
+        return;
+    }
+    instance_logger.info("Sent : " + JasmineGraphInstanceProtocol::OK);
+
+    char data[DATA_BUFFER_SIZE];
+    string graphID = Utils::read_str_trim_wrapper(connFd, data, INSTANCE_DATA_LENGTH);
+    instance_logger.info("Received Graph ID: " + graphID);
+
+    if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::SEND_PARTITION_ID)) {
+        *loop_exit_p = true;
+        return;
+    }
+    instance_logger.info("Sent : " + JasmineGraphInstanceProtocol::SEND_PARTITION_ID);
+
+    string partitionID = Utils::read_str_trim_wrapper(connFd, data, INSTANCE_DATA_LENGTH);
+    instance_logger.info("Received Partition ID: " + partitionID);
+
+    std::string dataFolder = Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder");
+    std::stringstream edgeStream;
+
+    // Read local partition edges
+    std::string partitionFile = dataFolder + "/" + graphID + "_" + partitionID;
+    if (Utils::fileExists(partitionFile)) {
+        JasmineGraphHashMapLocalStore localStore;
+        std::map<int, std::vector<int>> partEdgeMap = localStore.getEdgeHashMap(partitionFile);
+        for (const auto &entry : partEdgeMap) {
+            for (int dest : entry.second) {
+                edgeStream << entry.first << " " << dest << "\n";
+            }
+        }
+    }
+
+    // Read central store edges
+    std::string centralFile = dataFolder + "/" + graphID + "_centralstore_" + partitionID;
+    if (Utils::fileExists(centralFile)) {
+        JasmineGraphHashMapCentralStore centralStore(stoi(graphID), stoi(partitionID));
+        if (centralStore.loadGraph(centralFile)) {
+            const auto &centralMap = centralStore.getUnderlyingHashMap();
+            for (const auto &entry : centralMap) {
+                for (long dest : entry.second) {
+                    edgeStream << entry.first << " " << dest << "\n";
+                }
+            }
+        }
+    }
+
+    std::string edgeData = edgeStream.str();
+    std::string sizeStr = std::to_string(edgeData.size());
+    instance_logger.info("Sending " + sizeStr + " bytes of edge data for partition " + partitionID);
+
+    if (!Utils::send_str_wrapper(connFd, sizeStr)) {
+        *loop_exit_p = true;
+        return;
+    }
+
+    std::string ack = Utils::read_str_trim_wrapper(connFd, data, INSTANCE_DATA_LENGTH);
+    if (ack != JasmineGraphInstanceProtocol::OK) {
+        instance_logger.error("Expected OK, received: " + ack);
+        *loop_exit_p = true;
+        return;
+    }
+
+    if (!edgeData.empty()) {
+        ssize_t totalSent = 0;
+        ssize_t remaining = edgeData.size();
+        const char *ptr = edgeData.c_str();
+        while (remaining > 0) {
+            ssize_t sent = write(connFd, ptr + totalSent, remaining);
+            if (sent < 0) {
+                instance_logger.error("Error sending edge data");
+                *loop_exit_p = true;
+                return;
+            }
+            totalSent += sent;
+            remaining -= sent;
+        }
+    }
+
+    ack = Utils::read_str_trim_wrapper(connFd, data, INSTANCE_DATA_LENGTH);
+    if (ack != JasmineGraphInstanceProtocol::OK) {
+        instance_logger.error("Expected final OK, received: " + ack);
+    }
+    instance_logger.info("Finished sending edges for graph " + graphID + " partition " + partitionID);
+}
 
