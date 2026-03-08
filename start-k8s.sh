@@ -100,6 +100,7 @@ kubectl wait --for=condition=Ready pod -l app.kubernetes.io/name=alloy -n loki -
 sleep .2
 
 helm install grafana grafana/grafana -n grafana --create-namespace -f ./k8s/helm/grafana.yaml
+while [ -z "$(kubectl get pods -n grafana -o name 2>/dev/null)" ]; do sleep 1; done
 kubectl wait --for=condition=Ready pod --all -n grafana --timeout=300s
 sleep .2
 
