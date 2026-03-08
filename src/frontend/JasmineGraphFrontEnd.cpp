@@ -1826,7 +1826,7 @@ static void send_graph_hdfs_command(std::string masterIP, int connFd, SQLiteDBIn
                 try {
                     JasmineGraphHashMapCentralStore centralStore(stoi(graphId), stoi(partitionId));
                     if (!centralStore.loadGraph(centralFile)) {
-                        frontend_logger.error("Failed to load central store file: " + centralFile);
+                        frontend_logger.error("Fail1 to load central store file: " + centralFile);
                     } else {
                         const auto &centralMap = centralStore.getUnderlyingHashMap();
                         for (const auto &entry : centralMap) {
@@ -1866,7 +1866,7 @@ static void send_graph_hdfs_command(std::string masterIP, int connFd, SQLiteDBIn
     std::string graphDataStr = graphData.str();
     if (graphDataStr.empty()) {
         frontend_logger.error("No graph data collected");
-        std::string errorMsg = "Failed to collect graph data";
+        std::string errorMsg = "Fail2 to collect graph data";
         write(connFd, errorMsg.c_str(), errorMsg.length());
         write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
         // hdfsConnector will be automatically cleaned up when it goes out of scope
@@ -1881,7 +1881,7 @@ static void send_graph_hdfs_command(std::string masterIP, int connFd, SQLiteDBIn
         write(connFd, DONE.c_str(), DONE.length());
         write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
     } else {
-        frontend_logger.error("Failed to write graph to HDFS");
+        frontend_logger.error("Fail3 to write graph to HDFS");
         write(connFd, ERROR.c_str(), ERROR.length());
         write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
         *loop_exit_p = true;
@@ -2318,7 +2318,7 @@ bool JasmineGraphFrontEnd::constructKGStreamHDFSCommand(std::string masterIP, in
             curl_easy_cleanup(curl);
 
             if (res != CURLE_OK) {
-                frontend_logger.error("Failed to reach " + llmInferenceEngineS + " server at " + llmServer);
+                frontend_logger.error("Fail4 to reach " + llmInferenceEngineS + " server at " + llmServer);
                 std::string msg = "Could not connect to " + llmInferenceEngineS + " server.";
                 write(connFd, msg.c_str(), msg.length());
                 write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
@@ -3796,7 +3796,7 @@ void JasmineGraphFrontEnd::stop_graph_streaming(int connFd, bool *loop_exit_p) {
         }
         if (*(it->second)) {
             frontend_logger.error("Timeout: The stop flag was not reverted in time");
-            std::string message3 = "Failed to stop the process";
+            std::string message3 = "Fail5 to stop the process";
             int resultWr = write(connFd, message3.c_str(), message3.length());
         }
         int result_wr = write(connFd, DONE.c_str(), FRONTEND_COMMAND_LENGTH);
