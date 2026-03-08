@@ -1809,7 +1809,8 @@ static void send_graph_hdfs_command(std::string masterIP, int connFd, SQLiteDBIn
                     }
                     ++processedPartitions;
                 } catch (const std::runtime_error &e) {
-                    frontend_logger.error("Error reading partition file " + partitionFile + ": " + std::string(e.what()));
+                    frontend_logger.error("Error reading partition file " + partitionFile + ": " +
+                        std::string(e.what()));
                 }
             } else {
                 frontend_logger.warn("Partition file not found: " + partitionFile);
@@ -1836,7 +1837,8 @@ static void send_graph_hdfs_command(std::string masterIP, int connFd, SQLiteDBIn
                         }
                     }
                 } catch (const std::runtime_error &e) {
-                    frontend_logger.error("Error reading central store file " + centralFile + ": " + std::string(e.what()));
+                    frontend_logger.error("Error reading central store file " + centralFile + ": " +
+                        std::string(e.what()));
                 }
             } else {
                 frontend_logger.info("Central store file not found (skipping): " + centralFile);

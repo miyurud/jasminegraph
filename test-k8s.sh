@@ -109,6 +109,9 @@ ready_hdfs() {
 
     echo "Updated hdfs_cnf.txt:"
     cat $HDFS_CONF_FILE
+
+    echo "Waiting for JasmineGraph Master pod to be running..."
+    kubectl wait --for=condition=Ready pod -l app=jasminegraph-master --timeout=300s
     MASTER_POD=$(kubectl get pods | grep jasminegraph-master | awk '{print $1}')
 
     kubectl cp "${TEST_ROOT}/env_init/config/hdfs/hdfs_config.txt" ${MASTER_POD}:/var/tmp/config/hdfs_config.txt
