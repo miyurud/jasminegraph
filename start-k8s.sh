@@ -92,10 +92,12 @@ helm repo add grafana https://grafana.github.io/helm-charts
 helm repo update
 
 helm install loki grafana/loki -n loki --create-namespace --set singleBinary.persistence.storageClass="$STORAGE_CLASS_NAME" -f ./k8s/helm/loki.yaml
+while [ -z "$(kubectl get pods -n loki -o name 2>/dev/null)" ]; do sleep 1; done
 kubectl wait --for=condition=Ready pod --all -n loki --timeout=180s
 sleep .2
 
 helm install grafana-alloy grafana/alloy -n loki -f ./k8s/helm/alloy.yaml
+while [ -z "$(kubectl get pods -l app.kubernetes.io/name=alloy -n loki -o name 2>/dev/null)" ]; do sleep 1; done
 kubectl wait --for=condition=Ready pod -l app.kubernetes.io/name=alloy -n loki --timeout=180s
 sleep .2
 
