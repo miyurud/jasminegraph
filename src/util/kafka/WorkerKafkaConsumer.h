@@ -110,6 +110,7 @@ class WorkerKafkaConsumer {
 
     std::atomic<uint32_t> globalSnapshotId{0};
     std::atomic<bool>     snapshotsFinalized{false};
+    std::atomic<bool>     snapshotInProgress_{false};  // CAS guard: only one thread triggers snapshot
 
     // Per-partition mutexes: reduce contention vs. a single global lock
     std::map<int, std::mutex> partitionTemporalMutexes_;
