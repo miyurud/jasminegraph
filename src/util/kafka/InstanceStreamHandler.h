@@ -22,6 +22,7 @@
 #include <string>
 #include <atomic>
 #include <vector>
+#include <nlohmann/json.hpp>
 #include "../../localstore/incremental/JasmineGraphIncrementalLocalStore.h"
 
 class InstanceStreamHandler {
@@ -32,6 +33,12 @@ class InstanceStreamHandler {
     ~InstanceStreamHandler();
 
     void handleRequest(const std::string& nodeString);
+    // Fast overload: caller supplies pre-computed graphIdentifier (e.g. "2_4") to skip
+    // the redundant json::parse inside extractGraphIdentifier on the hot path.
+    void handleRequest(const std::string& nodeString, const std::string& graphIdentifier);
+    // Fastest overload: caller passes the json object directly, eliminating obj.dump()
+    // and the subsequent json::parse in the writer thread (B2 + B3 fix).
+    void handleRequest(nlohmann::json obj, const std::string& graphIdentifier);
     void handleLocalEdge(std::string edge, std::string graphId,
                          std::string partitionId, std::string graphIdentifier, bool isEmbed);
     void handleCentralEdge(std::string edge, std::string graphId,
@@ -46,7 +53,7 @@ class InstanceStreamHandler {
 
  private:
     std::map<std::string, std::thread> threads;
-    std::map<std::string, std::queue<std::string>> queues;
+    std::map<std::string, std::queue<nlohmann::json>> queues;
     std::map<std::string, std::condition_variable> cond_vars;
     std::map<std::string, std::mutex> queue_mutexes;
     std::atomic<bool> terminateThreads{false};

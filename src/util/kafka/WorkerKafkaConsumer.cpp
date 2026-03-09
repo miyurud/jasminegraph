@@ -298,6 +298,9 @@ void WorkerKafkaConsumer::consumerThreadFunc(
     // Hash functor used for deterministic partition assignment (HASH algo)
     std::hash<std::string> hasher;
 
+    // Pre-computed once: graphId as string for fast identifier building
+    const std::string graphIdStr = std::to_string(cfg.graphId);
+
     worker_kafka_logger.info("Worker thread " + std::to_string(threadId) +
                              " entering consume loop (MAX_IDLE=" +
                              std::to_string(MAX_IDLE_POLLS) + "s)");
@@ -384,7 +387,7 @@ void WorkerKafkaConsumer::consumerThreadFunc(
             }
 
             auto prop    = edgeJson["properties"];
-            prop["graphId"] = std::to_string(cfg.graphId);
+            prop["graphId"] = graphIdStr;
             auto srcJson = edgeJson["source"];
             auto dstJson = edgeJson["destination"];
             std::string sId = std::string(srcJson["id"]);
@@ -434,17 +437,16 @@ void WorkerKafkaConsumer::consumerThreadFunc(
                     }
                 }
                 if (shouldSnapshot) {
-                    std::lock_guard<std::mutex> slock(snapshotMutex_);
-                    // Re-check inside lock; another thread may have already triggered it
-                    bool needsSnap = false;
-                    for (auto& [pid, store] : localTemporalStores) {
-                        if (store && store->shouldCreateSnapshot()) { needsSnap = true; break; }
+                    // CAS: exactly one thread triggers the snapshot; others see the flag set and skip.
+                    // Eliminates the O(partitions) re-scan that the old mutex+loop approach needed.
+                    bool expected = false;
+                    if (snapshotInProgress_.compare_exchange_strong(
+                            expected, true,
+                            std::memory_order_acq_rel,
+                            std::memory_order_relaxed)) {
+                        createGlobalSnapshot();
+                        snapshotInProgress_.store(false, std::memory_order_release);
                     }
-                    if (!needsSnap && centralTemporalStore &&
-                        centralTemporalStore->shouldCreateSnapshot()) {
-                        needsSnap = true;
-                    }
-                    if (needsSnap) createGlobalSnapshot();
                 }
             }
 
@@ -457,22 +459,29 @@ void WorkerKafkaConsumer::consumerThreadFunc(
                 // Local edge — both endpoints live in the same owned partition
                 obj["EdgeType"] = "Local";
                 obj["PID"]      = part_s;
-                std::string edgeStr = obj.dump();
-                streamHandler.handleRequest(edgeStr);
+                streamHandler.handleRequest(std::move(obj),
+                                            graphIdStr + "_" + std::to_string(part_s));
             } else {
                 // Central edge — may need to write to src's partition, dst's partition, or both
                 obj["EdgeType"] = "Central";
 
-                if (srcOwned) {
-                    obj["PID"]       = part_s;
-                    std::string edgeStr = obj.dump();
-                    streamHandler.handleRequest(edgeStr);
-                }
-
-                if (dstOwned) {
-                    obj["PID"]       = part_d;
-                    std::string edgeStr = obj.dump();
-                    streamHandler.handleRequest(edgeStr);
+                if (srcOwned && dstOwned) {
+                    // Both partitions owned: copy for src, move into dst
+                    json objSrc = obj;
+                    objSrc["PID"] = part_s;
+                    obj["PID"]    = part_d;
+                    streamHandler.handleRequest(std::move(objSrc),
+                                                graphIdStr + "_" + std::to_string(part_s));
+                    streamHandler.handleRequest(std::move(obj),
+                                                graphIdStr + "_" + std::to_string(part_d));
+                } else if (srcOwned) {
+                    obj["PID"] = part_s;
+                    streamHandler.handleRequest(std::move(obj),
+                                                graphIdStr + "_" + std::to_string(part_s));
+                } else {
+                    obj["PID"] = part_d;
+                    streamHandler.handleRequest(std::move(obj),
+                                                graphIdStr + "_" + std::to_string(part_d));
                 }
             }
 
@@ -554,12 +563,17 @@ WorkerKafkaStats WorkerKafkaConsumer::run() {
         if (t.joinable()) t.join();
     }
 
+    // Persist temporal snapshots NOW — consumer threads are all done so the
+    // temporal stores are fully populated.  Do this BEFORE terminating the
+    // InstanceStreamHandler writer threads: those threads drain the incremental
+    // local store (NodeManager disk I/O) and can block for minutes under heavy
+    // load.  Snapshot creation must not wait for that drain.
+    finalizeAllSnapshots();
+
     // Terminate the InstanceStreamHandler per-partition processing threads.
     // handleRequest("-1") sets terminateThreads=true, notifies condition
     // variables, and joins all processing threads before returning.
     streamHandler.handleRequest("-1");
-
-    finalizeAllSnapshots();
 
     WorkerKafkaStats stats{totalMessages.load(), totalLocal.load(), totalCentral.load()};
     worker_kafka_logger.info(
