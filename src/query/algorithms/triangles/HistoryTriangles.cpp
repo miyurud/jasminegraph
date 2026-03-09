@@ -101,10 +101,10 @@ TemporalTriangleResult HistoryTriangles::countTrianglesAtSnapshot(
     }
     
     result.centralEdges = centralEdgesLoaded;
-    result.totalEdges = allEdges.size();
-    
-    // Deduplicate edges: with multi-worker central stores, the same cross-partition
-    // edge may appear in multiple stores. Deduplicate for an accurate unique edge count.
+    result.totalEdges = allEdges.size();  // raw directed edge count from all stores
+
+    // Log unique undirected edge count for diagnostics (cross-store duplicates and
+    // both-direction pairs are collapsed here, but result.totalEdges keeps raw count).
     {
         std::set<std::pair<std::string, std::string>> uniqueEdgeSet;
         for (const auto& edge : allEdges) {
@@ -112,9 +112,9 @@ TemporalTriangleResult HistoryTriangles::countTrianglesAtSnapshot(
             if (u > v) std::swap(u, v);
             uniqueEdgeSet.insert({u, v});
         }
-        result.totalEdges = uniqueEdgeSet.size();
+        size_t uniqueEdgeCount = uniqueEdgeSet.size();
         history_triangle_logger.info("Raw edges: " + std::to_string(allEdges.size()) +
-                                   " Unique edges: " + std::to_string(result.totalEdges));
+                                   " Unique undirected edges: " + std::to_string(uniqueEdgeCount));
     }
     
     if (partitionsProcessed == 0) {
@@ -204,7 +204,10 @@ std::map<uint32_t, roaring_bitmap_t*> HistoryTriangles::buildAdjacencyBitmaps(
     }
     
     // Add edges to adjacency bitmaps (undirected: both directions)
+    // Skip self-loops: they corrupt adjacency sets and produce spurious triangle counts.
     for (const auto& edge : edges) {
+        if (edge.sourceId == edge.destId) continue;  // skip self-loops
+
         auto itU = nodeToIndex.find(edge.sourceId);
         auto itV = nodeToIndex.find(edge.destId);
         
@@ -238,7 +241,9 @@ uint64_t HistoryTriangles::countTrianglesFromBitmaps(
         
         uint32_t u = itU->second;
         uint32_t v = itV->second;
-        
+
+        if (u == v) continue;  // skip self-loops
+
         // Process each undirected edge only once
         if (u > v) std::swap(u, v);
         if (processedEdges.count({u, v})) {
