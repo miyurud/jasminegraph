@@ -292,7 +292,7 @@ def test(host, port):  # pylint: disable=too-many-branches
                                  LIST, b'|1|powergrid|/var/tmp/data/powergrid.dl|op|')
 
         print()
-        logging.info('Testing sdhdfs with custom HDFS server')
+        logging.info('Testing sdhdfs')
         send_and_expect_response(sock, 'sdhdfs', SDHDFS, b'Graph ID:', exit_on_failure=True)
         send_and_expect_response(sock, 'sdhdfs', b'1',
                                  b'Do you want to use the default HDFS server(y/n)?',
