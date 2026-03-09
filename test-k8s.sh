@@ -181,6 +181,11 @@ ready_hdfs() {
     }
     echo "HDFS directory ${HDFS_DIRECTORY} created with write permissions."
 
+    docker exec -i "${NAMENODE_CONTAINER}" mkdir -p "${LOCAL_DIRECTORY}" || {
+        echo "Error creating ${LOCAL_DIRECTORY} in Namenode container."
+        return 1
+    }
+
     CUSTOM_GRAPH_FILE="graph_with_properties.txt"
     CUSTOM_GRAPH_LOCAL_PATH="${LOCAL_DIRECTORY}${CUSTOM_GRAPH_FILE}"
     CUSTOM_GRAPH_HDFS_PATH="${HDFS_DIRECTORY}${CUSTOM_GRAPH_FILE}"
