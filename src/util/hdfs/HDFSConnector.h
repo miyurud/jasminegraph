@@ -23,11 +23,18 @@ class HDFSConnector {
     HDFSConnector(const std::string &hdfsServerIP, const std::string &hdfsServerPort);
     bool isPathValid(const std::string &hdfsPath);
     bool writeGraphToHDFS(const std::string &hdfsPath, const std::string &graphData);
+
+    // Streaming write API for large graphs
+    bool openFileForWrite(const std::string &hdfsPath);
+    bool appendData(const char *data, size_t length);
+    bool closeWriteFile();
+
     ~HDFSConnector();
     hdfsFS getFileSystem();
 
  private:
     hdfsFS fileSystem;
+    hdfsFile currentWriteFile = nullptr;
     Logger frontend_logger;
 };
 

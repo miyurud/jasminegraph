@@ -72,7 +72,63 @@ bool HDFSConnector::writeGraphToHDFS(const std::string &hdfsPath, const std::str
     return true;
 }
 
+bool HDFSConnector::openFileForWrite(const std::string &hdfsPath) {
+    if (!fileSystem) {
+        frontend_logger.error("HDFS connection is not established");
+        return false;
+    }
+    if (currentWriteFile) {
+        frontend_logger.error("A file is already open for writing");
+        return false;
+    }
+    currentWriteFile = hdfsOpenFile(fileSystem, hdfsPath.c_str(), O_WRONLY | O_CREAT, 0, 0, 0);
+    if (!currentWriteFile) {
+        frontend_logger.error("Failed to open HDFS file for writing: " + hdfsPath);
+        return false;
+    }
+    return true;
+}
+
+bool HDFSConnector::appendData(const char *data, size_t length) {
+    if (!currentWriteFile) {
+        frontend_logger.error("No HDFS file open for writing");
+        return false;
+    }
+    size_t totalWritten = 0;
+    while (totalWritten < length) {
+        tSize written = hdfsWrite(fileSystem, currentWriteFile,
+                                  data + totalWritten, length - totalWritten);
+        if (written == -1) {
+            frontend_logger.error("Failed to write data to HDFS file");
+            return false;
+        }
+        totalWritten += static_cast<size_t>(written);
+    }
+    return true;
+}
+
+bool HDFSConnector::closeWriteFile() {
+    if (!currentWriteFile) {
+        return true;
+    }
+    bool success = true;
+    if (hdfsFlush(fileSystem, currentWriteFile) != 0) {
+        frontend_logger.error("Failed to flush HDFS file");
+        success = false;
+    }
+    if (hdfsCloseFile(fileSystem, currentWriteFile) != 0) {
+        frontend_logger.error("Failed to close HDFS file");
+        success = false;
+    }
+    currentWriteFile = nullptr;
+    return success;
+}
+
 HDFSConnector::~HDFSConnector() {
+    if (currentWriteFile) {
+        hdfsCloseFile(fileSystem, currentWriteFile);
+        currentWriteFile = nullptr;
+    }
     if (fileSystem) {
         hdfsDisconnect(fileSystem);
         frontend_logger.info("Disconnected from HDFS server");

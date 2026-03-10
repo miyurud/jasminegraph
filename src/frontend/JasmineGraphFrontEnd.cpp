@@ -1786,12 +1786,25 @@ static void send_graph_hdfs_command(std::string masterIP, int connFd, SQLiteDBIn
         workerMap[w.workerID] = w;
     }
 
-    // Collect graph edge data from each worker
-    std::stringstream graphData;
+    // Connect to HDFS and open file for streaming writes
+    auto hdfsConnector = std::make_unique<HDFSConnector>(hdfsServerIp, hdfsPort);
+    if (!hdfsConnector->openFileForWrite(hdfsOutputPath)) {
+        frontend_logger.error("Failed to open HDFS file for writing: " + hdfsOutputPath);
+        std::string errorMsg = "Failed to open HDFS file for writing";
+        write(connFd, errorMsg.c_str(), errorMsg.length());
+        write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
+        *loop_exit_p = true;
+        return;
+    }
+
+    // Stream graph edge data from each worker directly to HDFS
+    static constexpr size_t RECV_BUFFER_SIZE = 65536;  // 64 KB receive buffer
     int totalPartitions = 0;
     int processedPartitions = 0;
+    bool writeError = false;
 
     for (const auto &wp : workerPartitionMap) {
+        if (writeError) break;
         const std::string &workerID = wp.first;
         const std::vector<std::string> &partitions = wp.second;
         totalPartitions += static_cast<int>(partitions.size());
@@ -1806,6 +1819,7 @@ static void send_graph_hdfs_command(std::string masterIP, int connFd, SQLiteDBIn
         int workerPort = std::stoi(currentWorker.port);
 
         for (const std::string &partitionId : partitions) {
+            if (writeError) break;
             int sockfd = socket(AF_INET, SOCK_STREAM, 0);
             if (sockfd < 0) {
                 frontend_logger.error("Cannot create socket for worker " + workerID);
@@ -1870,21 +1884,28 @@ static void send_graph_hdfs_command(std::string masterIP, int connFd, SQLiteDBIn
 
             Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::OK);
 
-            // Receive edge data
+            // Receive edge data and stream directly to HDFS
             if (dataSize > 0) {
-                std::string edgeData;
-                edgeData.resize(dataSize);
+                char recvBuffer[RECV_BUFFER_SIZE];
                 long totalReceived = 0;
+                bool partitionOk = true;
                 while (totalReceived < dataSize) {
-                    ssize_t received = recv(sockfd, &edgeData[totalReceived], dataSize - totalReceived, 0);
+                    size_t toRecv = std::min(static_cast<size_t>(dataSize - totalReceived), RECV_BUFFER_SIZE);
+                    ssize_t received = recv(sockfd, recvBuffer, toRecv, 0);
                     if (received <= 0) {
                         frontend_logger.error("Error receiving edge data from worker " + workerID);
+                        partitionOk = false;
+                        break;
+                    }
+                    if (!hdfsConnector->appendData(recvBuffer, static_cast<size_t>(received))) {
+                        frontend_logger.error("Error writing partition data to HDFS");
+                        partitionOk = false;
+                        writeError = true;
                         break;
                     }
                     totalReceived += received;
                 }
-                if (totalReceived == dataSize) {
-                    graphData << edgeData;
+                if (partitionOk) {
                     ++processedPartitions;
                 }
             } else {
@@ -1900,24 +1921,19 @@ static void send_graph_hdfs_command(std::string masterIP, int connFd, SQLiteDBIn
     frontend_logger.info("Processed " + std::to_string(processedPartitions) + " out of " +
                          std::to_string(totalPartitions) + " partitions");
 
-    std::string graphDataStr = graphData.str();
-
-    // Connect to HDFS and write graph data
-    auto hdfsConnector = std::make_unique<HDFSConnector>(hdfsServerIp, hdfsPort);
-
-    if (graphDataStr.empty()) {
+    if (processedPartitions == 0) {
         frontend_logger.error("No graph data collected for graph ID: " + graphId);
+        hdfsConnector->closeWriteFile();
         std::string errorMsg = "Failed to collect graph data";
         write(connFd, errorMsg.c_str(), errorMsg.length());
         write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
-        // hdfsConnector will be automatically cleaned up when it goes out of scope
         *loop_exit_p = true;
         return;
     }
 
-    bool writeSuccess = hdfsConnector->writeGraphToHDFS(hdfsOutputPath, graphDataStr);
+    bool closeSuccess = hdfsConnector->closeWriteFile();
 
-    if (writeSuccess) {
+    if (closeSuccess && !writeError) {
         frontend_logger.info("Successfully saved graph to HDFS: " + hdfsOutputPath);
         write(connFd, DONE.c_str(), DONE.length());
         write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
