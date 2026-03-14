@@ -20,6 +20,7 @@ limitations under the License.
 #include <algorithm>
 #include <cctype>
 #include <cmath>
+#include <functional>
 #include <string>
 #include <thread>
 
@@ -138,7 +139,9 @@ static void degree_distribution_common(int connFd, int serverPort,
                                        bool *loop_exit_p, bool in);
 static void push_partition_command(int connFd, bool *loop_exit_p);
 static void push_file_command(int connFd, bool *loop_exit_p);
-static std::string collect_partition_edge_data(const std::string& graphID, const std::string& partitionID);
+static bool stream_partition_edge_data(const std::string &graphID, const std::string &partitionID,
+                                       const std::function<bool(const std::string &)> &chunkConsumer,
+                                       size_t *totalBytes);
 static void send_edges_command(int connFd, bool *loop_exit_p);
 static void send_edges_to_hdfs_command(int connFd, bool *loop_exit_p);
 static void query_start_command(int connFd, InstanceHandler &instanceHandler, std::map<std::string,
@@ -5401,8 +5404,14 @@ static void send_edges_command(int connFd, bool *loop_exit_p) {
     string partitionID = Utils::read_str_trim_wrapper(connFd, data, INSTANCE_DATA_LENGTH);
     instance_logger.info("Received Partition ID: " + partitionID);
 
-    std::string edgeData = collect_partition_edge_data(graphID, partitionID);
-    std::string sizeStr = std::to_string(edgeData.size());
+    size_t edgeDataSize = 0;
+    if (!stream_partition_edge_data(graphID, partitionID, [](const std::string &) { return true; }, &edgeDataSize)) {
+        instance_logger.error("Failed to scan edge data for graph " + graphID + " partition " + partitionID);
+        *loop_exit_p = true;
+        return;
+    }
+
+    std::string sizeStr = std::to_string(edgeDataSize);
     instance_logger.info("Sending " + sizeStr + " bytes of edge data for partition " + partitionID);
 
     if (!Utils::send_str_wrapper(connFd, sizeStr)) {
@@ -5417,19 +5426,29 @@ static void send_edges_command(int connFd, bool *loop_exit_p) {
         return;
     }
 
-    if (!edgeData.empty()) {
-        ssize_t totalSent = 0;
-        ssize_t remaining = edgeData.size();
-        const char *ptr = edgeData.c_str();
-        while (remaining > 0) {
-            ssize_t sent = write(connFd, ptr + totalSent, remaining);
-            if (sent < 0) {
-                instance_logger.error("Error sending edge data");
-                *loop_exit_p = true;
-                return;
-            }
-            totalSent += sent;
-            remaining -= sent;
+    if (edgeDataSize > 0) {
+        bool streamed = stream_partition_edge_data(
+            graphID, partitionID,
+            [connFd](const std::string &chunk) {
+                ssize_t totalSent = 0;
+                ssize_t remaining = static_cast<ssize_t>(chunk.size());
+                const char *ptr = chunk.c_str();
+                while (remaining > 0) {
+                    ssize_t sent = write(connFd, ptr + totalSent, remaining);
+                    if (sent < 0) {
+                        return false;
+                    }
+                    totalSent += sent;
+                    remaining -= sent;
+                }
+                return true;
+            },
+            nullptr);
+
+        if (!streamed) {
+            instance_logger.error("Error streaming edge data");
+            *loop_exit_p = true;
+            return;
         }
     }
 
@@ -5440,17 +5459,56 @@ static void send_edges_command(int connFd, bool *loop_exit_p) {
     instance_logger.info("Finished sending edges for graph " + graphID + " partition " + partitionID);
 }
 
-static std::string collect_partition_edge_data(const std::string& graphID, const std::string& partitionID) {
+static bool stream_partition_edge_data(const std::string &graphID, const std::string &partitionID,
+                                       const std::function<bool(const std::string &)> &chunkConsumer,
+                                       size_t *totalBytes) {
+    const size_t EDGE_STREAM_BUFFER_SIZE = 1024 * 1024;
     std::string dataFolder = Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder");
-    std::stringstream edgeStream;
+    std::string buffer;
+    buffer.reserve(EDGE_STREAM_BUFFER_SIZE);
+
+    if (totalBytes != nullptr) {
+        *totalBytes = 0;
+    }
+
+    auto flushBuffer = [&]() -> bool {
+        if (buffer.empty()) {
+            return true;
+        }
+
+        if (totalBytes != nullptr) {
+            *totalBytes += buffer.size();
+        }
+
+        if (!chunkConsumer(buffer)) {
+            return false;
+        }
+
+        buffer.clear();
+        return true;
+    };
+
+    auto appendEdge = [&](long src, long dst) -> bool {
+        buffer += std::to_string(src);
+        buffer.push_back(' ');
+        buffer += std::to_string(dst);
+        buffer.push_back('\n');
+
+        if (buffer.size() >= EDGE_STREAM_BUFFER_SIZE) {
+            return flushBuffer();
+        }
+        return true;
+    };
 
     std::string partitionFile = dataFolder + "/" + graphID + "_" + partitionID;
     if (Utils::fileExists(partitionFile)) {
         JasmineGraphHashMapLocalStore localStore;
         std::map<int, std::vector<int>> partEdgeMap = localStore.getEdgeHashMap(partitionFile);
-        for (const auto& entry : partEdgeMap) {
+        for (const auto &entry : partEdgeMap) {
             for (int dest : entry.second) {
-                edgeStream << entry.first << " " << dest << "\n";
+                if (!appendEdge(entry.first, dest)) {
+                    return false;
+                }
             }
         }
     }
@@ -5459,16 +5517,18 @@ static std::string collect_partition_edge_data(const std::string& graphID, const
     if (Utils::fileExists(centralFile)) {
         JasmineGraphHashMapCentralStore centralStore(stoi(graphID), stoi(partitionID));
         if (centralStore.loadGraph(centralFile)) {
-            const auto& centralMap = centralStore.getUnderlyingHashMap();
-            for (const auto& entry : centralMap) {
+            const auto &centralMap = centralStore.getUnderlyingHashMap();
+            for (const auto &entry : centralMap) {
                 for (long dest : entry.second) {
-                    edgeStream << entry.first << " " << dest << "\n";
+                    if (!appendEdge(entry.first, dest)) {
+                        return false;
+                    }
                 }
             }
         }
     }
 
-    return edgeStream.str();
+    return flushBuffer();
 }
 
 static void send_edges_to_hdfs_command(int connFd, bool *loop_exit_p) {
@@ -5507,7 +5567,6 @@ static void send_edges_to_hdfs_command(int connFd, bool *loop_exit_p) {
     }
 
     std::string hdfsPath = Utils::read_str_trim_wrapper(connFd, data, INSTANCE_LONG_DATA_LENGTH);
-    std::string edgeData = collect_partition_edge_data(graphID, partitionID);
 
     HDFSConnector hdfsConnector(hdfsHost, hdfsPort);
     bool ok = true;
@@ -5519,8 +5578,13 @@ static void send_edges_to_hdfs_command(int connFd, bool *loop_exit_p) {
     if (ok) {
         ok = hdfsConnector.openFileForWrite(hdfsPath);
     }
-    if (ok && !edgeData.empty()) {
-        ok = hdfsConnector.appendData(edgeData.c_str(), edgeData.size());
+    if (ok) {
+        ok = stream_partition_edge_data(
+            graphID, partitionID,
+            [&hdfsConnector](const std::string &chunk) {
+                return hdfsConnector.appendData(chunk.c_str(), chunk.size());
+            },
+            nullptr);
     }
     if (ok) {
         ok = hdfsConnector.closeWriteFile();

@@ -105,12 +105,12 @@ wait_for_hadoop() {
     LOCAL_FILE_PATH="${LOCAL_DIRECTORY}${FILE_NAME}"
     HDFS_DIRECTORY="/home/"
 
-    # cp the hdfs config file to the jasminegraph container
+    # cp the hdfs config file to the JasmineGraph container
     docker cp "${HDFS_CONF_FILE}" integration-jasminegraph-1:/var/tmp/config/hdfs_config.txt
 
     docker exec -i integration-jasminegraph-1 cat /var/tmp/config/hdfs_config.txt
 
-    # Ensure local directory exists and copy powergrid.dl from the jasminegraph container
+    # Ensure local directory exists and copy powergrid.dl from the JasmineGraph container
     mkdir -p "${LOCAL_DIRECTORY}"
 
     # Copy the file from integration-jasminegraph-1 to the current container
