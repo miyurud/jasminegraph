@@ -128,3 +128,4 @@ const string JasmineGraphInstanceProtocol::HDFS_STREAM_FILE_SIZE_ACK = "hdfs-fil
 const string JasmineGraphInstanceProtocol::HDFS_FILE_CHUNK_END_CHK = "hdfs-file-chunk-end-chk";
 const string JasmineGraphInstanceProtocol::HDFS_FILE_CHUNK_END_ACK = "hdfs-file-chunk-end-ack";
 const string JasmineGraphInstanceProtocol::SEND_EDGES = "send-edges";
+const string JasmineGraphInstanceProtocol::SEND_EDGES_TO_HDFS = "send-edges-to-hdfs";

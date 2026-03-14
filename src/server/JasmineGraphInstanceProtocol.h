@@ -146,6 +146,7 @@ class JasmineGraphInstanceProtocol {
     static const string EXPAND_NODE_BATCH;
     static const string HDFS_STREAM_IS_EMBED_ACK;
     static const string SEND_EDGES;
+    static const string SEND_EDGES_TO_HDFS;
 };
 
 const int INSTANCE_DATA_LENGTH = 300;

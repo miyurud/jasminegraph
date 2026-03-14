@@ -38,6 +38,25 @@ bool HDFSConnector::isPathValid(const std::string &hdfsPath) {
     }
 }
 
+bool HDFSConnector::createDirectory(const std::string &hdfsPath) {
+    if (!fileSystem) {
+        frontend_logger.error("HDFS connection is not established");
+        return false;
+    }
+
+    if (hdfsExists(fileSystem, hdfsPath.c_str()) == 0) {
+        return true;
+    }
+
+    if (hdfsCreateDirectory(fileSystem, hdfsPath.c_str()) != 0) {
+        frontend_logger.error("Failed to create HDFS directory: " + hdfsPath);
+        return false;
+    }
+
+    frontend_logger.info("Created HDFS directory: " + hdfsPath);
+    return true;
+}
+
 bool HDFSConnector::writeGraphToHDFS(const std::string &hdfsPath, const std::string &graphData) {
     if (!fileSystem) {
         frontend_logger.error("HDFS connection is not established");
@@ -70,6 +89,73 @@ bool HDFSConnector::writeGraphToHDFS(const std::string &hdfsPath, const std::str
 
     frontend_logger.info("Successfully wrote graph data to HDFS: " + hdfsPath);
     return true;
+}
+
+bool HDFSConnector::concatenateFiles(const std::vector<std::string> &sourcePaths, const std::string &destinationPath) {
+    if (!fileSystem) {
+        frontend_logger.error("HDFS connection is not established");
+        return false;
+    }
+
+    if (sourcePaths.empty()) {
+        frontend_logger.error("No HDFS source files provided for concatenation");
+        return false;
+    }
+
+    if (!openFileForWrite(destinationPath)) {
+        return false;
+    }
+
+    bool success = true;
+    std::vector<char> buffer(64 * 1024);
+
+    for (const auto &sourcePath : sourcePaths) {
+        hdfsFile sourceFile = hdfsOpenFile(fileSystem, sourcePath.c_str(), O_RDONLY, 0, 0, 0);
+        if (!sourceFile) {
+            frontend_logger.error("Failed to open HDFS source file for reading: " + sourcePath);
+            success = false;
+            break;
+        }
+
+        while (true) {
+            tSize bytesRead = hdfsRead(fileSystem, sourceFile, buffer.data(), static_cast<tSize>(buffer.size()));
+            if (bytesRead < 0) {
+                frontend_logger.error("Failed to read HDFS source file: " + sourcePath);
+                success = false;
+                break;
+            }
+            if (bytesRead == 0) {
+                break;
+            }
+
+            if (!appendData(buffer.data(), static_cast<size_t>(bytesRead))) {
+                frontend_logger.error("Failed to append merged data from HDFS source file: " + sourcePath);
+                success = false;
+                break;
+            }
+        }
+
+        if (hdfsCloseFile(fileSystem, sourceFile) != 0) {
+            frontend_logger.error("Failed to close HDFS source file: " + sourcePath);
+            success = false;
+        }
+
+        if (!success) {
+            break;
+        }
+    }
+
+    bool closeSuccess = closeWriteFile();
+    if (!closeSuccess) {
+        success = false;
+    }
+
+    if (success) {
+        frontend_logger.info("Successfully concatenated " + std::to_string(sourcePaths.size()) +
+                             " HDFS files into " + destinationPath);
+    }
+
+    return success;
 }
 
 bool HDFSConnector::openFileForWrite(const std::string &hdfsPath) {
