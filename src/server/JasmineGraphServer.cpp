@@ -442,16 +442,16 @@ void JasmineGraphServer::startRemoteWorkers(std::vector<int> workerPortsVector, 
             } else {
                 chmod(worker_logdir.c_str(), 0777);
             }
-                std::string snapshotDataFolder = Utils::getJasmineGraphHome() + "/env/data";
+            std::string snapshotDataFolder = Utils::getJasmineGraphHome() + "/env/data";
 
-            // Read Docker network name from properties; default to "jasminenet"
+            // Use an explicit docker network only when configured.
             std::string dockerNetwork = Utils::getJasmineGraphProperty(
                 "org.jasminegraph.docker.network");
-            if (dockerNetwork.empty()) dockerNetwork = "jasminenet";
+            std::string dockerNetworkArg = dockerNetwork.empty() ? "" : " --network " + dockerNetwork;
 
             if (masterHost == host || host == "localhost") {
                 if (is_testing) {
-                    serverStartScript = "docker run --network " + dockerNetwork +
+                    serverStartScript = "docker run" + dockerNetworkArg +
                                         " -p " + std::to_string(workerPortsVector.at(i)) + ":" +
                                         std::to_string(workerPortsVector.at(i)) + " -p " +
                                         std::to_string(workerDataPortsVector.at(i)) + ":" +
@@ -463,7 +463,7 @@ void JasmineGraphServer::startRemoteWorkers(std::vector<int> workerPortsVector, 
                                         " --ENABLE_NMON " + enableNmon + " >" + worker_logdir + "/worker.log 2>&1";
                 } else {
                     serverStartScript =
-                        "docker run --network " + dockerNetwork +
+                        "docker run" + dockerNetworkArg +
                         " -v " + instanceDataFolder + ":" + instanceDataFolder + " -v " +
                         aggregateDataFolder + ":" + aggregateDataFolder + " -v " + nmonFileLocation + ":" +
                         nmonFileLocation + " -v " + instanceDataFolder + "/" + to_string(i) + "/logs" + ":" +
@@ -479,7 +479,7 @@ void JasmineGraphServer::startRemoteWorkers(std::vector<int> workerPortsVector, 
             } else {
                 if (is_testing) {
                     serverStartScript =
-                        "docker -H ssh://" + host + " run --network " + dockerNetwork +
+                        "docker -H ssh://" + host + " run" + dockerNetworkArg +
                         " -p " + std::to_string(workerPortsVector.at(i)) + ":" +
                         std::to_string(workerPortsVector.at(i)) + " -p " + std::to_string(workerDataPortsVector.at(i)) +
                         ":" + std::to_string(workerDataPortsVector.at(i)) + " -e WORKER_ID=" + to_string(i) +
@@ -489,7 +489,7 @@ void JasmineGraphServer::startRemoteWorkers(std::vector<int> workerPortsVector, 
                         worker_logdir + "/worker.log 2>&1";
                 } else {
                     serverStartScript =
-                        "docker -H ssh://" + host + " run --network " + dockerNetwork +
+                        "docker -H ssh://" + host + " run" + dockerNetworkArg +
                         " -v " + instanceDataFolder + ":" + instanceDataFolder +
                         " -v " + aggregateDataFolder + ":" + aggregateDataFolder +
                             " -v /var/tmp:/var/tmp/hdfs/filechunks" " -v " + nmonFileLocation + ":" +
