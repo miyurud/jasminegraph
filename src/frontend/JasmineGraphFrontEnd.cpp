@@ -1890,8 +1890,14 @@ static void send_graph_hdfs_command(std::string masterIP, int connFd, SQLiteDBIn
                     break;
                 }
 
-                struct hostent *server = gethostbyname(host.c_str());
-                if (server == NULL) {
+                struct hostent hostEntry;
+                struct hostent *server = NULL;
+                int hostErrno = 0;
+                char hostBuffer[8192];
+                int hostLookupResult =
+                    gethostbyname_r(host.c_str(), &hostEntry, hostBuffer, sizeof(hostBuffer), &server, &hostErrno);
+
+                if (hostLookupResult != 0 || server == NULL) {
                     frontend_logger.error("No host named " + host);
                     close(sockfd);
                     std::lock_guard<std::mutex> lock(exportResultMutex);
@@ -2448,7 +2454,7 @@ bool JasmineGraphFrontEnd::constructKGStreamHDFSCommand(std::string masterIP, in
             curl_easy_cleanup(curl);
 
             if (res != CURLE_OK) {
-                frontend_logger.error("Fail4 to reach " + llmInferenceEngineS + " server at " + llmServer);
+                frontend_logger.error("Failed to reach " + llmInferenceEngineS + " server at " + llmServer);
                 std::string msg = "Could not connect to " + llmInferenceEngineS + " server.";
                 write(connFd, msg.c_str(), msg.length());
                 write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
@@ -2610,7 +2616,8 @@ bool JasmineGraphFrontEnd::constructKGStreamHDFSCommand(std::string masterIP, in
         }
 
         std::time_t endTime = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
-        std::string uploadEndTime = ctime(&endTime);
+        char uploadEndTimeBuffer[26];
+        std::string uploadEndTime = ctime_r(&endTime, uploadEndTimeBuffer);
 
         std::string sqlStatementUpdateEndTime = "UPDATE graph SET upload_end_time = \"" + uploadEndTime +
                                                 "\" WHERE idgraph = " + std::to_string(newGraphID);
@@ -3926,7 +3933,7 @@ void JasmineGraphFrontEnd::stop_graph_streaming(int connFd, bool *loop_exit_p) {
         }
         if (*(it->second)) {
             frontend_logger.error("Timeout: The stop flag was not reverted in time");
-            std::string message3 = "Fail5 to stop the process";
+            std::string message3 = "Failed to stop the process";
             int resultWr = write(connFd, message3.c_str(), message3.length());
         }
         int result_wr = write(connFd, DONE.c_str(), FRONTEND_COMMAND_LENGTH);
