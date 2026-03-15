@@ -70,6 +70,7 @@ set(HEADERS globals.h
         src/util/kafka/KafkaCC.h
         src/util/kafka/StreamHandler.h
         src/util/kafka/InstanceStreamHandler.h
+        src/util/kafka/WorkerKafkaConsumer.h
         src/util/logger/Logger.h
         src/util/scheduler/Cron.h
         src/util/scheduler/InterruptableSleep.h
@@ -150,6 +151,8 @@ set(SOURCES src/backend/JasmineGraphBackend.cpp
         src/query/algorithms/linkprediction/JasminGraphLinkPredictor.cpp
         src/query/algorithms/triangles/Triangles.cpp
         src/query/algorithms/triangles/StreamingTriangles.cpp
+        src/query/algorithms/triangles/HistoryTriangles.cpp
+        src/query/algorithms/pagerank/HistoryPageRank.cpp
         src/query/processor/cypher/astbuilder/ASTBuilder.cpp
         src/query/processor/cypher/astbuilder/ASTInternalNode.cpp
         src/query/processor/cypher/astbuilder/ASTLeafNoValue.cpp
@@ -169,6 +172,7 @@ set(SOURCES src/backend/JasmineGraphBackend.cpp
         src/util/kafka/KafkaCC.cpp
         src/util/kafka/StreamHandler.cpp
         src/util/kafka/InstanceStreamHandler.cpp
+        src/util/kafka/WorkerKafkaConsumer.cpp
         src/util/logger/Logger.cpp
         src/util/scheduler/SchedulerService.cpp
         src/util/telemetry/OpenTelemetryUtil.cpp
@@ -299,6 +303,10 @@ else ()
 endif ()
 
 #TODO: Need to install the library separately
+# Link CRoaring library for bitmap operations
+find_library(ROARING_LIB roaring REQUIRED)
+target_link_libraries(JasmineGraphLib PRIVATE ${ROARING_LIB})
+
 target_link_libraries(JasmineGraphLib PRIVATE sqlite3)
 target_link_libraries(JasmineGraphLib PRIVATE pthread)
 target_link_libraries(JasmineGraphLib PRIVATE rdkafka)

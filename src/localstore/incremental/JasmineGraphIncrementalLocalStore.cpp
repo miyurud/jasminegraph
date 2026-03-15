@@ -90,7 +90,23 @@ std::pair<std::string, unsigned int> JasmineGraphIncrementalLocalStore::getIDs(
 void JasmineGraphIncrementalLocalStore::addEdgeFromString(
     std::string edgeString) {
   try {
-    auto edgeJson = json::parse(edgeString);
+    addEdgeFromJson(json::parse(edgeString));
+  } catch (const json::parse_error &ex) {
+    incremental_localstore_logger.error(
+        "JSON parse error while processing edge string: " + edgeString +
+        " | Error: " + std::string(ex.what()));
+  } catch (const std::exception &ex) {
+    incremental_localstore_logger.error(
+        "Unhandled exception while processing edge data: " + edgeString +
+        " | Error: " + std::string(ex.what()));
+  } catch (...) {
+    incremental_localstore_logger.error(
+        "Unknown fatal error while processing: " + edgeString);
+  }
+}
+
+void JasmineGraphIncrementalLocalStore::addEdgeFromJson(const json& edgeJson) {
+  try {
     if (edgeJson.contains("isNode")) {
       std::string nodeId = edgeJson["id"];
       NodeBlock* newNode = this->nm->addNode(nodeId);
@@ -118,10 +134,7 @@ void JasmineGraphIncrementalLocalStore::addEdgeFromString(
     std::string sId = std::string(sourceJson["id"]);
     std::string dId = std::string(destinationJson["id"]);
 
-    bool isLocal = false;
-    if (edgeJson["EdgeType"] == "Local") {
-      isLocal = true;
-    }
+    bool isLocal = (edgeJson["EdgeType"] == "Local");
 
     RelationBlock* newRelation;
     if (isLocal) {
@@ -143,34 +156,17 @@ void JasmineGraphIncrementalLocalStore::addEdgeFromString(
     addDestinationProperties(newRelation, destinationJson);
     incremental_localstore_logger.debug("Edge (" + sId + ", " + dId +
                                         ") Added successfully!");
-  } catch (const json::parse_error &ex) {
-    // JSON syntax errors
+  } catch (const json::type_error &ex) {
     incremental_localstore_logger.error(
-        "JSON parse error while processing edge string: " + edgeString +
-        " | Error: " + std::string(ex.what()));
-  }
-  catch (const json::type_error &ex) {
-    // Wrong JSON types (e.g., expecting string but got int)
+        "JSON type error in addEdgeFromJson: " + std::string(ex.what()));
+  } catch (const json::out_of_range &ex) {
     incremental_localstore_logger.error(
-        "JSON type error: Invalid JSON attribute types in: " + edgeString +
-        " | Error: " + std::string(ex.what()));
-  }
-  catch (const json::out_of_range &ex) {
-    // Missing fields like "source" or "destination"
+        "JSON out-of-range in addEdgeFromJson: " + std::string(ex.what()));
+  } catch (const std::exception &ex) {
     incremental_localstore_logger.error(
-        "JSON out-of-range error: Missing required keys in: " + edgeString +
-        " | Error: " + std::string(ex.what()));
-  }
-  catch (const std::exception &ex) {
-    // All other standard errors (filesystem errors, memory issues, etc.)
-    incremental_localstore_logger.error(
-        "Unhandled exception while processing edge data: " + edgeString +
-        " | Error: " + std::string(ex.what()));
-  }
-  catch (...) {
-    // Non-standard exceptions
-    incremental_localstore_logger.error(
-        "Unknown fatal error while processing: " + edgeString);
+        "Exception in addEdgeFromJson: " + std::string(ex.what()));
+  } catch (...) {
+    incremental_localstore_logger.error("Unknown error in addEdgeFromJson");
   }
 }
 

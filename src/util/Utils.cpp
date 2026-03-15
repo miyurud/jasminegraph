@@ -606,6 +606,9 @@ int Utils::connect_wrapper(int sock, const sockaddr *addr, socklen_t slen) {
             if (setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, (char *)&tv, sizeof(tv)) == -1) {
                 util_logger.error("Failed to set receive timeout option for socket after successful connection");
             }
+            if (setsockopt(sock, SOL_SOCKET, SO_SNDTIMEO, (char *)&tv, sizeof(tv)) == -1) {
+                util_logger.error("Failed to set send timeout option for socket after successful connection");
+            }
             return 0;
         }
     } while (retry++ < 4);

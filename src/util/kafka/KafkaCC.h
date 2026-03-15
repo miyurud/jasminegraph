@@ -11,6 +11,7 @@ class KafkaConnector {
     KafkaConnector(cppkafka::Configuration configs) : consumer(configs) { _configs = configs; };
     void Subscribe(std::string topic);
     void Unsubscribe();
+    const cppkafka::Configuration& getConfig() const { return _configs; }
 
  private:
     cppkafka::Configuration _configs;

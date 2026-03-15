@@ -4,6 +4,18 @@ RUN apt-get update && apt-get install -y libcurl4-openssl-dev sysstat nmon pytho
 RUN rm -r /usr/lib/python3.8/distutils
 RUN apt-get purge -y libpython3.8-dev python3.8-dev python3.8-distutils libpython3.8 python3.8
 
+# Install CRoaring (Roaring Bitmap library)
+RUN apt-get update && apt-get install -y git cmake build-essential \
+    && cd /tmp \
+    && git clone --depth 1 https://github.com/RoaringBitmap/CRoaring.git \
+    && cd CRoaring \
+    && mkdir build && cd build \
+    && cmake -DENABLE_ROARING_TESTS=OFF .. \
+    && make -j$(nproc) \
+    && make install \
+    && ldconfig \
+    && cd / && rm -rf /tmp/CRoaring
+
 ENV HOME="/home/ubuntu"
 ENV JASMINEGRAPH_HOME="${HOME}/software/jasminegraph"
 

@@ -22,6 +22,10 @@ using json = nlohmann::json;
 #ifndef Incremental_LocalStore
 #define Incremental_LocalStore
 
+// Forward declarations for temporal storage
+class TemporalStore;
+class DataAggregator;
+
 struct EmbeddingRequest {
     std::string nodeId;
     std::string nodeText;
@@ -37,7 +41,13 @@ class JasmineGraphIncrementalLocalStore {
     // batch texts to embed
 
     bool embedNode;
+    
+    // Temporal storage support (NEW)
+    TemporalStore* temporalStore;       // Pointer to temporal store
+    DataAggregator* dataAggregator;     // Pointer to data aggregator
+    bool temporalEnabled;               // Flag to enable/disable temporal storage
     void addEdgeFromString(std::string edgeString);
+    void addEdgeFromJson(const json& edgeJson);
     static std::pair<std::string, unsigned int> getIDs(std::string edgeString);
     JasmineGraphIncrementalLocalStore(unsigned int graphID = 0, unsigned int partitionID = 0,
                                       std::string openMode = "trunk", bool embedNode = false);
@@ -50,6 +60,18 @@ class JasmineGraphIncrementalLocalStore {
     void addCentralEdgeProperties(RelationBlock* relationBlock, const json& edgeJson);
     void addSourceProperties(RelationBlock* relationBlock, const json& sourceJson);
     void addDestinationProperties(RelationBlock* relationBlock, const json& destinationJson);
+    
+    // NEW: Temporal storage methods
+    void enableTemporalStorage(TemporalStore* store, DataAggregator* aggregator);
+    void disableTemporalStorage();
+    void recordEdgeAddition(const std::string& source, const std::string& dest);
+    void recordEdgeDeletion(const std::string& source, const std::string& dest);
+    void recordPropertyUpdate(const std::string& nodeOrEdgeId, 
+                             const std::string& key, 
+                             const std::string& value,
+                             bool isNodeProperty);
+    void flushTemporalUpdates();
+    bool isTemporalEnabled() const { return temporalEnabled; }
 };
 
 #endif
