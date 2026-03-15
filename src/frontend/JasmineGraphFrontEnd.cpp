@@ -21,8 +21,11 @@ limitations under the License.
 #include <chrono>
 #include <ctime>
 #include <fstream>
+#include <memory>
+#include <stdexcept>
 #include <iostream>
 #include <map>
+#include <mutex>
 #include <nlohmann/json.hpp>
 #include <set>
 #include <thread>
@@ -103,6 +106,7 @@ static void add_stream_kafka_command(int connFd, std::string &kafka_server_IP, c
 static void addStreamHDFSCommand(std::string masterIP, int connFd, std::string &hdfsServerIp,
                                  std::thread &inputStreamHandlerThread, int numberOfPartitions,
                                  SQLiteDBInterface *sqlite, bool *loop_exit_p);
+static void send_graph_hdfs_command(std::string masterIP, int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_p);
 static void stop_stream_kafka_command(int connFd, KafkaConnector *kstream, bool *loop_exit_p);
 static void process_dataset_command(int connFd, bool *loop_exit_p);
 static void triangles_command(std::string masterIP, int connFd, SQLiteDBInterface *sqlite,
@@ -231,6 +235,8 @@ void *frontendservicesesion(void *dummyPt) {
         } else if (line.compare(ADD_STREAM_HDFS) == 0) {
             addStreamHDFSCommand(masterIP, connFd, hdfsServerIp, input_stream_handler, numberOfPartitions, sqlite,
                                  &loop_exit);
+        } else if (line.compare(SEND_GRAPH_HDFS) == 0) {
+            send_graph_hdfs_command(masterIP, connFd, sqlite, &loop_exit);
         } else if (line.compare(CONSTRUCT_KG) == 0) {
             JasmineGraphFrontEnd::constructKGStreamHDFSCommand(masterIP, connFd, numberOfPartitions, sqlite,
                                                                &loop_exit);
@@ -1595,6 +1601,429 @@ static void add_stream_kafka_command(int connFd, std::string &kafka_server_IP, c
     input_stream_handler_thread = thread(&StreamHandler::listen_to_kafka_topic, stream_handler);
 }
 
+static void send_graph_hdfs_command(std::string masterIP, int connFd, SQLiteDBInterface *sqlite,
+        bool *loop_exit_p) {
+    frontend_logger.info("Save graph to HDFS command received");
+
+    // Ask for graph ID
+    std::string graphIdMsg = "Graph ID:";
+    int resultWr = write(connFd, graphIdMsg.c_str(), graphIdMsg.length());
+    if (resultWr < 0) {
+        frontend_logger.error("Error writing to socket");
+        *loop_exit_p = true;
+        return;
+    }
+    resultWr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
+    if (resultWr < 0) {
+        frontend_logger.error("Error writing to socket");
+        *loop_exit_p = true;
+        return;
+    }
+
+    std::string graphIdBuf;
+    graphIdBuf.resize(FRONTEND_DATA_LENGTH);
+    int graphBytesRead = read(connFd, &graphIdBuf[0], FRONTEND_DATA_LENGTH);
+    if (graphBytesRead > 0) {
+        graphIdBuf.resize(static_cast<size_t>(graphBytesRead));
+    } else {
+        graphIdBuf.clear();
+    }
+    std::string graphId = Utils::trim_copy(graphIdBuf);
+    frontend_logger.info("Graph ID received: " + graphId);
+
+    // Verify graph exists
+    std::string graphQuery = "SELECT idgraph, name FROM graph WHERE idgraph = '" + graphId + "'";
+    std::vector<std::vector<std::pair<std::string, std::string>>> graphResults = sqlite->runSelect(graphQuery);
+
+    if (graphResults.empty()) {
+        frontend_logger.error("Graph not found: " + graphId);
+        std::string errorMsg = "Graph not found";
+        write(connFd, errorMsg.c_str(), errorMsg.length());
+        write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
+        *loop_exit_p = true;
+        return;
+    }
+
+    // Ask for HDFS server configuration
+    std::string hdfsServerIp;
+    std::string hdfsPort;
+    std::string hdfsMsg = "Do you want to use the default HDFS server(y/n)?";
+    resultWr = write(connFd, hdfsMsg.c_str(), hdfsMsg.length());
+    if (resultWr < 0) {
+        frontend_logger.error("Error writing to socket");
+        *loop_exit_p = true;
+        return;
+    }
+    resultWr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
+    if (resultWr < 0) {
+        frontend_logger.error("Error writing to socket");
+        *loop_exit_p = true;
+        return;
+    }
+
+    std::string userResBuf;
+    userResBuf.resize(FRONTEND_DATA_LENGTH);
+    int userBytesRead = read(connFd, &userResBuf[0], FRONTEND_DATA_LENGTH);
+    if (userBytesRead > 0) {
+        userResBuf.resize(static_cast<size_t>(userBytesRead));
+    } else {
+        userResBuf.clear();
+    }
+    std::string userRes = Utils::trim_copy(userResBuf);
+    std::transform(userRes.begin(), userRes.end(), userRes.begin(), ::tolower);
+
+    if (userRes == "y") {
+        hdfsServerIp = Utils::getJasmineGraphProperty("org.jasminegraph.server.streaming.hdfs.host");
+        hdfsPort = Utils::getJasmineGraphProperty("org.jasminegraph.server.streaming.hdfs.port");
+    } else {
+        std::string configMsg =
+            "Send the file path to the HDFS configuration file."
+            " This file needs to be in some directory location"
+            " that is accessible for JasmineGraph master";
+        resultWr = write(connFd, configMsg.c_str(), configMsg.length());
+        if (resultWr < 0) {
+            frontend_logger.error("Error writing to socket");
+            *loop_exit_p = true;
+            return;
+        }
+        resultWr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
+        if (resultWr < 0) {
+            frontend_logger.error("Error writing to socket");
+            *loop_exit_p = true;
+            return;
+        }
+
+        std::string filePathBuf;
+        filePathBuf.resize(FRONTEND_DATA_LENGTH);
+        int filePathBytesRead = read(connFd, &filePathBuf[0], FRONTEND_DATA_LENGTH);
+        if (filePathBytesRead > 0) {
+            filePathBuf.resize(static_cast<size_t>(filePathBytesRead));
+        } else {
+            filePathBuf.clear();
+        }
+        std::string filePathS = Utils::trim_copy(filePathBuf);
+        frontend_logger.info("Reading HDFS configuration file: " + filePathS);
+
+        std::vector<std::string> vec = Utils::getFileContent(filePathS);
+        for (const auto &item : vec) {
+            if (item.length() > 0 && !(item.rfind("#", 0) == 0)) {
+                std::vector<std::string> vec2 = Utils::split(item, '=');
+                if (vec2.size() == 2) {
+                    if (vec2.at(0).compare("hdfs.host") == 0) {
+                        hdfsServerIp = vec2.at(1);
+                    } else if (vec2.at(0).compare("hdfs.port") == 0) {
+                        hdfsPort = vec2.at(1);
+                    }
+                } else {
+                    frontend_logger.error("Invalid line in configuration file: " + item);
+                }
+            }
+        }
+
+        if (hdfsServerIp.empty()) {
+            frontend_logger.error("HDFS server IP is empty.");
+        }
+        if (hdfsPort.empty()) {
+            frontend_logger.error("HDFS server port is empty.");
+        }
+    }
+
+    frontend_logger.info("HDFS Server: " + hdfsServerIp + ":" + hdfsPort);
+
+    // Ask for HDFS output path
+    std::string pathMsg = "HDFS destination file path:";
+    resultWr = write(connFd, pathMsg.c_str(), pathMsg.length());
+    if (resultWr < 0) {
+        frontend_logger.error("Error writing to socket");
+        *loop_exit_p = true;
+        return;
+    }
+    resultWr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
+    if (resultWr < 0) {
+        frontend_logger.error("Error writing to socket");
+        *loop_exit_p = true;
+        return;
+    }
+
+    std::string pathBuf;
+    pathBuf.resize(FRONTEND_DATA_LENGTH);
+    int bytesRead = read(connFd, &pathBuf[0], FRONTEND_DATA_LENGTH);
+    if (bytesRead > 0) {
+        pathBuf.resize(static_cast<size_t>(bytesRead));
+    } else {
+        pathBuf.clear();
+    }
+    std::string hdfsDestinationFilePath = Utils::trim_copy(pathBuf);
+    frontend_logger.info("HDFS destination file path: " + hdfsDestinationFilePath);
+
+    if (hdfsDestinationFilePath.empty()) {
+        frontend_logger.error("HDFS destination file path is empty");
+        std::string errorMsg = "Invalid HDFS destination file path";
+        write(connFd, errorMsg.c_str(), errorMsg.length());
+        write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
+        *loop_exit_p = true;
+        return;
+    }
+
+    // Get partition information from database
+    std::string partitionQuery =
+        "SELECT DISTINCT worker_idworker, partition_idpartition "
+        "FROM worker_has_partition INNER JOIN worker ON worker_has_partition.worker_idworker=worker.idworker "
+        "WHERE partition_graph_idgraph=" + graphId;
+    std::vector<std::vector<std::pair<std::string, std::string>>> partitionResults = sqlite->runSelect(partitionQuery);
+
+    if (partitionResults.empty()) {
+        frontend_logger.error("No partitions found for graph ID: " + graphId);
+        std::string errorMsg = "Graph not found or has no partitions";
+        write(connFd, errorMsg.c_str(), errorMsg.length());
+        write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
+        *loop_exit_p = true;
+        return;
+    }
+
+    // Group partitions by worker ID
+    std::map<std::string, std::vector<std::string>> workerPartitionMap;
+    for (const auto &row : partitionResults) {
+        std::string workerID = row[0].second;
+        std::string partitionID = row[1].second;
+        workerPartitionMap[workerID].push_back(partitionID);
+    }
+
+    // Get worker connection details
+    std::vector<Utils::worker> workerList = Utils::getWorkerList(sqlite);
+    std::map<std::string, Utils::worker> workerMap;
+    for (const auto &w : workerList) {
+        workerMap[w.workerID] = w;
+    }
+
+    auto trimTrailingSlashes = [](std::string path) {
+        while (path.size() > 1 && path.back() == '/') {
+            path.pop_back();
+        }
+        return path;
+    };
+
+    auto getParentDirectory = [&](const std::string& path) {
+        std::string normalized = trimTrailingSlashes(path);
+        size_t pos = normalized.find_last_of('/');
+        if (pos == std::string::npos) {
+            return std::string();
+        }
+        if (pos == 0) {
+            return std::string("/");
+        }
+        return normalized.substr(0, pos);
+    };
+
+    std::string shardDirectory = trimTrailingSlashes(hdfsDestinationFilePath) + "_shards";
+
+    // Connect to HDFS and ensure destination directories exist
+    auto hdfsConnector = std::make_unique<HDFSConnector>(hdfsServerIp, hdfsPort);
+    std::string mergedParentDirectory = getParentDirectory(hdfsDestinationFilePath);
+    if (!mergedParentDirectory.empty() && !hdfsConnector->createDirectory(mergedParentDirectory)) {
+        frontend_logger.error("Failed to create parent directory for destination file: " + mergedParentDirectory);
+        std::string errorMsg = "Failed to create parent directory for destination file";
+        write(connFd, errorMsg.c_str(), errorMsg.length());
+        write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
+        *loop_exit_p = true;
+        return;
+    }
+
+    if (!hdfsConnector->createDirectory(shardDirectory)) {
+        frontend_logger.error("Failed to create HDFS shard directory: " + shardDirectory);
+        std::string errorMsg = "Failed to create HDFS shard directory";
+        write(connFd, errorMsg.c_str(), errorMsg.length());
+        write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
+        *loop_exit_p = true;
+        return;
+    }
+
+    int totalPartitions = 0;
+    int processedPartitions = 0;
+    bool writeError = false;
+    std::vector<std::pair<int, std::string>> shardPaths;
+    std::mutex exportResultMutex;
+
+    auto buildShardPath = [&shardDirectory, &graphId](const std::string& workerID,
+                                                      const std::string& partitionID) {
+        std::string basePath = shardDirectory;
+        std::string separator = (basePath == "/") ? "" : "/";
+        return basePath + separator + "graph_" + graphId + "_worker_" + workerID + "_partition_" + partitionID + ".txt";
+    };
+
+    std::vector<std::thread> exportThreads;
+    exportThreads.reserve(workerPartitionMap.size());
+
+    for (const auto &wp : workerPartitionMap) {
+        const std::string workerID = wp.first;
+        const std::vector<std::string> partitions = wp.second;
+        totalPartitions += static_cast<int>(partitions.size());
+
+        auto wit = workerMap.find(workerID);
+        if (wit == workerMap.end()) {
+            frontend_logger.error("Worker " + workerID + " not found in worker list");
+            writeError = true;
+            continue;
+        }
+
+        const Utils::worker currentWorker = wit->second;
+        exportThreads.emplace_back([&, workerID, partitions, currentWorker]() {
+            std::string host = currentWorker.hostname;
+            if (host.find('@') != std::string::npos) {
+                host = Utils::split(host, '@')[1];
+            }
+            int workerPort = std::stoi(currentWorker.port);
+
+            for (const std::string &partitionId : partitions) {
+                {
+                    std::lock_guard<std::mutex> lock(exportResultMutex);
+                    if (writeError) {
+                        break;
+                    }
+                }
+
+                int sockfd = socket(AF_INET, SOCK_STREAM, 0);
+                if (sockfd < 0) {
+                    frontend_logger.error("Cannot create socket for worker " + workerID);
+                    std::lock_guard<std::mutex> lock(exportResultMutex);
+                    writeError = true;
+                    break;
+                }
+
+                struct hostent hostEntry;
+                struct hostent *server = NULL;
+                int hostErrno = 0;
+                char hostBuffer[8192];
+                int hostLookupResult =
+                    gethostbyname_r(host.c_str(), &hostEntry, hostBuffer, sizeof(hostBuffer), &server, &hostErrno);
+
+                if (hostLookupResult != 0 || server == NULL) {
+                    frontend_logger.error("No host named " + host);
+                    close(sockfd);
+                    std::lock_guard<std::mutex> lock(exportResultMutex);
+                    writeError = true;
+                    break;
+                }
+
+                struct sockaddr_in serv_addr;
+                bzero((char *)&serv_addr, sizeof(serv_addr));
+                serv_addr.sin_family = AF_INET;
+                bcopy((char *)server->h_addr, (char *)&serv_addr.sin_addr.s_addr, server->h_length);
+                serv_addr.sin_port = htons(workerPort);
+
+                if (Utils::connect_wrapper(sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
+                    frontend_logger.error("Error connecting to worker " + workerID + " at " + host);
+                    close(sockfd);
+                    std::lock_guard<std::mutex> lock(exportResultMutex);
+                    writeError = true;
+                    break;
+                }
+
+                char data[INSTANCE_LONG_DATA_LENGTH + 1];
+                bool success = Utils::performHandshake(sockfd, data, INSTANCE_DATA_LENGTH, masterIP) &&
+                               Utils::sendExpectResponse(sockfd, data, INSTANCE_LONG_DATA_LENGTH,
+                                                         JasmineGraphInstanceProtocol::SEND_EDGES_TO_HDFS,
+                                                         JasmineGraphInstanceProtocol::OK) &&
+                               Utils::sendExpectResponse(sockfd, data, INSTANCE_LONG_DATA_LENGTH,
+                                                         graphId,
+                                                         JasmineGraphInstanceProtocol::SEND_PARTITION_ID) &&
+                               Utils::sendExpectResponse(sockfd, data, INSTANCE_LONG_DATA_LENGTH,
+                                                         partitionId,
+                                                         JasmineGraphInstanceProtocol::OK) &&
+                               Utils::sendExpectResponse(sockfd, data, INSTANCE_LONG_DATA_LENGTH,
+                                                         hdfsServerIp,
+                                                         JasmineGraphInstanceProtocol::OK) &&
+                               Utils::sendExpectResponse(sockfd, data, INSTANCE_LONG_DATA_LENGTH,
+                                                         hdfsPort,
+                                                         JasmineGraphInstanceProtocol::OK);
+
+                std::string shardPath = buildShardPath(workerID, partitionId);
+                if (success) {
+                    success = Utils::send_str_wrapper(sockfd, shardPath);
+                }
+
+                std::string status;
+                if (success) {
+                    status = Utils::read_str_trim_wrapper(sockfd, data, INSTANCE_LONG_DATA_LENGTH);
+                    success = (status == JasmineGraphInstanceProtocol::OK);
+                }
+
+                if (!success) {
+                    frontend_logger.error("Worker " + workerID + " failed to write partition " + partitionId +
+                                          " to HDFS path " + shardPath);
+                    std::lock_guard<std::mutex> lock(exportResultMutex);
+                    writeError = true;
+                    Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::CLOSE);
+                    close(sockfd);
+                    break;
+                }
+
+                frontend_logger.info("Worker " + workerID + " wrote partition " + partitionId +
+                                     " directly to HDFS path " + shardPath);
+                {
+                    std::lock_guard<std::mutex> lock(exportResultMutex);
+                    shardPaths.emplace_back(std::stoi(partitionId), shardPath);
+                    ++processedPartitions;
+                }
+
+                Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::CLOSE);
+                close(sockfd);
+            }
+        });
+    }
+
+    for (auto &thread : exportThreads) {
+        if (thread.joinable()) {
+            thread.join();
+        }
+    }
+
+    frontend_logger.info("Processed " + std::to_string(processedPartitions) + " out of " +
+                         std::to_string(totalPartitions) + " partitions");
+
+    if (processedPartitions == 0) {
+        frontend_logger.error("No graph data collected for graph ID: " + graphId);
+        std::string errorMsg = "Failed to collect graph data";
+        write(connFd, errorMsg.c_str(), errorMsg.length());
+        write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
+        *loop_exit_p = true;
+        return;
+    }
+
+    if (!writeError && processedPartitions == totalPartitions) {
+        std::sort(shardPaths.begin(), shardPaths.end(),
+                  [](const std::pair<int, std::string> &left, const std::pair<int, std::string> &right) {
+                      return left.first < right.first;
+                  });
+
+        std::vector<std::string> orderedShardPaths;
+        orderedShardPaths.reserve(shardPaths.size());
+        for (const auto &entry : shardPaths) {
+            orderedShardPaths.push_back(entry.second);
+        }
+
+        std::string mergedOutputPath = hdfsDestinationFilePath;
+
+        if (!hdfsConnector->concatenateFiles(orderedShardPaths, mergedOutputPath)) {
+            frontend_logger.error("Failed to concatenate worker shards into merged HDFS file: " + mergedOutputPath);
+            write(connFd, ERROR.c_str(), ERROR.length());
+            write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
+            *loop_exit_p = true;
+            return;
+        }
+
+        frontend_logger.info("Successfully saved graph shards to HDFS directory: " + shardDirectory +
+                             " and merged them into destination file " + mergedOutputPath);
+        write(connFd, DONE.c_str(), DONE.length());
+        write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
+    } else {
+        frontend_logger.error("Failed to write one or more graph shards to HDFS");
+        write(connFd, ERROR.c_str(), ERROR.length());
+        write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
+        *loop_exit_p = true;
+    }
+}
+
 void addStreamHDFSCommand(std::string masterIP, int connFd, std::string &hdfsServerIp,
                           std::thread &inputStreamHandlerThread, int numberOfPartitions, SQLiteDBInterface *sqlite,
                           bool *loop_exit_p) {
@@ -1912,7 +2341,7 @@ bool JasmineGraphFrontEnd::constructKGStreamHDFSCommand(std::string masterIP, in
         std::string error_message = "The provided HDFS path is invalid.";
         write(connFd, error_message.c_str(), error_message.length());
         write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
-        delete hdfsConnector;
+        // hdfsConnector will be automatically cleaned up when it goes out of scope
         *loop_exit_p = true;
         return false;
     }
@@ -2186,8 +2615,9 @@ bool JasmineGraphFrontEnd::constructKGStreamHDFSCommand(std::string masterIP, in
             frontend_logger.error("Streaming to worker failed for GraphID: " + std::to_string(newGraphID));
         }
 
-        std::time_t time = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
-        std::string uploadEndTime = ctime(&time);
+        std::time_t endTime = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
+        char uploadEndTimeBuffer[26];
+        std::string uploadEndTime = ctime_r(&endTime, uploadEndTimeBuffer);
 
         std::string sqlStatementUpdateEndTime = "UPDATE graph SET upload_end_time = \"" + uploadEndTime +
                                                 "\" WHERE idgraph = " + std::to_string(newGraphID);
