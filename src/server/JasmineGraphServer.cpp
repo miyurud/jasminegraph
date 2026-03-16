@@ -444,9 +444,12 @@ void JasmineGraphServer::startRemoteWorkers(std::vector<int> workerPortsVector, 
             }
             std::string snapshotDataFolder = Utils::getJasmineGraphHome() + "/env/data";
 
-            // Use an explicit docker network only when configured.
-            std::string dockerNetwork = Utils::getJasmineGraphProperty(
-                "org.jasminegraph.docker.network");
+            // Keep tests flexible, but default non-test workers to the compose network.
+            std::string dockerNetwork = Utils::trim_copy(
+                Utils::getJasmineGraphProperty("org.jasminegraph.docker.network"));
+            if (dockerNetwork.empty() && !is_testing) {
+                dockerNetwork = "jasminenet";
+            }
             std::string dockerNetworkArg = dockerNetwork.empty() ? "" : " --network " + dockerNetwork;
 
             if (masterHost == host || host == "localhost") {
