@@ -85,6 +85,35 @@ if ! command -v helm &>/dev/null; then
     exit 0
 fi
 
+wait_for_release_pods() {
+    local namespace="$1"
+    local release_name="$2"
+    local timeout_seconds="$3"
+    local end_timestamp="$(( $(date +%s) + timeout_seconds ))"
+    local spinner="/-\\|"
+    local spinner_index=0
+
+    while true; do
+        if [ "$(date +%s)" -gt "$end_timestamp" ]; then
+            echo "Timed out waiting for pods from Helm release ${release_name} in namespace ${namespace}"
+            kubectl get all -n "$namespace" -l app.kubernetes.io/instance="$release_name" || true
+            return 1
+        fi
+
+        set +e
+        pods="$(kubectl get pods -n "$namespace" -l app.kubernetes.io/instance="$release_name" -o name 2>/dev/null)"
+        set -e
+
+        if [ -n "$pods" ]; then
+            kubectl wait --for=condition=Ready -n "$namespace" --timeout="${timeout_seconds}s" $pods
+            return 0
+        fi
+
+        printf "Waiting for %s pods to be created [%c] \r" "$release_name" "${spinner:spinner_index++%${#spinner}:1}"
+        sleep .2
+    done
+}
+
 export STORAGE_CLASS_NAME=$(kubectl get storageclass | grep "(default)" | awk '{print $1}')
 echo "Detected default storage class: $STORAGE_CLASS_NAME"
 
@@ -96,7 +125,7 @@ kubectl wait --for=condition=Ready pod --all -n loki --timeout=180s
 sleep .2
 
 helm install grafana-alloy grafana/alloy -n loki -f ./k8s/helm/alloy.yaml
-kubectl wait --for=condition=Ready pod -l app.kubernetes.io/name=alloy -n loki --timeout=180s
+wait_for_release_pods loki grafana-alloy 180
 sleep .2
 
 helm install grafana grafana/grafana -n grafana --create-namespace -f ./k8s/helm/grafana.yaml
