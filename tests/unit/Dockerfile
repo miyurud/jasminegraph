@@ -7,6 +7,18 @@ RUN apt-get install -y sysstat
 RUN apt-get install -y nmon
 RUN apt-get install -y python3-setuptools
 
+# Install CRoaring (Roaring Bitmap library) required by CMakeLists.txt
+RUN apt-get install -y git cmake build-essential \
+	&& cd /tmp \
+	&& git clone --depth 1 https://github.com/RoaringBitmap/CRoaring.git \
+	&& cd CRoaring \
+	&& mkdir build && cd build \
+	&& cmake -DENABLE_ROARING_TESTS=OFF .. \
+	&& make -j$(nproc) \
+	&& make install \
+	&& ldconfig \
+	&& cd / && rm -rf /tmp/CRoaring
+
 RUN ln -sf /usr/bin/python3.8 /usr/bin/python3
 
 RUN python3 -m pip install --no-cache-dir gcovr==6.0
