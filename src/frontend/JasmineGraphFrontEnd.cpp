@@ -3525,36 +3525,36 @@ void JasmineGraphFrontEnd::stop_graph_streaming(int connFd, bool *loop_exit_p) {
 static void sheep_command(std::string masterIP, int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_p) {
     frontend_logger.info("Starting sheep partitioning command");
     
-    // Request graph name
-    int result_wr = write(connFd, "send graph name\r\n", 17);
+    int result_wr = write(connFd, "send", FRONTEND_COMMAND_LENGTH);
     if (result_wr < 0) {
         frontend_logger.error("Error writing to socket");
         *loop_exit_p = true;
         return;
     }
-    
-    char graph_name[FRONTEND_DATA_LENGTH + 1];
-    bzero(graph_name, FRONTEND_DATA_LENGTH + 1);
-    read(connFd, graph_name, FRONTEND_DATA_LENGTH);
-    string graphName(graph_name);
-    graphName = Utils::trim_copy(graphName);
+
+    char graph_data[FRONTEND_DATA_LENGTH + 1];
+    bzero(graph_data, FRONTEND_DATA_LENGTH + 1);
+    read(connFd, graph_data, FRONTEND_DATA_LENGTH);
+    string graphData(graph_data);
+    graphData = Utils::trim_copy(graphData);
+    frontend_logger.info("Graph data received: " + graphData);
+
+    std::vector<std::string> strArr = Utils::split(graphData, '|');
+    if (strArr.size() < 2) {
+        frontend_logger.error("Message format not recognized");
+        result_wr = write(connFd, INVALID_FORMAT.c_str(), INVALID_FORMAT.size());
+        if (result_wr < 0) {
+            frontend_logger.error("Error writing to socket");
+        }
+        *loop_exit_p = true;
+        return;
+    }
+
+    string graphName = Utils::trim_copy(strArr[0]);
+    string graphPath = Utils::trim_copy(strArr[1]);
     frontend_logger.info("Graph name received: " + graphName);
-    
-    // Request graph path
-    result_wr = write(connFd, "send graph path\r\n", 17);
-    if (result_wr < 0) {
-        frontend_logger.error("Error writing to socket");
-        *loop_exit_p = true;
-        return;
-    }
-    
-    char graph_path[FRONTEND_DATA_LENGTH + 1];
-    bzero(graph_path, FRONTEND_DATA_LENGTH + 1);
-    read(connFd, graph_path, FRONTEND_DATA_LENGTH);
-    string graphPath(graph_path);
-    graphPath = Utils::trim_copy(graphPath);
     frontend_logger.info("Graph path received: " + graphPath);
-    
+
     // Request number of partitions
     result_wr = write(connFd, "send number of partitions\r\n", 27);
     if (result_wr < 0) {
