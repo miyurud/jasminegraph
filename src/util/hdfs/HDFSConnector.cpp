@@ -153,7 +153,6 @@ bool HDFSConnector::concatenateFiles(const std::vector<std::string> &sourcePaths
             frontend_logger.error("Failed to close HDFS source file: " + sourcePath);
             success = false;
         }
-
     }
 
     bool closeSuccess = closeWriteFile();

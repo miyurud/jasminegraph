@@ -1858,9 +1858,7 @@ static void send_graph_hdfs_command(std::string masterIP, int connFd, SQLiteDBIn
     std::vector<std::thread> exportThreads;
     exportThreads.reserve(workerPartitionMap.size());
 
-    for (const auto &wp : workerPartitionMap) {
-        const std::string workerID = wp.first;
-        const std::vector<std::string> partitions = wp.second;
+    for (const auto &[workerID, partitions] : workerPartitionMap) {
         totalPartitions += static_cast<int>(partitions.size());
 
         auto wit = workerMap.find(workerID);

@@ -307,8 +307,8 @@ long StreamingTriangles::count(const std::map<long, std::unordered_set<long>>& g
 }
 
 long StreamingTriangles::totalCount(const std::map<long, std::unordered_set<long>>& g1,
-                std::map<long, std::unordered_set<long>>& g2,
-                std::vector<std::pair<long, long>>& edges) {
+                const std::map<long, std::unordered_set<long>>& g2,
+                const std::vector<std::pair<long, long>>& edges) {
     long s1 = 0;
     long s2 = 0;
     long s3 = 0;
