@@ -14,7 +14,6 @@ limitations under the License.
 #include "JasmineGraphFrontEnd.h"
 
 #include <curl/curl.h>
-#include <spdlog/spdlog.h>
 
 #include <algorithm>
 #include <cctype>
@@ -73,6 +72,8 @@ limitations under the License.
 using json = nlohmann::json;
 using namespace std;
 using namespace std::chrono;
+
+extern Logger frontend_logger;
 
 static void parseHdfsConfigFile(const std::string &filePath, std::string &hdfsServerIp, std::string &hdfsPort) {
     std::vector<std::string> vec = Utils::getFileContent(filePath);
@@ -1874,8 +1875,8 @@ static void send_graph_hdfs_command(std::string masterIP, int connFd, SQLiteDBIn
         }
 
         const Utils::worker currentWorker = wit->second;
-        exportThreads.emplace_back([&exportResultMutex, &writeError, &shardPaths, &processedPartitions, &masterIP, 
-            &graphId, &hdfsServerIp, &hdfsPort, workerID, partitions, currentWorker]() {
+        exportThreads.emplace_back([&exportResultMutex, &writeError, &shardPaths, &processedPartitions, &masterIP,
+            &graphId, &hdfsServerIp, &hdfsPort, &buildShardPath, workerID, partitions, currentWorker]() {
             std::string host = currentWorker.hostname;
             if (host.find('@') != std::string::npos) {
                 host = Utils::split(host, '@')[1];
