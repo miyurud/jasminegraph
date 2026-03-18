@@ -73,6 +73,43 @@ if [[ $pod_status != "Running" && $pod_status != "Completed" ]]; then
     exit 1
 fi
 
+# Pull coverage report from pod into workspace so GitHub Actions can upload it.
+coverage_src="/home/ubuntu/software/jasminegraph/coverage/coverage.xml"
+coverage_dst="./coverage/coverage.xml"
+if ! kubectl cp "jasminegraph-unit-test-pod:${coverage_src}" "${coverage_dst}"; then
+    echo "Failed to copy coverage report from pod: ${coverage_src}"
+
+    # Cleanup on copy failure
+    kubectl delete pod jasminegraph-unit-test-pod --ignore-not-found=true
+    kubectl delete pvc host-volume-claim --ignore-not-found=true
+    kubectl delete pv host-volume --ignore-not-found=true
+    kubectl delete deployment -l deployment=jasminegraph-worker --ignore-not-found=true
+    kubectl delete service -l service=jasminegraph-worker --ignore-not-found=true
+    kubectl delete service jasminegraph-master-service --ignore-not-found=true
+    kubectl delete pvc -l application=jasminegraph -n default --ignore-not-found=true
+    kubectl delete pv -l application=jasminegraph --ignore-not-found=true
+
+    exit 1
+fi
+
+if [[ ! -s "${coverage_dst}" ]]; then
+    echo "Coverage file is missing or empty at ${coverage_dst}"
+
+    # Cleanup on validation failure
+    kubectl delete pod jasminegraph-unit-test-pod --ignore-not-found=true
+    kubectl delete pvc host-volume-claim --ignore-not-found=true
+    kubectl delete pv host-volume --ignore-not-found=true
+    kubectl delete deployment -l deployment=jasminegraph-worker --ignore-not-found=true
+    kubectl delete service -l service=jasminegraph-worker --ignore-not-found=true
+    kubectl delete service jasminegraph-master-service --ignore-not-found=true
+    kubectl delete pvc -l application=jasminegraph -n default --ignore-not-found=true
+    kubectl delete pv -l application=jasminegraph --ignore-not-found=true
+
+    exit 1
+fi
+
+echo "Coverage report copied to ${coverage_dst}"
+
 # Cleanup test resources after successful run
 echo "Cleaning up test resources..."
 kubectl delete pod jasminegraph-unit-test-pod --ignore-not-found=true

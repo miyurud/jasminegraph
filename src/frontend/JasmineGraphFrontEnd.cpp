@@ -73,7 +73,7 @@ using json = nlohmann::json;
 using namespace std;
 using namespace std::chrono;
 
-extern Logger frontend_logger;
+Logger frontend_logger;
 
 static void parseHdfsConfigFile(const std::string &filePath, std::string &hdfsServerIp, std::string &hdfsPort) {
     std::vector<std::string> vec = Utils::getFileContent(filePath);

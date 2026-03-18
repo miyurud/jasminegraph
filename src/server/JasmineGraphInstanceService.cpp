@@ -5460,9 +5460,10 @@ static void send_edges_command(int connFd, bool *loop_exit_p) {
     instance_logger.info("Finished sending edges for graph " + graphID + " partition " + partitionID);
 }
 
+template<typename EdgeAppender>
 static bool processLocalStoreEdges(const std::string &graphID, const std::string &partitionID,
                                    const std::string &dataFolder,
-                                   std::function<bool(long, long)> appendEdge) {
+                                   const EdgeAppender &appendEdge) {
     std::string partitionFile = dataFolder + "/" + graphID + "_" + partitionID;
     if (!Utils::fileExists(partitionFile)) {
         return true;
@@ -5480,9 +5481,10 @@ static bool processLocalStoreEdges(const std::string &graphID, const std::string
     return true;
 }
 
+template<typename EdgeAppender>
 static bool processCentralStoreEdges(const std::string &graphID, const std::string &partitionID,
                                      const std::string &dataFolder,
-                                     std::function<bool(long, long)> appendEdge) {
+                                     const EdgeAppender &appendEdge) {
     std::string centralFile = dataFolder + "/" + graphID + "_centralstore_" + partitionID;
     if (!Utils::fileExists(centralFile)) {
         return true;
@@ -5517,7 +5519,7 @@ static bool stream_partition_edge_data(const std::string &graphID, const std::st
         *totalBytes = 0;
     }
 
-    auto flushBuffer = [&]() {
+    auto flushBuffer = [&buffer, totalBytes, &chunkConsumer]() {
         if (buffer.empty()) {
             return true;
         }
@@ -5534,7 +5536,7 @@ static bool stream_partition_edge_data(const std::string &graphID, const std::st
         return true;
     };
 
-    auto appendEdge = [&](long src, long dst) -> bool {
+    auto appendEdge = [&buffer, &flushBuffer](long src, long dst) -> bool {
         buffer += std::to_string(src);
         buffer.push_back(' ');
         buffer += std::to_string(dst);

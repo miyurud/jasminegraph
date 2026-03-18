@@ -109,7 +109,8 @@ bool HDFSConnector::concatenateFiles(const std::vector<std::string> &sourcePaths
     bool success = true;
     std::vector<char> buffer(64 * 1024);
 
-    for (const auto &sourcePath : sourcePaths) {
+    for (size_t i = 0; i < sourcePaths.size() && success; ++i) {
+        const auto &sourcePath = sourcePaths[i];
         hdfsFile sourceFile = hdfsOpenFile(fileSystem, sourcePath.c_str(), O_RDONLY, 0, 0, 0);
         if (!sourceFile) {
             frontend_logger.error("Failed to open HDFS source file for reading: " + sourcePath);
@@ -117,21 +118,19 @@ bool HDFSConnector::concatenateFiles(const std::vector<std::string> &sourcePaths
             break;
         }
 
-        while (true) {
+        bool doneReading = false;
+        while (!doneReading) {
             tSize bytesRead = hdfsRead(fileSystem, sourceFile, buffer.data(), static_cast<tSize>(buffer.size()));
             if (bytesRead < 0) {
                 frontend_logger.error("Failed to read HDFS source file: " + sourcePath);
                 success = false;
-                break;
-            }
-            if (bytesRead == 0) {
-                break;
-            }
-
-            if (!appendData(buffer.data(), static_cast<size_t>(bytesRead))) {
+                doneReading = true;
+            } else if (bytesRead == 0) {
+                doneReading = true;
+            } else if (!appendData(buffer.data(), static_cast<size_t>(bytesRead))) {
                 frontend_logger.error("Failed to append merged data from HDFS source file: " + sourcePath);
                 success = false;
-                break;
+                doneReading = true;
             }
         }
 
@@ -140,9 +139,6 @@ bool HDFSConnector::concatenateFiles(const std::vector<std::string> &sourcePaths
             success = false;
         }
 
-        if (!success) {
-            break;
-        }
     }
 
     bool closeSuccess = closeWriteFile();
