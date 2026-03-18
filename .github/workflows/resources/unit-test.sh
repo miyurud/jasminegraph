@@ -82,7 +82,10 @@ kubectl wait --for=delete pv -l application=jasminegraph --timeout=120s 2>/dev/n
 sleep 10
 
 mkdir -p coverage
-kubectl apply -f ./k8s/configs.yaml
+export max_worker_count="${max_worker_count:-4}"
+export pushgateway_address="${pushgateway_address:-}"
+export prometheus_address="${prometheus_address:-}"
+envsubst < ./k8s/configs.yaml | kubectl apply -f -
 kubectl apply -f ./.github/workflows/resources/unit-test-conf.yaml
 
 timeout=300 # Set the timeout in seconds (adjust as needed)

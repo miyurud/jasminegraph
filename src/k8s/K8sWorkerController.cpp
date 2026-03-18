@@ -289,6 +289,7 @@ int K8sWorkerController::attachExistingWorkers() {
                         controller_logger.error("Worker " + std::to_string(workerId) + " database insertion failed");
                     }
                     activeWorkerIds.push_back(workerId);
+                    this->numberOfWorkers++;
                     break;
                 }
             }

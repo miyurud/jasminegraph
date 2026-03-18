@@ -24,7 +24,58 @@ class K8sWorkerControllerTest : public ::testing::Test {
     static SQLiteDBInterface *metadb;
     static K8sInterface *interface;
 
+    static void cleanupAllWorkerResources() {
+        K8sInterface *cleanupInterface = new K8sInterface();
+        // Delete all jasminegraph-worker deployments, services, PVCs, and PVs
+        v1_deployment_list_t *deployments =
+            cleanupInterface->getDeploymentList(strdup("deployment=jasminegraph-worker"));
+        if (deployments && deployments->items && deployments->items->count > 0) {
+            listEntry_t *entry = NULL;
+            list_ForEach(entry, deployments->items) {
+                auto *dep = static_cast<v1_deployment_t *>(entry->data);
+                if (dep && dep->metadata && dep->metadata->labels) {
+                    listEntry_t *label = NULL;
+                    list_ForEach(label, dep->metadata->labels) {
+                        auto *pair = static_cast<keyValuePair_t *>(label->data);
+                        if (strcmp(pair->key, "workerId") == 0) {
+                            int wId = std::stoi(static_cast<char *>(pair->value));
+                            try { cleanupInterface->deleteJasmineGraphWorkerDeployment(wId); } catch (...) {}
+                            try { cleanupInterface->deleteJasmineGraphWorkerService(wId); } catch (...) {}
+                            try { cleanupInterface->deleteJasmineGraphPersistentVolumeClaim(wId); } catch (...) {}
+                            try { cleanupInterface->deleteJasmineGraphPersistentVolume(wId); } catch (...) {}
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+        // Also clean up services that might exist without deployments
+        v1_service_list_t *services =
+            cleanupInterface->getServiceList(strdup("service=jasminegraph-worker"));
+        if (services && services->items && services->items->count > 0) {
+            listEntry_t *entry = NULL;
+            list_ForEach(entry, services->items) {
+                auto *svc = static_cast<v1_service_t *>(entry->data);
+                if (svc && svc->metadata && svc->metadata->labels) {
+                    listEntry_t *label = NULL;
+                    list_ForEach(label, svc->metadata->labels) {
+                        auto *pair = static_cast<keyValuePair_t *>(label->data);
+                        if (strcmp(pair->key, "workerId") == 0) {
+                            int wId = std::stoi(static_cast<char *>(pair->value));
+                            try { cleanupInterface->deleteJasmineGraphWorkerService(wId); } catch (...) {}
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+        delete cleanupInterface;
+    }
+
     static void SetUpTestSuite() {
+        // Clean up any pre-existing jasminegraph-worker resources in the cluster
+        cleanupAllWorkerResources();
+
         metadb = new SQLiteDBInterface(TEST_RESOURCE_DIR "temp/jasminegraph_meta.db");
         metadb->init();
         controller = K8sWorkerController::getInstance("10.43.0.1", 2, metadb);
@@ -32,6 +83,9 @@ class K8sWorkerControllerTest : public ::testing::Test {
     }
 
     static void TearDownTestSuite() {
+        // Clean up all workers created during tests
+        cleanupAllWorkerResources();
+
         delete controller;
         delete metadb;
         delete interface;
