@@ -1,5 +1,7 @@
 #!/bin/bash
 
+WORKER_NAME="jasminegraph-worker"
+
 # Function to check if pod is in Pending/Running state
 pod_status=""
 check_pod_status() {
@@ -14,17 +16,17 @@ check_pod_status() {
 
 delete_jasminegraph_resources() {
     # Label-based cleanup (fast path)
-    kubectl delete deployment -l deployment=jasminegraph-worker --ignore-not-found=true
-    kubectl delete service -l service=jasminegraph-worker --ignore-not-found=true
+    kubectl delete deployment -l deployment=${WORKER_NAME} --ignore-not-found=true
+    kubectl delete service -l service=${WORKER_NAME} --ignore-not-found=true
     kubectl delete service jasminegraph-master-service --ignore-not-found=true
     kubectl delete pvc -l application=jasminegraph -n default --ignore-not-found=true
     kubectl delete pv -l application=jasminegraph --ignore-not-found=true
 
     # Name-based fallback for stale resources that might not have expected labels
-    kubectl get deployment -o name 2>/dev/null | grep "jasminegraph-worker" | xargs -r kubectl delete --ignore-not-found=true
-    kubectl get service -o name 2>/dev/null | grep "jasminegraph-worker" | xargs -r kubectl delete --ignore-not-found=true
-    kubectl get pvc -o name -n default 2>/dev/null | grep "jasminegraph-worker" | xargs -r kubectl delete -n default --ignore-not-found=true
-    kubectl get pv -o name 2>/dev/null | grep "jasminegraph-worker" | xargs -r kubectl delete --ignore-not-found=true
+    kubectl get deployment -o name 2>/dev/null | grep "${WORKER_NAME}" | xargs -r kubectl delete --ignore-not-found=true
+    kubectl get service -o name 2>/dev/null | grep "${WORKER_NAME}" | xargs -r kubectl delete --ignore-not-found=true
+    kubectl get pvc -o name -n default 2>/dev/null | grep "${WORKER_NAME}" | xargs -r kubectl delete -n default --ignore-not-found=true
+    kubectl get pv -o name 2>/dev/null | grep "${WORKER_NAME}" | xargs -r kubectl delete --ignore-not-found=true
 }
 
 wait_for_jasminegraph_cleanup() {
@@ -34,10 +36,10 @@ wait_for_jasminegraph_cleanup() {
 
     while true; do
         local deployments services pvcs pvs
-        deployments=$(kubectl get deployment --no-headers 2>/dev/null | grep -c "jasminegraph-worker" || true)
-        services=$(kubectl get service --no-headers 2>/dev/null | grep -c "jasminegraph-worker" || true)
-        pvcs=$(kubectl get pvc -n default --no-headers 2>/dev/null | grep -c "jasminegraph-worker" || true)
-        pvs=$(kubectl get pv --no-headers 2>/dev/null | grep -c "jasminegraph-worker" || true)
+        deployments=$(kubectl get deployment --no-headers 2>/dev/null | grep -c "${WORKER_NAME}" || true)
+        services=$(kubectl get service --no-headers 2>/dev/null | grep -c "${WORKER_NAME}" || true)
+        pvcs=$(kubectl get pvc -n default --no-headers 2>/dev/null | grep -c "${WORKER_NAME}" || true)
+        pvs=$(kubectl get pv --no-headers 2>/dev/null | grep -c "${WORKER_NAME}" || true)
 
         if [[ $deployments -eq 0 && $services -eq 0 && $pvcs -eq 0 && $pvs -eq 0 ]]; then
             break

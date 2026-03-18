@@ -20,6 +20,12 @@ limitations under the License.
 
 #include "gtest/gtest.h"
 
+namespace {
+constexpr const char *kWorkerName = "jasminegraph-worker";
+const std::string kDeploymentLabel = std::string("deployment=") + kWorkerName;
+const std::string kServiceLabel = std::string("service=") + kWorkerName;
+}  // namespace
+
 class K8sWorkerControllerTest : public ::testing::Test {
  public:
     static K8sWorkerController *controller;
@@ -30,7 +36,7 @@ class K8sWorkerControllerTest : public ::testing::Test {
         auto cleanupInterface = std::make_unique<K8sInterface>();
         // Delete all jasminegraph-worker deployments, services, PVCs, and PVs
         v1_deployment_list_t *deployments =
-            cleanupInterface->getDeploymentList(strdup("deployment=jasminegraph-worker"));
+            cleanupInterface->getDeploymentList(strdup(kDeploymentLabel.c_str()));
         if (deployments && deployments->items && deployments->items->count > 0) {
             listEntry_t *entry = NULL;
             list_ForEach(entry, deployments->items) {
@@ -41,25 +47,13 @@ class K8sWorkerControllerTest : public ::testing::Test {
                         auto *pair = static_cast<keyValuePair_t *>(label->data);
                         if (strcmp(pair->key, "workerId") == 0) {
                             int wId = std::stoi(static_cast<char *>(pair->value));
-                            try { 
-                                cleanupInterface->deleteJasmineGraphWorkerDeployment(wId); 
-                            } catch (const std::runtime_error& e) { 
-                                std::cerr << "Cleanup: " << e.what() << std::endl; 
-                            }
-                            try { 
-                                cleanupInterface->deleteJasmineGraphWorkerService(wId); 
-                            } catch (const std::runtime_error& e) { 
-                                std::cerr << "Cleanup: " << e.what() << std::endl; 
-                            }
-                            try { 
-                                cleanupInterface->deleteJasmineGraphPersistentVolumeClaim(wId); 
-                            } catch (const std::runtime_error& e) { 
-                                std::cerr << "Cleanup: " << e.what() << std::endl; 
-                            }
-                            try { 
-                                cleanupInterface->deleteJasmineGraphPersistentVolume(wId); 
-                            } catch (const std::runtime_error& e) { 
-                                std::cerr << "Cleanup: " << e.what() << std::endl; 
+                            try {
+                                cleanupInterface->deleteJasmineGraphWorkerDeployment(wId);
+                                cleanupInterface->deleteJasmineGraphWorkerService(wId);
+                                cleanupInterface->deleteJasmineGraphPersistentVolumeClaim(wId);
+                                cleanupInterface->deleteJasmineGraphPersistentVolume(wId);
+                            } catch (const std::runtime_error& e) {
+                                std::cerr << "Cleanup: " << e.what() << std::endl;
                             }
                             break;
                         }
@@ -69,7 +63,7 @@ class K8sWorkerControllerTest : public ::testing::Test {
         }
         // Also clean up services that might exist without deployments
         v1_service_list_t *services =
-            cleanupInterface->getServiceList(strdup("service=jasminegraph-worker"));
+            cleanupInterface->getServiceList(strdup(kServiceLabel.c_str()));
         if (services && services->items && services->items->count > 0) {
             listEntry_t *entry = NULL;
             list_ForEach(entry, services->items) {
@@ -80,14 +74,17 @@ class K8sWorkerControllerTest : public ::testing::Test {
                         auto *pair = static_cast<keyValuePair_t *>(label->data);
                         if (strcmp(pair->key, "workerId") == 0) {
                             int wId = std::stoi(static_cast<char *>(pair->value));
-                            try { cleanupInterface->deleteJasmineGraphWorkerService(wId); } catch (const std::runtime_error& e) { std::cerr << "Cleanup: " << e.what() << std::endl; }
+                            try {
+                                cleanupInterface->deleteJasmineGraphWorkerService(wId);
+                            } catch (const std::runtime_error& e) {
+                                std::cerr << "Cleanup: " << e.what() << std::endl;
+                            }
                             break;
                         }
                     }
                 }
             }
         }
-
     }
 
     static void SetUpTestSuite() {
@@ -123,7 +120,7 @@ TEST_F(K8sWorkerControllerTest, TestConstructor) {
 
     v1_deployment_list_t *deployment_list = interface->getDeploymentList(strdup("deployment=jasminegraph-worker"));
     ASSERT_EQ(deployment_list->items->count, 2);
-    v1_service_list_t *service_list = interface->getServiceList(strdup("service=jasminegraph-worker"));
+    v1_service_list_t *service_list = interface->getServiceList(strdup(kServiceLabel.c_str()));
     ASSERT_EQ(service_list->items->count, 2);
 }
 
@@ -132,7 +129,7 @@ TEST_F(K8sWorkerControllerTest, TestScaleUp) {
     ASSERT_EQ(result.size(), 2);
     v1_deployment_list_t *deployment_list = interface->getDeploymentList(strdup("deployment=jasminegraph-worker"));
     ASSERT_EQ(deployment_list->items->count, 4);
-    v1_service_list_t *service_list = interface->getServiceList(strdup("service=jasminegraph-worker"));
+    v1_service_list_t *service_list = interface->getServiceList(strdup(kServiceLabel.c_str()));
     ASSERT_EQ(service_list->items->count, 4);
 }
 
@@ -141,6 +138,6 @@ TEST_F(K8sWorkerControllerTest, TestScaleUpBeyondLimit) {
     ASSERT_EQ(result.size(), 0);
     v1_deployment_list_t *deployment_list = interface->getDeploymentList(strdup("deployment=jasminegraph-worker"));
     ASSERT_EQ(deployment_list->items->count, 4);
-    v1_service_list_t *service_list = interface->getServiceList(strdup("service=jasminegraph-worker"));
+    v1_service_list_t *service_list = interface->getServiceList(strdup(kServiceLabel.c_str()));
     ASSERT_EQ(service_list->items->count, 4);
 }
