@@ -74,6 +74,27 @@ using json = nlohmann::json;
 using namespace std;
 using namespace std::chrono;
 
+static void parseHdfsConfigFile(const std::string &filePath, std::string &hdfsServerIp, std::string &hdfsPort) {
+    std::vector<std::string> vec = Utils::getFileContent(filePath);
+    for (const auto &item : vec) {
+        if (item.empty() || item.rfind("#", 0) == 0) {
+            continue;
+        }
+
+        std::vector<std::string> parts = Utils::split(item, '=');
+        if (parts.size() != 2) {
+            frontend_logger.error("Invalid line in configuration file: " + item);
+            continue;
+        }
+
+        if (parts[0].compare("hdfs.host") == 0) {
+            hdfsServerIp = parts[1];
+        } else if (parts[0].compare("hdfs.port") == 0) {
+            hdfsPort = parts[1];
+        }
+    }
+}
+
 std::atomic<int> highPriorityTaskCount;
 static int connFd;
 static std::atomic<int> currentFESession;
@@ -159,7 +180,7 @@ void *frontendservicesesion(void *dummyPt) {
 
     if (JasmineGraphFrontEndCommon::checkServerBusy(&currentFESession, connFd)) {
         frontend_logger.error("Server is busy");
-        return NULL;
+        return nullptr;
     }
 
     char data[FRONTEND_DATA_LENGTH + 1];
@@ -296,7 +317,7 @@ void *frontendservicesesion(void *dummyPt) {
     frontend_logger.info("Closing thread " + to_string(pthread_self()) + " and connection");
     close(connFd);
     currentFESession--;
-    return NULL;
+    return nullptr;
 }
 
 JasmineGraphFrontEnd::JasmineGraphFrontEnd(SQLiteDBInterface *db, PerformanceSQLiteDBInterface *perfDb,
@@ -368,7 +389,7 @@ int JasmineGraphFrontEnd::run() {
         sessionargs->perfSqlite = this->perfSqlite;
         sessionargs->jobScheduler = this->jobScheduler;
         pthread_t pt;
-        pthread_create(&pt, NULL, frontendservicesesion, sessionargs);
+        pthread_create(&pt, nullptr, frontendservicesesion, sessionargs);
         pthread_detach(pt);
     }
 }
@@ -1704,21 +1725,7 @@ static void send_graph_hdfs_command(std::string masterIP, int connFd, SQLiteDBIn
         std::string filePathS = Utils::trim_copy(filePathBuf);
         frontend_logger.info("Reading HDFS configuration file: " + filePathS);
 
-        std::vector<std::string> vec = Utils::getFileContent(filePathS);
-        for (const auto &item : vec) {
-            if (item.length() > 0 && !(item.rfind("#", 0) == 0)) {
-                std::vector<std::string> vec2 = Utils::split(item, '=');
-                if (vec2.size() == 2) {
-                    if (vec2.at(0).compare("hdfs.host") == 0) {
-                        hdfsServerIp = vec2.at(1);
-                    } else if (vec2.at(0).compare("hdfs.port") == 0) {
-                        hdfsPort = vec2.at(1);
-                    }
-                } else {
-                    frontend_logger.error("Invalid line in configuration file: " + item);
-                }
-            }
-        }
+        parseHdfsConfigFile(filePathS, hdfsServerIp, hdfsPort);
 
         if (hdfsServerIp.empty()) {
             frontend_logger.error("HDFS server IP is empty.");
@@ -1867,7 +1874,8 @@ static void send_graph_hdfs_command(std::string masterIP, int connFd, SQLiteDBIn
         }
 
         const Utils::worker currentWorker = wit->second;
-        exportThreads.emplace_back([&, workerID, partitions, currentWorker]() {
+        exportThreads.emplace_back([&exportResultMutex, &writeError, &shardPaths, &processedPartitions, &masterIP, 
+            &graphId, &hdfsServerIp, &hdfsPort, workerID, partitions, currentWorker]() {
             std::string host = currentWorker.hostname;
             if (host.find('@') != std::string::npos) {
                 host = Utils::split(host, '@')[1];
@@ -1891,13 +1899,13 @@ static void send_graph_hdfs_command(std::string masterIP, int connFd, SQLiteDBIn
                 }
 
                 struct hostent hostEntry;
-                struct hostent *server = NULL;
+                struct hostent *server = nullptr;
                 int hostErrno = 0;
                 char hostBuffer[8192];
                 int hostLookupResult =
                     gethostbyname_r(host.c_str(), &hostEntry, hostBuffer, sizeof(hostBuffer), &server, &hostErrno);
 
-                if (hostLookupResult != 0 || server == NULL) {
+                if (hostLookupResult != 0 || server == nullptr) {
                     frontend_logger.error("No host named " + host);
                     close(sockfd);
                     std::lock_guard<std::mutex> lock(exportResultMutex);
@@ -2079,21 +2087,7 @@ void addStreamHDFSCommand(std::string masterIP, int connFd, std::string &hdfsSer
 
         frontend_logger.info("Reading HDFS configuration file: " + filePathS);
 
-        std::vector<std::string> vec = Utils::getFileContent(filePathS);
-        for (const auto &item : vec) {
-            if (item.length() > 0 && !(item.rfind("#", 0) == 0)) {
-                std::vector<std::string> vec2 = Utils::split(item, '=');
-                if (vec2.size() == 2) {
-                    if (vec2.at(0).compare("hdfs.host") == 0) {
-                        hdfsServerIp = vec2.at(1);
-                    } else if (vec2.at(0).compare("hdfs.port") == 0) {
-                        hdfsPort = vec2.at(1);
-                    }
-                } else {
-                    frontend_logger.error("Invalid line in configuration file: " + item);
-                }
-            }
-        }
+        parseHdfsConfigFile(filePathS, hdfsServerIp, hdfsPort);
     }
 
     if (hdfsServerIp.empty()) {

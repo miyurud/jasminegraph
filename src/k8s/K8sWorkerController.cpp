@@ -88,7 +88,7 @@ K8sWorkerController *K8sWorkerController::getInstance(std::string masterIp, int 
 std::string K8sWorkerController::spawnWorker(int workerId) {
     k8sSpawnMutex.lock();
     controller_logger.info("Spawning worker " + to_string(workerId));
-    
+
     // Clean up any stale resources from previous failed attempts
     try {
         this->interface->deleteJasmineGraphPersistentVolume(workerId);
@@ -97,7 +97,7 @@ std::string K8sWorkerController::spawnWorker(int workerId) {
     } catch (...) {
         // Ignore errors if resources don't exist
     }
-    
+
     auto volume = this->interface->createJasmineGraphPersistentVolume(workerId);
     if (volume != nullptr && volume->metadata != nullptr && volume->metadata->name != nullptr) {
         controller_logger.info("Worker " + std::to_string(workerId) + " persistent volume created successfully");
@@ -324,15 +324,21 @@ std::map<string, string> K8sWorkerController::scaleUp(int count) {
     std::map<string, string> workers;
     if (count <= 0) return workers;
     controller_logger.info("Scale up with " + to_string(count) + " new workers");
-    std::future<string> asyncCalls[count];
+    
+    std::string spawnResults[count];
+    std::thread threads[count];
     int nextWorkerId = getNextWorkerId(count);
+    
     for (int i = 0; i < count; i++) {
-        asyncCalls[i] = std::async(&K8sWorkerController::spawnWorker, this, nextWorkerId + i);
+        threads[i] = std::thread([this, i, nextWorkerId, &spawnResults]() {
+            spawnResults[i] = this->spawnWorker(nextWorkerId + i);
+        });
     }
 
     int success = 0;
     for (int i = 0; i < count; i++) {
-        std::string result = asyncCalls[i].get();
+        threads[i].join();
+        std::string result = spawnResults[i];
         if (!result.empty()) {
             success++;
             workers.insert(std::make_pair(to_string(nextWorkerId + i), result));

@@ -139,9 +139,6 @@ static void degree_distribution_common(int connFd, int serverPort,
                                        bool *loop_exit_p, bool in);
 static void push_partition_command(int connFd, bool *loop_exit_p);
 static void push_file_command(int connFd, bool *loop_exit_p);
-static bool stream_partition_edge_data(const std::string &graphID, const std::string &partitionID,
-                                       const std::function<bool(const std::string &)> &chunkConsumer,
-                                       size_t *totalBytes);
 static void send_edges_command(int connFd, bool *loop_exit_p);
 static void send_edges_to_hdfs_command(int connFd, bool *loop_exit_p);
 static void query_start_command(int connFd, InstanceHandler &instanceHandler, std::map<std::string,
@@ -5459,8 +5456,53 @@ static void send_edges_command(int connFd, bool *loop_exit_p) {
     instance_logger.info("Finished sending edges for graph " + graphID + " partition " + partitionID);
 }
 
+static bool processLocalStoreEdges(const std::string &graphID, const std::string &partitionID,
+                                   const std::string &dataFolder,
+                                   std::function<bool(long, long)> appendEdge) {
+    std::string partitionFile = dataFolder + "/" + graphID + "_" + partitionID;
+    if (!Utils::fileExists(partitionFile)) {
+        return true;
+    }
+
+    JasmineGraphHashMapLocalStore localStore;
+    std::map<int, std::vector<int>> partEdgeMap = localStore.getEdgeHashMap(partitionFile);
+    for (const auto &entry : partEdgeMap) {
+        for (int dest : entry.second) {
+            if (!appendEdge(entry.first, dest)) {
+                return false;
+            }
+        }
+    }
+    return true;
+}
+
+static bool processCentralStoreEdges(const std::string &graphID, const std::string &partitionID,
+                                     const std::string &dataFolder,
+                                     std::function<bool(long, long)> appendEdge) {
+    std::string centralFile = dataFolder + "/" + graphID + "_centralstore_" + partitionID;
+    if (!Utils::fileExists(centralFile)) {
+        return true;
+    }
+
+    JasmineGraphHashMapCentralStore centralStore(stoi(graphID), stoi(partitionID));
+    if (!centralStore.loadGraph(centralFile)) {
+        return true;
+    }
+
+    const auto &centralMap = centralStore.getUnderlyingHashMap();
+    for (const auto &entry : centralMap) {
+        for (long dest : entry.second) {
+            if (!appendEdge(entry.first, dest)) {
+                return false;
+            }
+        }
+    }
+    return true;
+}
+
+template<typename ChunkConsumer>
 static bool stream_partition_edge_data(const std::string &graphID, const std::string &partitionID,
-                                       const std::function<bool(const std::string &)> &chunkConsumer,
+                                       const ChunkConsumer &chunkConsumer,
                                        size_t *totalBytes) {
     const size_t EDGE_STREAM_BUFFER_SIZE = 1024 * 1024;
     std::string dataFolder = Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder");
@@ -5500,32 +5542,12 @@ static bool stream_partition_edge_data(const std::string &graphID, const std::st
         return true;
     };
 
-    std::string partitionFile = dataFolder + "/" + graphID + "_" + partitionID;
-    if (Utils::fileExists(partitionFile)) {
-        JasmineGraphHashMapLocalStore localStore;
-        std::map<int, std::vector<int>> partEdgeMap = localStore.getEdgeHashMap(partitionFile);
-        for (const auto &entry : partEdgeMap) {
-            for (int dest : entry.second) {
-                if (!appendEdge(entry.first, dest)) {
-                    return false;
-                }
-            }
-        }
+    if (!processLocalStoreEdges(graphID, partitionID, dataFolder, appendEdge)) {
+        return false;
     }
 
-    std::string centralFile = dataFolder + "/" + graphID + "_centralstore_" + partitionID;
-    if (Utils::fileExists(centralFile)) {
-        JasmineGraphHashMapCentralStore centralStore(stoi(graphID), stoi(partitionID));
-        if (centralStore.loadGraph(centralFile)) {
-            const auto &centralMap = centralStore.getUnderlyingHashMap();
-            for (const auto &entry : centralMap) {
-                for (long dest : entry.second) {
-                    if (!appendEdge(entry.first, dest)) {
-                        return false;
-                    }
-                }
-            }
-        }
+    if (!processCentralStoreEdges(graphID, partitionID, dataFolder, appendEdge)) {
+        return false;
     }
 
     return flushBuffer();

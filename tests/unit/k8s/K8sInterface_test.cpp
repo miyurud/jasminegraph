@@ -14,6 +14,7 @@ limitations under the License.
 #include "../../../src/k8s/K8sInterface.h"
 
 #include "gtest/gtest.h"
+#include <iostream>
 
 class K8sInterfaceTest : public ::testing::Test {
  protected:
@@ -31,8 +32,9 @@ class K8sInterfaceTest : public ::testing::Test {
             interface->deleteJasmineGraphWorkerService(1);
             interface->deleteJasmineGraphPersistentVolumeClaim(1);
             interface->deleteJasmineGraphPersistentVolume(1);
-        } catch (...) {
-            // Ignore cleanup errors
+        } catch (const std::exception &e) {
+            // Log the exception and continue cleanup
+            std::cerr << "TearDown: Exception during cleanup: " << e.what() << std::endl;
         }
         delete interface;
     }
