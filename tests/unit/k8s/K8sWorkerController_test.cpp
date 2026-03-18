@@ -14,6 +14,8 @@ limitations under the License.
 #include "../../../src/k8s/K8sWorkerController.h"
 
 #include <fstream>
+#include <iostream>
+#include <memory>
 #include <vector>
 
 #include "gtest/gtest.h"
@@ -25,7 +27,7 @@ class K8sWorkerControllerTest : public ::testing::Test {
     static K8sInterface *interface;
 
     static void cleanupAllWorkerResources() {
-        K8sInterface *cleanupInterface = new K8sInterface();
+        auto cleanupInterface = std::make_unique<K8sInterface>();
         // Delete all jasminegraph-worker deployments, services, PVCs, and PVs
         v1_deployment_list_t *deployments =
             cleanupInterface->getDeploymentList(strdup("deployment=jasminegraph-worker"));
@@ -39,10 +41,10 @@ class K8sWorkerControllerTest : public ::testing::Test {
                         auto *pair = static_cast<keyValuePair_t *>(label->data);
                         if (strcmp(pair->key, "workerId") == 0) {
                             int wId = std::stoi(static_cast<char *>(pair->value));
-                            try { cleanupInterface->deleteJasmineGraphWorkerDeployment(wId); } catch (...) {}
-                            try { cleanupInterface->deleteJasmineGraphWorkerService(wId); } catch (...) {}
-                            try { cleanupInterface->deleteJasmineGraphPersistentVolumeClaim(wId); } catch (...) {}
-                            try { cleanupInterface->deleteJasmineGraphPersistentVolume(wId); } catch (...) {}
+                            try { cleanupInterface->deleteJasmineGraphWorkerDeployment(wId); } catch (const std::runtime_error& e) { std::cerr << "Cleanup: " << e.what() << std::endl; }
+                            try { cleanupInterface->deleteJasmineGraphWorkerService(wId); } catch (const std::runtime_error& e) { std::cerr << "Cleanup: " << e.what() << std::endl; }
+                            try { cleanupInterface->deleteJasmineGraphPersistentVolumeClaim(wId); } catch (const std::runtime_error& e) { std::cerr << "Cleanup: " << e.what() << std::endl; }
+                            try { cleanupInterface->deleteJasmineGraphPersistentVolume(wId); } catch (const std::runtime_error& e) { std::cerr << "Cleanup: " << e.what() << std::endl; }
                             break;
                         }
                     }
@@ -62,14 +64,14 @@ class K8sWorkerControllerTest : public ::testing::Test {
                         auto *pair = static_cast<keyValuePair_t *>(label->data);
                         if (strcmp(pair->key, "workerId") == 0) {
                             int wId = std::stoi(static_cast<char *>(pair->value));
-                            try { cleanupInterface->deleteJasmineGraphWorkerService(wId); } catch (...) {}
+                            try { cleanupInterface->deleteJasmineGraphWorkerService(wId); } catch (const std::runtime_error& e) { std::cerr << "Cleanup: " << e.what() << std::endl; }
                             break;
                         }
                     }
                 }
             }
         }
-        delete cleanupInterface;
+
     }
 
     static void SetUpTestSuite() {

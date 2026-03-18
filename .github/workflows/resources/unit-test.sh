@@ -39,11 +39,11 @@ wait_for_jasminegraph_cleanup() {
         pvcs=$(kubectl get pvc -n default --no-headers 2>/dev/null | grep -c "jasminegraph-worker" || true)
         pvs=$(kubectl get pv --no-headers 2>/dev/null | grep -c "jasminegraph-worker" || true)
 
-        if [[ "$deployments" -eq 0 && "$services" -eq 0 && "$pvcs" -eq 0 && "$pvs" -eq 0 ]]; then
+        if [[ $deployments -eq 0 && $services -eq 0 && $pvcs -eq 0 && $pvs -eq 0 ]]; then
             break
         fi
 
-        if [[ $(( $(date +%s) - start_time )) -ge "$timeout_seconds" ]]; then
+        if [[ $(($(date +%s) - start_time)) -ge $timeout_seconds ]]; then
             echo "Timed out waiting for JasmineGraph worker resources to be deleted"
             kubectl get deployment -o wide || true
             kubectl get service -o wide || true
@@ -85,7 +85,7 @@ mkdir -p coverage
 export max_worker_count="${max_worker_count:-4}"
 export pushgateway_address="${pushgateway_address:-}"
 export prometheus_address="${prometheus_address:-}"
-envsubst < ./k8s/configs.yaml | kubectl apply -f -
+envsubst <./k8s/configs.yaml | kubectl apply -f -
 kubectl apply -f ./.github/workflows/resources/unit-test-conf.yaml
 
 timeout=300 # Set the timeout in seconds (adjust as needed)
@@ -126,7 +126,7 @@ coverage_src="/home/ubuntu/software/jasminegraph/coverage/coverage.xml"
 coverage_dst="./coverage/coverage.xml"
 if ! kubectl cp "jasminegraph-unit-test-pod:${coverage_src}" "${coverage_dst}"; then
     # The coverage directory is host-mounted, so report can still exist even if container is gone.
-    if [[ -s "${coverage_dst}" ]]; then
+    if [[ -s ${coverage_dst} ]]; then
         echo "kubectl cp failed, but coverage file already exists at ${coverage_dst}. Continuing."
     else
         echo "Failed to copy coverage report from pod and no local fallback found: ${coverage_src}"

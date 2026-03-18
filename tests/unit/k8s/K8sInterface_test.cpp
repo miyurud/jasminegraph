@@ -23,35 +23,39 @@ class K8sInterfaceTest : public ::testing::Test {
 
     void SetUp() override {
         interface = new K8sInterface();
-        // Best-effort cleanup of worker-1 resources from any prior failed run
+        // Best-effort cleanup of worker-1 resources from any prior failed run.
+        // Deletions may throw std::runtime_error when the resource does not exist;
+        // these failures are expected and safe to ignore.
         try {
             interface->deleteJasmineGraphWorkerDeployment(1);
-        } catch (...) {}
+        } catch (const std::runtime_error& e) { std::cerr << "Cleanup: " << e.what() << std::endl; }
         try {
             interface->deleteJasmineGraphWorkerService(1);
-        } catch (...) {}
+        } catch (const std::runtime_error& e) { std::cerr << "Cleanup: " << e.what() << std::endl; }
         try {
             interface->deleteJasmineGraphPersistentVolumeClaim(1);
-        } catch (...) {}
+        } catch (const std::runtime_error& e) { std::cerr << "Cleanup: " << e.what() << std::endl; }
         try {
             interface->deleteJasmineGraphPersistentVolume(1);
-        } catch (...) {}
+        } catch (const std::runtime_error& e) { std::cerr << "Cleanup: " << e.what() << std::endl; }
     }
 
     void TearDown() override {
-        // Best-effort cleanup of worker-1 resources
+        // Best-effort cleanup of worker-1 resources.
+        // Deletions may throw std::runtime_error when the resource does not exist;
+        // these failures are expected and safe to ignore.
         try {
             interface->deleteJasmineGraphWorkerDeployment(1);
-        } catch (...) {}
+        } catch (const std::runtime_error& e) { std::cerr << "Cleanup: " << e.what() << std::endl; }
         try {
             interface->deleteJasmineGraphWorkerService(1);
-        } catch (...) {}
+        } catch (const std::runtime_error& e) { std::cerr << "Cleanup: " << e.what() << std::endl; }
         try {
             interface->deleteJasmineGraphPersistentVolumeClaim(1);
-        } catch (...) {}
+        } catch (const std::runtime_error& e) { std::cerr << "Cleanup: " << e.what() << std::endl; }
         try {
             interface->deleteJasmineGraphPersistentVolume(1);
-        } catch (...) {}
+        } catch (const std::runtime_error& e) { std::cerr << "Cleanup: " << e.what() << std::endl; }
         delete interface;
     }
 };
