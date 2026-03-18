@@ -69,7 +69,8 @@ void StreamingTriangleCountExecutor::execute() {
 
         int graphIdInt = atoi(graphId.c_str());
         StreamingSQLiteDBInterface streamingDBCopy = streamingDB;
-        workerThreads.push_back(std::thread([&intermRes, i, graphIdInt, host, workerPort, workerDataPort, masterIP, mode, streamingDBCopy]() {
+        workerThreads.push_back(std::thread([&intermRes, i, graphIdInt, host, workerPort, workerDataPort, masterIP,
+            mode, streamingDBCopy]() {
             intermRes[i] = StreamingTriangleCountExecutor::getTriangleCount(graphIdInt,
                 host, workerPort, workerDataPort, i, masterIP, mode, streamingDBCopy);
         }));
