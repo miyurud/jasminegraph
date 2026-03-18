@@ -16,6 +16,7 @@ limitations under the License.
 #include <curl/curl.h>
 
 #include <algorithm>
+#include <atomic>
 #include <cctype>
 #include <chrono>
 #include <ctime>
@@ -100,7 +101,6 @@ std::atomic<int> highPriorityTaskCount;
 static int connFd;
 static std::atomic<int> currentFESession;
 static bool canCalibrate = true;
-Logger frontend_logger;
 std::set<ProcessInfo> processData;
 std::string stream_topic_name;
 bool JasmineGraphFrontEnd::strian_exit;
@@ -1786,7 +1786,7 @@ static void send_graph_hdfs_command(std::string masterIP, int connFd, SQLiteDBIn
     }
 
     // Group partitions by worker ID
-    std::map<std::string, std::vector<std::string>> workerPartitionMap;
+    std::map<std::string, std::vector<std::string>, std::less<>> workerPartitionMap;
     for (const auto &row : partitionResults) {
         std::string workerID = row[0].second;
         std::string partitionID = row[1].second;
@@ -1795,7 +1795,7 @@ static void send_graph_hdfs_command(std::string masterIP, int connFd, SQLiteDBIn
 
     // Get worker connection details
     std::vector<Utils::worker> workerList = Utils::getWorkerList(sqlite);
-    std::map<std::string, Utils::worker> workerMap;
+    std::map<std::string, Utils::worker, std::less<>> workerMap;
     for (const auto &w : workerList) {
         workerMap[w.workerID] = w;
     }

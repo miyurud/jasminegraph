@@ -15,6 +15,7 @@ limitations under the License.
 
 #include "gtest/gtest.h"
 #include <iostream>
+#include <stdexcept>
 
 class K8sInterfaceTest : public ::testing::Test {
  protected:
@@ -32,7 +33,7 @@ class K8sInterfaceTest : public ::testing::Test {
             interface->deleteJasmineGraphWorkerService(1);
             interface->deleteJasmineGraphPersistentVolumeClaim(1);
             interface->deleteJasmineGraphPersistentVolume(1);
-        } catch (const std::exception &e) {
+        } catch (const std::runtime_error &e) {
             // Log the exception and continue cleanup
             std::cerr << "TearDown: Exception during cleanup: " << e.what() << std::endl;
         }

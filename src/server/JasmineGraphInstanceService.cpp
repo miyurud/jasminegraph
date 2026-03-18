@@ -5471,9 +5471,9 @@ static bool processLocalStoreEdges(const std::string &graphID, const std::string
 
     JasmineGraphHashMapLocalStore localStore;
     std::map<int, std::vector<int>> partEdgeMap = localStore.getEdgeHashMap(partitionFile);
-    for (const auto &entry : partEdgeMap) {
-        for (int dest : entry.second) {
-            if (!appendEdge(entry.first, dest)) {
+    for (const auto &[src, destinations] : partEdgeMap) {
+        for (int dest : destinations) {
+            if (!appendEdge(src, dest)) {
                 return false;
             }
         }
@@ -5496,9 +5496,9 @@ static bool processCentralStoreEdges(const std::string &graphID, const std::stri
     }
 
     const auto &centralMap = centralStore.getUnderlyingHashMap();
-    for (const auto &entry : centralMap) {
-        for (long dest : entry.second) {
-            if (!appendEdge(entry.first, dest)) {
+    for (const auto &[src, destinations] : centralMap) {
+        for (long dest : destinations) {
+            if (!appendEdge(src, dest)) {
                 return false;
             }
         }

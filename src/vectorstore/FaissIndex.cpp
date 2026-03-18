@@ -103,12 +103,12 @@ void FaissIndex::save(const std::string& filepath) {
   size_t size = nodeIdToEmbeddingIdMap.size();
   mapFile.write(reinterpret_cast<const char*>(&size), sizeof(size));
 
-  for (const auto& entry : nodeIdToEmbeddingIdMap) {
-    size_t keyLen = entry.first.size();
+  for (const auto& [nodeId, embeddingId] : nodeIdToEmbeddingIdMap) {
+    size_t keyLen = nodeId.size();
     mapFile.write(reinterpret_cast<const char*>(&keyLen), sizeof(keyLen));
-    mapFile.write(entry.first.data(), keyLen);
-    mapFile.write(reinterpret_cast<const char*>(&entry.second),
-                  sizeof(entry.second));
+    mapFile.write(nodeId.data(), keyLen);
+    mapFile.write(reinterpret_cast<const char*>(&embeddingId),
+                  sizeof(embeddingId));
   }
 
   mapFile.close();
@@ -129,12 +129,12 @@ void FaissIndex::save() {
   size_t size = nodeIdToEmbeddingIdMap.size();
   mapFile.write(reinterpret_cast<const char*>(&size), sizeof(size));
 
-  for (const auto& entry : nodeIdToEmbeddingIdMap) {
-    size_t keyLen = entry.first.size();
+  for (const auto& [nodeId, embeddingId] : nodeIdToEmbeddingIdMap) {
+    size_t keyLen = nodeId.size();
     mapFile.write(reinterpret_cast<const char*>(&keyLen), sizeof(keyLen));
-    mapFile.write(entry.first.data(), keyLen);
-    mapFile.write(reinterpret_cast<const char*>(&entry.second),
-                  sizeof(entry.second));
+    mapFile.write(nodeId.data(), keyLen);
+    mapFile.write(reinterpret_cast<const char*>(&embeddingId),
+                  sizeof(embeddingId));
   }
 
   mapFile.close();

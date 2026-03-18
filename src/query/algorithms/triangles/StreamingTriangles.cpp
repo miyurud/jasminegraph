@@ -76,8 +76,8 @@ std::string StreamingTriangles::countCentralStoreStreamingTriangles(std::string 
     for (auto&& futureCall : adjacencyListResponse) {
         // Merge adjacency lists
         const std::map<long, std::unordered_set<long>>& currentAdjacencyList = futureCall.get();
-        for (const auto& entry : currentAdjacencyList) {
-            adjacencyList[entry.first].insert(entry.second.begin(), entry.second.end());
+        for (const auto& [nodeId, neighbors] : currentAdjacencyList) {
+            adjacencyList[nodeId].insert(neighbors.begin(), neighbors.end());
         }
     }
 
@@ -226,10 +226,8 @@ std::string StreamingTriangles::countDynamicCentralTriangles(
     for (auto &&futureCall : edgeMapResponse) {
         // Merge degree maps
         const std::vector<std::pair<long, long>>& edgeMap = futureCall.get();
-        for (const auto& entry : edgeMap) {
-            long sourceNode = entry.first;
-            long targetNode = entry.second;
-            edges.push_back(entry);
+        for (const auto& [sourceNode, targetNode] : edgeMap) {
+            edges.emplace_back(sourceNode, targetNode);
             centralAdjacencyList[joinedString][sourceNode].insert(targetNode);
             centralAdjacencyList[joinedString][targetNode].insert(sourceNode);
         }
