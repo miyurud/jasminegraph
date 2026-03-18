@@ -91,6 +91,21 @@ bool HDFSConnector::writeGraphToHDFS(const std::string &hdfsPath, const std::str
     return true;
 }
 
+bool HDFSConnector::deletePath(const std::string &hdfsPath, bool recursive) {
+    if (!fileSystem) {
+        frontend_logger.error("HDFS connection is not established");
+        return false;
+    }
+
+    if (hdfsDelete(fileSystem, hdfsPath.c_str(), recursive ? 1 : 0) != 0) {
+        frontend_logger.error("Failed to delete HDFS path: " + hdfsPath);
+        return false;
+    }
+
+    frontend_logger.info("Deleted HDFS path: " + hdfsPath);
+    return true;
+}
+
 bool HDFSConnector::concatenateFiles(const std::vector<std::string> &sourcePaths, const std::string &destinationPath) {
     if (!fileSystem) {
         frontend_logger.error("HDFS connection is not established");

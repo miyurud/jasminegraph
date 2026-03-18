@@ -2017,8 +2017,16 @@ static void send_graph_hdfs_command(std::string masterIP, int connFd, SQLiteDBIn
             return;
         }
 
-        frontend_logger.info("Successfully saved graph shards to HDFS directory: " + shardDirectory +
-                             " and merged them into destination file " + mergedOutputPath);
+        if (!hdfsConnector->deletePath(shardDirectory, true)) {
+            frontend_logger.error("Failed to delete HDFS shard directory after merge: " + shardDirectory);
+            write(connFd, ERROR.c_str(), ERROR.length());
+            write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
+            *loop_exit_p = true;
+            return;
+        }
+
+        frontend_logger.info("Successfully merged graph shards into destination file " + mergedOutputPath +
+                             " and deleted shard directory " + shardDirectory);
         write(connFd, DONE.c_str(), DONE.length());
         write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
     } else {
