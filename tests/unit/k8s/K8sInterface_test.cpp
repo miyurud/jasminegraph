@@ -32,8 +32,8 @@ class K8sInterfaceTest : public ::testing::Test {
             interface->deleteJasmineGraphWorkerService(1);
             interface->deleteJasmineGraphPersistentVolumeClaim(1);
             interface->deleteJasmineGraphPersistentVolume(1);
-        } catch (const std::runtime_error& e) { 
-            std::cerr << "Cleanup: " << e.what() << std::endl; 
+        } catch (const std::runtime_error& e) {
+            std::cerr << "Cleanup: " << e.what() << std::endl;
         }
     }
 
@@ -46,8 +46,8 @@ class K8sInterfaceTest : public ::testing::Test {
             interface->deleteJasmineGraphWorkerService(1);
             interface->deleteJasmineGraphPersistentVolumeClaim(1);
             interface->deleteJasmineGraphPersistentVolume(1);
-        } catch (const std::runtime_error& e) { 
-            std::cerr << "Cleanup: " << e.what() << std::endl; 
+        } catch (const std::runtime_error& e) {
+            std::cerr << "Cleanup: " << e.what() << std::endl;
         }
     }
 };

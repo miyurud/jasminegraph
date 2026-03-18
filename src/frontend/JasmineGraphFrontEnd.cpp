@@ -1885,92 +1885,97 @@ static void send_graph_hdfs_command(std::string masterIP, int connFd, SQLiteDBIn
                     }
                 }
 
+                bool isError = false;
+
                 int sockfd = socket(AF_INET, SOCK_STREAM, 0);
                 if (sockfd < 0) {
                     frontend_logger.error("Cannot create socket for worker " + workerID);
-                    std::lock_guard lock(exportResultMutex);
-                    writeError = true;
-                    break;
+                    isError = true;
                 }
 
                 struct hostent hostEntry;
                 struct hostent *server = nullptr;
                 int hostErrno = 0;
                 char hostBuffer[8192];
-                int hostLookupResult =
-                    gethostbyname_r(host.c_str(), &hostEntry, hostBuffer, sizeof(hostBuffer), &server, &hostErrno);
+                if (!isError) {
+                    int hostLookupResult =
+                        gethostbyname_r(host.c_str(), &hostEntry, hostBuffer, sizeof(hostBuffer), &server, &hostErrno);
 
-                if (hostLookupResult != 0 || server == nullptr) {
-                    frontend_logger.error("No host named " + host);
-                    close(sockfd);
+                    if (hostLookupResult != 0 || server == nullptr) {
+                        frontend_logger.error("No host named " + host);
+                        close(sockfd);
+                        isError = true;
+                    }
+                }
+
+                if (!isError) {
+                    struct sockaddr_in serv_addr;
+                    memset((char *)&serv_addr, 0, sizeof(serv_addr));
+                    serv_addr.sin_family = AF_INET;
+                    memcpy((char *)&serv_addr.sin_addr.s_addr, (char *)server->h_addr, server->h_length);
+                    serv_addr.sin_port = htons(workerPort);
+
+                    if (Utils::connect_wrapper(sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
+                        frontend_logger.error("Error connecting to worker " + workerID + " at " + host);
+                        close(sockfd);
+                        isError = true;
+                    }
+                }
+
+                if (!isError) {
+                    char data[INSTANCE_LONG_DATA_LENGTH + 1];
+                    bool success = Utils::performHandshake(sockfd, data, INSTANCE_DATA_LENGTH, masterIP) &&
+                                   Utils::sendExpectResponse(sockfd, data, INSTANCE_LONG_DATA_LENGTH,
+                                                             JasmineGraphInstanceProtocol::SEND_EDGES_TO_HDFS,
+                                                             JasmineGraphInstanceProtocol::OK) &&
+                                   Utils::sendExpectResponse(sockfd, data, INSTANCE_LONG_DATA_LENGTH,
+                                                             graphId,
+                                                             JasmineGraphInstanceProtocol::SEND_PARTITION_ID) &&
+                                   Utils::sendExpectResponse(sockfd, data, INSTANCE_LONG_DATA_LENGTH,
+                                                             partitionId,
+                                                             JasmineGraphInstanceProtocol::OK) &&
+                                   Utils::sendExpectResponse(sockfd, data, INSTANCE_LONG_DATA_LENGTH,
+                                                             hdfsServerIp,
+                                                             JasmineGraphInstanceProtocol::OK) &&
+                                   Utils::sendExpectResponse(sockfd, data, INSTANCE_LONG_DATA_LENGTH,
+                                                             hdfsPort,
+                                                             JasmineGraphInstanceProtocol::OK);
+
+                    std::string shardPath = buildShardPath(workerID, partitionId);
+                    if (success) {
+                        success = Utils::send_str_wrapper(sockfd, shardPath);
+                    }
+
+                    std::string status;
+                    if (success) {
+                        status = Utils::read_str_trim_wrapper(sockfd, data, INSTANCE_LONG_DATA_LENGTH);
+                        success = (status == JasmineGraphInstanceProtocol::OK);
+                    }
+
+                    if (!success) {
+                        frontend_logger.error("Worker " + workerID + " failed to write partition " + partitionId +
+                                              " to HDFS path " + shardPath);
+                        Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::CLOSE);
+                        close(sockfd);
+                        isError = true;
+                    } else {
+                        frontend_logger.info("Worker " + workerID + " wrote partition " + partitionId +
+                                             " directly to HDFS path " + shardPath);
+                        {
+                            std::lock_guard lock(exportResultMutex);
+                            shardPaths.emplace_back(std::stoi(partitionId), shardPath);
+                            ++processedPartitions;
+                        }
+
+                        Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::CLOSE);
+                        close(sockfd);
+                    }
+                }
+
+                if (isError) {
                     std::lock_guard lock(exportResultMutex);
                     writeError = true;
-                    break;
                 }
-
-                struct sockaddr_in serv_addr;
-                memset((char *)&serv_addr, 0, sizeof(serv_addr));
-                serv_addr.sin_family = AF_INET;
-                memcpy((char *)&serv_addr.sin_addr.s_addr, (char *)server->h_addr, server->h_length);
-                serv_addr.sin_port = htons(workerPort);
-
-                if (Utils::connect_wrapper(sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
-                    frontend_logger.error("Error connecting to worker " + workerID + " at " + host);
-                    close(sockfd);
-                    std::lock_guard lock(exportResultMutex);
-                    writeError = true;
-                    break;
-                }
-
-                char data[INSTANCE_LONG_DATA_LENGTH + 1];
-                bool success = Utils::performHandshake(sockfd, data, INSTANCE_DATA_LENGTH, masterIP) &&
-                               Utils::sendExpectResponse(sockfd, data, INSTANCE_LONG_DATA_LENGTH,
-                                                         JasmineGraphInstanceProtocol::SEND_EDGES_TO_HDFS,
-                                                         JasmineGraphInstanceProtocol::OK) &&
-                               Utils::sendExpectResponse(sockfd, data, INSTANCE_LONG_DATA_LENGTH,
-                                                         graphId,
-                                                         JasmineGraphInstanceProtocol::SEND_PARTITION_ID) &&
-                               Utils::sendExpectResponse(sockfd, data, INSTANCE_LONG_DATA_LENGTH,
-                                                         partitionId,
-                                                         JasmineGraphInstanceProtocol::OK) &&
-                               Utils::sendExpectResponse(sockfd, data, INSTANCE_LONG_DATA_LENGTH,
-                                                         hdfsServerIp,
-                                                         JasmineGraphInstanceProtocol::OK) &&
-                               Utils::sendExpectResponse(sockfd, data, INSTANCE_LONG_DATA_LENGTH,
-                                                         hdfsPort,
-                                                         JasmineGraphInstanceProtocol::OK);
-
-                std::string shardPath = buildShardPath(workerID, partitionId);
-                if (success) {
-                    success = Utils::send_str_wrapper(sockfd, shardPath);
-                }
-
-                std::string status;
-                if (success) {
-                    status = Utils::read_str_trim_wrapper(sockfd, data, INSTANCE_LONG_DATA_LENGTH);
-                    success = (status == JasmineGraphInstanceProtocol::OK);
-                }
-
-                if (!success) {
-                    frontend_logger.error("Worker " + workerID + " failed to write partition " + partitionId +
-                                          " to HDFS path " + shardPath);
-                    std::lock_guard lock(exportResultMutex);
-                    writeError = true;
-                    Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::CLOSE);
-                    close(sockfd);
-                    break;
-                }
-
-                frontend_logger.info("Worker " + workerID + " wrote partition " + partitionId +
-                                     " directly to HDFS path " + shardPath);
-                {
-                    std::lock_guard lock(exportResultMutex);
-                    shardPaths.emplace_back(std::stoi(partitionId), shardPath);
-                    ++processedPartitions;
-                }
-
-                Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::CLOSE);
-                close(sockfd);
             }
         });
     }

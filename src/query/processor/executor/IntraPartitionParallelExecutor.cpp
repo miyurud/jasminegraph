@@ -52,7 +52,7 @@ DynamicThreadPool::~DynamicThreadPool() {
 }
 
 void DynamicThreadPool::workerFunction() {
-    for (;;) {
+    for (;) {
         std::function<void()> task;
         {
             std::unique_lock lock(queueMutex);

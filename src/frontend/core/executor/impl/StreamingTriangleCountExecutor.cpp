@@ -54,7 +54,8 @@ void StreamingTriangleCountExecutor::execute() {
 
     vector<Utils::worker> workerList = Utils::getWorkerList(sqlite);
     int partitionCount = stoi(partitions);
-    std::vector<std::future<long>> intermRes;
+    std::vector<std::thread> workerThreads;
+    std::vector<long> intermRes(partitionCount, 0);
     long result = 0;
 
     streaming_triangleCount_logger.info("###STREAMING-TRIANGLE-COUNT-EXECUTOR### Completed central store counting");
@@ -66,9 +67,12 @@ void StreamingTriangleCountExecutor::execute() {
         int workerPort = atoi(string(currentWorker.port).c_str());
         int workerDataPort = atoi(string(currentWorker.dataPort).c_str());
 
-        intermRes.push_back(std::async(
-                std::launch::async, StreamingTriangleCountExecutor::getTriangleCount, atoi(graphId.c_str()),
-                host, workerPort, workerDataPort, i, masterIP, mode, streamingDB));
+        int graphIdInt = atoi(graphId.c_str());
+        StreamingSQLiteDBInterface streamingDBCopy = streamingDB;
+        workerThreads.push_back(std::thread([&intermRes, i, graphIdInt, host, workerPort, workerDataPort, masterIP, mode, streamingDBCopy]() {
+            intermRes[i] = StreamingTriangleCountExecutor::getTriangleCount(graphIdInt,
+                host, workerPort, workerDataPort, i, masterIP, mode, streamingDBCopy);
+        }));
     }
 
     if (partitionCount > 2) {
@@ -84,8 +88,14 @@ void StreamingTriangleCountExecutor::execute() {
         }
     }
 
-    for (auto &&futureCall : intermRes) {
-        result += futureCall.get();
+    for (auto &thread : workerThreads) {
+        if (thread.joinable()) {
+            thread.join();
+        }
+    }
+
+    for (long res : intermRes) {
+        result += res;
     }
 
     streaming_triangleCount_logger.info("###STREAMING-TRIANGLE-COUNT-EXECUTOR### Completed local counting");
@@ -286,15 +296,17 @@ long StreamingTriangleCountExecutor::aggregateCentralStoreTriangles(
     std::vector<std::vector<string>> workerCombinations = getWorkerCombination(sqlite, graphId, partitionCount);
     std::map<string, int> workerWeightMap;
     std::vector<std::vector<string>>::iterator workerCombinationsIterator;
-    std::vector<std::future<string>> triangleCountResponse;
+    std::vector<std::string> triangleCountResponse(workerCombinations.size());
+    std::vector<std::thread> centralThreads;
+    centralThreads.reserve(workerCombinations.size());
     std::string result = "";
     long aggregatedTriangleCount = 0;
+    int index = 0;
 
     for (workerCombinationsIterator = workerCombinations.begin();
          workerCombinationsIterator != workerCombinations.end(); ++workerCombinationsIterator) {
         std::vector<string> workerCombination = *workerCombinationsIterator;
         std::map<string, int>::iterator workerWeightMapIterator;
-        std::vector<std::future<string>> remoteGraphCopyResponse;
         int minimumWeight = 0;
         std::string minWeightWorker;
         string aggregatorHost = "";
@@ -358,14 +370,24 @@ long StreamingTriangleCountExecutor::aggregateCentralStoreTriangles(
 
         workerWeightMap[minWeightWorker] = minimumWeight;
 
-        triangleCountResponse.push_back(std::async(
-                std::launch::async, StreamingTriangleCountExecutor::countCentralStoreTriangles, aggregatorHost,
-                aggregatorPort, aggregatorHost, aggregatorPartitionId, adjustedPartitionIdList, centralCountList,
-                graphId, masterIP, 5, runMode));
+        centralThreads.push_back(std::thread(
+                [&triangleCountResponse, index, aggregatorHost, aggregatorPort, aggregatorPartitionId,
+                 adjustedPartitionIdList, centralCountList, graphId, masterIP, runMode]() {
+                    triangleCountResponse[index] = StreamingTriangleCountExecutor::countCentralStoreTriangles(
+                            aggregatorHost, aggregatorPort, aggregatorHost, aggregatorPartitionId,
+                            adjustedPartitionIdList, centralCountList, graphId, masterIP, 5, runMode);
+                }));
+        index++;
     }
 
-    for (auto &&futureCall : triangleCountResponse) {
-        result = result + ":" + futureCall.get();
+    for (auto &thread : centralThreads) {
+        if (thread.joinable()) {
+            thread.join();
+        }
+    }
+
+    for (const auto &response : triangleCountResponse) {
+        result = result + ":" + response;
     }
 
     std::vector<std::string> triangles = Utils::split(result, ':');

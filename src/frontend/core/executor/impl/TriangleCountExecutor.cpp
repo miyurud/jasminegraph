@@ -481,8 +481,10 @@ void TriangleCountExecutor::execute() {
     long result = 0;
     bool isCompositeAggregation = false;
     Utils::worker aggregatorWorker;
-    std::vector<std::future<long>> intermRes;
-    std::vector<std::future<int>> statResponse;
+    std::vector<std::thread> intermThreads;
+    std::vector<long> intermRes;
+    std::vector<std::thread> statThreads;
+    std::vector<int> statResponse;
     std::vector<std::string> compositeCentralStoreFiles;
 
     auto begin = chrono::high_resolution_clock::now();
@@ -558,6 +560,11 @@ void TriangleCountExecutor::execute() {
     std::unordered_map<long, std::unordered_map<long, std::unordered_set<long>>> triangleTree;
     std::mutex triangleTreeMutex;
     int partitionCount = 0;
+    for (auto it = partitionMap.begin(); it != partitionMap.end(); it++) {
+        partitionCount += it->second.size();
+    }
+    intermRes.resize(partitionCount, 0);
+    int currentPartitionIndex = 0;
 
     // Track worker information for better tracing
     std::vector<std::tuple<string, string, string>> workerTaskInfo;  // {workerID, partitionId, host}
@@ -579,7 +586,6 @@ void TriangleCountExecutor::execute() {
         const std::vector<string> &partitionList = partitionMap[workerID];
         for (auto partitionIterator = partitionList.begin(); partitionIterator != partitionList.end();
              ++partitionIterator) {
-            partitionCount++;
             partitionId = *partitionIterator;
             triangleCount_logger.info("> partition" + partitionId);
 
@@ -589,11 +595,15 @@ void TriangleCountExecutor::execute() {
             {
                 OTEL_TRACE_OPERATION("distribute_to_worker_" + workerID + "_partition_" + partitionId);
 
-                intermRes.push_back(std::async(
-                    std::launch::async, TriangleCountExecutor::getTriangleCount, atoi(graphId.c_str()), host,
-                    workerPort, workerDataPort, atoi(partitionId.c_str()), masterIP, uniqueId,
-                    isCompositeAggregation, threadPriority, fileCombinations, &combinationWorkerMap,
-                    &triangleTree, &triangleTreeMutex, masterTraceContext));
+                int graphIdInt = atoi(graphId.c_str());
+                int partitionIdInt = atoi(partitionId.c_str());
+                intermThreads.push_back(std::thread([&intermRes, currentPartitionIndex, graphIdInt, host, workerPort, workerDataPort, partitionIdInt, masterIP, uniqueId, isCompositeAggregation, threadPriority, fileCombinations, &combinationWorkerMap, &triangleTree, &triangleTreeMutex, masterTraceContext]() {
+                    intermRes[currentPartitionIndex] = TriangleCountExecutor::getTriangleCount(graphIdInt, host,
+                        workerPort, workerDataPort, partitionIdInt, masterIP, uniqueId,
+                        isCompositeAggregation, threadPriority, fileCombinations, &combinationWorkerMap,
+                        &triangleTree, &triangleTreeMutex, masterTraceContext);
+                }));
+                currentPartitionIndex++;
             }
         }
     }
@@ -619,9 +629,11 @@ void TriangleCountExecutor::execute() {
     } else {
         triangleCount_logger.log("###TRIANGLE-COUNT-EXECUTOR### Inserting initial record for SLA ", "info");
         Utils::updateSLAInformation(perfDB, graphId, partitionCount, 0, TRIANGLES, Conts::SLA_CATEGORY::LATENCY);
-        statResponse.push_back(std::async(std::launch::async, AbstractExecutor::collectPerformaceData, perfDB,
-                                          graphId.c_str(), TRIANGLES, Conts::SLA_CATEGORY::LATENCY, partitionCount,
-                                          masterIP, autoCalibrate));
+        statResponse.push_back(0);
+        statThreads.push_back(std::thread([&statResponse, this, graphId, partitionCount, masterIP, autoCalibrate]() {
+            statResponse[0] = AbstractExecutor::collectPerformaceData(this->perfDB,
+                graphId, TRIANGLES, Conts::SLA_CATEGORY::LATENCY, partitionCount, masterIP, autoCalibrate);
+        }));
         isStatCollect = true;
     }
 
@@ -633,7 +645,7 @@ void TriangleCountExecutor::execute() {
         OTEL_TRACE_OPERATION("collect_worker_results");
 
         int taskIndex = 0;
-        for (auto &&futureCall : intermRes) {
+        for (auto &intermThread : intermThreads) {
             // Get worker information for this task
             const auto& taskInfo = workerTaskInfo[taskIndex];
             string workerID = std::get<0>(taskInfo);
@@ -646,7 +658,10 @@ void TriangleCountExecutor::execute() {
                                         " partition_" + partitionId +
                                         " host_" + host +
                                         " uuid=" + to_string(uniqueId));
-                long worker_result = futureCall.get();
+                if (intermThread.joinable()) {
+                    intermThread.join();
+                }
+                long worker_result = intermRes[taskIndex];
                 triangleCount_logger.info("Received result " + std::to_string(worker_result) +
                                         " from worker_" + workerID +
                                         " partition_" + partitionId);
@@ -730,6 +745,12 @@ void TriangleCountExecutor::execute() {
         }
     }
     processStatusMutex.unlock();
+
+    for (auto &thread : statThreads) {
+        if (thread.joinable()) {
+            thread.join();
+        }
+    }
 }
 
 long TriangleCountExecutor::getTriangleCount(
@@ -775,7 +796,7 @@ long TriangleCountExecutor::getTriangleCount(
     // Connection establishment
     memset((char *)&serv_addr, 0, sizeof(serv_addr));
     serv_addr.sin_family = AF_INET;
-    memcpy((char *)&serv_addr.sin_addr.s_addr, (char *)server->h_addr, server->h_length);;
+    memcpy((char *)&serv_addr.sin_addr.s_addr, (char *)server->h_addr, server->h_length);
     serv_addr.sin_port = htons(port);
     if (Utils::connect_wrapper(sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
         triangleCount_logger.error("ERROR connecting");
@@ -1102,7 +1123,8 @@ static long aggregateCentralStoreTriangles(SQLiteDBInterface *sqlite, std::strin
 
     const std::vector<std::vector<string>> &partitionCombinations = AbstractExecutor::getCombinations(partitionsVector);
     std::map<string, int> workerWeightMap;
-    std::vector<std::future<string>> triangleCountResponse;
+    std::vector<std::thread> triangleCountThreads;
+    std::vector<std::string> triangleCountResponse(partitionCombinations.size(), "");
     std::string result = "";
     long aggregatedTriangleCount = 0;
 
@@ -1118,10 +1140,11 @@ static long aggregateCentralStoreTriangles(SQLiteDBInterface *sqlite, std::strin
         workerDataMap[id] = {ip, port, dport};
     }
 
+    int comboIndex = 0;
     for (auto partitonCombinationsIterator = partitionCombinations.begin();
          partitonCombinationsIterator != partitionCombinations.end(); partitonCombinationsIterator++) {
         const std::vector<string> &partitionCombination = *partitonCombinationsIterator;
-        std::vector<std::future<string>> remoteGraphCopyResponse;
+        std::vector<std::thread> remoteGraphCopyThreads;
         int minimumWeight = 0;
         std::string minWeightWorker;
         std::string minWeightWorkerPartition;
@@ -1169,15 +1192,20 @@ static long aggregateCentralStoreTriangles(SQLiteDBInterface *sqlite, std::strin
                     JasmineGraphInstanceProtocol::FILE_TYPE_CENTRALSTORE_AGGREGATE, std::string());
 
                 if (centralStoreAvailable.compare("false") == 0) {
-                    remoteGraphCopyResponse.push_back(std::async(
-                        std::launch::async, TriangleCountExecutor::copyCentralStoreToAggregator, aggregatorIp,
-                        aggregatorPort, aggregatorDataPort, atoi(graphId.c_str()), atoi(part.c_str()), masterIP));
+                    int graphIdInt = atoi(graphId.c_str());
+                    int partInt = atoi(part.c_str());
+                    remoteGraphCopyThreads.push_back(std::thread([aggregatorIp, aggregatorPort, aggregatorDataPort, graphIdInt, partInt, masterIP]() {
+                        TriangleCountExecutor::copyCentralStoreToAggregator(aggregatorIp,
+                            aggregatorPort, aggregatorDataPort, graphIdInt, partInt, masterIP);
+                    }));
                 }
             }
         }
 
-        for (auto &&futureCallCopy : remoteGraphCopyResponse) {
-            futureCallCopy.get();
+        for (auto &thread : remoteGraphCopyThreads) {
+            if (thread.joinable()) {
+                thread.join();
+            }
         }
 
         std::string adjustedPartitionIdList = partitionIdList.substr(0, partitionIdList.size() - 1);
@@ -1185,13 +1213,21 @@ static long aggregateCentralStoreTriangles(SQLiteDBInterface *sqlite, std::strin
         // Capture current trace context before async call
         std::string currentTraceContext = OpenTelemetryUtil::getCurrentTraceContext();
 
-        triangleCountResponse.push_back(std::async(
-            std::launch::async, TriangleCountExecutor::countCentralStoreTriangles, aggregatorPort, aggregatorIp,
-            aggregatorPartitionId, adjustedPartitionIdList, graphId, masterIP, threadPriority, currentTraceContext));
+        triangleCountThreads.push_back(std::thread([&triangleCountResponse, comboIndex, aggregatorPort, aggregatorIp, aggregatorPartitionId, adjustedPartitionIdList, graphId, masterIP, threadPriority, currentTraceContext]() {
+            triangleCountResponse[comboIndex] = TriangleCountExecutor::countCentralStoreTriangles(aggregatorPort, aggregatorIp,
+                aggregatorPartitionId, adjustedPartitionIdList, graphId, masterIP, threadPriority, currentTraceContext);
+        }));
+        comboIndex++;
     }
 
-    for (auto &&futureCall : triangleCountResponse) {
-        result = result + ":" + futureCall.get();
+    for (auto &thread : triangleCountThreads) {
+        if (thread.joinable()) {
+            thread.join();
+        }
+    }
+
+    for (const auto &res : triangleCountResponse) {
+        result = result + ":" + res;
     }
 
     const std::vector<std::string> &triangles = Utils::split(result, ':');
@@ -1236,7 +1272,7 @@ static string isFileAccessibleToWorker(std::string graphId, std::string partitio
 
     memset((char *)&serv_addr, 0, sizeof(serv_addr));
     serv_addr.sin_family = AF_INET;
-    memcpy((char *)&serv_addr.sin_addr.s_addr, (char *)server->h_addr, server->h_length);;
+    memcpy((char *)&serv_addr.sin_addr.s_addr, (char *)server->h_addr, server->h_length);
     serv_addr.sin_port = htons(atoi(aggregatorPort.c_str()));
     if (Utils::connect_wrapper(sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
         triangleCount_logger.error("ERROR connecting");
@@ -1357,7 +1393,7 @@ std::string TriangleCountExecutor::copyCompositeCentralStoreToAggregator(std::st
 
     memset((char *)&serv_addr, 0, sizeof(serv_addr));
     serv_addr.sin_family = AF_INET;
-    memcpy((char *)&serv_addr.sin_addr.s_addr, (char *)server->h_addr, server->h_length);;
+    memcpy((char *)&serv_addr.sin_addr.s_addr, (char *)server->h_addr, server->h_length);
     serv_addr.sin_port = htons(atoi(aggregatorPort.c_str()));
     if (Utils::connect_wrapper(sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
         triangleCount_logger.error("ERROR connecting");
@@ -1511,7 +1547,7 @@ std::vector<string> TriangleCountExecutor::countCompositeCentralStoreTriangles(
 
     memset((char *)&serv_addr, 0, sizeof(serv_addr));
     serv_addr.sin_family = AF_INET;
-    memcpy((char *)&serv_addr.sin_addr.s_addr, (char *)server->h_addr, server->h_length);;
+    memcpy((char *)&serv_addr.sin_addr.s_addr, (char *)server->h_addr, server->h_length);
     serv_addr.sin_port = htons(atoi(aggregatorPort.c_str()));
     if (Utils::connect_wrapper(sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
         triangleCount_logger.error("ERROR connecting");
@@ -1665,7 +1701,7 @@ std::string TriangleCountExecutor::copyCentralStoreToAggregator(std::string aggr
 
     memset((char *)&serv_addr, 0, sizeof(serv_addr));
     serv_addr.sin_family = AF_INET;
-    memcpy((char *)&serv_addr.sin_addr.s_addr, (char *)server->h_addr, server->h_length);;
+    memcpy((char *)&serv_addr.sin_addr.s_addr, (char *)server->h_addr, server->h_length);
     serv_addr.sin_port = htons(atoi(aggregatorPort.c_str()));
     if (Utils::connect_wrapper(sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
         triangleCount_logger.error("ERROR connecting");
@@ -1821,7 +1857,7 @@ string TriangleCountExecutor::countCentralStoreTriangles(std::string aggregatorP
 
     memset((char *)&serv_addr, 0, sizeof(serv_addr));
     serv_addr.sin_family = AF_INET;
-    memcpy((char *)&serv_addr.sin_addr.s_addr, (char *)server->h_addr, server->h_length);;
+    memcpy((char *)&serv_addr.sin_addr.s_addr, (char *)server->h_addr, server->h_length);
     serv_addr.sin_port = htons(atoi(aggregatorPort.c_str()));
     if (Utils::connect_wrapper(sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
         triangleCount_logger.error("ERROR connecting");

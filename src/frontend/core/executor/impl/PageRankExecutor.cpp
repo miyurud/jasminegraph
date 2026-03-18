@@ -74,8 +74,8 @@ void PageRankExecutor::execute() {
     pageRank_logger.info("###PAGERANK-EXECUTOR### Started with graph ID : " + graphId + " Master IP : " + masterIP);
 
     int partitionCount = 0;
-    std::vector<std::future<void>> intermRes;
-    std::vector<std::future<int>> statResponse;
+    std::vector<std::thread> intermThreads;
+    std::vector<std::thread> statThreads;
 
     auto begin = chrono::high_resolution_clock::now();
 
@@ -111,7 +111,7 @@ void PageRankExecutor::execute() {
         for (auto partitionIterator = workerPartition.partitionID.begin();
              partitionIterator != workerPartition.partitionID.end(); partitionIterator++) {
             std::string partition = *partitionIterator;
-            intermRes.push_back(std::async(std::launch::async, PageRankExecutor::doPageRank, graphId, alpha, iterations,
+            intermThreads.push_back(std::thread(PageRankExecutor::doPageRank, graphId, alpha, iterations,
                                            partition, host, port, dataPort, workerList));
         }
     }
@@ -137,14 +137,16 @@ void PageRankExecutor::execute() {
     } else {
         pageRank_logger.info("###PAGERANK-EXECUTOR### Inserting initial record for SLA ");
         Utils::updateSLAInformation(perfDB, graphId, partitionCount, 0, PAGE_RANK, Conts::SLA_CATEGORY::LATENCY);
-        statResponse.push_back(std::async(std::launch::async, AbstractExecutor::collectPerformaceData, perfDB,
-                                          graphId.c_str(), PAGE_RANK, Conts::SLA_CATEGORY::LATENCY, partitionCount,
+        statThreads.push_back(std::thread(AbstractExecutor::collectPerformaceData, perfDB,
+                                          graphId, PAGE_RANK, Conts::SLA_CATEGORY::LATENCY, partitionCount,
                                           masterIP, autoCalibrate));
         isStatCollect = true;
     }
 
-    for (auto &&futureCall : intermRes) {
-        futureCall.get();
+    for (auto &thread : intermThreads) {
+        if (thread.joinable()) {
+            thread.join();
+        }
     }
 
     pageRank_logger.info("###PAGERANK-EXECUTOR### Getting PageRank : Completed");
@@ -181,6 +183,12 @@ void PageRankExecutor::execute() {
         }
     }
     processStatusMutex.unlock();
+
+    for (auto &thread : statThreads) {
+        if (thread.joinable()) {
+            thread.join();
+        }
+    }
 }
 
 int PageRankExecutor::getUid() {
@@ -213,7 +221,7 @@ void PageRankExecutor::doPageRank(std::string graphID, double alpha, int iterati
 
     memset((char *)&serv_addr, 0, sizeof(serv_addr));
     serv_addr.sin_family = AF_INET;
-    memcpy((char *)&serv_addr.sin_addr.s_addr, (char *)server->h_addr, server->h_length);;
+    memcpy((char *)&serv_addr.sin_addr.s_addr, (char *)server->h_addr, server->h_length);
     serv_addr.sin_port = htons(port);
     if (Utils::connect_wrapper(sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
         pageRank_logger.error("Error connecting to socket");

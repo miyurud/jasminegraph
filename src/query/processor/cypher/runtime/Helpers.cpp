@@ -584,7 +584,7 @@ void CreateHelper::insertFromData(std::string data, SharedBuffer &buffer) {
                     newRelation->getDestination()->addProperty(std::string(it.key()), &value[0]);
                 }
 
-                std::string destPid = to_string(partitionedEdge[1].second);;
+                std::string destPid = to_string(partitionedEdge[1].second);
                 strcpy(meta, destPid.c_str());
                 newRelation->getDestination()->addMetaProperty(MetaPropertyLink::PARTITION_ID, &meta[0]);
 
@@ -646,7 +646,7 @@ void CreateHelper::insertFromData(std::string data, SharedBuffer &buffer) {
                     newNode->addProperty(std::string(it.key()), &value[0]);
                 }
 
-                std::string sourcePid = to_string(partitionedEdge[0].second);;
+                std::string sourcePid = to_string(partitionedEdge[0].second);
                 strcpy(meta, sourcePid.c_str());
                 newNode->addMetaProperty(MetaPropertyLink::PARTITION_ID, &meta[0]);
 
@@ -740,7 +740,7 @@ void CreateHelper::insertWithoutData(SharedBuffer &buffer) {
                     newRelation->getDestination()->addProperty(std::string(it.key()), &value[0]);
                 }
 
-                std::string destPid = to_string(partitionedEdge[1].second);;
+                std::string destPid = to_string(partitionedEdge[1].second);
                 strcpy(meta, destPid.c_str());
                 newRelation->getDestination()->addMetaProperty(MetaPropertyLink::PARTITION_ID, &meta[0]);
 
@@ -785,7 +785,7 @@ void CreateHelper::insertWithoutData(SharedBuffer &buffer) {
                     newNode->addProperty(std::string(it.key()), &value[0]);
                 }
 
-                std::string sourcePid = to_string(partitionedEdge[0].second);;
+                std::string sourcePid = to_string(partitionedEdge[0].second);
                 strcpy(meta, sourcePid.c_str());
                 newNode->addMetaProperty(MetaPropertyLink::PARTITION_ID, &meta[0]);
 
