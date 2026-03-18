@@ -15,7 +15,9 @@ limitations under the License.
 
 #include <stdlib.h>
 
+#include <chrono>
 #include <stdexcept>
+#include <thread>
 #include <utility>
 
 Logger controller_logger;
@@ -86,11 +88,22 @@ K8sWorkerController *K8sWorkerController::getInstance(std::string masterIp, int 
 std::string K8sWorkerController::spawnWorker(int workerId) {
     k8sSpawnMutex.lock();
     controller_logger.info("Spawning worker " + to_string(workerId));
+    
+    // Clean up any stale resources from previous failed attempts
+    try {
+        this->interface->deleteJasmineGraphPersistentVolume(workerId);
+        this->interface->deleteJasmineGraphPersistentVolumeClaim(workerId);
+        std::this_thread::sleep_for(std::chrono::milliseconds(500));
+    } catch (...) {
+        // Ignore errors if resources don't exist
+    }
+    
     auto volume = this->interface->createJasmineGraphPersistentVolume(workerId);
     if (volume != nullptr && volume->metadata != nullptr && volume->metadata->name != nullptr) {
         controller_logger.info("Worker " + std::to_string(workerId) + " persistent volume created successfully");
     } else {
-        controller_logger.error("Worker " + std::to_string(workerId) + " persistent volume creation failed");
+        controller_logger.error("Worker " + std::to_string(workerId) + " persistent volume creation failed. "
+                               "API response code: " + std::to_string(this->interface->apiClient->response_code));
         throw std::runtime_error("Worker " + std::to_string(workerId) + " persistent volume creation failed");
     }
 
@@ -98,7 +111,8 @@ std::string K8sWorkerController::spawnWorker(int workerId) {
     if (claim != nullptr && claim->metadata != nullptr && claim->metadata->name != nullptr) {
         controller_logger.info("Worker " + std::to_string(workerId) + " persistent volume claim created successfully");
     } else {
-        controller_logger.error("Worker " + std::to_string(workerId) + " persistent volume claim creation failed");
+        controller_logger.error("Worker " + std::to_string(workerId) + " persistent volume claim creation failed. "
+                               "API response code: " + std::to_string(this->interface->apiClient->response_code));
         throw std::runtime_error("Worker " + std::to_string(workerId) + " persistent volume claim creation failed");
     }
 

@@ -24,6 +24,16 @@ class K8sInterfaceTest : public ::testing::Test {
     }
 
     void TearDown() override {
+        // Clean up any created deployments and services
+        // Use try-catch because resources may not exist if test failed
+        try {
+            interface->deleteJasmineGraphWorkerDeployment(1);
+            interface->deleteJasmineGraphWorkerService(1);
+            interface->deleteJasmineGraphPersistentVolumeClaim(1);
+            interface->deleteJasmineGraphPersistentVolume(1);
+        } catch (...) {
+            // Ignore cleanup errors
+        }
         delete interface;
     }
 };
