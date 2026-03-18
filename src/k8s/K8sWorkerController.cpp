@@ -19,6 +19,7 @@ limitations under the License.
 #include <stdexcept>
 #include <thread>
 #include <utility>
+#include <vector>
 
 Logger controller_logger;
 
@@ -326,8 +327,8 @@ std::map<string, string> K8sWorkerController::scaleUp(int count) {
     if (count <= 0) return workers;
     controller_logger.info("Scale up with " + to_string(count) + " new workers");
 
-    std::string spawnResults[count];
-    std::thread threads[count];
+    std::vector<std::string> spawnResults(static_cast<size_t>(count));
+    std::vector<std::thread> threads(static_cast<size_t>(count));
     int nextWorkerId = getNextWorkerId(count);
 
     for (int i = 0; i < count; i++) {
@@ -352,7 +353,7 @@ std::map<string, string> K8sWorkerController::scaleUp(int count) {
 void K8sWorkerController::scaleDown(const set<int> workerIds) {
     size_t count = workerIds.size();
     controller_logger.info("Scale down with " + to_string(count) + " workers");
-    std::thread threads[count];
+    std::vector<std::thread> threads(count);
     int ind = 0;
     for (auto it = workerIds.begin(); it != workerIds.end(); it++) {
         threads[ind++] = std::thread(&K8sWorkerController::deleteWorker, this, *it);

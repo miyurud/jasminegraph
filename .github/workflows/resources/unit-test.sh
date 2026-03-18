@@ -92,7 +92,7 @@ if ! kubectl cp "jasminegraph-unit-test-pod:${coverage_src}" "${coverage_dst}"; 
     exit 1
 fi
 
-if [[ ! -s "${coverage_dst}" ]]; then
+if [[ ! -s ${coverage_dst} ]]; then
     echo "Coverage file is missing or empty at ${coverage_dst}"
 
     # Cleanup on validation failure

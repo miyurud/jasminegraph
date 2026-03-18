@@ -5432,7 +5432,7 @@ static void send_edges_command(int connFd, bool *loop_exit_p) {
             graphID, partitionID,
             [connFd](const std::string &chunk) {
                 ssize_t totalSent = 0;
-                ssize_t remaining = static_cast<ssize_t>(chunk.size());
+                auto remaining = static_cast<ssize_t>(chunk.size());
                 const char *ptr = chunk.c_str();
                 while (remaining > 0) {
                     ssize_t sent = write(connFd, ptr + totalSent, remaining);
