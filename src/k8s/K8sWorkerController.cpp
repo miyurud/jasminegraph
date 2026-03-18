@@ -68,9 +68,9 @@ K8sWorkerController *K8sWorkerController::getInstance(std::string masterIp, int 
         if (instance == nullptr) {  // double-checking lock
             instance = new K8sWorkerController(masterIp, numberOfWorkers, metadb);
             try {
-                instance->maxWorkers = stoi(instance->interface->getJasmineGraphConfig("max_worker_count"));
+                instance->maxWorkers = stoi(instance->interface->getJasmineGraphConfig("MAX_WORKER_COUNT"));
             } catch (std::invalid_argument &e) {
-                controller_logger.error("Invalid max_worker_count value. Defaulted to 4");
+                controller_logger.error("Invalid MAX_WORKER_COUNT value. Defaulted to 4");
                 instance->maxWorkers = 4;
             }
 

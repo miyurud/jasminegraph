@@ -127,7 +127,7 @@ while true; do
     sleep .2
 done
 
-pushgateway_address="${pushgatewayIP}:9091" envsubst <"./k8s/prometheus.yaml" | kubectl apply -f -
+PUSHGATEWAY_ADDRESS="${pushgatewayIP}:9091" envsubst <"./k8s/prometheus.yaml" | kubectl apply -f -
 
 cur_timestamp="$(date +%s)"
 end_timestamp="$((cur_timestamp + TIMEOUT_SECONDS))"
@@ -144,9 +144,9 @@ while true; do
     sleep .2
 done
 
-pushgateway_address="${pushgatewayIP}:9091/" \
-    prometheus_address="${prometheusIP}:9090/" \
-    max_worker_count="${MAX_COUNT}" \
+PUSHGATEWAY_ADDRESS="${pushgatewayIP}:9091/" \
+    PROMETHEUS_ADDRESS="${prometheusIP}:9090/" \
+    MAX_WORKER_COUNT="${MAX_COUNT}" \
     envsubst <"./k8s/configs.yaml" | kubectl apply -f -
 
 metadb_path="${META_DB_PATH}" \

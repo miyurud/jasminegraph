@@ -27,6 +27,8 @@ delete_jasminegraph_resources() {
     kubectl get service -o name 2>/dev/null | grep "${WORKER_NAME}" | xargs -r kubectl delete --ignore-not-found=true
     kubectl get pvc -o name -n default 2>/dev/null | grep "${WORKER_NAME}" | xargs -r kubectl delete -n default --ignore-not-found=true
     kubectl get pv -o name 2>/dev/null | grep "${WORKER_NAME}" | xargs -r kubectl delete --ignore-not-found=true
+
+    return
 }
 
 wait_for_jasminegraph_cleanup() {
@@ -63,6 +65,8 @@ cleanup_test_resources() {
     kubectl delete pvc host-volume-claim --ignore-not-found=true
     kubectl delete pv host-volume --ignore-not-found=true
     delete_jasminegraph_resources
+
+    return
 }
 
 # Clean up any existing test resources before starting
@@ -84,9 +88,9 @@ kubectl wait --for=delete pv -l application=jasminegraph --timeout=120s 2>/dev/n
 sleep 10
 
 mkdir -p coverage
-export max_worker_count="${max_worker_count:-4}"
-export pushgateway_address="${pushgateway_address:-}"
-export prometheus_address="${prometheus_address:-}"
+export MAX_WORKER_COUNT="${MAX_WORKER_COUNT:-4}"
+export PUSHGATEWAY_ADDRESS="${PUSHGATEWAY_ADDRESS:-}"
+export PROMETHEUS_ADDRESS="${PROMETHEUS_ADDRESS:-}"
 envsubst <./k8s/configs.yaml | kubectl apply -f -
 kubectl apply -f ./.github/workflows/resources/unit-test-conf.yaml
 

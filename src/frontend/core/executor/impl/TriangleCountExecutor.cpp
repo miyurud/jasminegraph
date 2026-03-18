@@ -597,11 +597,13 @@ void TriangleCountExecutor::execute() {
 
                 int graphIdInt = atoi(graphId.c_str());
                 int partitionIdInt = atoi(partitionId.c_str());
-                intermThreads.push_back(std::thread([&intermRes, currentPartitionIndex, graphIdInt, host, workerPort, workerDataPort, partitionIdInt, masterIP, uniqueId, isCompositeAggregation, threadPriority, fileCombinations, &combinationWorkerMap, &triangleTree, &triangleTreeMutex, masterTraceContext]() {
-                    intermRes[currentPartitionIndex] = TriangleCountExecutor::getTriangleCount(graphIdInt, host,
-                        workerPort, workerDataPort, partitionIdInt, masterIP, uniqueId,
-                        isCompositeAggregation, threadPriority, fileCombinations, &combinationWorkerMap,
-                        &triangleTree, &triangleTreeMutex, masterTraceContext);
+                intermThreads.push_back(std::thread([&intermRes, currentPartitionIndex, graphIdInt, host, workerPort,
+                    workerDataPort, partitionIdInt, masterIP, uniqueId, isCompositeAggregation, threadPriority,
+                    fileCombinations, &combinationWorkerMap, &triangleTree, &triangleTreeMutex, masterTraceContext]() {
+                        intermRes[currentPartitionIndex] = TriangleCountExecutor::getTriangleCount(graphIdInt, host,
+                            workerPort, workerDataPort, partitionIdInt, masterIP, uniqueId,
+                            isCompositeAggregation, threadPriority, fileCombinations, &combinationWorkerMap,
+                            &triangleTree, &triangleTreeMutex, masterTraceContext);
                 }));
                 currentPartitionIndex++;
             }
@@ -1194,7 +1196,8 @@ static long aggregateCentralStoreTriangles(SQLiteDBInterface *sqlite, std::strin
                 if (centralStoreAvailable.compare("false") == 0) {
                     int graphIdInt = atoi(graphId.c_str());
                     int partInt = atoi(part.c_str());
-                    remoteGraphCopyThreads.push_back(std::thread([aggregatorIp, aggregatorPort, aggregatorDataPort, graphIdInt, partInt, masterIP]() {
+                    remoteGraphCopyThreads.push_back(std::thread([aggregatorIp, aggregatorPort, aggregatorDataPort,
+                        graphIdInt, partInt, masterIP]() {
                         TriangleCountExecutor::copyCentralStoreToAggregator(aggregatorIp,
                             aggregatorPort, aggregatorDataPort, graphIdInt, partInt, masterIP);
                     }));
@@ -1213,9 +1216,11 @@ static long aggregateCentralStoreTriangles(SQLiteDBInterface *sqlite, std::strin
         // Capture current trace context before async call
         std::string currentTraceContext = OpenTelemetryUtil::getCurrentTraceContext();
 
-        triangleCountThreads.push_back(std::thread([&triangleCountResponse, comboIndex, aggregatorPort, aggregatorIp, aggregatorPartitionId, adjustedPartitionIdList, graphId, masterIP, threadPriority, currentTraceContext]() {
-            triangleCountResponse[comboIndex] = TriangleCountExecutor::countCentralStoreTriangles(aggregatorPort, aggregatorIp,
-                aggregatorPartitionId, adjustedPartitionIdList, graphId, masterIP, threadPriority, currentTraceContext);
+        triangleCountThreads.push_back(std::thread([&triangleCountResponse, comboIndex, aggregatorPort, aggregatorIp,
+            aggregatorPartitionId, adjustedPartitionIdList, graphId, masterIP, threadPriority, currentTraceContext]() {
+            triangleCountResponse[comboIndex] = TriangleCountExecutor::countCentralStoreTriangles(aggregatorPort,
+                aggregatorIp, aggregatorPartitionId, adjustedPartitionIdList, graphId, masterIP, threadPriority,
+                currentTraceContext);
         }));
         comboIndex++;
     }

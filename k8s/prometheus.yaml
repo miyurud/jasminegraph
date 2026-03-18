@@ -20,7 +20,7 @@ data:
       - job_name: 'pushgateway'
         scrape_interval: 2s
         static_configs:
-          - targets: ['${pushgateway_address}']
+          - targets: ['${PUSHGATEWAY_ADDRESS}']
 
 ---
 apiVersion: apps/v1

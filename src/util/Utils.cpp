@@ -880,7 +880,7 @@ std::string Utils::send_job(std::string job_group_name, std::string metric_name,
     std::string pushGatewayJobAddr;
     if (jasminegraph_profile == PROFILE_K8S) {
         std::unique_ptr<K8sInterface> interface(new K8sInterface());
-        pushGatewayJobAddr = interface->getJasmineGraphConfig("pushgateway_address");
+        pushGatewayJobAddr = interface->getJasmineGraphConfig("PUSHGATEWAY_ADDRESS");
     } else {
         pushGatewayJobAddr = getJasmineGraphProperty("org.jasminegraph.collector.pushgateway");
     }
@@ -938,7 +938,7 @@ std::map<std::string, std::string> Utils::getMetricMap(std::string metricName) {
     std::string prometheusAddr;
     if (jasminegraph_profile == PROFILE_K8S) {
         std::unique_ptr<K8sInterface> interface(new K8sInterface());
-        prometheusAddr = interface->getJasmineGraphConfig("prometheus_address");
+        prometheusAddr = interface->getJasmineGraphConfig("PROMETHEUS_ADDRESS");
     } else {
         prometheusAddr = getJasmineGraphProperty("org.jasminegraph.collector.prometheus");
     }
@@ -988,7 +988,7 @@ Utils::getMetricsForHosts(const std::vector<std::string> &metricNames, int secon
     std::string prometheusAddr;
     if (jasminegraph_profile == PROFILE_K8S) {
         std::unique_ptr<K8sInterface> interface(new K8sInterface());
-        prometheusAddr = interface->getJasmineGraphConfig("prometheus_address");
+        prometheusAddr = interface->getJasmineGraphConfig("PROMETHEUS_ADDRESS");
     } else {
         prometheusAddr = getJasmineGraphProperty("org.jasminegraph.collector.prometheus");
     }
