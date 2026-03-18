@@ -1644,8 +1644,7 @@ static void send_graph_hdfs_command(std::string masterIP, int connFd, SQLiteDBIn
 
     std::string graphIdBuf;
     graphIdBuf.resize(FRONTEND_DATA_LENGTH);
-    int graphBytesRead = read(connFd, &graphIdBuf[0], FRONTEND_DATA_LENGTH);
-    if (graphBytesRead > 0) {
+    if (int graphBytesRead = read(connFd, &graphIdBuf[0], FRONTEND_DATA_LENGTH); graphBytesRead > 0) {
         graphIdBuf.resize(static_cast<size_t>(graphBytesRead));
     } else {
         graphIdBuf.clear();
@@ -1685,8 +1684,7 @@ static void send_graph_hdfs_command(std::string masterIP, int connFd, SQLiteDBIn
 
     std::string userResBuf;
     userResBuf.resize(FRONTEND_DATA_LENGTH);
-    int userBytesRead = read(connFd, &userResBuf[0], FRONTEND_DATA_LENGTH);
-    if (userBytesRead > 0) {
+    if (int userBytesRead = read(connFd, &userResBuf[0], FRONTEND_DATA_LENGTH); userBytesRead > 0) {
         userResBuf.resize(static_cast<size_t>(userBytesRead));
     } else {
         userResBuf.clear();
@@ -1717,8 +1715,7 @@ static void send_graph_hdfs_command(std::string masterIP, int connFd, SQLiteDBIn
 
         std::string filePathBuf;
         filePathBuf.resize(FRONTEND_DATA_LENGTH);
-        int filePathBytesRead = read(connFd, &filePathBuf[0], FRONTEND_DATA_LENGTH);
-        if (filePathBytesRead > 0) {
+        if (int filePathBytesRead = read(connFd, &filePathBuf[0], FRONTEND_DATA_LENGTH); filePathBytesRead > 0) {
             filePathBuf.resize(static_cast<size_t>(filePathBytesRead));
         } else {
             filePathBuf.clear();
@@ -1755,8 +1752,7 @@ static void send_graph_hdfs_command(std::string masterIP, int connFd, SQLiteDBIn
 
     std::string pathBuf;
     pathBuf.resize(FRONTEND_DATA_LENGTH);
-    int bytesRead = read(connFd, &pathBuf[0], FRONTEND_DATA_LENGTH);
-    if (bytesRead > 0) {
+    if (int bytesRead = read(connFd, &pathBuf[0], FRONTEND_DATA_LENGTH); bytesRead > 0) {
         pathBuf.resize(static_cast<size_t>(bytesRead));
     } else {
         pathBuf.clear();
@@ -1885,7 +1881,7 @@ static void send_graph_hdfs_command(std::string masterIP, int connFd, SQLiteDBIn
 
             for (const std::string &partitionId : partitions) {
                 {
-                    std::lock_guard<std::mutex> lock(exportResultMutex);
+                    std::lock_guard lock(exportResultMutex);
                     if (writeError) {
                         break;
                     }
@@ -1894,7 +1890,7 @@ static void send_graph_hdfs_command(std::string masterIP, int connFd, SQLiteDBIn
                 int sockfd = socket(AF_INET, SOCK_STREAM, 0);
                 if (sockfd < 0) {
                     frontend_logger.error("Cannot create socket for worker " + workerID);
-                    std::lock_guard<std::mutex> lock(exportResultMutex);
+                    std::lock_guard lock(exportResultMutex);
                     writeError = true;
                     break;
                 }
@@ -1909,7 +1905,7 @@ static void send_graph_hdfs_command(std::string masterIP, int connFd, SQLiteDBIn
                 if (hostLookupResult != 0 || server == nullptr) {
                     frontend_logger.error("No host named " + host);
                     close(sockfd);
-                    std::lock_guard<std::mutex> lock(exportResultMutex);
+                    std::lock_guard lock(exportResultMutex);
                     writeError = true;
                     break;
                 }
@@ -1923,7 +1919,7 @@ static void send_graph_hdfs_command(std::string masterIP, int connFd, SQLiteDBIn
                 if (Utils::connect_wrapper(sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
                     frontend_logger.error("Error connecting to worker " + workerID + " at " + host);
                     close(sockfd);
-                    std::lock_guard<std::mutex> lock(exportResultMutex);
+                    std::lock_guard lock(exportResultMutex);
                     writeError = true;
                     break;
                 }
@@ -1960,7 +1956,7 @@ static void send_graph_hdfs_command(std::string masterIP, int connFd, SQLiteDBIn
                 if (!success) {
                     frontend_logger.error("Worker " + workerID + " failed to write partition " + partitionId +
                                           " to HDFS path " + shardPath);
-                    std::lock_guard<std::mutex> lock(exportResultMutex);
+                    std::lock_guard lock(exportResultMutex);
                     writeError = true;
                     Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::CLOSE);
                     close(sockfd);
@@ -1970,7 +1966,7 @@ static void send_graph_hdfs_command(std::string masterIP, int connFd, SQLiteDBIn
                 frontend_logger.info("Worker " + workerID + " wrote partition " + partitionId +
                                      " directly to HDFS path " + shardPath);
                 {
-                    std::lock_guard<std::mutex> lock(exportResultMutex);
+                    std::lock_guard lock(exportResultMutex);
                     shardPaths.emplace_back(std::stoi(partitionId), shardPath);
                     ++processedPartitions;
                 }
@@ -2589,7 +2585,7 @@ bool JasmineGraphFrontEnd::constructKGStreamHDFSCommand(std::string masterIP, in
     JasmineGraphServer::worker designatedWorker = JasmineGraphServer::getDesignatedWorker();
     auto stopFlag = std::make_shared<std::atomic<bool>>(false);
     {
-        std::lock_guard<std::mutex> lock(threadMapMutex);
+        std::lock_guard lock(threadMapMutex);
         stopFlags[newGraphID] = stopFlag;
     }
 
@@ -2623,7 +2619,7 @@ bool JasmineGraphFrontEnd::constructKGStreamHDFSCommand(std::string masterIP, in
 
     // store its id
     {
-        std::lock_guard<std::mutex> lock(threadMapMutex);
+        std::lock_guard lock(threadMapMutex);
         activeStreamThreads[newGraphID] = streamingThread.get_id();
     }
 
@@ -3915,7 +3911,7 @@ void JasmineGraphFrontEnd::stop_graph_streaming(int connFd, bool *loop_exit_p) {
     std::string userResS(userRes);
     userResS = Utils::trim_copy(userResS);
 
-    std::lock_guard<std::mutex> lock(threadMapMutex);
+    std::lock_guard lock(threadMapMutex);
     auto it = stopFlags.find(stoi(userResS));
     if (it != stopFlags.end()) {
         *(it->second) = true;

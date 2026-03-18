@@ -94,8 +94,9 @@ std::string K8sWorkerController::spawnWorker(int workerId) {
         this->interface->deleteJasmineGraphPersistentVolume(workerId);
         this->interface->deleteJasmineGraphPersistentVolumeClaim(workerId);
         std::this_thread::sleep_for(std::chrono::milliseconds(500));
-    } catch (...) {
-        // Ignore errors if resources don't exist
+    } catch (const std::exception &e) {
+        controller_logger.info("Ignoring stale worker resource cleanup error for worker " + std::to_string(workerId) +
+                               ": " + e.what());
     }
 
     auto volume = this->interface->createJasmineGraphPersistentVolume(workerId);
@@ -324,11 +325,11 @@ std::map<string, string> K8sWorkerController::scaleUp(int count) {
     std::map<string, string> workers;
     if (count <= 0) return workers;
     controller_logger.info("Scale up with " + to_string(count) + " new workers");
-    
+
     std::string spawnResults[count];
     std::thread threads[count];
     int nextWorkerId = getNextWorkerId(count);
-    
+
     for (int i = 0; i < count; i++) {
         threads[i] = std::thread([this, i, nextWorkerId, &spawnResults]() {
             spawnResults[i] = this->spawnWorker(nextWorkerId + i);

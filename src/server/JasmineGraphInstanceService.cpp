@@ -5517,7 +5517,7 @@ static bool stream_partition_edge_data(const std::string &graphID, const std::st
         *totalBytes = 0;
     }
 
-    auto flushBuffer = [&]() -> bool {
+    auto flushBuffer = [&]() {
         if (buffer.empty()) {
             return true;
         }
