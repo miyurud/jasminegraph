@@ -41,10 +41,26 @@ class K8sWorkerControllerTest : public ::testing::Test {
                         auto *pair = static_cast<keyValuePair_t *>(label->data);
                         if (strcmp(pair->key, "workerId") == 0) {
                             int wId = std::stoi(static_cast<char *>(pair->value));
-                            try { cleanupInterface->deleteJasmineGraphWorkerDeployment(wId); } catch (const std::runtime_error& e) { std::cerr << "Cleanup: " << e.what() << std::endl; }
-                            try { cleanupInterface->deleteJasmineGraphWorkerService(wId); } catch (const std::runtime_error& e) { std::cerr << "Cleanup: " << e.what() << std::endl; }
-                            try { cleanupInterface->deleteJasmineGraphPersistentVolumeClaim(wId); } catch (const std::runtime_error& e) { std::cerr << "Cleanup: " << e.what() << std::endl; }
-                            try { cleanupInterface->deleteJasmineGraphPersistentVolume(wId); } catch (const std::runtime_error& e) { std::cerr << "Cleanup: " << e.what() << std::endl; }
+                            try { 
+                                cleanupInterface->deleteJasmineGraphWorkerDeployment(wId); 
+                            } catch (const std::runtime_error& e) { 
+                                std::cerr << "Cleanup: " << e.what() << std::endl; 
+                            }
+                            try { 
+                                cleanupInterface->deleteJasmineGraphWorkerService(wId); 
+                            } catch (const std::runtime_error& e) { 
+                                std::cerr << "Cleanup: " << e.what() << std::endl; 
+                            }
+                            try { 
+                                cleanupInterface->deleteJasmineGraphPersistentVolumeClaim(wId); 
+                            } catch (const std::runtime_error& e) { 
+                                std::cerr << "Cleanup: " << e.what() << std::endl; 
+                            }
+                            try { 
+                                cleanupInterface->deleteJasmineGraphPersistentVolume(wId); 
+                            } catch (const std::runtime_error& e) { 
+                                std::cerr << "Cleanup: " << e.what() << std::endl; 
+                            }
                             break;
                         }
                     }
