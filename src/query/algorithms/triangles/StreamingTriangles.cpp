@@ -222,7 +222,7 @@ std::string StreamingTriangles::countDynamicCentralTriangles(
         streaming_triangle_logger.debug("got previous central count " +
                                       std::to_string(previousCentralRelationCount));
 
-        const size_t edgeMapIndex = static_cast<size_t>(position - 1);
+        const auto edgeMapIndex = static_cast<size_t>(position - 1);
         workers.emplace_back([&edgeMaps, &graphId, aggregatePartitionId, previousCentralRelationCount, edgeMapIndex]() {
             edgeMaps[edgeMapIndex] = StreamingTriangles::getEdges(
                 std::stoi(graphId), std::stoi(aggregatePartitionId), previousCentralRelationCount);

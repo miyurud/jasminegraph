@@ -135,9 +135,9 @@ long StreamingTriangleCountExecutor::getTriangleCount(int graphId, std::string h
             streaming_triangleCount_logger.error("ERROR, no host named " + host);
         }
 
-        bzero((char *)&serv_addr, sizeof(serv_addr));
+        memset((char *)&serv_addr, 0, sizeof(serv_addr));
         serv_addr.sin_family = AF_INET;
-        bcopy((char *)server->h_addr, (char *)&serv_addr.sin_addr.s_addr, server->h_length);
+        memcpy((char *)&serv_addr.sin_addr.s_addr, (char *)server->h_addr, server->h_length);
         serv_addr.sin_port = htons(port);
 
         if (Utils::connect_wrapper(localSocketMap[port], (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
@@ -440,9 +440,9 @@ string StreamingTriangleCountExecutor::countCentralStoreTriangles(
             streaming_triangleCount_logger.error("ERROR, no host named " + host);
         }
 
-        bzero((char *)&serv_addr, sizeof(serv_addr));
+        memset((char *)&serv_addr, 0, sizeof(serv_addr));
         serv_addr.sin_family = AF_INET;
-        bcopy((char *)server->h_addr, (char *)&serv_addr.sin_addr.s_addr, server->h_length);
+        memcpy((char *)&serv_addr.sin_addr.s_addr, (char *)server->h_addr, server->h_length);
         serv_addr.sin_port = htons(port);
 
         if (Utils::connect_wrapper(centralSocketMap[port], (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {

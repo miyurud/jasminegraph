@@ -347,7 +347,7 @@ void JasmineGraphInstanceService::run(string masterHost, string host, int server
         return;
     }
 
-    bzero((char *)&svrAdd, sizeof(svrAdd));
+    memset((char *)&svrAdd, 0, sizeof(svrAdd));
 
     svrAdd.sin_family = AF_INET;
     svrAdd.sin_addr.s_addr = INADDR_ANY;
@@ -792,9 +792,9 @@ int JasmineGraphInstanceService::collectTrainedModelThreadFunction(instanceservi
         return 0;
     }
 
-    bzero((char *)&serv_addr, sizeof(serv_addr));
+    memset((char *)&serv_addr, 0, sizeof(serv_addr));
     serv_addr.sin_family = AF_INET;
-    bcopy((char *)server->h_addr, (char *)&serv_addr.sin_addr.s_addr, server->h_length);
+    memcpy((char *)&serv_addr.sin_addr.s_addr, (char *)server->h_addr, server->h_length);;
     serv_addr.sin_port = htons(port);
     if (Utils::connect_wrapper(sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
         return 0;
@@ -1090,9 +1090,9 @@ bool JasmineGraphInstanceService::duplicateCentralStore(int thisWorkerPort, int 
             return false;
         }
 
-        bzero((char *)&serv_addr, sizeof(serv_addr));
+        memset((char *)&serv_addr, 0, sizeof(serv_addr));
         serv_addr.sin_family = AF_INET;
-        bcopy((char *)server->h_addr, (char *)&serv_addr.sin_addr.s_addr, server->h_length);
+        memcpy((char *)&serv_addr.sin_addr.s_addr, (char *)server->h_addr, server->h_length);
         serv_addr.sin_port = htons(port);
         if (Utils::connect_wrapper(sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
             return false;
@@ -1571,9 +1571,9 @@ void calculateEgoNet(string graphID, string partitionID, int serverPort, Jasmine
             return;
         }
 
-        bzero((char *)&serv_addr, sizeof(serv_addr));
+        memset((char *)&serv_addr, 0, sizeof(serv_addr));
         serv_addr.sin_family = AF_INET;
-        bcopy((char *)server->h_addr, (char *)&serv_addr.sin_addr.s_addr, server->h_length);
+        memcpy((char *)&serv_addr.sin_addr.s_addr, (char *)server->h_addr, server->h_length);
         serv_addr.sin_port = htons(port);
         if (Utils::connect_wrapper(sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
             return;

@@ -114,19 +114,19 @@ int JasminGraphLinkPredictor::sendQueryToWorker(std::string host, int port, int 
         return 0;
     }
 
-    bzero((char *)&serv_addr, sizeof(serv_addr));
+    memset((char *)&serv_addr, 0, sizeof(serv_addr));
     serv_addr.sin_family = AF_INET;
-    bcopy((char *)server->h_addr, (char *)&serv_addr.sin_addr.s_addr, server->h_length);
+    memcpy((char *)&serv_addr.sin_addr.s_addr, (char *)server->h_addr, server->h_length);;
     serv_addr.sin_port = htons(port);
     if (Utils::connect_wrapper(sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
         std::cerr << "ERROR connecting" << std::endl;
         // TODO::exit
         return 0;
     }
-    bzero(data, 301);
+    memset(data, 0, 301);
     write(sockfd, JasmineGraphInstanceProtocol::HANDSHAKE.c_str(), JasmineGraphInstanceProtocol::HANDSHAKE.size());
     predictor_logger.log("Sent : " + JasmineGraphInstanceProtocol::HANDSHAKE, "info");
-    bzero(data, 301);
+    memset(data, 0, 301);
     read(sockfd, data, 300);
     string response = (data);
 
@@ -141,7 +141,7 @@ int JasminGraphLinkPredictor::sendQueryToWorker(std::string host, int port, int 
         write(sockfd, JasmineGraphInstanceProtocol::INITIATE_PREDICT.c_str(),
               JasmineGraphInstanceProtocol::INITIATE_PREDICT.size());
         predictor_logger.log("Sent : " + JasmineGraphInstanceProtocol::INITIATE_PREDICT, "info");
-        bzero(data, 301);
+        memset(data, 0, 301);
         read(sockfd, data, 300);
         response = (data);
         response = Utils::trim_copy(response);
@@ -162,7 +162,7 @@ int JasminGraphLinkPredictor::sendQueryToWorker(std::string host, int port, int 
             int fileSize = Utils::getFileSize(filePath);
             std::string fileLength = to_string(fileSize);
 
-            bzero(data, 301);
+            memset(data, 0, 301);
             read(sockfd, data, 300);
             response = (data);
             response = Utils::trim_copy(response);
@@ -172,7 +172,7 @@ int JasminGraphLinkPredictor::sendQueryToWorker(std::string host, int port, int 
 
                 write(sockfd, hostsList.c_str(), (hostsList).size());
                 predictor_logger.log("Sent : Hosts List " + hostsList, "info");
-                bzero(data, 301);
+                memset(data, 0, 301);
                 read(sockfd, data, 300);
                 response = (data);
 
@@ -180,7 +180,7 @@ int JasminGraphLinkPredictor::sendQueryToWorker(std::string host, int port, int 
                     predictor_logger.log("Received : " + JasmineGraphInstanceProtocol::SEND_FILE_NAME, "info");
                     write(sockfd, fileName.c_str(), fileName.size());
                     predictor_logger.log("Sent : File name " + fileName, "info");
-                    bzero(data, 301);
+                    memset(data, 0, 301);
                     read(sockfd, data, 300);
                     response = (data);
 
@@ -188,7 +188,7 @@ int JasminGraphLinkPredictor::sendQueryToWorker(std::string host, int port, int 
                         predictor_logger.log("Received : " + JasmineGraphInstanceProtocol::SEND_FILE_LEN, "info");
                         write(sockfd, fileLength.c_str(), fileLength.size());
                         predictor_logger.log("Sent : File length in bytes " + fileLength, "info");
-                        bzero(data, 301);
+                        memset(data, 0, 301);
                         read(sockfd, data, 300);
                         response = (data);
 
@@ -205,7 +205,7 @@ int JasminGraphLinkPredictor::sendQueryToWorker(std::string host, int port, int 
                           JasmineGraphInstanceProtocol::FILE_RECV_CHK.size());
                     predictor_logger.log("Sent : " + JasmineGraphInstanceProtocol::FILE_RECV_CHK, "info");
                     predictor_logger.log("Checking if file is received", "info");
-                    bzero(data, 301);
+                    memset(data, 0, 301);
                     read(sockfd, data, 300);
                     response = (data);
 

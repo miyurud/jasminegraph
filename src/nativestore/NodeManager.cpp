@@ -185,7 +185,7 @@ std::unordered_map<std::string, unsigned int> NodeManager::readNodeIndex() {
         }
         NodeManager::nextNodeIndex = iSize/dataWidth;
         char nodeIDC[NodeManager::INDEX_KEY_SIZE];
-        bzero(nodeIDC, NodeManager::INDEX_KEY_SIZE);  // Fill with null chars before putting data
+        memset(nodeIDC, 0, NodeManager::INDEX_KEY_SIZE);  // Fill with null chars before putting data
         unsigned int nodeIndexId;
         for (size_t i = 0; i < iSize / dataWidth; i++) {
             if (!index_db.read(&nodeIDC[0], NodeManager::INDEX_KEY_SIZE)) {
@@ -220,7 +220,7 @@ std::unordered_map<std::string, unsigned int> NodeManager::readEdgeIndex() {
         NodeManager::nextEdgeIndex = iSize / dataWidth;
 
         char edgeKeyC[NodeManager::INDEX_KEY_SIZE];
-        bzero(edgeKeyC, NodeManager::INDEX_KEY_SIZE);
+        memset(edgeKeyC, 0, NodeManager::INDEX_KEY_SIZE);
         unsigned int edgeIndexId;
 
         for (size_t i = 0; i < iSize / dataWidth; i++) {
@@ -234,7 +234,7 @@ std::unordered_map<std::string, unsigned int> NodeManager::readEdgeIndex() {
             }
 
             _edgeIndex[std::string(edgeKeyC)] = edgeIndexId;
-            bzero(edgeKeyC, NodeManager::INDEX_KEY_SIZE);  // clear buffer before next read
+            memset(edgeKeyC, 0, NodeManager::INDEX_KEY_SIZE);  // clear buffer before next read
         }
 
         index_db.close();

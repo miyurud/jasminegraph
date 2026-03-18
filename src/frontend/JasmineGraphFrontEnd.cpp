@@ -346,7 +346,7 @@ int JasmineGraphFrontEnd::run() {
         return 0;
     }
 
-    bzero((char *)&svrAdd, sizeof(svrAdd));
+    memset((char *)&svrAdd, 0, sizeof(svrAdd));
 
     svrAdd.sin_family = AF_INET;
     svrAdd.sin_addr.s_addr = INADDR_ANY;
@@ -513,7 +513,7 @@ static void cypherCommand(std::string masterIP, int connFd, vector<DataPublisher
         return;
     }
     char graphIdResponse[FRONTEND_DATA_LENGTH + 1];
-    bzero(graphIdResponse, FRONTEND_DATA_LENGTH + 1);
+    memset(graphIdResponse, 0, FRONTEND_DATA_LENGTH + 1);
     read(connFd, graphIdResponse, FRONTEND_DATA_LENGTH);
     string user_res_1(graphIdResponse);
 
@@ -533,7 +533,7 @@ static void cypherCommand(std::string masterIP, int connFd, vector<DataPublisher
 
     // Get user response.
     char query[FRONTEND_DATA_LENGTH + 1];
-    bzero(query, FRONTEND_DATA_LENGTH + 1);
+    memset(query, 0, FRONTEND_DATA_LENGTH + 1);
     read(connFd, query, FRONTEND_DATA_LENGTH);
     string queryString(query);
 
@@ -769,7 +769,7 @@ static void add_rdf_command(std::string masterIP, int connFd, SQLiteDBInterface 
 
     // We get the name and the path to graph as a pair separated by |.
     char graph_data[FRONTEND_DATA_LENGTH + 1];
-    bzero(graph_data, FRONTEND_DATA_LENGTH + 1);
+    memset(graph_data, 0, FRONTEND_DATA_LENGTH + 1);
     string name = "";
     string path = "";
 
@@ -866,7 +866,7 @@ static void add_graph_command(std::string masterIP, int connFd, SQLiteDBInterfac
     // We get the name and the path to graph as a pair separated by |.
     char graph_data[FRONTEND_DATA_LENGTH + 1];
     char partition_count[FRONTEND_DATA_LENGTH + 1];
-    bzero(graph_data, FRONTEND_DATA_LENGTH + 1);
+    memset(graph_data, 0, FRONTEND_DATA_LENGTH + 1);
     string name = "";
     string path = "";
     string partitionCount = "";
@@ -989,7 +989,7 @@ static void add_graph_cust_command(std::string masterIP, int connFd, SQLiteDBInt
     }
 
     char type[FRONTEND_GRAPH_TYPE_LENGTH + 1];
-    bzero(type, FRONTEND_GRAPH_TYPE_LENGTH + 1);
+    memset(type, 0, FRONTEND_GRAPH_TYPE_LENGTH + 1);
     read(connFd, type, FRONTEND_GRAPH_TYPE_LENGTH);
     string graphType(type);
     graphType = Utils::trim_copy(graphType);
@@ -1027,7 +1027,7 @@ static void add_graph_cust_command(std::string masterIP, int connFd, SQLiteDBInt
         return;
     }
     char graph_data[FRONTEND_DATA_LENGTH + 1];
-    bzero(graph_data, FRONTEND_DATA_LENGTH + 1);
+    memset(graph_data, 0, FRONTEND_DATA_LENGTH + 1);
     string name = "";
     string edgeListPath = "";
     string attributeListPath = "";
@@ -1130,7 +1130,7 @@ static void remove_graph_command(std::string masterIP, int connFd, SQLiteDBInter
 
     // We get the name and the path to graph as a pair separated by |.
     char graph_id[FRONTEND_DATA_LENGTH + 1];
-    bzero(graph_id, FRONTEND_DATA_LENGTH + 1);
+    memset(graph_id, 0, FRONTEND_DATA_LENGTH + 1);
     string name = "";
     string path = "";
 
@@ -1254,7 +1254,7 @@ static void add_model_command(int connFd, SQLiteDBInterface *sqlite, bool *loop_
     }
 
     char graph_data[FRONTEND_DATA_LENGTH + 1];
-    bzero(graph_data, FRONTEND_DATA_LENGTH + 1);
+    memset(graph_data, 0, FRONTEND_DATA_LENGTH + 1);
     string name = "";
     string path = "";
 
@@ -1532,7 +1532,7 @@ static void add_stream_kafka_command(int connFd, std::string &kafka_server_IP, c
 
         // We get the file path here.
         char file_path[FRONTEND_DATA_LENGTH + 1];
-        bzero(file_path, FRONTEND_DATA_LENGTH + 1);
+        memset(file_path, 0, FRONTEND_DATA_LENGTH + 1);
         read(connFd, file_path, FRONTEND_DATA_LENGTH);
         string file_path_s(file_path);
         file_path_s = Utils::trim_copy(file_path_s);
@@ -1574,7 +1574,7 @@ static void add_stream_kafka_command(int connFd, std::string &kafka_server_IP, c
 
     // We get the topic name here.
     char topic_name[FRONTEND_DATA_LENGTH + 1];
-    bzero(topic_name, FRONTEND_DATA_LENGTH + 1);
+    memset(topic_name, 0, FRONTEND_DATA_LENGTH + 1);
     read(connFd, topic_name, FRONTEND_DATA_LENGTH);
     string topic_name_s(topic_name);
     topic_name_s = Utils::trim_copy(topic_name_s);
@@ -1909,9 +1909,9 @@ static void send_graph_hdfs_command(std::string masterIP, int connFd, SQLiteDBIn
                 }
 
                 struct sockaddr_in serv_addr;
-                bzero((char *)&serv_addr, sizeof(serv_addr));
+                memset((char *)&serv_addr, 0, sizeof(serv_addr));
                 serv_addr.sin_family = AF_INET;
-                bcopy((char *)server->h_addr, (char *)&serv_addr.sin_addr.s_addr, server->h_length);
+                memcpy((char *)&serv_addr.sin_addr.s_addr, (char *)server->h_addr, server->h_length);
                 serv_addr.sin_port = htons(workerPort);
 
                 if (Utils::connect_wrapper(sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
@@ -2001,8 +2001,8 @@ static void send_graph_hdfs_command(std::string masterIP, int connFd, SQLiteDBIn
 
         std::vector<std::string> orderedShardPaths;
         orderedShardPaths.reserve(shardPaths.size());
-        for (const auto &entry : shardPaths) {
-            orderedShardPaths.push_back(entry.second);
+        for (const auto &[id, path] : shardPaths) {
+            orderedShardPaths.push_back(path);
         }
 
         std::string mergedOutputPath = hdfsDestinationFilePath;
@@ -2054,7 +2054,7 @@ void addStreamHDFSCommand(std::string masterIP, int connFd, std::string &hdfsSer
     }
 
     char userRes[FRONTEND_DATA_LENGTH + 1];
-    bzero(userRes, FRONTEND_DATA_LENGTH + 1);
+    memset(userRes, 0, FRONTEND_DATA_LENGTH + 1);
     read(connFd, userRes, FRONTEND_DATA_LENGTH);
     std::string userResS(userRes);
     userResS = Utils::trim_copy(userResS);
@@ -2083,7 +2083,7 @@ void addStreamHDFSCommand(std::string masterIP, int connFd, std::string &hdfsSer
         }
 
         char filePath[FRONTEND_DATA_LENGTH + 1];
-        bzero(filePath, FRONTEND_DATA_LENGTH + 1);
+        memset(filePath, 0, FRONTEND_DATA_LENGTH + 1);
         read(connFd, filePath, FRONTEND_DATA_LENGTH);
         std::string filePathS(filePath);
         filePathS = Utils::trim_copy(filePathS);
@@ -2115,7 +2115,7 @@ void addStreamHDFSCommand(std::string masterIP, int connFd, std::string &hdfsSer
     }
 
     char hdfsFilePath[FRONTEND_DATA_LENGTH + 1];
-    bzero(hdfsFilePath, FRONTEND_DATA_LENGTH + 1);
+    memset(hdfsFilePath, 0, FRONTEND_DATA_LENGTH + 1);
     read(connFd, hdfsFilePath, FRONTEND_DATA_LENGTH);
     std::string hdfsFilePathS(hdfsFilePath);
     hdfsFilePathS = Utils::trim_copy(hdfsFilePathS);
@@ -2150,7 +2150,7 @@ void addStreamHDFSCommand(std::string masterIP, int connFd, std::string &hdfsSer
     }
 
     char isEdgeListTypeRes[FRONTEND_DATA_LENGTH + 1];
-    bzero(isEdgeListTypeRes, FRONTEND_DATA_LENGTH + 1);
+    memset(isEdgeListTypeRes, 0, FRONTEND_DATA_LENGTH + 1);
     read(connFd, isEdgeListTypeRes, FRONTEND_DATA_LENGTH);
     std::string isEdgeListTypeGraph(isEdgeListTypeRes);
     isEdgeListTypeGraph = Utils::trim_copy(isEdgeListTypeGraph);
@@ -2175,7 +2175,7 @@ void addStreamHDFSCommand(std::string masterIP, int connFd, std::string &hdfsSer
     }
 
     char isDirectedRes[FRONTEND_DATA_LENGTH + 1];
-    bzero(isDirectedRes, FRONTEND_DATA_LENGTH + 1);
+    memset(isDirectedRes, 0, FRONTEND_DATA_LENGTH + 1);
     read(connFd, isDirectedRes, FRONTEND_DATA_LENGTH);
     std::string isDirectedS(isDirectedRes);
     isDirectedS = Utils::trim_copy(isDirectedS);
@@ -2681,7 +2681,7 @@ static void process_dataset_command(int connFd, bool *loop_exit_p) {
 
     // We get the name and the path to graph as a pair separated by |.
     char graph_data[FRONTEND_DATA_LENGTH + 1];
-    bzero(graph_data, FRONTEND_DATA_LENGTH + 1);
+    memset(graph_data, 0, FRONTEND_DATA_LENGTH + 1);
 
     read(connFd, graph_data, FRONTEND_DATA_LENGTH);
 
@@ -2729,7 +2729,7 @@ static void triangles_command(std::string masterIP, int connFd, SQLiteDBInterfac
 
     // We get the name and the path to graph as a pair separated by |.
     char graph_id_data[301];
-    bzero(graph_id_data, 301);
+    memset(graph_id_data, 0, 301);
     string name = "";
 
     read(connFd, graph_id_data, 300);
@@ -2768,7 +2768,7 @@ static void triangles_command(std::string masterIP, int connFd, SQLiteDBInterfac
 
         // We get the name and the path to graph as a pair separated by |.
         char priority_data[FRONTEND_DATA_LENGTH + 1];
-        bzero(priority_data, FRONTEND_DATA_LENGTH + 1);
+        memset(priority_data, 0, FRONTEND_DATA_LENGTH + 1);
 
         read(connFd, priority_data, FRONTEND_DATA_LENGTH);
 
@@ -2911,7 +2911,7 @@ static void streaming_triangles_command(std::string masterIP, int connFd, JobSch
 
     // We get the name and the path to graph as a pair separated by |.
     char graph_id_data[FRONTEND_DATA_LENGTH + 1];
-    bzero(graph_id_data, FRONTEND_DATA_LENGTH + 1);
+    memset(graph_id_data, 0, FRONTEND_DATA_LENGTH + 1);
 
     read(connFd, graph_id_data, FRONTEND_DATA_LENGTH);
 
@@ -2934,7 +2934,7 @@ static void streaming_triangles_command(std::string masterIP, int connFd, JobSch
     }
 
     char mode_data[FRONTEND_DATA_LENGTH + 1];
-    bzero(mode_data, FRONTEND_DATA_LENGTH + 1);
+    memset(mode_data, 0, FRONTEND_DATA_LENGTH + 1);
 
     read(connFd, mode_data, FRONTEND_DATA_LENGTH);
 
@@ -3026,7 +3026,7 @@ static void vertex_count_command(int connFd, SQLiteDBInterface *sqlite, bool *lo
     }
 
     char graph_id_data[301];
-    bzero(graph_id_data, 301);
+    memset(graph_id_data, 0, 301);
     string name = "";
 
     read(connFd, graph_id_data, 300);
@@ -3085,7 +3085,7 @@ static void edge_count_command(int connFd, SQLiteDBInterface *sqlite, bool *loop
     }
 
     char graph_id_data[301];
-    bzero(graph_id_data, 301);
+    memset(graph_id_data, 0, 301);
     string name = "";
 
     read(connFd, graph_id_data, 300);
@@ -3160,7 +3160,7 @@ static void merge_command(int connFd, SQLiteDBInterface *sqlite, bool *loop_exit
     }
 
     char train_data[301];
-    bzero(train_data, 301);
+    memset(train_data, 0, 301);
     read(connFd, train_data, 300);
 
     string trainData(train_data);
@@ -3242,7 +3242,7 @@ static void train_command(int connFd, SQLiteDBInterface *sqlite, bool *loop_exit
     }
 
     char train_data[301];
-    bzero(train_data, 301);
+    memset(train_data, 0, 301);
     read(connFd, train_data, 300);
 
     string trainData(train_data);
@@ -3332,7 +3332,7 @@ static void in_degree_command(int connFd, bool *loop_exit_p) {
     }
 
     char graph_id[FRONTEND_DATA_LENGTH + 1];
-    bzero(graph_id, FRONTEND_DATA_LENGTH + 1);
+    memset(graph_id, 0, FRONTEND_DATA_LENGTH + 1);
 
     read(connFd, graph_id, FRONTEND_DATA_LENGTH);
 
@@ -3373,7 +3373,7 @@ static void out_degree_command(int connFd, bool *loop_exit_p) {
     }
 
     char graph_id[FRONTEND_DATA_LENGTH + 1];
-    bzero(graph_id, FRONTEND_DATA_LENGTH + 1);
+    memset(graph_id, 0, FRONTEND_DATA_LENGTH + 1);
 
     read(connFd, graph_id, FRONTEND_DATA_LENGTH);
 
@@ -3415,7 +3415,7 @@ static void page_rank_command(std::string masterIP, int connFd, SQLiteDBInterfac
     }
 
     char page_rank_command[FRONTEND_DATA_LENGTH + 1];
-    bzero(page_rank_command, FRONTEND_DATA_LENGTH + 1);
+    memset(page_rank_command, 0, FRONTEND_DATA_LENGTH + 1);
     string name = "";
     string path = "";
 
@@ -3472,7 +3472,7 @@ static void page_rank_command(std::string masterIP, int connFd, SQLiteDBInterfac
 
     // We get the name and the path to graph as a pair separated by |.
     char priority_data[DATA_BUFFER_SIZE];
-    bzero(priority_data, DATA_BUFFER_SIZE);
+    memset(priority_data, 0, DATA_BUFFER_SIZE);
     read(connFd, priority_data, FRONTEND_DATA_LENGTH);
     string priority(priority_data);
     priority = Utils::trim_copy(priority);
@@ -3597,7 +3597,7 @@ static void egonet_command(int connFd, bool *loop_exit_p) {
     }
 
     char graph_id[FRONTEND_DATA_LENGTH + 1];
-    bzero(graph_id, FRONTEND_DATA_LENGTH + 1);
+    memset(graph_id, 0, FRONTEND_DATA_LENGTH + 1);
 
     read(connFd, graph_id, FRONTEND_DATA_LENGTH);
 
@@ -3638,7 +3638,7 @@ static void duplicate_centralstore_command(int connFd, bool *loop_exit_p) {
     }
 
     char graph_id[FRONTEND_DATA_LENGTH + 1];
-    bzero(graph_id, FRONTEND_DATA_LENGTH + 1);
+    memset(graph_id, 0, FRONTEND_DATA_LENGTH + 1);
 
     read(connFd, graph_id, FRONTEND_DATA_LENGTH);
 
@@ -3682,7 +3682,7 @@ static void predict_command(std::string masterIP, int connFd, SQLiteDBInterface 
         }
 
         char predict_data[301];
-        bzero(predict_data, 301);
+        memset(predict_data, 0, 301);
         string graphID = "";
         string modelID = "";
         string path = "";
@@ -3723,7 +3723,7 @@ static void predict_command(std::string masterIP, int connFd, SQLiteDBInterface 
             return;
         }
         char predict_data[301];
-        bzero(predict_data, 301);
+        memset(predict_data, 0, 301);
         string graphID = "";
         string path = "";
 
@@ -3774,7 +3774,7 @@ static void start_remote_worker_command(int connFd, bool *loop_exit_p) {
     }
 
     char worker_data[301];
-    bzero(worker_data, 301);
+    memset(worker_data, 0, 301);
     read(connFd, worker_data, 300);
     string remote_worker_data(worker_data);
 
@@ -3823,7 +3823,7 @@ static void sla_command(int connFd, SQLiteDBInterface *sqlite, PerformanceSQLite
     }
 
     char category[FRONTEND_DATA_LENGTH + 1];
-    bzero(category, FRONTEND_DATA_LENGTH + 1);
+    memset(category, 0, FRONTEND_DATA_LENGTH + 1);
     read(connFd, category, FRONTEND_DATA_LENGTH);
     string command_info(category);
 

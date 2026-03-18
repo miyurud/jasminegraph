@@ -153,9 +153,9 @@ std::string K8sWorkerController::spawnWorker(int workerId) {
             controller_logger.error("ERROR, no host named " + ip);
         }
 
-        bzero((char *)&serv_addr, sizeof(serv_addr));
+        memset((char *)&serv_addr, 0, sizeof(serv_addr));
         serv_addr.sin_family = AF_INET;
-        bcopy((char *)server->h_addr, (char *)&serv_addr.sin_addr.s_addr, server->h_length);
+        memcpy((char *)&serv_addr.sin_addr.s_addr, (char *)server->h_addr, server->h_length);
         serv_addr.sin_port = htons(Conts::JASMINEGRAPH_INSTANCE_PORT);
 
         if (Utils::connect_wrapper(sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
@@ -357,7 +357,8 @@ void K8sWorkerController::scaleDown(const set<int> workerIds) {
     std::vector<std::thread> threads(count);
     int ind = 0;
     for (auto it = workerIds.begin(); it != workerIds.end(); it++) {
-        threads[ind++] = std::thread(&K8sWorkerController::deleteWorker, this, *it);
+        threads[ind] = std::thread(&K8sWorkerController::deleteWorker, this, *it);
+        ind++;
     }
 
     for (int i = 0; i < count; i++) {

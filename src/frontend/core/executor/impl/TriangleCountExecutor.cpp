@@ -773,9 +773,9 @@ long TriangleCountExecutor::getTriangleCount(
     }
 
     // Connection establishment
-    bzero((char *)&serv_addr, sizeof(serv_addr));
+    memset((char *)&serv_addr, 0, sizeof(serv_addr));
     serv_addr.sin_family = AF_INET;
-    bcopy((char *)server->h_addr, (char *)&serv_addr.sin_addr.s_addr, server->h_length);
+    memcpy((char *)&serv_addr.sin_addr.s_addr, (char *)server->h_addr, server->h_length);;
     serv_addr.sin_port = htons(port);
     if (Utils::connect_wrapper(sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
         triangleCount_logger.error("ERROR connecting");
@@ -1234,9 +1234,9 @@ static string isFileAccessibleToWorker(std::string graphId, std::string partitio
         return 0;
     }
 
-    bzero((char *)&serv_addr, sizeof(serv_addr));
+    memset((char *)&serv_addr, 0, sizeof(serv_addr));
     serv_addr.sin_family = AF_INET;
-    bcopy((char *)server->h_addr, (char *)&serv_addr.sin_addr.s_addr, server->h_length);
+    memcpy((char *)&serv_addr.sin_addr.s_addr, (char *)server->h_addr, server->h_length);;
     serv_addr.sin_port = htons(atoi(aggregatorPort.c_str()));
     if (Utils::connect_wrapper(sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
         triangleCount_logger.error("ERROR connecting");
@@ -1355,9 +1355,9 @@ std::string TriangleCountExecutor::copyCompositeCentralStoreToAggregator(std::st
         return 0;
     }
 
-    bzero((char *)&serv_addr, sizeof(serv_addr));
+    memset((char *)&serv_addr, 0, sizeof(serv_addr));
     serv_addr.sin_family = AF_INET;
-    bcopy((char *)server->h_addr, (char *)&serv_addr.sin_addr.s_addr, server->h_length);
+    memcpy((char *)&serv_addr.sin_addr.s_addr, (char *)server->h_addr, server->h_length);;
     serv_addr.sin_port = htons(atoi(aggregatorPort.c_str()));
     if (Utils::connect_wrapper(sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
         triangleCount_logger.error("ERROR connecting");
@@ -1509,9 +1509,9 @@ std::vector<string> TriangleCountExecutor::countCompositeCentralStoreTriangles(
         return {};
     }
 
-    bzero((char *)&serv_addr, sizeof(serv_addr));
+    memset((char *)&serv_addr, 0, sizeof(serv_addr));
     serv_addr.sin_family = AF_INET;
-    bcopy((char *)server->h_addr, (char *)&serv_addr.sin_addr.s_addr, server->h_length);
+    memcpy((char *)&serv_addr.sin_addr.s_addr, (char *)server->h_addr, server->h_length);;
     serv_addr.sin_port = htons(atoi(aggregatorPort.c_str()));
     if (Utils::connect_wrapper(sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
         triangleCount_logger.error("ERROR connecting");
@@ -1663,9 +1663,9 @@ std::string TriangleCountExecutor::copyCentralStoreToAggregator(std::string aggr
         return "";
     }
 
-    bzero((char *)&serv_addr, sizeof(serv_addr));
+    memset((char *)&serv_addr, 0, sizeof(serv_addr));
     serv_addr.sin_family = AF_INET;
-    bcopy((char *)server->h_addr, (char *)&serv_addr.sin_addr.s_addr, server->h_length);
+    memcpy((char *)&serv_addr.sin_addr.s_addr, (char *)server->h_addr, server->h_length);;
     serv_addr.sin_port = htons(atoi(aggregatorPort.c_str()));
     if (Utils::connect_wrapper(sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
         triangleCount_logger.error("ERROR connecting");
@@ -1819,9 +1819,9 @@ string TriangleCountExecutor::countCentralStoreTriangles(std::string aggregatorP
         return 0;
     }
 
-    bzero((char *)&serv_addr, sizeof(serv_addr));
+    memset((char *)&serv_addr, 0, sizeof(serv_addr));
     serv_addr.sin_family = AF_INET;
-    bcopy((char *)server->h_addr, (char *)&serv_addr.sin_addr.s_addr, server->h_length);
+    memcpy((char *)&serv_addr.sin_addr.s_addr, (char *)server->h_addr, server->h_length);;
     serv_addr.sin_port = htons(atoi(aggregatorPort.c_str()));
     if (Utils::connect_wrapper(sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
         triangleCount_logger.error("ERROR connecting");
