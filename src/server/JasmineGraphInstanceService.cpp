@@ -141,6 +141,10 @@ static void push_partition_command(int connFd, bool *loop_exit_p);
 static void push_file_command(int connFd, bool *loop_exit_p);
 static void send_edges_command(int connFd, bool *loop_exit_p);
 static void send_edges_to_hdfs_command(int connFd, bool *loop_exit_p);
+template<typename ChunkConsumer>
+static bool stream_partition_edge_data(const std::string &graphID, const std::string &partitionID,
+                                       const ChunkConsumer &chunkConsumer,
+                                       size_t *totalBytes);
 static void query_start_command(int connFd, InstanceHandler &instanceHandler, std::map<std::string,
                                 JasmineGraphIncrementalLocalStore *> &incrementalLocalStoreMap, bool *loop_exit_p);
 static void semantic_beam_search(int connFd, InstanceHandler &instanceHandler, std::map<std::string,
