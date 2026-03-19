@@ -100,7 +100,7 @@ static void add_graph_cust_command(std::string masterIP, int connFd, SQLiteDBInt
 static void remove_graph_command(std::string masterIP, int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_p);
 static void remove_all_graphs_command(std::string masterIP, int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_p);
 static void add_model_command(int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_p);
-static void temporal_query_command(int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_p);
+static void temporal_query_command(int connFd, SQLiteDBInterface *, bool *);
 static void temporal_snapshot_command(int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_p);
 static void temporal_range_command(int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_p);
 static void add_stream_kafka_command(int connFd, std::string &kafka_server_IP, cppkafka::Configuration &configs,
@@ -3556,16 +3556,15 @@ void JasmineGraphFrontEnd::stop_graph_streaming(int connFd, bool *loop_exit_p) {
 }
 
 // Temporal query command: Query edges at a specific snapshot
-static void temporal_query_command(int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_p) {
+static void temporal_query_command(int connFd, SQLiteDBInterface *, bool *) {
     frontend_logger.info("Temporal query command received");
     
     std::string message = "Graph ID?";
     int resultWr = write(connFd, message.c_str(), message.length());
     resultWr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
     
-    char graphIdBuf[FRONTEND_DATA_LENGTH + 1];
-    memset(graphIdBuf, 0, FRONTEND_DATA_LENGTH + 1);
-    read(connFd, graphIdBuf, FRONTEND_DATA_LENGTH);
+    std::string graphIdBuf(FRONTEND_DATA_LENGTH, '\0');
+    read(connFd, graphIdBuf.data(), FRONTEND_DATA_LENGTH);
     std::string graphIdStr(graphIdBuf);
     graphIdStr = Utils::trim_copy(graphIdStr);
     int graphId = std::stoi(graphIdStr);
@@ -3606,12 +3605,12 @@ static void temporal_query_command(int connFd, SQLiteDBInterface *sqlite, bool *
         
         int displayLimit = 10;
         int count = 0;
-        for (const auto& edge : result.edges) {
+        for (const auto& [source, destination] : result.edges) {
             if (count++ >= displayLimit) {
                 response << "... (showing first " << displayLimit << " edges)\n";
                 break;
             }
-            response << edge.first << " -> " << edge.second << "\n";
+            response << source << " -> " << destination << "\n";
         }
         response << "Query time: " << result.executionTimeMs << "ms\n";
         
