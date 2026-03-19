@@ -3676,8 +3676,11 @@ static void temporal_snapshot_command(int connFd, SQLiteDBInterface *sqlite, boo
         } else {
             for (const auto& [snapshotId, info] : snapMap) {
                 std::time_t t = static_cast<std::time_t>(info.timestamp / 1000000000ULL);
-                char timeStr[100];
-                std::strftime(timeStr, sizeof(timeStr), "%Y-%m-%d %H:%M:%S", std::localtime(&t));
+                char timeStr[100] = "N/A";
+                std::tm localTime = {};
+                if (localtime_r(&t, &localTime) != nullptr) {
+                    std::strftime(timeStr, sizeof(timeStr), "%Y-%m-%d %H:%M:%S", &localTime);
+                }
                 response << "Snapshot " << snapshotId
                          << "  edges=" << info.totalEdges
                          << "  created=" << timeStr << "\n";
@@ -3943,8 +3946,11 @@ static void history_triangle_timestamp_command(int connFd, SQLiteDBInterface *sq
             resultWr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
         } else {
             std::time_t snapshotTime = snapshotTimestamps[closestSnapshotId] / 1000000000;
-            char timeStr[100];
-            std::strftime(timeStr, sizeof(timeStr), "%Y-%m-%d %H:%M:%S", std::localtime(&snapshotTime));
+            char timeStr[100] = "N/A";
+            std::tm localTime = {};
+            if (localtime_r(&snapshotTime, &localTime) != nullptr) {
+                std::strftime(timeStr, sizeof(timeStr), "%Y-%m-%d %H:%M:%S", &localTime);
+            }
             
             std::stringstream response;
             response << "Closest snapshot: " << closestSnapshotId << " (created: " << timeStr << ")\n";
@@ -4185,8 +4191,11 @@ static void history_pagerank_timestamp_command(int connFd, SQLiteDBInterface *sq
                              Conts::CARRIAGE_RETURN_NEW_LINE.size());
         } else {
             std::time_t snapshotTime = snapshotTimestamps[closestSnapshotId] / 1000000000;
-            char timeStr[100];
-            std::strftime(timeStr, sizeof(timeStr), "%Y-%m-%d %H:%M:%S", std::localtime(&snapshotTime));
+            char timeStr[100] = "N/A";
+            std::tm localTime = {};
+            if (localtime_r(&snapshotTime, &localTime) != nullptr) {
+                std::strftime(timeStr, sizeof(timeStr), "%Y-%m-%d %H:%M:%S", &localTime);
+            }
 
             std::stringstream response;
             response << "Closest snapshot: " << closestSnapshotId << " (created: " << timeStr << ")\n";

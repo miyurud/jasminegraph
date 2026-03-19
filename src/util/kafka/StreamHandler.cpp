@@ -989,8 +989,12 @@ void StreamHandler::listenViaDirectWorkers(
         std::string host = w.hostname;
         if (host.find('@') != std::string::npos) host = Utils::split(host, '@')[1];
 
-        struct hostent *server = gethostbyname(host.c_str());
-        if (!server) {
+        struct hostent hostEntry;
+        struct hostent *server = nullptr;
+        int hErrno = 0;
+        char hostBuffer[8192];
+        if (gethostbyname_r(host.c_str(), &hostEntry, hostBuffer, sizeof(hostBuffer), &server, &hErrno) != 0 ||
+            !server) {
             stream_handler_logger.error("Worker " + std::to_string(wi) + ": unknown host " + host);
             close(sockfd);
             continue;
