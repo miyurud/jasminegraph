@@ -117,7 +117,7 @@ static void triangles_command(std::string masterIP, int connFd, SQLiteDBInterfac
 static void streaming_triangles_command(std::string masterIP, int connFd, JobScheduler *jobScheduler, bool *loop_exit_p,
                                         int numberOfPartitions, bool *strian_exit);
 static void history_triangle_command(int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_p);
-static void history_triangle_timestamp_command(int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_p);
+static void history_triangle_timestamp_command(int connFd, SQLiteDBInterface *, bool *);
 static void history_pagerank_command(int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_p);
 static void history_pagerank_timestamp_command(int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_p);
 static void stop_strian_command(int connFd, bool *strian_exit);
@@ -3851,7 +3851,72 @@ static void history_triangle_command(int connFd, SQLiteDBInterface *sqlite, bool
     }
 }
 // History Triangle Count by Timestamp Command
-static void history_triangle_timestamp_command(int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_p) {
+static bool parseTemporalTargetTimestamp(const std::string& timestampStr, uint64_t& targetTimestamp) {
+    if (timestampStr.find("-") != std::string::npos || timestampStr.find(":") != std::string::npos) {
+        struct tm tm = {};
+        if (strptime(timestampStr.c_str(), "%Y-%m-%d %H:%M:%S", &tm) == nullptr) {
+            return false;
+        }
+        targetTimestamp = static_cast<uint64_t>(std::mktime(&tm)) * 1000000000ULL;
+        return true;
+    }
+
+    targetTimestamp = std::stoull(timestampStr);
+    if (targetTimestamp < 1000000000000ULL) {
+        targetTimestamp *= 1000000000ULL;
+    }
+    return true;
+}
+
+static std::map<uint32_t, uint64_t> loadSnapshotTimestampsForGraph(const std::string& snapshotDir, int graphId) {
+    std::vector<std::string> files = Utils::getListOfFilesInDirectory(snapshotDir);
+    std::string graphPrefix = "graph" + std::to_string(graphId) + "_part";
+    std::map<uint32_t, uint64_t> snapshotTimestamps;
+
+    for (const auto& file : files) {
+        if (file.find(graphPrefix) == std::string::npos || file.find("_snapmeta.bin") == std::string::npos) {
+            continue;
+        }
+
+        std::string metaPath = snapshotDir + "/" + file;
+        auto records = TemporalStorePersistence::readAllSnapmeta(metaPath);
+        for (const auto& rec : records) {
+            snapshotTimestamps.emplace(rec.snapshotId, rec.timestamp);
+        }
+    }
+
+    return snapshotTimestamps;
+}
+
+static uint32_t findClosestSnapshotId(const std::map<uint32_t, uint64_t>& snapshotTimestamps,
+                                      uint64_t targetTimestamp) {
+    uint32_t closestSnapshotId = 0;
+    uint64_t minDiff = UINT64_MAX;
+
+    for (const auto& [snapshotId, timestamp] : snapshotTimestamps) {
+        uint64_t diff = (timestamp <= targetTimestamp)
+                      ? (targetTimestamp - timestamp)
+                      : (timestamp - targetTimestamp);
+        if (diff < minDiff) {
+            minDiff = diff;
+            closestSnapshotId = snapshotId;
+        }
+    }
+
+    return closestSnapshotId;
+}
+
+static std::string formatSnapshotTimestamp(uint64_t timestampNs) {
+    std::time_t snapshotTime = static_cast<std::time_t>(timestampNs / 1000000000ULL);
+    char timeStr[100] = "N/A";
+    std::tm localTime = {};
+    if (localtime_r(&snapshotTime, &localTime) != nullptr) {
+        std::strftime(timeStr, sizeof(timeStr), "%Y-%m-%d %H:%M:%S", &localTime);
+    }
+    return std::string(timeStr);
+}
+
+static void history_triangle_timestamp_command(int connFd, SQLiteDBInterface *, bool *) {
     frontend_logger.info("History triangle count by timestamp command received");
     
     std::string message = "Graph ID?";
@@ -3876,42 +3941,16 @@ static void history_triangle_timestamp_command(int connFd, SQLiteDBInterface *sq
     timestampStr = Utils::trim_copy(timestampStr);
     
     try {
-        uint64_t targetTimestamp;
-        
-        if (timestampStr.find("-") != std::string::npos || timestampStr.find(":") != std::string::npos) {
-            struct tm tm = {};
-            if (strptime(timestampStr.c_str(), "%Y-%m-%d %H:%M:%S", &tm) != nullptr) {
-                targetTimestamp = static_cast<uint64_t>(std::mktime(&tm)) * 1000000000ULL;
-            } else {
-                std::string error = "Error: Invalid timestamp format";
-                resultWr = write(connFd, error.c_str(), error.length());
-                resultWr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
-                return;
-            }
-        } else {
-            targetTimestamp = std::stoull(timestampStr);
-            if (targetTimestamp < 1000000000000ULL) {
-                targetTimestamp *= 1000000000ULL;
-            }
+        uint64_t targetTimestamp = 0;
+        if (!parseTemporalTargetTimestamp(timestampStr, targetTimestamp)) {
+            std::string error = "Error: Invalid timestamp format";
+            resultWr = write(connFd, error.c_str(), error.length());
+            resultWr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
+            return;
         }
         
         std::string snapshotDir = Utils::getJasmineGraphHome() + "/env/data/temporal_snapshots";
-        std::vector<std::string> files = Utils::getListOfFilesInDirectory(snapshotDir);
-        
-        std::string graphPrefix = "graph" + std::to_string(graphId) + "_part";
-        std::map<uint32_t, uint64_t> snapshotTimestamps;
-        
-        for (const auto& file : files) {
-            if (file.find(graphPrefix) == std::string::npos) continue;
-            if (file.find("_snapmeta.bin") == std::string::npos) continue;
-            std::string metaPath = snapshotDir + "/" + file;
-            auto records = TemporalStorePersistence::readAllSnapmeta(metaPath);
-            for (const auto& rec : records) {
-                if (snapshotTimestamps.find(rec.snapshotId) == snapshotTimestamps.end()) {
-                    snapshotTimestamps[rec.snapshotId] = rec.timestamp;
-                }
-            }
-        }
+        std::map<uint32_t, uint64_t> snapshotTimestamps = loadSnapshotTimestampsForGraph(snapshotDir, graphId);
         
         if (snapshotTimestamps.empty()) {
             std::string error = "Error: No snapshots found for graph " + std::to_string(graphId);
@@ -3919,19 +3958,8 @@ static void history_triangle_timestamp_command(int connFd, SQLiteDBInterface *sq
             resultWr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
             return;
         }
-        
-        uint32_t closestSnapshotId = 0;
-        uint64_t minDiff = UINT64_MAX;
-        
-        for (const auto& [snapshotId, timestamp] : snapshotTimestamps) {
-            uint64_t diff = (timestamp <= targetTimestamp) ? 
-                          (targetTimestamp - timestamp) : 
-                          (timestamp - targetTimestamp);
-            if (diff < minDiff) {
-                minDiff = diff;
-                closestSnapshotId = snapshotId;
-            }
-        }
+
+        uint32_t closestSnapshotId = findClosestSnapshotId(snapshotTimestamps, targetTimestamp);
         
         uint64_t timeThreshold = 60;
         uint64_t edgeThreshold = 10000;
@@ -3943,28 +3971,23 @@ static void history_triangle_timestamp_command(int connFd, SQLiteDBInterface *sq
             std::string error = "Error: Failed to process snapshot " + std::to_string(closestSnapshotId);
             resultWr = write(connFd, error.c_str(), error.length());
             resultWr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
-        } else {
-            std::time_t snapshotTime = snapshotTimestamps[closestSnapshotId] / 1000000000;
-            char timeStr[100] = "N/A";
-            std::tm localTime = {};
-            if (localtime_r(&snapshotTime, &localTime) != nullptr) {
-                std::strftime(timeStr, sizeof(timeStr), "%Y-%m-%d %H:%M:%S", &localTime);
-            }
-            
-            std::stringstream response;
-            response << "Closest snapshot: " << closestSnapshotId << " (created: " << timeStr << ")\n";
-            response << "Triangle count: " << result.triangleCount << "\n";
-            response << "Edges: " << result.totalEdges << "\n";
-            response << "Unique nodes: " << result.uniqueNodes << "\n";
-            response << "Partitions processed: " << result.partitionsProcessed << "\n";
-            response << "Time taken: " << result.durationMs << "ms\n";
-            
-            std::string responseStr = response.str();
-            resultWr = write(connFd, responseStr.c_str(), responseStr.length());
-            resultWr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
-            
-            frontend_logger.info("History triangle count by timestamp completed");
+            return;
         }
+
+        std::string timeStr = formatSnapshotTimestamp(snapshotTimestamps.at(closestSnapshotId));
+        std::stringstream response;
+        response << "Closest snapshot: " << closestSnapshotId << " (created: " << timeStr << ")\n";
+        response << "Triangle count: " << result.triangleCount << "\n";
+        response << "Edges: " << result.totalEdges << "\n";
+        response << "Unique nodes: " << result.uniqueNodes << "\n";
+        response << "Partitions processed: " << result.partitionsProcessed << "\n";
+        response << "Time taken: " << result.durationMs << "ms\n";
+
+        std::string responseStr = response.str();
+        resultWr = write(connFd, responseStr.c_str(), responseStr.length());
+        resultWr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
+
+        frontend_logger.info("History triangle count by timestamp completed");
     } catch (const std::exception& e) {
         std::string error = "Error: " + std::string(e.what());
         resultWr = write(connFd, error.c_str(), error.length());

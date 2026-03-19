@@ -93,13 +93,15 @@ void JasmineGraphFrontEndCommon::removeGraph(std::string graphID, SQLiteDBInterf
         while ((entry = readdir(dir)) != nullptr) {
             std::string filename(entry->d_name);
             // Remove any file that belongs to this graph (all extensions: .tgs, .ebm, .bin)
-            if (filename.find(graphPrefix) == 0) {
-                std::string fullPath = snapshotDir + "/" + filename;
-                if (remove(fullPath.c_str()) == 0) {
-                    removedCount++;
-                } else {
-                    common_logger.error("Failed to remove temporal file: " + filename);
-                }
+            if (filename.find(graphPrefix) != 0) {
+                continue;
+            }
+
+            std::string fullPath = snapshotDir + "/" + filename;
+            if (remove(fullPath.c_str()) == 0) {
+                removedCount++;
+            } else {
+                common_logger.error("Failed to remove temporal file: " + filename);
             }
         }
         closedir(dir);

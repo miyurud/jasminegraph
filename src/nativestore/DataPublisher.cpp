@@ -21,6 +21,12 @@
 # include <thread>
 Logger data_publisher_logger;
 
+namespace {
+ssize_t receiveFromSocket(int socketFd, void* buffer, size_t length) {
+    return recv(socketFd, buffer, length, 0);
+}
+}
+
 DataPublisher::DataPublisher(int worker_port, std::string worker_address, int worker_data_port) {
     this->worker_port = worker_port;
     this->worker_address = worker_address;
@@ -60,7 +66,11 @@ void DataPublisher::publishBatch(const std::vector<std::string>& messages) {
          JasmineGraphInstanceProtocol::GRAPH_STREAM_BATCH_START.length(), 0);
 
     char start_ack[ACK_MESSAGE_SIZE] = {0};
-    auto ack_return_status = recv(this->sock, &start_ack, sizeof(start_ack), 0);
+    auto ack_return_status = receiveFromSocket(this->sock, &start_ack, sizeof(start_ack));
+    if (ack_return_status <= 0) {
+        data_publisher_logger.error("Error while receiving batch start command ack");
+        return;
+    }
     std::string ack(start_ack);
     if (JasmineGraphInstanceProtocol::GRAPH_STREAM_BATCH_START_ACK != ack) {
         data_publisher_logger.error("Error while receiving batch start command ack");
@@ -73,7 +83,7 @@ void DataPublisher::publishBatch(const std::vector<std::string>& messages) {
     send(this->sock, &converted_batch_size, sizeof(converted_batch_size), 0);
     
     int received_int = 0;
-    auto return_status = recv(this->sock, &received_int, sizeof(received_int), 0);
+    auto return_status = receiveFromSocket(this->sock, &received_int, sizeof(received_int));
     if (return_status <= 0) {
         data_publisher_logger.error("Error while receiving batch size ack");
         return;
@@ -94,7 +104,7 @@ void DataPublisher::publishBatch(const std::vector<std::string>& messages) {
     send(this->sock, &converted_number, sizeof(converted_number), 0);
     
     received_int = 0;
-    return_status = recv(this->sock, &received_int, sizeof(received_int), 0);
+    return_status = receiveFromSocket(this->sock, &received_int, sizeof(received_int));
     if (return_status <= 0) {
         data_publisher_logger.error("Error while receiving content length ack");
         return;
@@ -106,10 +116,10 @@ void DataPublisher::publishBatch(const std::vector<std::string>& messages) {
     // Wait for end acknowledgment
     char returnCharResult;
     do {
-        return_status = recv(this->sock, &returnCharResult, sizeof(returnCharResult), 0);
+        return_status = receiveFromSocket(this->sock, &returnCharResult, sizeof(returnCharResult));
         if (return_status < 1) return;
         if (returnCharResult == '\r') {
-            return_status = recv(this->sock, &returnCharResult, sizeof(returnCharResult), 0);
+            return_status = receiveFromSocket(this->sock, &returnCharResult, sizeof(returnCharResult));
             if (return_status < 1) return;
             if (returnCharResult == '\n') break;
         }
@@ -120,14 +130,16 @@ void DataPublisher::publishBatch(const std::vector<std::string>& messages) {
 
 void DataPublisher::publish(std::string message) {
     std::lock_guard<std::mutex> lock(socket_mutex);  // Protect socket from concurrent access
-    
-    char receiver_buffer[MAX_STREAMING_DATA_LENGTH] = {0};
 
     send(this->sock, JasmineGraphInstanceProtocol::GRAPH_STREAM_START.c_str(),
          JasmineGraphInstanceProtocol::GRAPH_STREAM_START.length(), 0);
 
     char start_ack[ACK_MESSAGE_SIZE] = {0};
-    auto ack_return_status = recv(this->sock, &start_ack, sizeof(start_ack), 0);
+    auto ack_return_status = receiveFromSocket(this->sock, &start_ack, sizeof(start_ack));
+    if (ack_return_status <= 0) {
+        data_publisher_logger.error("Error while receiving start command ack\n");
+        return;
+    }
     std::string ack(start_ack);
     if (JasmineGraphInstanceProtocol::GRAPH_STREAM_START_ACK != ack) {
         data_publisher_logger.error("Error while receiving start command ack\n");
@@ -140,7 +152,7 @@ void DataPublisher::publish(std::string message) {
 
     int received_int = 0;
     data_publisher_logger.debug("Waiting for content length ack\n");
-    auto return_status = recv(this->sock, &received_int, sizeof(received_int), 0);
+    auto return_status = receiveFromSocket(this->sock, &received_int, sizeof(received_int));
 
     if (return_status > 0) {
         data_publisher_logger.debug("Received int =" + std::to_string(ntohl(received_int)));
@@ -151,12 +163,12 @@ void DataPublisher::publish(std::string message) {
     data_publisher_logger.debug("Edge data sent\n");
     char CRLF;
     do {
-        auto return_status = recv(this->sock, &CRLF, sizeof(CRLF), 0);
+        auto return_status = receiveFromSocket(this->sock, &CRLF, sizeof(CRLF));
         if (return_status < 1) {
             return;
         }
         if (CRLF == '\r') {
-            auto return_status = recv(this->sock, &CRLF, sizeof(CRLF), 0);
+            auto return_status = receiveFromSocket(this->sock, &CRLF, sizeof(CRLF));
             if (return_status < 1) {
                 return;
             }
@@ -170,14 +182,16 @@ void DataPublisher::publish(std::string message) {
 
 void DataPublisher::queryPublish(std::string graphId, std::string partitionId, std::string message) {
     std::lock_guard<std::mutex> lock(socket_mutex);  // Protect socket from concurrent access
-    
-    char receiver_buffer[MAX_STREAMING_DATA_LENGTH] = {0};
 
     send(this->sock, JasmineGraphInstanceProtocol::QUERY_START.c_str(),
          JasmineGraphInstanceProtocol::QUERY_START.length(), 0);
 
     char start_ack[ACK_MESSAGE_SIZE] = {0};
-    auto ack_return_status = recv(this->sock, &start_ack, sizeof(start_ack), 0);
+    auto ack_return_status = receiveFromSocket(this->sock, &start_ack, sizeof(start_ack));
+    if (ack_return_status <= 0) {
+        data_publisher_logger.error("Error while receiving start command ack");
+        return;
+    }
     std::string ack(start_ack);
     if (JasmineGraphInstanceProtocol::QUERY_START_ACK != ack) {
         data_publisher_logger.error("Error while receiving start command ack");
@@ -190,7 +204,7 @@ void DataPublisher::queryPublish(std::string graphId, std::string partitionId, s
 
     int received_int = 0;
     data_publisher_logger.info("Waiting for content length ack");
-    auto return_status = recv(this->sock, &received_int, sizeof(received_int), 0);
+    auto return_status = receiveFromSocket(this->sock, &received_int, sizeof(received_int));
 
     if (return_status > 0) {
         data_publisher_logger.info("Received int = " + std::to_string(ntohl(received_int)));
@@ -207,7 +221,7 @@ void DataPublisher::queryPublish(std::string graphId, std::string partitionId, s
 
     received_int = 0;
     data_publisher_logger.info("Waiting for content length ack");
-    return_status = recv(this->sock, &received_int, sizeof(received_int), 0);
+    return_status = receiveFromSocket(this->sock, &received_int, sizeof(received_int));
 
     if (return_status > 0) {
         data_publisher_logger.info("Received int = " + std::to_string(ntohl(received_int)));
@@ -223,7 +237,7 @@ void DataPublisher::queryPublish(std::string graphId, std::string partitionId, s
 
     received_int = 0;
     data_publisher_logger.info("Waiting for content length ack");
-    return_status = recv(this->sock, &received_int, sizeof(received_int), 0);
+    return_status = receiveFromSocket(this->sock, &received_int, sizeof(received_int));
 
     if (return_status > 0) {
         data_publisher_logger.info("Received int = " + std::to_string(ntohl(received_int)));
@@ -236,13 +250,13 @@ void DataPublisher::queryPublish(std::string graphId, std::string partitionId, s
 
     char returnCharResult;
     do {
-        auto returnStatus = recv(this->sock, &returnCharResult, sizeof(returnCharResult), 0);
-        if (return_status < 1) {
+        auto returnStatus = receiveFromSocket(this->sock, &returnCharResult, sizeof(returnCharResult));
+        if (returnStatus < 1) {
             return;
         }
         if (returnCharResult == '\r') {
-            returnStatus = recv(this->sock, &returnCharResult, sizeof(returnCharResult), 0);
-            if (return_status < 1) {
+            returnStatus = receiveFromSocket(this->sock, &returnCharResult, sizeof(returnCharResult));
+            if (returnStatus < 1) {
                 return;
             }
             if (returnCharResult == '\n') {
