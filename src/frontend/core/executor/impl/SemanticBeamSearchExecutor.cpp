@@ -228,9 +228,9 @@ void SemanticBeamSearchExecutor::doSemanticBeamSearch(
     return;
   }
 
-  bzero(ack, ACK_MESSAGE_SIZE);
+  bzero(ack.data(), ACK_MESSAGE_SIZE);
   semantic_beam_search_logger_executor.debug("Waiting for ACK after command");
-  if (recv(sockfd, ack, strlen("stream-c-length-ack"), 0) <= 0) {
+  if (recv(sockfd, ack.data(), strlen("stream-c-length-ack"), 0) <= 0) {
     semantic_beam_search_logger_executor.error(
         "Failed to receive ACK after command");
     close(sockfd);
@@ -251,9 +251,9 @@ void SemanticBeamSearchExecutor::doSemanticBeamSearch(
     close(sockfd);
     return;
   }
-  bzero(ack, ACK_MESSAGE_SIZE);
+  bzero(ack.data(), ACK_MESSAGE_SIZE);
   semantic_beam_search_logger_executor.debug("Waiting for ACK after graphID");
-  if (recv(sockfd, ack, strlen("stream-c-length-ack"), 0) <= 0) {
+  if (recv(sockfd, ack.data(), strlen("stream-c-length-ack"), 0) <= 0) {
     semantic_beam_search_logger_executor.error(
         "Failed to receive ACK after graphID");
     close(sockfd);
@@ -274,10 +274,10 @@ void SemanticBeamSearchExecutor::doSemanticBeamSearch(
     close(sockfd);
     return;
   }
-  bzero(ack, ACK_MESSAGE_SIZE);
+  bzero(ack.data(), ACK_MESSAGE_SIZE);
   semantic_beam_search_logger_executor.debug(
       "Waiting for ACK after partitionId");
-  if (recv(sockfd, ack, strlen("stream-c-length-ack"), 0) <= 0) {
+  if (recv(sockfd, ack.data(), strlen("stream-c-length-ack"), 0) <= 0) {
     semantic_beam_search_logger_executor.error(
         "Failed to receive ACK after partitionId");
     close(sockfd);
@@ -297,9 +297,9 @@ void SemanticBeamSearchExecutor::doSemanticBeamSearch(
     close(sockfd);
     return;
   }
-  bzero(ack, ACK_MESSAGE_SIZE);
+  bzero(ack.data(), ACK_MESSAGE_SIZE);
   semantic_beam_search_logger_executor.debug("Waiting for ACK after query");
-  if (recv(sockfd, ack, strlen("stream-c-length-ack"), 0) <= 0) {
+  if (recv(sockfd, ack.data(), strlen("stream-c-length-ack"), 0) <= 0) {
     semantic_beam_search_logger_executor.error(
         "Failed to receive ACK after query");
     close(sockfd);
@@ -333,9 +333,9 @@ void SemanticBeamSearchExecutor::doSemanticBeamSearch(
     close(sockfd);
     return;
   }
-  bzero(ack, ACK_MESSAGE_SIZE);
+  bzero(ack.data(), ACK_MESSAGE_SIZE);
   semantic_beam_search_logger_executor.debug("Waiting for ACK after query");
-  if (recv(sockfd, ack, strlen("stream-c-length-ack"), 0) <= 0) {
+  if (recv(sockfd, ack.data(), strlen("stream-c-length-ack"), 0) <= 0) {
     semantic_beam_search_logger_executor.info(ack);
     semantic_beam_search_logger_executor.error(
         "Failed to receive ACK after query");
