@@ -498,14 +498,25 @@ long countLocalTriangles(
         graphDBMapDuplicateCentralStores[duplicateCentralGraphIdentifier];
 
     // Check which algorithm was used for partitioning
-    std::string algorithm = "metis";  // default
+    std::string algorithm = "4";  // default to METIS
     try {
         SQLiteDBInterface *refToSqlite = new SQLiteDBInterface();
         refToSqlite->init();
-        std::string query = "SELECT id_algorithm FROM graph WHERE idgraph = '" + graphId + "'";
+        // COALESCE + CAST avoids null/typed-value conversion issues from metadb rows.
+        std::string query = "SELECT COALESCE(CAST(id_algorithm AS TEXT), '4') AS id_algorithm FROM graph WHERE idgraph = '" +
+                            graphId + "' LIMIT 1";
         std::vector<vector<pair<string, string>>> queryResults = refToSqlite->runSelect(query);
         if (!queryResults.empty() && !queryResults[0].empty()) {
-            algorithm = queryResults[0][0].second;
+            for (const auto &column : queryResults[0]) {
+                if (column.first == "id_algorithm") {
+                    algorithm = Utils::trim_copy(column.second);
+                    break;
+                }
+            }
+
+            if (algorithm.empty()) {
+                algorithm = "4";
+            }
         }
         refToSqlite->finalize();
         delete refToSqlite;
@@ -514,7 +525,7 @@ long countLocalTriangles(
     }
 
     // Use appropriate triangle counting algorithm
-    if (algorithm == "5") {
+    if (algorithm == "5" || algorithm == "sheep" || algorithm == "SHEEP") {
         instance_logger.info("###INSTANCE### Using SheepTriangles algorithm for sheep-partitioned graph");
         result = SheepTriangles::run(graphDB, centralGraphDB, duplicateCentralGraphDB, graphId, partitionId);
     } else {
