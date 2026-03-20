@@ -2107,7 +2107,7 @@ bool JasmineGraphFrontEnd::constructKGStreamHDFSCommand(std::string masterIP, in
         std::make_shared<std::atomic<bool>>(false);
         bool success = Pipeline::streamGraphToDesignatedWorker(
             designatedWorker.hostname, designatedWorker.port, masterIP, std::to_string(newGraphID), numberOfPartitions,
-            hdfsServerIp, hdfsPort, hostnamePortS, llmInferenceEngineS, llm, chunkSizeS, hdfsFilePathS, graphExits,
+            hdfsServerIp, hdfsPort, hostnamePortS, llmInferenceEngineS, llmS, chunkSizeS, hdfsFilePathS, graphExits,
             sqlite, stopFlag, kgConstructionRates[newGraphID]);
 
         if (!success) {
