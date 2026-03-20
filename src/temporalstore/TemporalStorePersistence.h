@@ -20,6 +20,9 @@ limitations under the License.
 #include <map>
 #include <cstring>
 #include <chrono>
+#include <cerrno>
+#include <cstdlib>
+#include <limits>
 #include <dirent.h>
 #include "EdgeLifespanBitmap.h"
 #include "PropertyIntervalDictionary.h"
@@ -139,6 +142,43 @@ private:
         std::string str(length, '\0');
         file.read(&str[0], length);
         return str;
+    }
+
+    /**
+     * Parse snapshot ID from filenames in format:
+     * graph{ID}_part{ID}_snap{SNAPSHOT_ID}.tgs
+     */
+    static bool tryParseSnapshotIdFromFilename(const std::string& filename,
+                                               const std::string& prefix,
+                                               uint32_t& snapshotId) {
+        if (filename.find(prefix) != 0) {
+            return false;
+        }
+
+        size_t dotPos = filename.rfind(".tgs");
+        if (dotPos == std::string::npos || dotPos <= prefix.length()) {
+            return false;
+        }
+
+        if (dotPos + 4 != filename.length()) {
+            return false;
+        }
+
+        std::string snapIdStr = filename.substr(prefix.length(), dotPos - prefix.length());
+        if (snapIdStr.empty()) {
+            return false;
+        }
+
+        errno = 0;
+        char* endPtr = nullptr;
+        unsigned long parsed = std::strtoul(snapIdStr.c_str(), &endPtr, 10);
+        if (errno != 0 || endPtr == snapIdStr.c_str() || *endPtr != '\0' ||
+            parsed > static_cast<unsigned long>(std::numeric_limits<uint32_t>::max())) {
+            return false;
+        }
+
+        snapshotId = static_cast<uint32_t>(parsed);
+        return true;
     }
 
 public:
@@ -613,26 +653,13 @@ public:
         
         struct dirent* entry;
         while ((entry = readdir(dir)) != nullptr) {
-            std::string filename(entry->d_name);
-            
-            // Check if this file matches our pattern
-            if (filename.find(prefix) == 0 && filename.find(".tgs") != std::string::npos) {
-                // Extract snapshot ID from filename
-                // Format: graph{ID}_part{ID}_snap{ID}.tgs
-                size_t snapPos = filename.find("_snap") + 5;  // Position after "_snap"
-                size_t dotPos = filename.find(".tgs");
-                
-                if (snapPos != std::string::npos && dotPos != std::string::npos) {
-                    std::string snapIdStr = filename.substr(snapPos, dotPos - snapPos);
-                    try {
-                        uint32_t snapshotId = std::stoul(snapIdStr);
-                        if (snapshotId > maxSnapshotId) {
-                            maxSnapshotId = snapshotId;
-                        }
-                    } catch (...) {
-                        // Skip invalid filenames
-                    }
-                }
+            uint32_t snapshotId = 0;
+            if (!tryParseSnapshotIdFromFilename(entry->d_name, prefix, snapshotId)) {
+                continue;
+            }
+
+            if (snapshotId > maxSnapshotId) {
+                maxSnapshotId = snapshotId;
             }
         }
         

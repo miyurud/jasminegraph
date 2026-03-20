@@ -92,7 +92,7 @@ private:
     std::unique_ptr<SnapshotManager> snapshotManager_;
     
     // Thread safety
-    std::mutex mutex_;
+    mutable std::mutex mutex_;
     
     // Statistics
     uint64_t totalEdgesTracked_;
@@ -179,7 +179,7 @@ public:
     bool edgeExistsAtSnapshot(const std::string& sourceId,
                              const std::string& destId,
                              uint32_t snapshotId) const {
-        std::lock_guard<std::mutex> lock(const_cast<std::mutex&>(mutex_));
+        std::lock_guard<std::mutex> lock(mutex_);
         
         EdgeKey key(sourceId, destId);
         auto it = edgeBitmaps_.find(key);
@@ -227,7 +227,7 @@ public:
     std::string getNodePropertyAtSnapshot(const std::string& nodeId,
                                          const std::string& propertyKey,
                                          uint32_t snapshotId) const {
-        std::lock_guard<std::mutex> lock(const_cast<std::mutex&>(mutex_));
+        std::lock_guard<std::mutex> lock(mutex_);
         
         auto it = nodeProperties_.find(nodeId);
         if (it != nodeProperties_.end()) {
@@ -243,7 +243,7 @@ public:
                                          const std::string& destId,
                                          const std::string& propertyKey,
                                          uint32_t snapshotId) const {
-        std::lock_guard<std::mutex> lock(const_cast<std::mutex&>(mutex_));
+        std::lock_guard<std::mutex> lock(mutex_);
         
         EdgeKey key(sourceId, destId);
         auto it = edgeProperties_.find(key);
@@ -257,7 +257,7 @@ public:
      * Get all edges that exist at a specific snapshot
      */
     std::vector<EdgeKey> getEdgesAtSnapshot(uint32_t snapshotId) const {
-        std::lock_guard<std::mutex> lock(const_cast<std::mutex&>(mutex_));
+        std::lock_guard<std::mutex> lock(mutex_);
         
         std::vector<EdgeKey> edges;
         for (const auto& [key, bitmap] : edgeBitmaps_) {
@@ -279,7 +279,7 @@ public:
      * @return Number of triangles
      */
     uint64_t countTrianglesAtSnapshot(uint32_t snapshotId) const {
-        std::lock_guard<std::mutex> lock(const_cast<std::mutex&>(mutex_));
+        std::lock_guard<std::mutex> lock(mutex_);
         
         // Step 1: Create bidirectional mapping: string nodeId ↔ uint32_t index
         std::map<std::string, uint32_t> nodeToIndex;
@@ -422,7 +422,7 @@ public:
     };
     
     Stats getStats() const {
-        std::lock_guard<std::mutex> lock(const_cast<std::mutex&>(mutex_));
+        std::lock_guard<std::mutex> lock(mutex_);
         
         Stats stats;
         stats.totalEdgesTracked = totalEdgesTracked_;

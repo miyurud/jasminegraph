@@ -347,17 +347,17 @@ void SemanticBeamSearchExecutor::doSemanticBeamSearch(
 
 
   std::string start(ACK_MESSAGE_SIZE, '\0');
-  recv(sockfd, start.data(), sizeof(start.c_str()), 0);
+  recv(sockfd, start.data(), start.size(), 0);
   std::string start_msg(start);
   std::string ack2(ACK_MESSAGE_SIZE, '\0');
-  recv(sockfd, ack2.data(), sizeof(start.c_str()), 0);
+  recv(sockfd, ack2.data(), ack2.size(), 0);
   std::string ack2_msg(ack2);
   semantic_beam_search_logger_executor.info(start_msg);
   semantic_beam_search_logger_executor.info(
       "Semantic Beam Search request sent successfully");
   while (true) {
     std::string start(ACK_MESSAGE_SIZE, '\0');
-    recv(sockfd, start.data(), sizeof(start.c_str()), 0);
+    recv(sockfd, start.data(), start.size(), 0);
     std::string start_msg(start);
     if (JasmineGraphInstanceProtocol::QUERY_DATA_START != start_msg) {
       semantic_beam_search_logger_executor.error(

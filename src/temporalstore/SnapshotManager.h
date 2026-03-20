@@ -62,7 +62,7 @@ private:
     uint64_t edgeCountThreshold_;
     
     // Thread safety
-    std::mutex mutex_;
+    mutable std::mutex mutex_;
     
     // Helper to check if time threshold reached
     bool isTimeThresholdReached() const {
@@ -113,7 +113,7 @@ public:
      * Check if we should create a new snapshot based on current strategy
      */
     bool shouldCreateSnapshot() const {
-        std::lock_guard<std::mutex> lock(const_cast<std::mutex&>(mutex_));
+        std::lock_guard<std::mutex> lock(mutex_);
         
         switch (mode_) {
             case SnapshotMode::TIME_BASED:
@@ -166,7 +166,7 @@ public:
      * Get current snapshot ID
      */
     uint32_t getCurrentSnapshotId() const {
-        std::lock_guard<std::mutex> lock(const_cast<std::mutex&>(mutex_));
+        std::lock_guard<std::mutex> lock(mutex_);
         return currentSnapshotId_;
     }
     
@@ -174,7 +174,7 @@ public:
      * Get current edge count in this snapshot
      */
     uint64_t getCurrentEdgeCount() const {
-        std::lock_guard<std::mutex> lock(const_cast<std::mutex&>(mutex_));
+        std::lock_guard<std::mutex> lock(mutex_);
         return currentEdgeCount_;
     }
     

@@ -74,8 +74,9 @@ void PageRankExecutor::execute() {
     pageRank_logger.info("###PAGERANK-EXECUTOR### Started with graph ID : " + graphId + " Master IP : " + masterIP);
 
     int partitionCount = 0;
-    std::vector<std::future<void>> intermRes;
-    std::vector<std::future<int>> statResponse;
+    std::vector<std::thread> intermThreads;
+    std::thread statThread;
+    bool hasStatThread = false;
 
     auto begin = chrono::high_resolution_clock::now();
 
@@ -111,8 +112,8 @@ void PageRankExecutor::execute() {
         for (auto partitionIterator = workerPartition.partitionID.begin();
              partitionIterator != workerPartition.partitionID.end(); partitionIterator++) {
             std::string partition = *partitionIterator;
-            intermRes.push_back(std::async(std::launch::async, PageRankExecutor::doPageRank, graphId, alpha, iterations,
-                                           partition, host, port, dataPort, workerList));
+            intermThreads.emplace_back(PageRankExecutor::doPageRank, graphId, alpha, iterations,
+                                       partition, host, port, dataPort, workerList);
         }
     }
 
@@ -137,19 +138,26 @@ void PageRankExecutor::execute() {
     } else {
         pageRank_logger.info("###PAGERANK-EXECUTOR### Inserting initial record for SLA ");
         Utils::updateSLAInformation(perfDB, graphId, partitionCount, 0, PAGE_RANK, Conts::SLA_CATEGORY::LATENCY);
-        statResponse.push_back(std::async(std::launch::async, AbstractExecutor::collectPerformaceData, perfDB,
-                                          graphId.c_str(), PAGE_RANK, Conts::SLA_CATEGORY::LATENCY, partitionCount,
-                                          masterIP, autoCalibrate));
+        statThread = std::thread(AbstractExecutor::collectPerformaceData, perfDB,
+                                 graphId.c_str(), PAGE_RANK, Conts::SLA_CATEGORY::LATENCY, partitionCount,
+                                 masterIP, autoCalibrate);
+        hasStatThread = true;
         isStatCollect = true;
     }
 
-    for (auto &&futureCall : intermRes) {
-        futureCall.get();
+    for (auto &threadCall : intermThreads) {
+        if (threadCall.joinable()) {
+            threadCall.join();
+        }
     }
 
     pageRank_logger.info("###PAGERANK-EXECUTOR### Getting PageRank : Completed");
 
     workerResponded = true;
+    if (hasStatThread && statThread.joinable()) {
+        statThread.join();
+    }
+
     JobResponse jobResponse;
     jobResponse.setJobId(request.getJobId());
     responseVector.push_back(jobResponse);

@@ -91,7 +91,7 @@ private:
     uint64_t maxBufferTimeSeconds_; // Max seconds before flush
     
     // Thread safety
-    std::mutex mutex_;
+    mutable std::mutex mutex_;
 
 public:
     /**
@@ -141,7 +141,7 @@ public:
      * Check if partition buffer should be flushed
      */
     bool shouldFlush(uint32_t partitionId) const {
-        std::lock_guard<std::mutex> lock(const_cast<std::mutex&>(mutex_));
+        std::lock_guard<std::mutex> lock(mutex_);
         
         auto it = partitionBuffers_.find(partitionId);
         if (it == partitionBuffers_.end()) {
@@ -255,7 +255,7 @@ public:
     };
     
     std::vector<BufferStats> getBufferStats() const {
-        std::lock_guard<std::mutex> lock(const_cast<std::mutex&>(mutex_));
+        std::lock_guard<std::mutex> lock(mutex_);
         
         std::vector<BufferStats> stats;
         auto now = std::chrono::system_clock::now();
