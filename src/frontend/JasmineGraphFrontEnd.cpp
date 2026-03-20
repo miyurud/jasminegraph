@@ -21,6 +21,7 @@ limitations under the License.
 #include <chrono>
 #include <ctime>
 #include <fstream>
+#include <iomanip>
 #include <iostream>
 #include <map>
 #include <nlohmann/json.hpp>
@@ -135,6 +136,9 @@ static void predict_command(std::string masterIP, int connFd, SQLiteDBInterface 
 static void start_remote_worker_command(int connFd, bool *loop_exit_p);
 static void sla_command(int connFd, SQLiteDBInterface *sqlite, PerformanceSQLiteDBInterface *perfSqlite,
                         bool *loop_exit_p);
+static std::string read_socket_value(int connFd, size_t length);
+static std::string read_frontend_socket_value(int connFd);
+static std::string format_local_timestamp(std::time_t timePoint);
 std::map<int, std::shared_ptr<::KGConstructionRate>> JasmineGraphFrontEnd::kgConstructionRates = {};
 static vector<DataPublisher *> getWorkerClients(SQLiteDBInterface *sqlite) {
     const vector<Utils::worker> &workerList = Utils::getWorkerList(sqlite);
@@ -169,7 +173,7 @@ void *frontendservicesesion(void *dummyPt) {
         return NULL;
     }
 
-    char data[FRONTEND_DATA_LENGTH + 1];
+    std::string data(FRONTEND_DATA_LENGTH + 1, '\0');
     //  Initiate Thread
     thread input_stream_handler;
     //  Initiate kafka consumer parameters
@@ -190,7 +194,7 @@ void *frontendservicesesion(void *dummyPt) {
     bool loop_exit = false;
     int failCnt = 0;
     while (!loop_exit) {
-        std::string line = JasmineGraphFrontEndCommon::readAndProcessInput(connFd, data, failCnt);
+        std::string line = JasmineGraphFrontEndCommon::readAndProcessInput(connFd, data.data(), failCnt);
         if (line.empty()) {
             continue;
         }
@@ -509,10 +513,7 @@ static void cypherCommand(std::string masterIP, int connFd, vector<DataPublisher
         *loop_exit = true;
         return;
     }
-    char graphIdResponse[FRONTEND_DATA_LENGTH + 1];
-    bzero(graphIdResponse, FRONTEND_DATA_LENGTH + 1);
-    read(connFd, graphIdResponse, FRONTEND_DATA_LENGTH);
-    string user_res_1(graphIdResponse);
+    std::string graphIdResponse = read_frontend_socket_value(connFd);
 
     string queryInput = "Input query :";
     result_wr = write(connFd, queryInput.c_str(), queryInput.length());
@@ -529,10 +530,7 @@ static void cypherCommand(std::string masterIP, int connFd, vector<DataPublisher
     }
 
     // Get user response.
-    char query[FRONTEND_DATA_LENGTH + 1];
-    bzero(query, FRONTEND_DATA_LENGTH + 1);
-    read(connFd, query, FRONTEND_DATA_LENGTH);
-    string queryString(query);
+    std::string queryString = read_frontend_socket_value(connFd);
 
     auto begin = chrono::high_resolution_clock::now();
 
@@ -636,10 +634,8 @@ static void semanticBeamSearch(std::string masterIP, int connFd, vector<DataPubl
         *loop_exit = true;
         return;
     }
-    char graphIdResponse[FRONTEND_DATA_LENGTH + 1];
-    memset(graphIdResponse, 0,  FRONTEND_DATA_LENGTH + 1);
-    read(connFd, graphIdResponse, FRONTEND_DATA_LENGTH);
-    string user_res_1(graphIdResponse);
+    std::string graphIdResponse = read_frontend_socket_value(connFd);
+    std::string user_res_1 = graphIdResponse;
     frontend_logger.info("Graph ID received: " + user_res_1);
 
     frontend_logger.info("Requesting query input from client");
@@ -658,10 +654,7 @@ static void semanticBeamSearch(std::string masterIP, int connFd, vector<DataPubl
     }
 
     // Get user response.
-    char query[FRONTEND_DATA_LENGTH + 1];
-    memset(query, 0,  FRONTEND_DATA_LENGTH + 1);
-    read(connFd, query, FRONTEND_DATA_LENGTH);
-    string queryString(query);
+    std::string queryString = read_frontend_socket_value(connFd);
     frontend_logger.info("Query received: " + queryString);
 
     auto begin = chrono::high_resolution_clock::now();
@@ -765,18 +758,12 @@ static void add_rdf_command(std::string masterIP, int connFd, SQLiteDBInterface 
     }
 
     // We get the name and the path to graph as a pair separated by |.
-    char graph_data[FRONTEND_DATA_LENGTH + 1];
-    bzero(graph_data, FRONTEND_DATA_LENGTH + 1);
     string name = "";
     string path = "";
 
-    read(connFd, graph_data, FRONTEND_DATA_LENGTH);
-
     std::time_t time = chrono::system_clock::to_time_t(chrono::system_clock::now());
     string uploadStartTime = ctime(&time);
-    string gData(graph_data);
-
-    gData = Utils::trim_copy(gData);
+    std::string gData = read_frontend_socket_value(connFd);
     frontend_logger.info("Data received: " + gData);
 
     std::vector<std::string> strArr = Utils::split(gData, '|');
@@ -861,20 +848,13 @@ static void add_graph_command(std::string masterIP, int connFd, SQLiteDBInterfac
     }
 
     // We get the name and the path to graph as a pair separated by |.
-    char graph_data[FRONTEND_DATA_LENGTH + 1];
-    char partition_count[FRONTEND_DATA_LENGTH + 1];
-    bzero(graph_data, FRONTEND_DATA_LENGTH + 1);
     string name = "";
     string path = "";
     string partitionCount = "";
 
-    read(connFd, graph_data, FRONTEND_DATA_LENGTH);
-
     std::time_t time = chrono::system_clock::to_time_t(chrono::system_clock::now());
     string uploadStartTime = ctime(&time);
-    string gData(graph_data);
-
-    gData = Utils::trim_copy(gData);
+    std::string gData = read_frontend_socket_value(connFd);
     frontend_logger.info("Data received: " + gData);
 
     std::vector<std::string> strArr = Utils::split(gData, '|');
@@ -985,11 +965,7 @@ static void add_graph_cust_command(std::string masterIP, int connFd, SQLiteDBInt
         return;
     }
 
-    char type[FRONTEND_GRAPH_TYPE_LENGTH + 1];
-    bzero(type, FRONTEND_GRAPH_TYPE_LENGTH + 1);
-    read(connFd, type, FRONTEND_GRAPH_TYPE_LENGTH);
-    string graphType(type);
-    graphType = Utils::trim_copy(graphType);
+    std::string graphType = read_socket_value(connFd, FRONTEND_GRAPH_TYPE_LENGTH);
 
     std::unordered_set<std::string> s = {"1", "2", "3"};
     if (s.find(graphType) == s.end()) {
@@ -1023,20 +999,14 @@ static void add_graph_cust_command(std::string masterIP, int connFd, SQLiteDBInt
         *loop_exit_p = true;
         return;
     }
-    char graph_data[FRONTEND_DATA_LENGTH + 1];
-    bzero(graph_data, FRONTEND_DATA_LENGTH + 1);
     string name = "";
     string edgeListPath = "";
     string attributeListPath = "";
     string attrDataType = "";
 
-    read(connFd, graph_data, FRONTEND_DATA_LENGTH);
-
     std::time_t time = chrono::system_clock::to_time_t(chrono::system_clock::now());
     string uploadStartTime = ctime(&time);
-    string gData(graph_data);
-
-    gData = Utils::trim_copy(gData);
+    std::string gData = read_frontend_socket_value(connFd);
     frontend_logger.info("Data received: " + gData);
 
     std::vector<std::string> strArr = Utils::split(gData, '|');
@@ -1126,16 +1096,9 @@ static void remove_graph_command(std::string masterIP, int connFd, SQLiteDBInter
     }
 
     // We get the name and the path to graph as a pair separated by |.
-    char graph_id[FRONTEND_DATA_LENGTH + 1];
-    bzero(graph_id, FRONTEND_DATA_LENGTH + 1);
     string name = "";
     string path = "";
-
-    read(connFd, graph_id, FRONTEND_DATA_LENGTH);
-
-    string graphID(graph_id);
-
-    graphID = Utils::trim_copy(graphID);
+    std::string graphID = read_frontend_socket_value(connFd);
     frontend_logger.info("Graph ID received: " + graphID);
 
     if (JasmineGraphFrontEndCommon::graphExistsByID(graphID, sqlite)) {
@@ -1250,18 +1213,12 @@ static void add_model_command(int connFd, SQLiteDBInterface *sqlite, bool *loop_
         return;
     }
 
-    char graph_data[FRONTEND_DATA_LENGTH + 1];
-    bzero(graph_data, FRONTEND_DATA_LENGTH + 1);
     string name = "";
     string path = "";
 
-    read(connFd, graph_data, FRONTEND_DATA_LENGTH);
-
     std::time_t time = chrono::system_clock::to_time_t(chrono::system_clock::now());
     string uploadStartTime = ctime(&time);
-    string gData(graph_data);
-
-    gData = Utils::trim_copy(gData);
+    std::string gData = read_frontend_socket_value(connFd);
     frontend_logger.info("Data received: " + gData);
 
     std::vector<std::string> strArr = Utils::split(gData, '|');
@@ -1532,11 +1489,7 @@ static void add_stream_kafka_command(int connFd, std::string &kafka_server_IP, c
             return;
         }
 
-        char file_path[FRONTEND_DATA_LENGTH + 1];
-        bzero(file_path, FRONTEND_DATA_LENGTH + 1);
-        read(connFd, file_path, FRONTEND_DATA_LENGTH);
-        string file_path_s(file_path);
-        file_path_s = Utils::trim_copy(file_path_s);
+        std::string file_path_s = read_frontend_socket_value(connFd);
         
         std::string kafka_server_IP_from_file = "";
         std::vector<std::string>::iterator it;
@@ -1584,11 +1537,7 @@ static void add_stream_kafka_command(int connFd, std::string &kafka_server_IP, c
     }
 
     // We get the topic name here.
-    char topic_name[FRONTEND_DATA_LENGTH + 1];
-    bzero(topic_name, FRONTEND_DATA_LENGTH + 1);
-    read(connFd, topic_name, FRONTEND_DATA_LENGTH);
-    string topic_name_s(topic_name);
-    topic_name_s = Utils::trim_copy(topic_name_s);
+    std::string topic_name_s = read_frontend_socket_value(connFd);
     string con_message = "Received the kafka topic";
     int con_result_wr = write(connFd, con_message.c_str(), con_message.length());
     if (con_result_wr < 0) {
@@ -1654,11 +1603,7 @@ void addStreamHDFSCommand(std::string masterIP, int connFd, std::string &hdfsSer
         return;
     }
 
-    char userRes[FRONTEND_DATA_LENGTH + 1];
-    bzero(userRes, FRONTEND_DATA_LENGTH + 1);
-    read(connFd, userRes, FRONTEND_DATA_LENGTH);
-    std::string userResS(userRes);
-    userResS = Utils::trim_copy(userResS);
+    std::string userResS = read_frontend_socket_value(connFd);
     for (char &c : userResS) {
         c = tolower(c);
     }
@@ -1683,11 +1628,7 @@ void addStreamHDFSCommand(std::string masterIP, int connFd, std::string &hdfsSer
             return;
         }
 
-        char filePath[FRONTEND_DATA_LENGTH + 1];
-        bzero(filePath, FRONTEND_DATA_LENGTH + 1);
-        read(connFd, filePath, FRONTEND_DATA_LENGTH);
-        std::string filePathS(filePath);
-        filePathS = Utils::trim_copy(filePathS);
+        std::string filePathS = read_frontend_socket_value(connFd);
 
         frontend_logger.info("Reading HDFS configuration file: " + filePathS);
 
@@ -1729,11 +1670,7 @@ void addStreamHDFSCommand(std::string masterIP, int connFd, std::string &hdfsSer
         return;
     }
 
-    char hdfsFilePath[FRONTEND_DATA_LENGTH + 1];
-    bzero(hdfsFilePath, FRONTEND_DATA_LENGTH + 1);
-    read(connFd, hdfsFilePath, FRONTEND_DATA_LENGTH);
-    std::string hdfsFilePathS(hdfsFilePath);
-    hdfsFilePathS = Utils::trim_copy(hdfsFilePathS);
+    std::string hdfsFilePathS = read_frontend_socket_value(connFd);
 
     HDFSConnector *hdfsConnector = new HDFSConnector(hdfsServerIp, hdfsPort);
 
@@ -1764,11 +1701,7 @@ void addStreamHDFSCommand(std::string masterIP, int connFd, std::string &hdfsSer
         return;
     }
 
-    char isEdgeListTypeRes[FRONTEND_DATA_LENGTH + 1];
-    bzero(isEdgeListTypeRes, FRONTEND_DATA_LENGTH + 1);
-    read(connFd, isEdgeListTypeRes, FRONTEND_DATA_LENGTH);
-    std::string isEdgeListTypeGraph(isEdgeListTypeRes);
-    isEdgeListTypeGraph = Utils::trim_copy(isEdgeListTypeGraph);
+    std::string isEdgeListTypeGraph = read_frontend_socket_value(connFd);
 
     if (isEdgeListTypeGraph == "y") {
         isEdgeListType = true;
@@ -1789,11 +1722,7 @@ void addStreamHDFSCommand(std::string masterIP, int connFd, std::string &hdfsSer
         return;
     }
 
-    char isDirectedRes[FRONTEND_DATA_LENGTH + 1];
-    bzero(isDirectedRes, FRONTEND_DATA_LENGTH + 1);
-    read(connFd, isDirectedRes, FRONTEND_DATA_LENGTH);
-    std::string isDirectedS(isDirectedRes);
-    isDirectedS = Utils::trim_copy(isDirectedS);
+    std::string isDirectedS = read_frontend_socket_value(connFd);
 
     bool directed = false;
     if (isDirectedS == "y") {
@@ -1862,11 +1791,7 @@ bool JasmineGraphFrontEnd::constructKGStreamHDFSCommand(std::string masterIP, in
         return false;
     }
 
-    char userRes[FRONTEND_DATA_LENGTH + 1];
-    memset(userRes, 0, FRONTEND_DATA_LENGTH + 1);
-    read(connFd, userRes, FRONTEND_DATA_LENGTH);
-    std::string userResS(userRes);
-    userResS = Utils::trim_copy(userResS);
+    std::string userResS = read_frontend_socket_value(connFd);
     for (char &c : userResS) {
         c = tolower(c);
     }
@@ -1889,12 +1814,7 @@ bool JasmineGraphFrontEnd::constructKGStreamHDFSCommand(std::string masterIP, in
             return false;
         }
 
-        char hdfsIP[FRONTEND_DATA_LENGTH + 1];
-        memset(hdfsIP, 0, FRONTEND_DATA_LENGTH + 1);
-        read(connFd, hdfsIP, FRONTEND_DATA_LENGTH);
-        std::string hdfsIPS(hdfsIP);
-        hdfsIPS = Utils::trim_copy(hdfsIPS);
-        hdfsServerIp = hdfsIPS;
+        hdfsServerIp = read_frontend_socket_value(connFd);
 
         std::string hdfsPortMSG = "HDFS Server Port:";
         resultWr = write(connFd, hdfsPortMSG.c_str(), hdfsPortMSG.length());
@@ -1910,12 +1830,7 @@ bool JasmineGraphFrontEnd::constructKGStreamHDFSCommand(std::string masterIP, in
             return false;
         }
 
-        char hdfsPortChar[FRONTEND_DATA_LENGTH + 1];
-        memset(hdfsPortChar, 0, FRONTEND_DATA_LENGTH + 1);
-        read(connFd, hdfsPortChar, FRONTEND_DATA_LENGTH);
-        std::string hdfsPortS(hdfsPortChar);
-        hdfsPortS = Utils::trim_copy(hdfsPortS);
-        hdfsPort = hdfsPortS;
+        hdfsPort = read_frontend_socket_value(connFd);
     }
     frontend_logger.info("HDFS Server IP:" + hdfsServerIp);
     frontend_logger.info("HDFS Server Port:" + hdfsPort);
@@ -1940,11 +1855,7 @@ bool JasmineGraphFrontEnd::constructKGStreamHDFSCommand(std::string masterIP, in
         return false;
     }
 
-    char hdfsFilePath[FRONTEND_DATA_LENGTH + 1];
-    memset(hdfsFilePath, 0, FRONTEND_DATA_LENGTH + 1);
-    read(connFd, hdfsFilePath, FRONTEND_DATA_LENGTH);
-    std::string hdfsFilePathS(hdfsFilePath);
-    hdfsFilePathS = Utils::trim_copy(hdfsFilePathS);
+    std::string hdfsFilePathS = read_frontend_socket_value(connFd);
 
     HDFSConnector *hdfsConnector = new HDFSConnector(hdfsServerIp, hdfsPort);
 
@@ -1981,11 +1892,7 @@ bool JasmineGraphFrontEnd::constructKGStreamHDFSCommand(std::string masterIP, in
         return false;
     }
 
-    char hostnamePort[FRONTEND_DATA_LENGTH + 1];
-    memset(hostnamePort, 0, FRONTEND_DATA_LENGTH + 1);
-    read(connFd, hostnamePort, FRONTEND_DATA_LENGTH);
-    std::string hostnamePortS(hostnamePort);
-    hostnamePortS = Utils::trim_copy(hostnamePortS);
+    std::string hostnamePortS = read_frontend_socket_value(connFd);
 
     frontend_logger.info("Recieved LLM runnners: " + hostnamePortS);
 
@@ -2003,11 +1910,7 @@ bool JasmineGraphFrontEnd::constructKGStreamHDFSCommand(std::string masterIP, in
         return false;
     }
 
-    char llmInferenceEngine[FRONTEND_DATA_LENGTH + 1];
-    memset(llmInferenceEngine, 0, FRONTEND_DATA_LENGTH + 1);
-    read(connFd, llmInferenceEngine, FRONTEND_DATA_LENGTH);
-    std::string llmInferenceEngineS(llmInferenceEngine);
-    llmInferenceEngineS = Utils::trim_copy(llmInferenceEngineS);
+    std::string llmInferenceEngineS = read_frontend_socket_value(connFd);
 
     frontend_logger.info("received Inference Engine: " + llmInferenceEngineS);
 
@@ -2025,11 +1928,7 @@ bool JasmineGraphFrontEnd::constructKGStreamHDFSCommand(std::string masterIP, in
         return false;
     }
 
-    char llm[FRONTEND_DATA_LENGTH + 1];
-    memset(llm, 0, FRONTEND_DATA_LENGTH + 1);
-    read(connFd, llm, FRONTEND_DATA_LENGTH);
-    std::string llmS(llm);
-    llmS = Utils::trim_copy(llmS);
+    std::string llmS = read_frontend_socket_value(connFd);
     frontend_logger.info("Received LLM " + llmS);
 
     vector<std::string> llmServers = Utils::getUniqueLLMRunners(hostnamePortS);
@@ -2115,11 +2014,7 @@ bool JasmineGraphFrontEnd::constructKGStreamHDFSCommand(std::string masterIP, in
         return false;
     }
 
-    char chunkSize[FRONTEND_DATA_LENGTH + 1];
-    memset(chunkSize, 0, FRONTEND_DATA_LENGTH + 1);
-    read(connFd, chunkSize, FRONTEND_DATA_LENGTH);
-    std::string chunkSizeS(chunkSize);
-    chunkSizeS = Utils::trim_copy(chunkSizeS);
+    std::string chunkSizeS = read_frontend_socket_value(connFd);
     frontend_logger.info("Received engine chunk size: " + chunkSizeS);
 
     int newGraphID;
@@ -2145,11 +2040,7 @@ bool JasmineGraphFrontEnd::constructKGStreamHDFSCommand(std::string masterIP, in
             return false;
         }
 
-        char resume[FRONTEND_DATA_LENGTH + 1];
-        memset(resume, 0, FRONTEND_DATA_LENGTH + 1);
-        read(connFd, resume, FRONTEND_DATA_LENGTH);
-        std::string resumeS(resume);
-        resumeS = Utils::trim_copy(resumeS);
+        std::string resumeS = read_frontend_socket_value(connFd);
 
         if (resumeS == "y") {
             resume_msg = "Graph Id to resume?";
@@ -2166,11 +2057,7 @@ bool JasmineGraphFrontEnd::constructKGStreamHDFSCommand(std::string masterIP, in
                 return false;
             }
 
-            char resumeGraphId[FRONTEND_DATA_LENGTH + 1];
-            memset(resumeGraphId, 0, FRONTEND_DATA_LENGTH + 1);
-            read(connFd, resumeGraphId, FRONTEND_DATA_LENGTH);
-            std::string resumeGraphIdS(resumeGraphId);
-            resumeGraphIdS = Utils::trim_copy(resumeGraphIdS);
+            std::string resumeGraphIdS = read_frontend_socket_value(connFd);
 
             newGraphID = stoi(resumeGraphIdS);
             graphExits = true;
@@ -2293,15 +2180,7 @@ static void process_dataset_command(int connFd, bool *loop_exit_p) {
         return;
     }
 
-    // We get the name and the path to graph as a pair separated by |.
-    char graph_data[FRONTEND_DATA_LENGTH + 1];
-    bzero(graph_data, FRONTEND_DATA_LENGTH + 1);
-
-    read(connFd, graph_data, FRONTEND_DATA_LENGTH);
-
-    string gData(graph_data);
-
-    gData = Utils::trim_copy(gData);
+    std::string gData = read_frontend_socket_value(connFd);
     frontend_logger.info("Data received: " + gData);
 
     if (gData.length() == 0) {
@@ -2341,16 +2220,7 @@ static void triangles_command(std::string masterIP, int connFd, SQLiteDBInterfac
         return;
     }
 
-    // We get the name and the path to graph as a pair separated by |.
-    char graph_id_data[301];
-    bzero(graph_id_data, 301);
-    string name = "";
-
-    read(connFd, graph_id_data, 300);
-
-    string graph_id(graph_id_data);
-    graph_id.erase(std::remove(graph_id.begin(), graph_id.end(), '\n'), graph_id.end());
-    graph_id.erase(std::remove(graph_id.begin(), graph_id.end(), '\r'), graph_id.end());
+    std::string graph_id = read_socket_value(connFd, 300);
 
     if (!JasmineGraphFrontEndCommon::graphExistsByID(graph_id, sqlite)) {
         string error_message = "The specified graph id does not exist";
@@ -2380,15 +2250,7 @@ static void triangles_command(std::string masterIP, int connFd, SQLiteDBInterfac
             return;
         }
 
-        // We get the name and the path to graph as a pair separated by |.
-        char priority_data[FRONTEND_DATA_LENGTH + 1];
-        bzero(priority_data, FRONTEND_DATA_LENGTH + 1);
-
-        read(connFd, priority_data, FRONTEND_DATA_LENGTH);
-
-        string priority(priority_data);
-
-        priority = Utils::trim_copy(priority);
+        std::string priority = read_frontend_socket_value(connFd);
 
         if (!(std::find_if(priority.begin(), priority.end(), [](unsigned char c) { return !std::isdigit(c); }) ==
               priority.end())) {
@@ -2523,13 +2385,7 @@ static void streaming_triangles_command(std::string masterIP, int connFd, JobSch
         return;
     }
 
-    // We get the name and the path to graph as a pair separated by |.
-    char graph_id_data[FRONTEND_DATA_LENGTH + 1];
-    bzero(graph_id_data, FRONTEND_DATA_LENGTH + 1);
-
-    read(connFd, graph_id_data, FRONTEND_DATA_LENGTH);
-
-    string graph_id(graph_id_data);
+    std::string graph_id = read_frontend_socket_value(connFd);
     graph_id = Utils::trim_copy(graph_id, " \f\n\r\t\v");
 
     frontend_logger.info("Got graph Id " + graph_id);
@@ -2547,12 +2403,7 @@ static void streaming_triangles_command(std::string masterIP, int connFd, JobSch
         return;
     }
 
-    char mode_data[FRONTEND_DATA_LENGTH + 1];
-    bzero(mode_data, FRONTEND_DATA_LENGTH + 1);
-
-    read(connFd, mode_data, FRONTEND_DATA_LENGTH);
-
-    string mode(mode_data);
+    std::string mode = read_frontend_socket_value(connFd);
     mode = Utils::trim_copy(mode, " \f\n\r\t\v");
     frontend_logger.info("Got mode " + mode);
 
@@ -2639,16 +2490,7 @@ static void vertex_count_command(int connFd, SQLiteDBInterface *sqlite, bool *lo
         return;
     }
 
-    char graph_id_data[301];
-    bzero(graph_id_data, 301);
-    string name = "";
-
-    read(connFd, graph_id_data, 300);
-
-    string graphId(graph_id_data);
-
-    graphId.erase(std::remove(graphId.begin(), graphId.end(), '\n'), graphId.end());
-    graphId.erase(std::remove(graphId.begin(), graphId.end(), '\r'), graphId.end());
+    std::string graphId = read_socket_value(connFd, 300);
 
     if (!JasmineGraphFrontEndCommon::graphExistsByID(graphId, sqlite)) {
         string error_message = "The specified graph id does not exist";
@@ -2698,16 +2540,7 @@ static void edge_count_command(int connFd, SQLiteDBInterface *sqlite, bool *loop
         return;
     }
 
-    char graph_id_data[301];
-    bzero(graph_id_data, 301);
-    string name = "";
-
-    read(connFd, graph_id_data, 300);
-
-    string graph_id(graph_id_data);
-
-    graph_id.erase(std::remove(graph_id.begin(), graph_id.end(), '\n'), graph_id.end());
-    graph_id.erase(std::remove(graph_id.begin(), graph_id.end(), '\r'), graph_id.end());
+    std::string graph_id = read_socket_value(connFd, 300);
 
     if (!JasmineGraphFrontEndCommon::graphExistsByID(graph_id, sqlite)) {
         string error_message = "The specified graph id does not exist";
@@ -2773,12 +2606,7 @@ static void merge_command(int connFd, SQLiteDBInterface *sqlite, bool *loop_exit
         return;
     }
 
-    char train_data[301];
-    bzero(train_data, 301);
-    read(connFd, train_data, 300);
-
-    string trainData(train_data);
-    trainData = Utils::trim_copy(trainData);
+    std::string trainData = read_socket_value(connFd, 300);
     frontend_logger.info("Data received: " + trainData);
 
     std::vector<std::string> trainargs = Utils::split(trainData, ' ');
@@ -2855,12 +2683,7 @@ static void train_command(int connFd, SQLiteDBInterface *sqlite, bool *loop_exit
         return;
     }
 
-    char train_data[301];
-    bzero(train_data, 301);
-    read(connFd, train_data, 300);
-
-    string trainData(train_data);
-    trainData = Utils::trim_copy(trainData);
+    std::string trainData = read_socket_value(connFd, 300);
     frontend_logger.info("Data received: " + trainData);
 
     std::vector<std::string> trainargs = Utils::split(trainData, ' ');
@@ -2945,14 +2768,7 @@ static void in_degree_command(int connFd, bool *loop_exit_p) {
         return;
     }
 
-    char graph_id[FRONTEND_DATA_LENGTH + 1];
-    bzero(graph_id, FRONTEND_DATA_LENGTH + 1);
-
-    read(connFd, graph_id, FRONTEND_DATA_LENGTH);
-
-    string graphID(graph_id);
-
-    graphID = Utils::trim_copy(graphID);
+    std::string graphID = read_frontend_socket_value(connFd);
     frontend_logger.info("Graph ID received: " + graphID);
 
     JasmineGraphServer::inDegreeDistribution(graphID);
@@ -2986,14 +2802,7 @@ static void out_degree_command(int connFd, bool *loop_exit_p) {
         return;
     }
 
-    char graph_id[FRONTEND_DATA_LENGTH + 1];
-    bzero(graph_id, FRONTEND_DATA_LENGTH + 1);
-
-    read(connFd, graph_id, FRONTEND_DATA_LENGTH);
-
-    string graphID(graph_id);
-
-    graphID = Utils::trim_copy(graphID);
+    std::string graphID = read_frontend_socket_value(connFd);
     frontend_logger.info("Graph ID received: " + graphID);
 
     JasmineGraphServer::outDegreeDistribution(graphID);
@@ -3028,13 +2837,11 @@ static void page_rank_command(std::string masterIP, int connFd, SQLiteDBInterfac
         return;
     }
 
-    char page_rank_command[FRONTEND_DATA_LENGTH + 1];
-    bzero(page_rank_command, FRONTEND_DATA_LENGTH + 1);
     string name = "";
     string path = "";
 
-    read(connFd, page_rank_command, FRONTEND_DATA_LENGTH);
-    std::vector<std::string> strArr = Utils::split(page_rank_command, '|');
+    std::string pageRankCommand = read_frontend_socket_value(connFd);
+    std::vector<std::string> strArr = Utils::split(pageRankCommand, '|');
 
     string graphID;
     graphID = strArr[0];
@@ -3084,12 +2891,7 @@ static void page_rank_command(std::string masterIP, int connFd, SQLiteDBInterfac
         return;
     }
 
-    // We get the name and the path to graph as a pair separated by |.
-    char priority_data[DATA_BUFFER_SIZE];
-    bzero(priority_data, DATA_BUFFER_SIZE);
-    read(connFd, priority_data, FRONTEND_DATA_LENGTH);
-    string priority(priority_data);
-    priority = Utils::trim_copy(priority);
+    std::string priority = read_frontend_socket_value(connFd);
 
     if (!(std::find_if(priority.begin(), priority.end(), [](unsigned char c) { return !std::isdigit(c); }) ==
           priority.end())) {
@@ -3210,14 +3012,7 @@ static void egonet_command(int connFd, bool *loop_exit_p) {
         return;
     }
 
-    char graph_id[FRONTEND_DATA_LENGTH + 1];
-    bzero(graph_id, FRONTEND_DATA_LENGTH + 1);
-
-    read(connFd, graph_id, FRONTEND_DATA_LENGTH);
-
-    string graphID(graph_id);
-
-    graphID = Utils::trim_copy(graphID);
+    std::string graphID = read_frontend_socket_value(connFd);
     frontend_logger.info("Graph ID received: " + graphID);
 
     JasmineGraphServer::egoNet(graphID);
@@ -3251,14 +3046,7 @@ static void duplicate_centralstore_command(int connFd, bool *loop_exit_p) {
         return;
     }
 
-    char graph_id[FRONTEND_DATA_LENGTH + 1];
-    bzero(graph_id, FRONTEND_DATA_LENGTH + 1);
-
-    read(connFd, graph_id, FRONTEND_DATA_LENGTH);
-
-    string graphID(graph_id);
-
-    graphID = Utils::trim_copy(graphID);
+    std::string graphID = read_frontend_socket_value(connFd);
     frontend_logger.info("Graph ID received: " + graphID);
 
     JasmineGraphServer::duplicateCentralStore(graphID);
@@ -3295,16 +3083,11 @@ static void predict_command(std::string masterIP, int connFd, SQLiteDBInterface 
             return;
         }
 
-        char predict_data[301];
-        bzero(predict_data, 301);
         string graphID = "";
         string modelID = "";
         string path = "";
 
-        read(connFd, predict_data, 300);
-        string predictData(predict_data);
-
-        predictData = Utils::trim_copy(predictData);
+        std::string predictData = read_socket_value(connFd, 300);
         frontend_logger.info("Data received: " + predictData);
 
         std::vector<std::string> strArr = Utils::split(predictData, '|');
@@ -3336,15 +3119,10 @@ static void predict_command(std::string masterIP, int connFd, SQLiteDBInterface 
             *loop_exit_p = true;
             return;
         }
-        char predict_data[301];
-        bzero(predict_data, 301);
         string graphID = "";
         string path = "";
 
-        read(connFd, predict_data, 300);
-        string predictData(predict_data);
-
-        predictData = Utils::trim_copy(predictData);
+        std::string predictData = read_socket_value(connFd, 300);
         frontend_logger.info("Data received: " + predictData);
 
         std::vector<std::string> strArr = Utils::split(predictData, '|');
@@ -3387,12 +3165,7 @@ static void start_remote_worker_command(int connFd, bool *loop_exit_p) {
         return;
     }
 
-    char worker_data[301];
-    bzero(worker_data, 301);
-    read(connFd, worker_data, 300);
-    string remote_worker_data(worker_data);
-
-    remote_worker_data = Utils::trim_copy(remote_worker_data);
+    std::string remote_worker_data = read_socket_value(connFd, 300);
     frontend_logger.info("Data received: " + remote_worker_data);
     string host = "";
     string port = "";
@@ -3436,12 +3209,7 @@ static void sla_command(int connFd, SQLiteDBInterface *sqlite, PerformanceSQLite
         return;
     }
 
-    char category[FRONTEND_DATA_LENGTH + 1];
-    bzero(category, FRONTEND_DATA_LENGTH + 1);
-    read(connFd, category, FRONTEND_DATA_LENGTH);
-    string command_info(category);
-
-    command_info = Utils::trim_copy(command_info);
+    std::string command_info = read_frontend_socket_value(connFd);
     frontend_logger.info("Data received: " + command_info);
 
     std::vector<vector<pair<string, string>>> categoryResults =
@@ -3510,10 +3278,29 @@ static void sla_command(int connFd, SQLiteDBInterface *sqlite, PerformanceSQLite
     }
 }
 
+static std::string read_socket_value(int connFd, size_t length) {
+    std::string buffer(length, '\0');
+    ssize_t bytesRead = read(connFd, buffer.data(), length);
+    if (bytesRead <= 0) {
+        return "";
+    }
+    buffer.resize(static_cast<size_t>(bytesRead));
+    return Utils::trim_copy(buffer);
+}
+
 static std::string read_frontend_socket_value(int connFd) {
-    std::string buffer(FRONTEND_DATA_LENGTH, '\0');
-    read(connFd, buffer.data(), FRONTEND_DATA_LENGTH);
-    return Utils::trim_copy(std::string(buffer.c_str()));
+    return read_socket_value(connFd, FRONTEND_DATA_LENGTH);
+}
+
+static std::string format_local_timestamp(std::time_t timePoint) {
+    std::tm localTime = {};
+    if (localtime_r(&timePoint, &localTime) == nullptr) {
+        return "N/A";
+    }
+
+    std::ostringstream oss;
+    oss << std::put_time(&localTime, "%Y-%m-%d %H:%M:%S");
+    return oss.str();
 }
 
 void JasmineGraphFrontEnd::stop_graph_streaming(int connFd, bool *loop_exit_p) {
@@ -3669,11 +3456,7 @@ static void temporal_snapshot_command(int connFd, SQLiteDBInterface *sqlite, boo
         } else {
             for (const auto& [snapshotId, info] : snapMap) {
                 std::time_t t = static_cast<std::time_t>(info.timestamp / 1000000000ULL);
-                char timeStr[100] = "N/A";
-                std::tm localTime = {};
-                if (localtime_r(&t, &localTime) != nullptr) {
-                    std::strftime(timeStr, sizeof(timeStr), "%Y-%m-%d %H:%M:%S", &localTime);
-                }
+                std::string timeStr = format_local_timestamp(t);
                 response << "Snapshot " << snapshotId
                          << "  edges=" << info.totalEdges
                          << "  created=" << timeStr << "\n";
@@ -3882,12 +3665,7 @@ static uint32_t findClosestSnapshotId(const std::map<uint32_t, uint64_t>& snapsh
 
 static std::string formatSnapshotTimestamp(uint64_t timestampNs) {
     std::time_t snapshotTime = static_cast<std::time_t>(timestampNs / 1000000000ULL);
-    char timeStr[100] = "N/A";
-    std::tm localTime = {};
-    if (localtime_r(&snapshotTime, &localTime) != nullptr) {
-        std::strftime(timeStr, sizeof(timeStr), "%Y-%m-%d %H:%M:%S", &localTime);
-    }
-    return std::string(timeStr);
+    return format_local_timestamp(snapshotTime);
 }
 
 static void history_triangle_timestamp_command(int connFd, SQLiteDBInterface *, bool *) {
@@ -4147,11 +3925,7 @@ static void history_pagerank_timestamp_command(int connFd, SQLiteDBInterface *sq
                              Conts::CARRIAGE_RETURN_NEW_LINE.size());
         } else {
             std::time_t snapshotTime = snapshotTimestamps[closestSnapshotId] / 1000000000;
-            char timeStr[100] = "N/A";
-            std::tm localTime = {};
-            if (localtime_r(&snapshotTime, &localTime) != nullptr) {
-                std::strftime(timeStr, sizeof(timeStr), "%Y-%m-%d %H:%M:%S", &localTime);
-            }
+            std::string timeStr = format_local_timestamp(snapshotTime);
 
             std::stringstream response;
             response << "Closest snapshot: " << closestSnapshotId << " (created: " << timeStr << ")\n";

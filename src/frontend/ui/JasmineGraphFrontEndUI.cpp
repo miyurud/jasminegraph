@@ -119,7 +119,7 @@ void *uifrontendservicesesion(void *dummyPt) {
         return NULL;
     }
 
-    char data[FRONTEND_DATA_LENGTH + 1];
+    std::string data(FRONTEND_DATA_LENGTH + 1, '\0');
     //  Initiate Thread
     thread input_stream_handler;
     std::string partitionCount = Utils::getJasmineGraphProperty("org.jasminegraph.server.npartitions");
@@ -135,7 +135,7 @@ void *uifrontendservicesesion(void *dummyPt) {
     int failCnt = 0;
     while (!loop_exit) {
         ui_frontend_logger.info("reading");
-        std::string line = JasmineGraphFrontEndCommon::readAndProcessInput(connFd, data, failCnt);
+        std::string line = JasmineGraphFrontEndCommon::readAndProcessInput(connFd, data.data(), failCnt);
         if (line.empty()) {
             break;
         }

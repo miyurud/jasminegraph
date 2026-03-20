@@ -195,7 +195,7 @@ void PageRankExecutor::doPageRank(std::string graphID, double alpha, int iterati
     }
 
     int sockfd;
-    char data[DATA_BUFFER_SIZE];
+    std::string data(DATA_BUFFER_SIZE, '\0');
     struct sockaddr_in serv_addr;
     struct hostent *server;
 
@@ -226,7 +226,7 @@ void PageRankExecutor::doPageRank(std::string graphID, double alpha, int iterati
     }
     pageRank_logger.info("Sent : " + JasmineGraphInstanceProtocol::PAGE_RANK);
 
-    string response = Utils::read_str_trim_wrapper(sockfd, data, FRONTEND_DATA_LENGTH);
+    string response = Utils::read_str_trim_wrapper(sockfd, data.data(), FRONTEND_DATA_LENGTH);
     if (response.compare(JasmineGraphInstanceProtocol::OK) == 0) {
         pageRank_logger.info("Received : " + JasmineGraphInstanceProtocol::OK);
     } else {
@@ -240,7 +240,7 @@ void PageRankExecutor::doPageRank(std::string graphID, double alpha, int iterati
     }
     pageRank_logger.info("Sent : Graph ID " + graphID);
 
-    response = Utils::read_str_trim_wrapper(sockfd, data, FRONTEND_DATA_LENGTH);
+    response = Utils::read_str_trim_wrapper(sockfd, data.data(), FRONTEND_DATA_LENGTH);
     if (response.compare(JasmineGraphInstanceProtocol::OK) == 0) {
         pageRank_logger.info("Received : " + JasmineGraphInstanceProtocol::OK);
     } else {
@@ -254,7 +254,7 @@ void PageRankExecutor::doPageRank(std::string graphID, double alpha, int iterati
     }
     pageRank_logger.info("Sent : Partition ID " + partition);
 
-    response = Utils::read_str_trim_wrapper(sockfd, data, FRONTEND_DATA_LENGTH);
+    response = Utils::read_str_trim_wrapper(sockfd, data.data(), FRONTEND_DATA_LENGTH);
     if (response.compare(JasmineGraphInstanceProtocol::OK) == 0) {
         pageRank_logger.info("Received : " + JasmineGraphInstanceProtocol::OK);
     } else {
@@ -267,7 +267,7 @@ void PageRankExecutor::doPageRank(std::string graphID, double alpha, int iterati
     }
     pageRank_logger.info("Sent : Host List ");
 
-    response = Utils::read_str_trim_wrapper(sockfd, data, FRONTEND_DATA_LENGTH);
+    response = Utils::read_str_trim_wrapper(sockfd, data.data(), FRONTEND_DATA_LENGTH);
     if (response.compare(JasmineGraphInstanceProtocol::OK) == 0) {
         pageRank_logger.info("Received : " + JasmineGraphInstanceProtocol::OK);
     } else {
@@ -281,7 +281,7 @@ void PageRankExecutor::doPageRank(std::string graphID, double alpha, int iterati
     }
     pageRank_logger.info("graph vertex count: " + std::to_string(graphVertexCount));
 
-    response = Utils::read_str_trim_wrapper(sockfd, data, FRONTEND_DATA_LENGTH);
+    response = Utils::read_str_trim_wrapper(sockfd, data.data(), FRONTEND_DATA_LENGTH);
     if (response.compare(JasmineGraphInstanceProtocol::OK) == 0) {
         pageRank_logger.info("Received : " + JasmineGraphInstanceProtocol::OK);
     } else {
@@ -295,7 +295,7 @@ void PageRankExecutor::doPageRank(std::string graphID, double alpha, int iterati
     }
     pageRank_logger.info("PageRank alpha value sent : " + std::to_string(alpha));
 
-    response = Utils::read_str_trim_wrapper(sockfd, data, FRONTEND_DATA_LENGTH);
+    response = Utils::read_str_trim_wrapper(sockfd, data.data(), FRONTEND_DATA_LENGTH);
     if (response.compare(JasmineGraphInstanceProtocol::OK) == 0) {
         pageRank_logger.info("Received : " + JasmineGraphInstanceProtocol::OK);
     } else {
@@ -308,7 +308,7 @@ void PageRankExecutor::doPageRank(std::string graphID, double alpha, int iterati
         return;
     }
 
-    response = Utils::read_str_trim_wrapper(sockfd, data, FRONTEND_DATA_LENGTH);
+    response = Utils::read_str_trim_wrapper(sockfd, data.data(), FRONTEND_DATA_LENGTH);
     if (response.compare(JasmineGraphInstanceProtocol::OK) == 0) {
         pageRank_logger.info("Received : " + JasmineGraphInstanceProtocol::OK);
     } else {
