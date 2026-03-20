@@ -828,23 +828,15 @@ static void triangles_command(std::string masterIP, int connFd,
         ui_frontend_logger.info("Started processing request " + reqId);
         auto begin = chrono::high_resolution_clock::now();
 
-        std::string partitionAlgorithm = sqlite->getPartitionAlgoByGraphID(graph_id);
-        std::string selectedTriangleJobType = TRIANGLES;
-        if (partitionAlgorithm == "5") {
-            selectedTriangleJobType = SHEEP_TRIANGLES;
-            ui_frontend_logger.info("Routing trian request to sheep triangle executor for graph ID " + graph_id);
-        }
-
         JobRequest jobDetails;
         jobDetails.setJobId(std::to_string(uniqueId));
-        jobDetails.setJobType(selectedTriangleJobType);
+        jobDetails.setJobType(TRIANGLES);
 
         long graphSLA = -1;  // This prevents auto calibration for priority=1 (=default priority)
         if (threadPriority > Conts::DEFAULT_THREAD_PRIORITY) {
             // All high priority threads will be set the same high priority level
             threadPriority = Conts::HIGH_PRIORITY_DEFAULT_VALUE;
-            graphSLA = JasmineGraphFrontEndCommon::getSLAForGraphId(sqlite, perfSqlite, graph_id,
-                                                              selectedTriangleJobType,
+            graphSLA = JasmineGraphFrontEndCommon::getSLAForGraphId(sqlite, perfSqlite, graph_id, TRIANGLES,
                                                               Conts::SLA_CATEGORY::LATENCY);
             jobDetails.addParameter(Conts::PARAM_KEYS::GRAPH_SLA, std::to_string(graphSLA));
         }
