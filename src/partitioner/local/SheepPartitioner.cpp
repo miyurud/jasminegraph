@@ -385,7 +385,7 @@ std::vector<std::map<int, std::string>> SheepPartitioner::partitionGraph(int gra
         string sqlStatement = "UPDATE graph SET vertexcount = '" + to_string(adjacencyList.size()) +
                             "', centralpartitioncount = '" + to_string(numPartitions) +
                             "', edgecount = '" + to_string(totalEdges) +
-                            "', id_algorithm = 'sheep' WHERE idgraph = '" + to_string(graphID) + "'";
+                            "', id_algorithm = '5' WHERE idgraph = '" + to_string(graphID) + "'";
         sqlite->runUpdate(sqlStatement);
         
         sheep_partitioner_logger.info("Updated graph table with statistics");
