@@ -3510,6 +3510,12 @@ static void sla_command(int connFd, SQLiteDBInterface *sqlite, PerformanceSQLite
     }
 }
 
+static std::string read_frontend_socket_value(int connFd) {
+    std::string buffer(FRONTEND_DATA_LENGTH, '\0');
+    read(connFd, buffer.data(), FRONTEND_DATA_LENGTH);
+    return Utils::trim_copy(std::string(buffer.c_str()));
+}
+
 void JasmineGraphFrontEnd::stop_graph_streaming(int connFd, bool *loop_exit_p) {
     std::string message1 = "Graph ID?";
     int resultWr = write(connFd, message1.c_str(), message1.length());
@@ -3525,11 +3531,7 @@ void JasmineGraphFrontEnd::stop_graph_streaming(int connFd, bool *loop_exit_p) {
         return;
     }
 
-    char userRes[FRONTEND_DATA_LENGTH + 1];
-    memset(userRes, 0, FRONTEND_DATA_LENGTH + 1);
-    read(connFd, userRes, FRONTEND_DATA_LENGTH);
-    std::string userResS(userRes);
-    userResS = Utils::trim_copy(userResS);
+    std::string userResS = read_frontend_socket_value(connFd);
 
     std::lock_guard<std::mutex> lock(threadMapMutex);
     auto it = stopFlags.find(stoi(userResS));
@@ -3573,11 +3575,7 @@ static void temporal_query_command(int connFd, SQLiteDBInterface *, bool *) {
     resultWr = write(connFd, message.c_str(), message.length());
     resultWr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
     
-    char snapshotBuf[FRONTEND_DATA_LENGTH + 1];
-    memset(snapshotBuf, 0, FRONTEND_DATA_LENGTH + 1);
-    read(connFd, snapshotBuf, FRONTEND_DATA_LENGTH);
-    std::string snapshotStr(snapshotBuf);
-    snapshotStr = Utils::trim_copy(snapshotStr);
+    std::string snapshotStr = read_frontend_socket_value(connFd);
     uint32_t snapshotId = std::stoul(snapshotStr);
     
     try {
@@ -3635,11 +3633,7 @@ static void temporal_snapshot_command(int connFd, SQLiteDBInterface *sqlite, boo
     int resultWr = write(connFd, message.c_str(), message.length());
     resultWr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
     
-    char graphIdBuf[FRONTEND_DATA_LENGTH + 1];
-    memset(graphIdBuf, 0, FRONTEND_DATA_LENGTH + 1);
-    read(connFd, graphIdBuf, FRONTEND_DATA_LENGTH);
-    std::string graphIdStr(graphIdBuf);
-    graphIdStr = Utils::trim_copy(graphIdStr);
+    std::string graphIdStr = read_frontend_socket_value(connFd);
     int graphId = std::stoi(graphIdStr);
     
     try {
@@ -3707,33 +3701,21 @@ static void temporal_range_command(int connFd, SQLiteDBInterface *sqlite, bool *
     int resultWr = write(connFd, message.c_str(), message.length());
     resultWr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
     
-    char graphIdBuf[FRONTEND_DATA_LENGTH + 1];
-    memset(graphIdBuf, 0, FRONTEND_DATA_LENGTH + 1);
-    read(connFd, graphIdBuf, FRONTEND_DATA_LENGTH);
-    std::string graphIdStr(graphIdBuf);
-    graphIdStr = Utils::trim_copy(graphIdStr);
+    std::string graphIdStr = read_frontend_socket_value(connFd);
     int graphId = std::stoi(graphIdStr);
     
     message = "Start Snapshot ID?";
     resultWr = write(connFd, message.c_str(), message.length());
     resultWr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
     
-    char startBuf[FRONTEND_DATA_LENGTH + 1];
-    memset(startBuf, 0, FRONTEND_DATA_LENGTH + 1);
-    read(connFd, startBuf, FRONTEND_DATA_LENGTH);
-    std::string startStr(startBuf);
-    startStr = Utils::trim_copy(startStr);
+    std::string startStr = read_frontend_socket_value(connFd);
     uint32_t startSnapshot = std::stoul(startStr);
     
     message = "End Snapshot ID?";
     resultWr = write(connFd, message.c_str(), message.length());
     resultWr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
     
-    char endBuf[FRONTEND_DATA_LENGTH + 1];
-    memset(endBuf, 0, FRONTEND_DATA_LENGTH + 1);
-    read(connFd, endBuf, FRONTEND_DATA_LENGTH);
-    std::string endStr(endBuf);
-    endStr = Utils::trim_copy(endStr);
+    std::string endStr = read_frontend_socket_value(connFd);
     uint32_t endSnapshot = std::stoul(endStr);
     
     try {
@@ -3793,22 +3775,14 @@ static void history_triangle_command(int connFd, SQLiteDBInterface *sqlite, bool
     int resultWr = write(connFd, message.c_str(), message.length());
     resultWr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
     
-    char graphIdBuf[FRONTEND_DATA_LENGTH + 1];
-    memset(graphIdBuf, 0, FRONTEND_DATA_LENGTH + 1);
-    read(connFd, graphIdBuf, FRONTEND_DATA_LENGTH);
-    std::string graphIdStr(graphIdBuf);
-    graphIdStr = Utils::trim_copy(graphIdStr);
+    std::string graphIdStr = read_frontend_socket_value(connFd);
     int graphId = std::stoi(graphIdStr);
     
     message = "Snapshot ID?";
     resultWr = write(connFd, message.c_str(), message.length());
     resultWr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
     
-    char snapshotBuf[FRONTEND_DATA_LENGTH + 1];
-    memset(snapshotBuf, 0, FRONTEND_DATA_LENGTH + 1);
-    read(connFd, snapshotBuf, FRONTEND_DATA_LENGTH);
-    std::string snapshotStr(snapshotBuf);
-    snapshotStr = Utils::trim_copy(snapshotStr);
+    std::string snapshotStr = read_frontend_socket_value(connFd);
     uint32_t snapshotId = std::stoul(snapshotStr);
     
     try {
@@ -3923,22 +3897,14 @@ static void history_triangle_timestamp_command(int connFd, SQLiteDBInterface *, 
     int resultWr = write(connFd, message.c_str(), message.length());
     resultWr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
     
-    char graphIdBuf[FRONTEND_DATA_LENGTH + 1];
-    memset(graphIdBuf, 0, FRONTEND_DATA_LENGTH + 1);
-    read(connFd, graphIdBuf, FRONTEND_DATA_LENGTH);
-    std::string graphIdStr(graphIdBuf);
-    graphIdStr = Utils::trim_copy(graphIdStr);
+    std::string graphIdStr = read_frontend_socket_value(connFd);
     int graphId = std::stoi(graphIdStr);
     
     message = "Timestamp (YYYY-MM-DD HH:MM:SS or Unix epoch)?";
     resultWr = write(connFd, message.c_str(), message.length());
     resultWr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
     
-    char timestampBuf[FRONTEND_DATA_LENGTH + 1];
-    memset(timestampBuf, 0, FRONTEND_DATA_LENGTH + 1);
-    read(connFd, timestampBuf, FRONTEND_DATA_LENGTH);
-    std::string timestampStr(timestampBuf);
-    timestampStr = Utils::trim_copy(timestampStr);
+    std::string timestampStr = read_frontend_socket_value(connFd);
     
     try {
         uint64_t targetTimestamp = 0;
@@ -4004,44 +3970,28 @@ static void history_pagerank_command(int connFd, SQLiteDBInterface *sqlite, bool
     int resultWr = write(connFd, message.c_str(), message.length());
     resultWr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
 
-    char graphIdBuf[FRONTEND_DATA_LENGTH + 1];
-    memset(graphIdBuf, 0, FRONTEND_DATA_LENGTH + 1);
-    read(connFd, graphIdBuf, FRONTEND_DATA_LENGTH);
-    std::string graphIdStr(graphIdBuf);
-    graphIdStr = Utils::trim_copy(graphIdStr);
+    std::string graphIdStr = read_frontend_socket_value(connFd);
     int graphId = std::stoi(graphIdStr);
 
     message = "Snapshot ID?";
     resultWr = write(connFd, message.c_str(), message.length());
     resultWr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
 
-    char snapshotBuf[FRONTEND_DATA_LENGTH + 1];
-    memset(snapshotBuf, 0, FRONTEND_DATA_LENGTH + 1);
-    read(connFd, snapshotBuf, FRONTEND_DATA_LENGTH);
-    std::string snapshotStr(snapshotBuf);
-    snapshotStr = Utils::trim_copy(snapshotStr);
+    std::string snapshotStr = read_frontend_socket_value(connFd);
     uint32_t snapshotId = std::stoul(snapshotStr);
 
     message = "Top-K (number of top nodes to return, 0 for all)?";
     resultWr = write(connFd, message.c_str(), message.length());
     resultWr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
 
-    char topKBuf[FRONTEND_DATA_LENGTH + 1];
-    memset(topKBuf, 0, FRONTEND_DATA_LENGTH + 1);
-    read(connFd, topKBuf, FRONTEND_DATA_LENGTH);
-    std::string topKStr(topKBuf);
-    topKStr = Utils::trim_copy(topKStr);
+    std::string topKStr = read_frontend_socket_value(connFd);
     int topK = topKStr.empty() ? 10 : std::stoi(topKStr);
 
     message = "Max iterations (default 100, higher = more accurate)?";
     resultWr = write(connFd, message.c_str(), message.length());
     resultWr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
 
-    char iterBuf[FRONTEND_DATA_LENGTH + 1];
-    memset(iterBuf, 0, FRONTEND_DATA_LENGTH + 1);
-    read(connFd, iterBuf, FRONTEND_DATA_LENGTH);
-    std::string iterStr(iterBuf);
-    iterStr = Utils::trim_copy(iterStr);
+    std::string iterStr = read_frontend_socket_value(connFd);
     int maxIterations = iterStr.empty() ? 100 : std::stoi(iterStr);
 
     try {
@@ -4101,43 +4051,27 @@ static void history_pagerank_timestamp_command(int connFd, SQLiteDBInterface *sq
     int resultWr = write(connFd, message.c_str(), message.length());
     resultWr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
 
-    char graphIdBuf[FRONTEND_DATA_LENGTH + 1];
-    memset(graphIdBuf, 0, FRONTEND_DATA_LENGTH + 1);
-    read(connFd, graphIdBuf, FRONTEND_DATA_LENGTH);
-    std::string graphIdStr(graphIdBuf);
-    graphIdStr = Utils::trim_copy(graphIdStr);
+    std::string graphIdStr = read_frontend_socket_value(connFd);
     int graphId = std::stoi(graphIdStr);
 
     message = "Timestamp (YYYY-MM-DD HH:MM:SS or Unix epoch)?";
     resultWr = write(connFd, message.c_str(), message.length());
     resultWr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
 
-    char timestampBuf[FRONTEND_DATA_LENGTH + 1];
-    memset(timestampBuf, 0, FRONTEND_DATA_LENGTH + 1);
-    read(connFd, timestampBuf, FRONTEND_DATA_LENGTH);
-    std::string timestampStr(timestampBuf);
-    timestampStr = Utils::trim_copy(timestampStr);
+    std::string timestampStr = read_frontend_socket_value(connFd);
 
     message = "Top-K (number of top nodes to return, 0 for all)?";
     resultWr = write(connFd, message.c_str(), message.length());
     resultWr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
 
-    char topKBuf[FRONTEND_DATA_LENGTH + 1];
-    memset(topKBuf, 0, FRONTEND_DATA_LENGTH + 1);
-    read(connFd, topKBuf, FRONTEND_DATA_LENGTH);
-    std::string topKStr(topKBuf);
-    topKStr = Utils::trim_copy(topKStr);
+    std::string topKStr = read_frontend_socket_value(connFd);
     int topK = topKStr.empty() ? 10 : std::stoi(topKStr);
 
     message = "Max iterations (default 100, higher = more accurate)?";
     resultWr = write(connFd, message.c_str(), message.length());
     resultWr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
 
-    char iterBuf[FRONTEND_DATA_LENGTH + 1];
-    memset(iterBuf, 0, FRONTEND_DATA_LENGTH + 1);
-    read(connFd, iterBuf, FRONTEND_DATA_LENGTH);
-    std::string iterStr(iterBuf);
-    iterStr = Utils::trim_copy(iterStr);
+    std::string iterStr = read_frontend_socket_value(connFd);
     int maxIterations = iterStr.empty() ? 100 : std::stoi(iterStr);
 
     try {
