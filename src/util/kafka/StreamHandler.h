@@ -37,7 +37,7 @@ class StreamHandler {
                   std::vector<DataPublisher *> &workerClients, SQLiteDBInterface* sqlite,
                   int graphId, bool isDirected, spt::Algorithms algo = spt::Algorithms::HASH,
                   bool isNewGraph = false);
-    ~StreamHandler();
+    ~StreamHandler() noexcept;
     void listen_to_kafka_topic();
     void listenViaDirectWorkers(const std::string& topic,
                                  const std::vector<JasmineGraphServer::worker>& workers);
@@ -50,8 +50,8 @@ class StreamHandler {
     uint32_t currentSnapshot;
 
     // Temporal storage: one store per partition + central store for cross-partition edges
-    std::map<int, TemporalStore*> localTemporalStores;  // partitionId -> TemporalStore
-    TemporalStore* centralTemporalStore;                // For cross-partition edges
+    std::map<int, std::unique_ptr<TemporalStore>> localTemporalStores;  // partitionId -> TemporalStore
+    std::unique_ptr<TemporalStore> centralTemporalStore;                // For cross-partition edges
     uint32_t globalSnapshotId;                          // Global snapshot counter (synchronized across all partitions)
 
  private:

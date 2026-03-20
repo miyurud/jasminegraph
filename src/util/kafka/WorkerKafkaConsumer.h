@@ -33,6 +33,7 @@ LIMITATION: Currently applies to HASH partitioning only.
 #pragma once
 
 #include <atomic>
+#include <memory>
 #include <map>
 #include <mutex>
 #include <string>
@@ -88,7 +89,7 @@ class WorkerKafkaConsumer {
         const WorkerKafkaConfig& config,
         std::map<std::string, JasmineGraphIncrementalLocalStore*>& incrementalLocalStoreMap);
 
-    ~WorkerKafkaConsumer();
+    ~WorkerKafkaConsumer() noexcept;
 
     /**
      * Blocking.  Spawns cfg.numConsumerThreads parallel Kafka consumer
@@ -104,8 +105,8 @@ class WorkerKafkaConsumer {
     InstanceStreamHandler streamHandler;   // wraps localStoreMap for edge writes
 
     // Temporal stores: per owned-partition + one shared central store
-    std::map<int, TemporalStore*> localTemporalStores;
-    TemporalStore*                centralTemporalStore = nullptr;
+    std::map<int, std::unique_ptr<TemporalStore>> localTemporalStores;
+    std::unique_ptr<TemporalStore>                centralTemporalStore;
     int centralPartitionId = -1;  // worker-specific central store partition ID
 
     std::atomic<uint32_t> globalSnapshotId{0};

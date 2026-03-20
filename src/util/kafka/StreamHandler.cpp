@@ -33,7 +33,14 @@ limitations under the License.
 using json = nlohmann::json;
 using namespace std;
 using namespace std::chrono;
-Logger stream_handler_logger;
+
+namespace {
+Logger& streamHandlerLogger() {
+    static Logger logger;
+    return logger;
+}
+}  // namespace
+
 
 /// Queries the Kafka broker for the number of partitions in `topic`.
 /// Returns the partition count on success, or -1 if the query fails.
@@ -45,9 +52,9 @@ static int getKafkaTopicPartitionCount(cppkafka::Consumer& consumer, const std::
                 return static_cast<int>(topicMeta.get_partitions().size());
             }
         }
-        stream_handler_logger.warn("[KAFKA META] Topic '" + topic + "' not found in broker metadata");
+        streamHandlerLogger().warn("[KAFKA META] Topic '" + topic + "' not found in broker metadata");
     } catch (const std::exception& e) {
-        stream_handler_logger.warn("[KAFKA META] Failed to query partition count for topic '" +
+        streamHandlerLogger().warn("[KAFKA META] Failed to query partition count for topic '" +
                                    topic + "': " + e.what());
     }
     return -1;
@@ -78,7 +85,7 @@ StreamHandler::StreamHandler(KafkaConnector *kstream, int numberOfPartitions,
     // Start async publish thread pool
     startPublishThreads();
     
-    stream_handler_logger.info("Initialized StreamHandler with " + std::to_string(workerClients.size()) + 
+    streamHandlerLogger().info("Initialized StreamHandler with " + std::to_string(workerClients.size()) + 
                               " workers, batch size " + std::to_string(BATCH_SIZE) + 
                               ", " + std::to_string(PUBLISH_THREADS) + " publish threads");
     
@@ -86,7 +93,7 @@ StreamHandler::StreamHandler(KafkaConnector *kstream, int numberOfPartitions,
     // from a previous run with the same graph ID so workers start from a clean state.
     if (isNewGraph) {
         std::string snapshotDir = Utils::getJasmineGraphHome() + "/env/data/temporal_snapshots";
-        stream_handler_logger.info("[NEW GRAPH] Deleting stale snapshot files for graph " +
+        streamHandlerLogger().info("[NEW GRAPH] Deleting stale snapshot files for graph " +
                                    std::to_string(graphId) + " in " + snapshotDir);
         // Delete all files matching graph<N>_part*_snap*.tgs
         std::string pattern = snapshotDir + "/graph" + std::to_string(graphId) + "_part";
@@ -109,13 +116,13 @@ StreamHandler::StreamHandler(KafkaConnector *kstream, int numberOfPartitions,
         }
         
         for (int partitionId = 0; partitionId < numberOfPartitions; partitionId++) {
-            localTemporalStores[partitionId] = new TemporalStore(
+            localTemporalStores[partitionId] = std::make_unique<TemporalStore>(
                 graphId, partitionId, timeThreshold, edgeThreshold, 
                 SnapshotManager::SnapshotMode::HYBRID
             );
         }
         
-        centralTemporalStore = new TemporalStore(
+        centralTemporalStore = std::make_unique<TemporalStore>(
             graphId, numberOfPartitions, timeThreshold, edgeThreshold,
             SnapshotManager::SnapshotMode::HYBRID
         );
@@ -149,12 +156,12 @@ StreamHandler::StreamHandler(KafkaConnector *kstream, int numberOfPartitions,
                         // loadBitmapIndexFromDisk restores snapshotId; open next snapshot
                         uint32_t newSnapshotId = localTemporalStores[partitionId]->openNewSnapshot();
 
-                        stream_handler_logger.info("Restored temporal state for graph " + std::to_string(graphId) +
+                        streamHandlerLogger().info("Restored temporal state for graph " + std::to_string(graphId) +
                                                   " partition " + std::to_string(partitionId) +
                                                   " from snapshot " + std::to_string(maxSnapshotId) +
                                                   ", continuing with snapshot " + std::to_string(newSnapshotId));
                     } else {
-                        stream_handler_logger.error("Failed to load bitmap index for graph " + std::to_string(graphId) +
+                        streamHandlerLogger().error("Failed to load bitmap index for graph " + std::to_string(graphId) +
                                                    " partition " + std::to_string(partitionId));
                     }
                 }
@@ -178,11 +185,11 @@ StreamHandler::StreamHandler(KafkaConnector *kstream, int numberOfPartitions,
                     if (centralTemporalStore->loadBitmapIndexFromDisk(centralBitmapPath)) {
                         uint32_t newCentralSnapshotId = centralTemporalStore->openNewSnapshot();
 
-                        stream_handler_logger.info("Restored central temporal state for graph " + std::to_string(graphId) +
+                        streamHandlerLogger().info("Restored central temporal state for graph " + std::to_string(graphId) +
                                                   " from snapshot " + std::to_string(maxCentralSnapshotId) +
                                                   ", continuing with snapshot " + std::to_string(newCentralSnapshotId));
                     } else {
-                        stream_handler_logger.error("Failed to load central bitmap index for graph " + std::to_string(graphId));
+                        streamHandlerLogger().error("Failed to load central bitmap index for graph " + std::to_string(graphId));
                     }
                 }
             }
@@ -190,41 +197,33 @@ StreamHandler::StreamHandler(KafkaConnector *kstream, int numberOfPartitions,
             // Set global snapshot ID to continue from the highest found (synchronized across all partitions)
             if (foundAnySnapshot) {
                 globalSnapshotId = maxGlobalSnapshotId + 1;
-                stream_handler_logger.info("Global snapshot ID restored to " + std::to_string(globalSnapshotId) + 
+                streamHandlerLogger().info("Global snapshot ID restored to " + std::to_string(globalSnapshotId) + 
                                           " (continuing from highest snapshot " + std::to_string(maxGlobalSnapshotId) + ")");
             }
         }
         
-        stream_handler_logger.info("Temporal storage enabled for graph " + std::to_string(graphId) + 
+        streamHandlerLogger().info("Temporal storage enabled for graph " + std::to_string(graphId) + 
                                   " with " + std::to_string(numberOfPartitions) + " partitions");
     }
 }
 
 // Destructor: Clean up temporal stores to prevent memory leaks
-StreamHandler::~StreamHandler() {
-    // Stop publish threads
-    stopPublishThreads();
-    
-    // Flush all remaining batches
-    for (size_t i = 0; i < workerBatches.size(); i++) {
-        flushWorkerBatch(i, true);
-    }
-    
-    // Save final snapshots if not already done
-    finalizeAllSnapshots();
-    
-    // Clean up local partition stores
-    for (auto& [partitionId, store] : localTemporalStores) {
-        if (store != nullptr) {
-            delete store;
+StreamHandler::~StreamHandler() noexcept {
+    try {
+        // Stop publish threads
+        stopPublishThreads();
+
+        // Flush all remaining batches
+        for (size_t i = 0; i < workerBatches.size(); i++) {
+            flushWorkerBatch(i, true);
         }
-    }
-    localTemporalStores.clear();
-    
-    // Clean up central store
-    if (centralTemporalStore != nullptr) {
-        delete centralTemporalStore;
-        centralTemporalStore = nullptr;
+
+        // Save final snapshots if not already done
+        finalizeAllSnapshots();
+    } catch (const std::exception& e) {
+        streamHandlerLogger().error(std::string("Exception in StreamHandler destructor: ") + e.what());
+    } catch (...) {
+        streamHandlerLogger().error("Unknown exception in StreamHandler destructor");
     }
 }
 
@@ -242,7 +241,7 @@ void StreamHandler::finalizeAllSnapshots() {
         return;  // No temporal stores to save
     }
     
-    stream_handler_logger.info("Finalizing all temporal snapshots (saving open snapshots)");
+    streamHandlerLogger().info("Finalizing all temporal snapshots (saving open snapshots)");
     
     std::string snapshotDir = Utils::getJasmineGraphHome() + "/env/data/temporal_snapshots";
     Utils::createDirectory(snapshotDir);
@@ -256,14 +255,14 @@ void StreamHandler::finalizeAllSnapshots() {
                 bool saved = store->saveBitmapIndexToDisk(snapshotDir, globalSnapshotId);
                 store->appendSnapshotMetaToDisk(snapshotDir, globalSnapshotId);
                 if (saved) {
-                    stream_handler_logger.info("Saved final bitmap index for partition " +
+                    streamHandlerLogger().info("Saved final bitmap index for partition " +
                                               std::to_string(partitionId) + " snapId=" + std::to_string(globalSnapshotId));
                 } else {
-                    stream_handler_logger.error("Failed to save final bitmap index for partition " +
+                    streamHandlerLogger().error("Failed to save final bitmap index for partition " +
                                                std::to_string(partitionId));
                 }
             } catch (const std::exception& e) {
-                stream_handler_logger.error("Exception saving partition " +
+                streamHandlerLogger().error("Exception saving partition " +
                                            std::to_string(partitionId) + ": " + e.what());
             }
         }
@@ -275,12 +274,12 @@ void StreamHandler::finalizeAllSnapshots() {
             bool saved = centralTemporalStore->saveBitmapIndexToDisk(snapshotDir, globalSnapshotId);
             centralTemporalStore->appendSnapshotMetaToDisk(snapshotDir, globalSnapshotId);
             if (saved) {
-                stream_handler_logger.info("Saved final central bitmap index snapId=" + std::to_string(globalSnapshotId));
+                streamHandlerLogger().info("Saved final central bitmap index snapId=" + std::to_string(globalSnapshotId));
             } else {
-                stream_handler_logger.error("Failed to save final central bitmap index");
+                streamHandlerLogger().error("Failed to save final central bitmap index");
             }
         } catch (const std::exception& e) {
-            stream_handler_logger.error("Exception saving central bitmap index: " + std::string(e.what()));
+            streamHandlerLogger().error("Exception saving central bitmap index: " + std::string(e.what()));
         }
     }
 }
@@ -291,7 +290,7 @@ void StreamHandler::createGlobalSnapshot() {
     std::string snapshotDir = Utils::getJasmineGraphHome() + "/env/data/temporal_snapshots";
     Utils::createDirectory(snapshotDir);
     
-    stream_handler_logger.info("Creating GLOBAL snapshot " + std::to_string(globalSnapshotId) + 
+    streamHandlerLogger().info("Creating GLOBAL snapshot " + std::to_string(globalSnapshotId) + 
                               " for ALL partitions");
     
     // Save ALL local partition stores with the SAME snapshot ID
@@ -302,16 +301,16 @@ void StreamHandler::createGlobalSnapshot() {
                 bool saved = store->saveBitmapIndexToDisk(snapshotDir, globalSnapshotId);
                 store->appendSnapshotMetaToDisk(snapshotDir, globalSnapshotId);
                 if (saved) {
-                    stream_handler_logger.info("Saved global snapshot " + std::to_string(globalSnapshotId) +
+                    streamHandlerLogger().info("Saved global snapshot " + std::to_string(globalSnapshotId) +
                                               " for partition " + std::to_string(partitionId));
                     partitionsSaved++;
                 } else {
-                    stream_handler_logger.error("Failed to save global snapshot " +
+                    streamHandlerLogger().error("Failed to save global snapshot " +
                                                std::to_string(globalSnapshotId) +
                                                " for partition " + std::to_string(partitionId));
                 }
             } catch (const std::exception& e) {
-                stream_handler_logger.error("Exception saving partition " + std::to_string(partitionId) +
+                streamHandlerLogger().error("Exception saving partition " + std::to_string(partitionId) +
                                            " snapshot " + std::to_string(globalSnapshotId) + ": " + e.what());
             }
         }
@@ -323,14 +322,14 @@ void StreamHandler::createGlobalSnapshot() {
             bool saved = centralTemporalStore->saveBitmapIndexToDisk(snapshotDir, globalSnapshotId);
             centralTemporalStore->appendSnapshotMetaToDisk(snapshotDir, globalSnapshotId);
             if (saved) {
-                stream_handler_logger.info("Saved global snapshot " + std::to_string(globalSnapshotId) +
+                streamHandlerLogger().info("Saved global snapshot " + std::to_string(globalSnapshotId) +
                                           " for central store");
             } else {
-                stream_handler_logger.error("Failed to save central store global snapshot " +
+                streamHandlerLogger().error("Failed to save central store global snapshot " +
                                            std::to_string(globalSnapshotId));
             }
         } catch (const std::exception& e) {
-            stream_handler_logger.error("Exception saving central store bitmap index " +
+            streamHandlerLogger().error("Exception saving central store bitmap index " +
                                        std::to_string(globalSnapshotId) + ": " + e.what());
         }
     }
@@ -348,7 +347,7 @@ void StreamHandler::createGlobalSnapshot() {
     // Increment global snapshot counter
     globalSnapshotId++;
     
-    stream_handler_logger.info("Global snapshot created across " + std::to_string(partitionsSaved) + 
+    streamHandlerLogger().info("Global snapshot created across " + std::to_string(partitionsSaved) + 
                               " partitions. Next snapshot ID: " + std::to_string(globalSnapshotId));
 }
 
@@ -376,7 +375,7 @@ bool StreamHandler::isErrorInMessage(const cppkafka::Message &msg) {
             // Poll timeout - normal, just no messages available
             return true;
         } else {
-            stream_handler_logger.error("Kafka message error: " + msg.get_error().to_string() + 
+            streamHandlerLogger().error("Kafka message error: " + msg.get_error().to_string() + 
                                        " (code: " + std::to_string(errorCode) + ")");
         }
         return true;
@@ -464,7 +463,7 @@ void StreamHandler::flushWorkerBatch(int workerId, bool force) {
             try {
                 workerClients[workerId]->publish(edgeData);
             } catch (const std::exception& e) {
-                stream_handler_logger.error("Failed to publish edge to worker " +
+                streamHandlerLogger().error("Failed to publish edge to worker " +
                                            std::to_string(workerId) + ": " + e.what());
             }
         }
@@ -509,7 +508,7 @@ void StreamHandler::consumerThreadFunc(int threadId,
                                        std::atomic<uint64_t>& totalCentral,
                                        std::atomic<bool>& endSignalReceived) {
     consumer->subscribe({topic});
-    stream_handler_logger.info("Consumer thread " + std::to_string(threadId) +
+    streamHandlerLogger().info("Consumer thread " + std::to_string(threadId) +
                                " subscribed to topic " + topic);
 
     const size_t KAFKA_BATCH_SIZE = 2000;
@@ -530,7 +529,7 @@ void StreamHandler::consumerThreadFunc(int threadId,
             emptyPolls++;
             uint64_t processed = totalMessages.load();
             if (processed > 0 && emptyPolls >= MAX_EMPTY_POLLS) {
-                stream_handler_logger.warn("Thread " + std::to_string(threadId) +
+                streamHandlerLogger().warn("Thread " + std::to_string(threadId) +
                                            ": no messages for " + std::to_string(MAX_EMPTY_POLLS) +
                                            "s — exiting");
                 break;
@@ -543,7 +542,7 @@ void StreamHandler::consumerThreadFunc(int threadId,
             if (endSignalReceived) break;
 
             if (isEndOfStream(msg)) {
-                stream_handler_logger.info("Thread " + std::to_string(threadId) +
+                streamHandlerLogger().info("Thread " + std::to_string(threadId) +
                                            " received termination signal (-1)");
                 endSignalReceived = true;
                 break;
@@ -601,7 +600,7 @@ void StreamHandler::consumerThreadFunc(int threadId,
                     std::lock_guard<std::mutex> tlock(temporalMutex_);
                     if (part_s == part_d) {
                         if (localTemporalStores.find(part_s) == localTemporalStores.end()) {
-                            stream_handler_logger.error("Invalid partition " + std::to_string(part_s) +
+                            streamHandlerLogger().error("Invalid partition " + std::to_string(part_s) +
                                                         " for edge " + sId + "-" + dId);
                             continue;
                         }
@@ -611,7 +610,7 @@ void StreamHandler::consumerThreadFunc(int threadId,
                             shouldCreateGlobalSnapshot = true;
                     } else {
                         if (centralTemporalStore == nullptr) {
-                            stream_handler_logger.error("Central store null for edge " + sId + "-" + dId);
+                            streamHandlerLogger().error("Central store null for edge " + sId + "-" + dId);
                             continue;
                         }
                         centralTemporalStore->addEdge(sId, dId, globalSnapshotId);
@@ -620,7 +619,7 @@ void StreamHandler::consumerThreadFunc(int threadId,
                             shouldCreateGlobalSnapshot = true;
                     }
                 } catch (const std::exception& e) {
-                    stream_handler_logger.error("Temporal error for edge " + sId + "-" + dId + ": " + e.what());
+                    streamHandlerLogger().error("Temporal error for edge " + sId + "-" + dId + ": " + e.what());
                 }
 
                 if (shouldCreateGlobalSnapshot) {
@@ -701,7 +700,7 @@ void StreamHandler::consumerThreadFunc(int threadId,
                 auto avg_publish   = total_publish_time.count()   / threadMessages;
                 auto avg_total     = avg_parse + avg_partition + avg_temporal + avg_publish;
                 if (avg_total > 0) {
-                    stream_handler_logger.info(
+                    streamHandlerLogger().info(
                         "[T" + std::to_string(threadId) + "] Performance @ " +
                         std::to_string(threadMessages) + " msgs: " +
                         "parse=" + std::to_string(avg_parse) + "us (" +
@@ -717,7 +716,7 @@ void StreamHandler::consumerThreadFunc(int threadId,
         }  // end message batch loop
     }  // end while
 
-    stream_handler_logger.info("Consumer thread " + std::to_string(threadId) +
+    streamHandlerLogger().info("Consumer thread " + std::to_string(threadId) +
                                " finished. Processed " + std::to_string(threadMessages) + " messages.");
 }
 
@@ -743,7 +742,7 @@ void StreamHandler::listen_to_kafka_topic() {
     // Get the topic that the original consumer already subscribed to
     std::vector<std::string> subscription = kstream->consumer.get_subscription();
     if (subscription.empty()) {
-        stream_handler_logger.error("KafkaConnector has no topic subscription — cannot start consumers");
+        streamHandlerLogger().error("KafkaConnector has no topic subscription — cannot start consumers");
         return;
     }
     const std::string topic = subscription[0];
@@ -754,10 +753,10 @@ void StreamHandler::listen_to_kafka_topic() {
     int detectedPartitions = getKafkaTopicPartitionCount(kstream->consumer, topic);
     if (detectedPartitions > 0) {
         numConsumerThreads = detectedPartitions;
-        stream_handler_logger.info("[THREAD CFG] Auto-detected " + std::to_string(numConsumerThreads) +
+        streamHandlerLogger().info("[THREAD CFG] Auto-detected " + std::to_string(numConsumerThreads) +
                                    " Kafka partitions for topic '" + topic + "' — using as thread count");
     } else {
-        stream_handler_logger.warn("[THREAD CFG] Could not detect Kafka partition count for topic '" +
+        streamHandlerLogger().warn("[THREAD CFG] Could not detect Kafka partition count for topic '" +
                                    topic + "' — using default: " + std::to_string(numConsumerThreads));
     }
     // Allow explicit override via property (useful for testing or tuning)
@@ -766,18 +765,18 @@ void StreamHandler::listen_to_kafka_topic() {
         int val = std::atoi(threadsProp.c_str());
         if (val > 0) {
             numConsumerThreads = val;
-            stream_handler_logger.info("[THREAD CFG] Thread count overridden to " +
+            streamHandlerLogger().info("[THREAD CFG] Thread count overridden to " +
                                        std::to_string(numConsumerThreads) +
                                        " via org.jasminegraph.kafka.consumer.threads");
         }
     }
 
-    stream_handler_logger.info("Starting " + std::to_string(numConsumerThreads) +
+    streamHandlerLogger().info("Starting " + std::to_string(numConsumerThreads) +
                                " parallel Kafka consumer threads for topic '" + topic + "'");
 
     // For HASH partitioning: workers consume directly from Kafka (eliminates master relay bottleneck)
     if (graphPartitioner.isHashAlgorithm()) {
-        stream_handler_logger.info("Hash partitioning detected: dispatching direct Kafka consuming to workers");
+        streamHandlerLogger().info("Hash partitioning detected: dispatching direct Kafka consuming to workers");
         listenViaDirectWorkers(topic, workers);
         return;
     }
@@ -811,13 +810,13 @@ void StreamHandler::listen_to_kafka_topic() {
         if (t.joinable()) t.join();
     }
 
-    stream_handler_logger.info("All consumer threads finished. Total messages: " +
+    streamHandlerLogger().info("All consumer threads finished. Total messages: " +
                                std::to_string(totalMessages.load()) +
                                " (local=" + std::to_string(totalLocal.load()) +
                                ", central=" + std::to_string(totalCentral.load()) + ")");
 
     // Flush all remaining worker batches
-    stream_handler_logger.info("Flushing remaining worker batches...");
+    streamHandlerLogger().info("Flushing remaining worker batches...");
     for (size_t i = 0; i < workerBatches.size(); i++) flushWorkerBatch(i, true);
 
     // Wait for async publish queue to drain (up to 5 s)
@@ -834,7 +833,7 @@ void StreamHandler::listen_to_kafka_topic() {
     for (auto& workerClient : workerClients) {
         if (workerClient != nullptr) workerClient->publish("-1");
     }
-    stream_handler_logger.info("Termination signal sent to all workers");
+    streamHandlerLogger().info("Termination signal sent to all workers");
 
     graphPartitioner.updateMetaDB();
     graphPartitioner.printStats();
@@ -867,12 +866,12 @@ void StreamHandler::listenViaDirectWorkers(
     int kafkaTopicPartitions = getKafkaTopicPartitionCount(kstream->consumer, topic);
     int defaultThreadCount = (kafkaTopicPartitions > 0) ? kafkaTopicPartitions : DEFAULT_CONSUMER_THREADS;
     if (kafkaTopicPartitions > 0) {
-        stream_handler_logger.info("[THREAD CFG] Detected " + std::to_string(kafkaTopicPartitions) +
+        streamHandlerLogger().info("[THREAD CFG] Detected " + std::to_string(kafkaTopicPartitions) +
                                    " Kafka partitions for topic '" + topic +
                                    "' — each worker will use " + std::to_string(defaultThreadCount) +
                                    " consumer threads (1 per Kafka partition)");
     } else {
-        stream_handler_logger.warn("[THREAD CFG] Could not detect Kafka partition count for topic '" +
+        streamHandlerLogger().warn("[THREAD CFG] Could not detect Kafka partition count for topic '" +
                                    topic + "' — falling back to default: " +
                                    std::to_string(defaultThreadCount));
     }
@@ -884,7 +883,7 @@ void StreamHandler::listenViaDirectWorkers(
         int val = std::atoi(threadsProp.c_str());
         if (val > 0) {
             threadOverride = val;
-            stream_handler_logger.info("[THREAD CFG] Consumer thread count globally overridden to " +
+            streamHandlerLogger().info("[THREAD CFG] Consumer thread count globally overridden to " +
                                        std::to_string(threadOverride) +
                                        " via org.jasminegraph.kafka.consumer.threads");
         }
@@ -901,18 +900,18 @@ void StreamHandler::listenViaDirectWorkers(
             "org.jasminegraph.server.streaming.temporal.edge.threshold");
         if (!tProp.empty()) timeThreshold = std::stoull(tProp);
         if (!eProp.empty()) edgeThreshold = std::stoull(eProp);
-        stream_handler_logger.info("[TEMPORAL CFG] listenViaDirectWorkers:"
+        streamHandlerLogger().info("[TEMPORAL CFG] listenViaDirectWorkers:"
             " temporalEnabled=true edgeThreshold=" + std::to_string(edgeThreshold) +
             " timeThreshold=" + std::to_string(timeThreshold) +
             " initialSnapshotId=" + std::to_string(initialSnapshotId) +
             " (rawEdgeProp='" + eProp + "' rawTimeProp='" + tProp + "')");
         if (edgeThreshold == 0 && timeThreshold == 0) {
-            stream_handler_logger.warn("[TEMPORAL CFG] BOTH thresholds are 0 — workers will never"
+            streamHandlerLogger().warn("[TEMPORAL CFG] BOTH thresholds are 0 — workers will never"
                 " auto-snapshot. Check org.jasminegraph.server.streaming.temporal.edge.threshold"
                 " and org.jasminegraph.server.streaming.temporal.time.threshold in properties.");
         }
     } else {
-        stream_handler_logger.warn("[TEMPORAL CFG] listenViaDirectWorkers: temporalEnabled=false"
+        streamHandlerLogger().warn("[TEMPORAL CFG] listenViaDirectWorkers: temporalEnabled=false"
             " (localTemporalStores empty — was org.jasminegraph.temporal.enabled=true?)");
     }
 
@@ -926,7 +925,7 @@ void StreamHandler::listenViaDirectWorkers(
         workerOwnedPartitions[p % n_workers].push_back(p);
     }
 
-    stream_handler_logger.info("Dispatching direct Kafka stream to " +
+    streamHandlerLogger().info("Dispatching direct Kafka stream to " +
                                std::to_string(n_workers) + " workers for topic '" + topic + "'");
 
     // ── Two-phase dispatch ────────────────────────────────────────────────
@@ -970,7 +969,7 @@ void StreamHandler::listenViaDirectWorkers(
         // Owned graph partitions are a separate concept — they control which EDGES are stored,
         // not how many Kafka partitions this worker's consumer group is assigned.
         int numConsumerThreads = (threadOverride > 0) ? threadOverride : defaultThreadCount;
-        stream_handler_logger.info("[THREAD CFG] Worker " + std::to_string(wi) + ": " +
+        streamHandlerLogger().info("[THREAD CFG] Worker " + std::to_string(wi) + ": " +
                                    std::to_string(numConsumerThreads) + " consumer threads (" +
                                    std::to_string(kafkaTopicPartitions) + " Kafka partitions, " +
                                    std::to_string(workerOwnedPartitions[wi].size()) +
@@ -982,7 +981,7 @@ void StreamHandler::listenViaDirectWorkers(
         // ── Phase 1: open TCP connection and deliver config ───────────────
         int sockfd = socket(AF_INET, SOCK_STREAM, 0);
         if (sockfd < 0) {
-            stream_handler_logger.error("Worker " + std::to_string(wi) + ": cannot create socket");
+            streamHandlerLogger().error("Worker " + std::to_string(wi) + ": cannot create socket");
             continue;
         }
 
@@ -995,7 +994,7 @@ void StreamHandler::listenViaDirectWorkers(
         char hostBuffer[8192];
         if (gethostbyname_r(host.c_str(), &hostEntry, hostBuffer, sizeof(hostBuffer), &server, &hErrno) != 0 ||
             !server) {
-            stream_handler_logger.error("Worker " + std::to_string(wi) + ": unknown host " + host);
+            streamHandlerLogger().error("Worker " + std::to_string(wi) + ": unknown host " + host);
             close(sockfd);
             continue;
         }
@@ -1007,7 +1006,7 @@ void StreamHandler::listenViaDirectWorkers(
         serv_addr.sin_port = htons(w.port);
 
         if (Utils::connect_wrapper(sockfd, (struct sockaddr*)&serv_addr, sizeof(serv_addr)) < 0) {
-            stream_handler_logger.error("Worker " + std::to_string(wi) +
+            streamHandlerLogger().error("Worker " + std::to_string(wi) +
                                         ": connect failed to " + host + ":" + std::to_string(w.port));
             close(sockfd);
             continue;
@@ -1015,7 +1014,7 @@ void StreamHandler::listenViaDirectWorkers(
 
         char data[FED_DATA_LENGTH + 1];
         if (!Utils::performHandshake(sockfd, data, FED_DATA_LENGTH, masterIP)) {
-            stream_handler_logger.error("Worker " + std::to_string(wi) + ": handshake failed");
+            streamHandlerLogger().error("Worker " + std::to_string(wi) + ": handshake failed");
             Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::CLOSE);
             close(sockfd);
             continue;
@@ -1024,22 +1023,22 @@ void StreamHandler::listenViaDirectWorkers(
         if (!Utils::sendExpectResponse(sockfd, data, INSTANCE_DATA_LENGTH,
                     JasmineGraphInstanceProtocol::WORKER_DIRECT_KAFKA_STREAM,
                     JasmineGraphInstanceProtocol::WORKER_DIRECT_KAFKA_STREAM_ACK)) {
-            stream_handler_logger.error("Worker " + std::to_string(wi) +
+            streamHandlerLogger().error("Worker " + std::to_string(wi) +
                                         ": failed to get ACK for direct kafka stream command");
             Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::CLOSE);
             close(sockfd);
             continue;
         }
 
-        stream_handler_logger.info("[WORKER CFG] Sending to worker " + std::to_string(wi) +
+        streamHandlerLogger().info("[WORKER CFG] Sending to worker " + std::to_string(wi) +
                                    ": " + configStr);
         if (!Utils::send_str_wrapper(sockfd, configStr)) {
-            stream_handler_logger.error("Worker " + std::to_string(wi) + ": failed to send config JSON");
+            streamHandlerLogger().error("Worker " + std::to_string(wi) + ": failed to send config JSON");
             close(sockfd);
             continue;
         }
 
-        stream_handler_logger.info("Worker " + std::to_string(wi) +
+        streamHandlerLogger().info("Worker " + std::to_string(wi) +
                                    " config delivered. Handing socket to background thread.");
         n_started++;
 
@@ -1055,7 +1054,7 @@ void StreamHandler::listenViaDirectWorkers(
             std::string rawHex;
             for (unsigned char c : doneMsg.substr(0, std::min(doneMsg.size(), (size_t)80)))
                 rawHex += (c < 32 ? "[" + std::to_string((int)c) + "]" : std::string(1, c));
-            stream_handler_logger.info("[DONE MSG] Worker " + std::to_string(wi) +
+            streamHandlerLogger().info("[DONE MSG] Worker " + std::to_string(wi) +
                                        " rawBytes=" + rawHex +
                                        " len=" + std::to_string(doneMsg.size()));
 
@@ -1068,16 +1067,16 @@ void StreamHandler::listenViaDirectWorkers(
                     doneStats->totalLocal.fetch_add(std::stoull(parts[2]));
                     doneStats->totalCentral.fetch_add(std::stoull(parts[3]));
                 } else {
-                    stream_handler_logger.warn("[DONE MSG] Worker " + std::to_string(wi) +
+                    streamHandlerLogger().warn("[DONE MSG] Worker " + std::to_string(wi) +
                                                " done msg had only " + std::to_string(parts.size()) +
                                                " parts: '" + doneMsg + "'");
                 }
                 doneStats->successCount.fetch_add(1);
-                stream_handler_logger.info("[DONE MSG] Worker " + std::to_string(wi) +
+                streamHandlerLogger().info("[DONE MSG] Worker " + std::to_string(wi) +
                                            " finished. Cumulative total=" +
                                            std::to_string(doneStats->totalMessages.load()));
             } else {
-                stream_handler_logger.error("[DONE MSG] Worker " + std::to_string(wi) +
+                streamHandlerLogger().error("[DONE MSG] Worker " + std::to_string(wi) +
                                             ": unexpected done message: " + doneMsg);
             }
 
@@ -1090,20 +1089,20 @@ void StreamHandler::listenViaDirectWorkers(
     // This matches the behavior of listen_to_kafka_topic() — "done" only
     // returns after consumption is complete.
     if (n_started > 0) {
-        stream_handler_logger.info("[READY] Config delivered to " + std::to_string(n_started) +
+        streamHandlerLogger().info("[READY] Config delivered to " + std::to_string(n_started) +
                                    "/" + std::to_string(n_workers) +
                                    " workers. Waiting for all workers to finish consuming...");
         for (auto& t : doneThreads) {
             if (t.joinable()) t.join();
         }
-        stream_handler_logger.info("[DONE] All workers finished. total=" +
+        streamHandlerLogger().info("[DONE] All workers finished. total=" +
                                    std::to_string(doneStats->totalMessages.load()) +
                                    " local=" + std::to_string(doneStats->totalLocal.load()) +
                                    " central=" + std::to_string(doneStats->totalCentral.load()) +
                                    " successCount=" + std::to_string(doneStats->successCount.load()) +
                                    "/" + std::to_string(n_started));
     } else {
-        stream_handler_logger.warn("[READY] No workers started successfully for topic '" + topic + "'.");
+        streamHandlerLogger().warn("[READY] No workers started successfully for topic '" + topic + "'.");
     }
 
     // Update partition metadata DB now (does not require streaming to be complete).

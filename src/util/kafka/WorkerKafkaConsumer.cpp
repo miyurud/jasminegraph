@@ -23,7 +23,13 @@ limitations under the License.
 
 using json = nlohmann::json;
 
-static Logger worker_kafka_logger;
+namespace {
+Logger& workerKafkaLogger() {
+    static Logger logger;
+    return logger;
+}
+}  // namespace
+
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Constructor / Destructor
@@ -55,7 +61,7 @@ WorkerKafkaConsumer::WorkerKafkaConsumer(
     // BEFORE consumer threads start — eliminates data races on map insertions
     streamHandler.preInitPartitions(cfg.graphId, cfg.ownedPartitions);
 
-    worker_kafka_logger.info(
+    workerKafkaLogger().info(
         "WorkerKafkaConsumer ready: graph=" + std::to_string(cfg.graphId) +
         " worker=" + std::to_string(cfg.workerIndex) +
         " centralPartitionId=" + std::to_string(centralPartitionId) +
@@ -68,15 +74,13 @@ WorkerKafkaConsumer::WorkerKafkaConsumer(
         " threads=" + std::to_string(cfg.numConsumerThreads));
 }
 
-WorkerKafkaConsumer::~WorkerKafkaConsumer() {
-    finalizeAllSnapshots();
-    for (auto& [pid, store] : localTemporalStores) {
-        delete store;
-    }
-    localTemporalStores.clear();
-    if (centralTemporalStore) {
-        delete centralTemporalStore;
-        centralTemporalStore = nullptr;
+WorkerKafkaConsumer::~WorkerKafkaConsumer() noexcept {
+    try {
+        finalizeAllSnapshots();
+    } catch (const std::exception& e) {
+        workerKafkaLogger().error(std::string("[FINALIZE] Exception in destructor: ") + e.what());
+    } catch (...) {
+        workerKafkaLogger().error("[FINALIZE] Unknown exception in destructor");
     }
 }
 
@@ -86,34 +90,34 @@ WorkerKafkaConsumer::~WorkerKafkaConsumer() {
 
 void WorkerKafkaConsumer::initTemporalStores() {
     if (!cfg.temporalEnabled) {
-        worker_kafka_logger.warn("[TEMPORAL INIT] temporalEnabled=false for graph=" +
+        workerKafkaLogger().warn("[TEMPORAL INIT] temporalEnabled=false for graph=" +
                                  std::to_string(cfg.graphId) + " — no snapshots will be created");
         return;
     }
 
     std::string snapshotDir = Utils::getJasmineGraphHome() + "/env/data/temporal_snapshots";
-    worker_kafka_logger.info("[TEMPORAL INIT] graph=" + std::to_string(cfg.graphId) +
+    workerKafkaLogger().info("[TEMPORAL INIT] graph=" + std::to_string(cfg.graphId) +
                              " edgeThreshold=" + std::to_string(cfg.edgeThreshold) +
                              " timeThreshold=" + std::to_string(cfg.timeThreshold) +
                              " ownedPartitions=" + std::to_string(cfg.ownedPartitions.size()) +
                              " numberOfPartitions=" + std::to_string(cfg.numberOfPartitions) +
                              " snapshotDir=" + snapshotDir);
     if (cfg.edgeThreshold == 0 && cfg.timeThreshold == 0) {
-        worker_kafka_logger.warn("[TEMPORAL INIT] BOTH thresholds are 0 — snapshots will NEVER be"
+        workerKafkaLogger().warn("[TEMPORAL INIT] BOTH thresholds are 0 — snapshots will NEVER be"
                                  " auto-triggered during streaming for graph=" +
                                  std::to_string(cfg.graphId));
     }
     // Verify snapshot directory is accessible (shared volume check)
     struct stat stDir;
     if (stat(snapshotDir.c_str(), &stDir) != 0 || !S_ISDIR(stDir.st_mode)) {
-        worker_kafka_logger.warn("[TEMPORAL INIT] snapshotDir not accessible: " + snapshotDir +
+        workerKafkaLogger().warn("[TEMPORAL INIT] snapshotDir not accessible: " + snapshotDir +
                                  " — if running in Docker, check the volume mount!");
     } else {
-        worker_kafka_logger.info("[TEMPORAL INIT] snapshotDir accessible: " + snapshotDir);
+        workerKafkaLogger().info("[TEMPORAL INIT] snapshotDir accessible: " + snapshotDir);
     }
 
     for (int p : cfg.ownedPartitions) {
-        localTemporalStores[p] = new TemporalStore(
+        localTemporalStores[p] = std::make_unique<TemporalStore>(
             cfg.graphId, p,
             cfg.timeThreshold, cfg.edgeThreshold,
             SnapshotManager::SnapshotMode::HYBRID);
@@ -123,7 +127,7 @@ void WorkerKafkaConsumer::initTemporalStores() {
     // between workers writing to the same snapshot directory.
     // Worker 0 → centralPartitionId = numberOfPartitions + 0
     // Worker 1 → centralPartitionId = numberOfPartitions + 1
-    centralTemporalStore = new TemporalStore(
+    centralTemporalStore = std::make_unique<TemporalStore>(
         cfg.graphId, centralPartitionId,
         cfg.timeThreshold, cfg.edgeThreshold,
         SnapshotManager::SnapshotMode::HYBRID);
@@ -138,7 +142,7 @@ void WorkerKafkaConsumer::initTemporalStores() {
             if (localTemporalStores[p]->loadBitmapIndexFromDisk(bitmapPath)) {
                 // loadBitmapIndexFromDisk already restores snapshotId via setCurrentSnapshotId
                 localTemporalStores[p]->openNewSnapshot();
-                worker_kafka_logger.info(
+                workerKafkaLogger().info(
                     "Restored temporal snapshot for graph=" + std::to_string(cfg.graphId) +
                     " partition=" + std::to_string(p) +
                     " snapshotId=" + std::to_string(maxId));
@@ -153,17 +157,17 @@ void WorkerKafkaConsumer::initTemporalStores() {
         if (maxCentral != UINT32_MAX) {
             std::string bitmapPath = TemporalStorePersistence::generateBitmapFilePath(
                 snapshotDir, cfg.graphId, centralPartitionId);
-            worker_kafka_logger.info("[TEMPORAL INIT] Restoring central bitmap index: " + bitmapPath);
+            workerKafkaLogger().info("[TEMPORAL INIT] Restoring central bitmap index: " + bitmapPath);
             if (centralTemporalStore->loadBitmapIndexFromDisk(bitmapPath)) {
                 centralTemporalStore->openNewSnapshot();
-                worker_kafka_logger.info(
+                workerKafkaLogger().info(
                     "Restored central temporal snapshot for graph=" + std::to_string(cfg.graphId) +
                     " snapshotId=" + std::to_string(maxCentral));
             } else {
-                worker_kafka_logger.error("[TEMPORAL INIT] Failed to load central bitmap index: " + bitmapPath);
+                workerKafkaLogger().error("[TEMPORAL INIT] Failed to load central bitmap index: " + bitmapPath);
             }
         } else {
-            worker_kafka_logger.info("[TEMPORAL INIT] No existing central bitmap index for graph=" +
+            workerKafkaLogger().info("[TEMPORAL INIT] No existing central bitmap index for graph=" +
                                      std::to_string(cfg.graphId) + " — starting fresh");
         }
     }
@@ -174,14 +178,14 @@ void WorkerKafkaConsumer::finalizeAllSnapshots() {
     if (!snapshotsFinalized.compare_exchange_strong(expected, true)) return;
 
     if (localTemporalStores.empty() && !centralTemporalStore) {
-        worker_kafka_logger.info("[FINALIZE] No temporal stores to save for graph=" +
+        workerKafkaLogger().info("[FINALIZE] No temporal stores to save for graph=" +
                                  std::to_string(cfg.graphId));
         return;
     }
 
     std::string snapshotDir = Utils::getJasmineGraphHome() + "/env/data/temporal_snapshots";
     Utils::createDirectory(snapshotDir);
-    worker_kafka_logger.info("[FINALIZE] Saving final snapshots for graph=" +
+    workerKafkaLogger().info("[FINALIZE] Saving final snapshots for graph=" +
                              std::to_string(cfg.graphId) + " dir=" + snapshotDir);
 
     uint32_t finalSnapId = globalSnapshotId.load();   // use the same global ID used by addEdge
@@ -191,7 +195,7 @@ void WorkerKafkaConsumer::finalizeAllSnapshots() {
             store->appendSnapshotMetaToDisk(snapshotDir, finalSnapId);
             std::string bitmapPath = TemporalStorePersistence::generateBitmapFilePath(
                 snapshotDir, cfg.graphId, pid);
-            worker_kafka_logger.info("[FINALIZE] partition=" + std::to_string(pid) +
+            workerKafkaLogger().info("[FINALIZE] partition=" + std::to_string(pid) +
                                      " snapId=" + std::to_string(finalSnapId) +
                                      " path=" + bitmapPath +
                                      (ok ? " SAVED OK" : " SAVE FAILED"));
@@ -202,7 +206,7 @@ void WorkerKafkaConsumer::finalizeAllSnapshots() {
         centralTemporalStore->appendSnapshotMetaToDisk(snapshotDir, finalSnapId);
         std::string bitmapPath = TemporalStorePersistence::generateBitmapFilePath(
             snapshotDir, cfg.graphId, centralPartitionId);
-        worker_kafka_logger.info("[FINALIZE] central path=" + bitmapPath + " snapId=" + std::to_string(finalSnapId) +
+        workerKafkaLogger().info("[FINALIZE] central path=" + bitmapPath + " snapId=" + std::to_string(finalSnapId) +
                                  (ok ? " SAVED OK" : " SAVE FAILED"));
     }
 }
@@ -212,7 +216,7 @@ void WorkerKafkaConsumer::createGlobalSnapshot() {
     Utils::createDirectory(snapshotDir);
 
     uint32_t snapId = globalSnapshotId.load();
-    worker_kafka_logger.info("[SNAPSHOT] Creating global snapshot " + std::to_string(snapId) +
+    workerKafkaLogger().info("[SNAPSHOT] Creating global snapshot " + std::to_string(snapId) +
                              " for graph=" + std::to_string(cfg.graphId) +
                              " dir=" + snapshotDir);
 
@@ -220,14 +224,14 @@ void WorkerKafkaConsumer::createGlobalSnapshot() {
         if (store) {
             bool ok = store->saveBitmapIndexToDisk(snapshotDir, snapId);
             store->appendSnapshotMetaToDisk(snapshotDir, snapId);
-            worker_kafka_logger.info("[SNAPSHOT] partition=" + std::to_string(pid) +
+            workerKafkaLogger().info("[SNAPSHOT] partition=" + std::to_string(pid) +
                                      (ok ? " SAVED OK" : " SAVE FAILED"));
         }
     }
     if (centralTemporalStore) {
         bool ok = centralTemporalStore->saveBitmapIndexToDisk(snapshotDir, snapId);
         centralTemporalStore->appendSnapshotMetaToDisk(snapshotDir, snapId);
-        worker_kafka_logger.info("[SNAPSHOT] central" +
+        workerKafkaLogger().info("[SNAPSHOT] central" +
                                  std::string(ok ? " SAVED OK" : " SAVE FAILED"));
     }
 
@@ -238,7 +242,7 @@ void WorkerKafkaConsumer::createGlobalSnapshot() {
     if (centralTemporalStore) centralTemporalStore->openNewSnapshot();
 
     globalSnapshotId++;
-    worker_kafka_logger.info("[SNAPSHOT] Global snapshot " + std::to_string(snapId) + " created.");
+    workerKafkaLogger().info("[SNAPSHOT] Global snapshot " + std::to_string(snapId) + " created.");
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -260,7 +264,7 @@ bool WorkerKafkaConsumer::isErrorInMessage(const cppkafka::Message& msg) {
         auto code = msg.get_error().get_error();
         if (code == RD_KAFKA_RESP_ERR__PARTITION_EOF) return true;
         if (code == RD_KAFKA_RESP_ERR__TIMED_OUT)    return true;
-        worker_kafka_logger.error("Kafka error: " + msg.get_error().to_string());
+        workerKafkaLogger().error("Kafka error: " + msg.get_error().to_string());
         return true;
     }
     return false;
@@ -280,7 +284,7 @@ void WorkerKafkaConsumer::consumerThreadFunc(
 
     try {
     consumer->subscribe({cfg.topic});
-    worker_kafka_logger.info("Worker consumer thread " + std::to_string(threadId) +
+    workerKafkaLogger().info("Worker consumer thread " + std::to_string(threadId) +
                              " subscribed to " + cfg.topic);
 
     const size_t   KAFKA_BATCH   = 2000;
@@ -301,7 +305,7 @@ void WorkerKafkaConsumer::consumerThreadFunc(
     // Pre-computed once: graphId as string for fast identifier building
     const std::string graphIdStr = std::to_string(cfg.graphId);
 
-    worker_kafka_logger.info("Worker thread " + std::to_string(threadId) +
+    workerKafkaLogger().info("Worker thread " + std::to_string(threadId) +
                              " entering consume loop (MAX_IDLE=" +
                              std::to_string(MAX_IDLE_POLLS) + "s)");
 
@@ -322,14 +326,14 @@ void WorkerKafkaConsumer::consumerThreadFunc(
             // No real messages — increment idle counter
             ++idleSeconds;
             if (idleSeconds % 30 == 0) {
-                worker_kafka_logger.info("Worker thread " + std::to_string(threadId) +
+                workerKafkaLogger().info("Worker thread " + std::to_string(threadId) +
                     ": idle " + std::to_string(idleSeconds) + "s" +
                     " (batchSize=" + std::to_string(batch.size()) +
                     " errors=" + std::to_string(errorMsgs) +
                     " processed=" + std::to_string(threadMsgs) + ")");
             }
             if (idleSeconds >= MAX_IDLE_POLLS) {
-                worker_kafka_logger.warn("Worker thread " + std::to_string(threadId) +
+                workerKafkaLogger().warn("Worker thread " + std::to_string(threadId) +
                                          ": idle timeout (" +
                                          std::to_string(idleSeconds) +
                                          "s, errors=" + std::to_string(errorMsgs) +
@@ -340,7 +344,7 @@ void WorkerKafkaConsumer::consumerThreadFunc(
         }
         idleSeconds = 0;  // reset only when we get REAL messages
         if (threadMsgs == 0 && validInBatch > 0) {
-            worker_kafka_logger.info("Worker thread " + std::to_string(threadId) +
+            workerKafkaLogger().info("Worker thread " + std::to_string(threadId) +
                                      ": first valid batch! validInBatch=" +
                                      std::to_string(validInBatch) +
                                      " batchSize=" + std::to_string(batch.size()));
@@ -350,7 +354,7 @@ void WorkerKafkaConsumer::consumerThreadFunc(
             if (myDone) break;
 
             if (isEndOfStream(msg)) {
-                worker_kafka_logger.info("Worker thread " + std::to_string(threadId) +
+                workerKafkaLogger().info("Worker thread " + std::to_string(threadId) +
                                          " received end-of-stream signal on its Kafka partition"
                                          " — signalling all threads to stop");
                 // Set BOTH flags:
@@ -381,7 +385,7 @@ void WorkerKafkaConsumer::consumerThreadFunc(
             try {
                 edgeJson = json::parse(raw);
             } catch (const std::exception& e) {
-                worker_kafka_logger.error("T" + std::to_string(threadId) +
+                workerKafkaLogger().error("T" + std::to_string(threadId) +
                                           " JSON parse error: " + e.what());
                 continue;
             }
@@ -488,21 +492,21 @@ void WorkerKafkaConsumer::consumerThreadFunc(
             ++threadMsgs;
             ++totalMessages;
             if (threadMsgs % 50000 == 0 || (threadMsgs <= 1000 && threadMsgs % 100 == 0)) {
-                worker_kafka_logger.info("Worker thread " + std::to_string(threadId) +
+                workerKafkaLogger().info("Worker thread " + std::to_string(threadId) +
                                          ": " + std::to_string(threadMsgs) + " msgs queued" +
                                          " (total=" + std::to_string(totalMessages.load()) + ")");
             }
         }  // end message loop
     }  // end while
 
-    worker_kafka_logger.info("Worker consumer thread " + std::to_string(threadId) +
+    workerKafkaLogger().info("Worker consumer thread " + std::to_string(threadId) +
                              " finished. Messages processed: " + std::to_string(threadMsgs));
     } catch (const std::exception& e) {
-        worker_kafka_logger.error("[CRASH] consumerThreadFunc thread " + std::to_string(threadId) +
+        workerKafkaLogger().error("[CRASH] consumerThreadFunc thread " + std::to_string(threadId) +
                                   " caught exception: " + e.what());
         endSignalReceived = true;
     } catch (...) {
-        worker_kafka_logger.error("[CRASH] consumerThreadFunc thread " + std::to_string(threadId) +
+        workerKafkaLogger().error("[CRASH] consumerThreadFunc thread " + std::to_string(threadId) +
                                   " caught unknown exception");
         endSignalReceived = true;
     }
@@ -534,10 +538,10 @@ WorkerKafkaStats WorkerKafkaConsumer::run() {
     // Error callback surfaces librdkafka-internal problems (broker disconnect, auth, etc.)
     kafkaCfg.set_error_callback([](cppkafka::KafkaHandleBase& /*handle*/, int error,
                                    const std::string& reason) {
-        worker_kafka_logger.error("[librdkafka] error=" + std::to_string(error) + " reason=" + reason);
+        workerKafkaLogger().error("[librdkafka] error=" + std::to_string(error) + " reason=" + reason);
     });
 
-    worker_kafka_logger.info("[KAFKA CFG] graph=" + std::to_string(cfg.graphId) +
+    workerKafkaLogger().info("[KAFKA CFG] graph=" + std::to_string(cfg.graphId) +
                              " broker=" + cfg.brokers +
                              " topic=" + cfg.topic +
                              " groupId=" + cfg.groupId +
@@ -576,7 +580,7 @@ WorkerKafkaStats WorkerKafkaConsumer::run() {
     streamHandler.handleRequest("-1");
 
     WorkerKafkaStats stats{totalMessages.load(), totalLocal.load(), totalCentral.load()};
-    worker_kafka_logger.info(
+    workerKafkaLogger().info(
         "WorkerKafkaConsumer done: total=" + std::to_string(stats.totalMessages) +
         " local="   + std::to_string(stats.totalLocal)   +
         " central=" + std::to_string(stats.totalCentral));
