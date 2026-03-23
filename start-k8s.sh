@@ -89,8 +89,8 @@ wait_for_release_pods() {
     local namespace="$1"
     local release_name="$2"
     local timeout_seconds="$3"
-    local end_timestamp="$(( $(date +%s) + timeout_seconds ))"
-    local spinner="/-\\|"
+    local end_timestamp="$(($(date +%s) + timeout_seconds))"
+    local spinner='/-\|'
     local spinner_index=0
 
     while true; do
