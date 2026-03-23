@@ -41,7 +41,7 @@ class JasmineGraphIncrementalLocalStore {
     // batch texts to embed
 
     bool embedNode;
-    
+
     // Temporal storage support (NEW)
     TemporalStore* temporalStore;       // Pointer to temporal store
     DataAggregator* dataAggregator;     // Pointer to data aggregator
@@ -60,14 +60,14 @@ class JasmineGraphIncrementalLocalStore {
     void addCentralEdgeProperties(RelationBlock* relationBlock, const json& edgeJson);
     void addSourceProperties(RelationBlock* relationBlock, const json& sourceJson);
     void addDestinationProperties(RelationBlock* relationBlock, const json& destinationJson);
-    
+
     // NEW: Temporal storage methods
     void enableTemporalStorage(TemporalStore* store, DataAggregator* aggregator);
     void disableTemporalStorage();
     void recordEdgeAddition(const std::string& source, const std::string& dest);
     void recordEdgeDeletion(const std::string& source, const std::string& dest);
-    void recordPropertyUpdate(const std::string& nodeOrEdgeId, 
-                             const std::string& key, 
+    void recordPropertyUpdate(const std::string& nodeOrEdgeId,
+                             const std::string& key,
                              const std::string& value,
                              bool isNodeProperty);
     void flushTemporalUpdates();

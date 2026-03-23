@@ -1467,8 +1467,8 @@ static void add_stream_kafka_command(int connFd, std::string &kafka_server_IP, c
     if (default_kafka == "y") {
         kafka_server_IP = Utils::getJasmineGraphProperty("org.jasminegraph.server.streaming.kafka.host");
         configs = {
-            {"metadata.broker.list", kafka_server_IP}, 
-            {"group.id", group_id}, 
+            {"metadata.broker.list", kafka_server_IP},
+            {"group.id", group_id},
             {"auto.offset.reset", "earliest"},
             {"enable.auto.commit", "false"},
         };
@@ -1490,7 +1490,7 @@ static void add_stream_kafka_command(int connFd, std::string &kafka_server_IP, c
         }
 
         std::string file_path_s = read_frontend_socket_value(connFd);
-        
+
         std::string kafka_server_IP_from_file = "";
         std::vector<std::string>::iterator it;
         vector<std::string> vec = Utils::getFileContent(file_path_s);
@@ -1507,15 +1507,15 @@ static void add_stream_kafka_command(int connFd, std::string &kafka_server_IP, c
                 }
             }
         }
-        
+
         if (!kafka_server_IP_from_file.empty()) {
             kafka_server_IP = kafka_server_IP_from_file;
         }
-        
+
         std::string unique_group_id = "knnect_" + graphId + "_" + std::to_string(std::time(nullptr));
         configs = {
-            {"metadata.broker.list", kafka_server_IP}, 
-            {"group.id", unique_group_id}, 
+            {"metadata.broker.list", kafka_server_IP},
+            {"group.id", unique_group_id},
             {"auto.offset.reset", "earliest"},
             {"enable.auto.commit", "false"}  // Disable auto-commit to always read from beginning
         };
@@ -2252,7 +2252,9 @@ static void triangles_command(std::string masterIP, int connFd, SQLiteDBInterfac
 
         std::string priority = read_frontend_socket_value(connFd);
 
-        if (!(std::find_if(priority.begin(), priority.end(), [](unsigned char c) { return !std::isdigit(c); }) ==
+          if (!(std::find_if(priority.begin(), priority.end(), [](unsigned char c) {
+                return !std::isdigit(c);
+              }) ==
               priority.end())) {
             *loop_exit_p = true;
             string error_message = "Priority should be numeric and > 1 or empty";
@@ -2893,7 +2895,9 @@ static void page_rank_command(std::string masterIP, int connFd, SQLiteDBInterfac
 
     std::string priority = read_frontend_socket_value(connFd);
 
-    if (!(std::find_if(priority.begin(), priority.end(), [](unsigned char c) { return !std::isdigit(c); }) ==
+    if (!(std::find_if(priority.begin(), priority.end(), [](unsigned char c) {
+              return !std::isdigit(c);
+          }) ==
           priority.end())) {
         *loop_exit_p = true;
         string error_message = "Priority should be numeric and > 1 or empty";
@@ -3347,47 +3351,48 @@ void JasmineGraphFrontEnd::stop_graph_streaming(int connFd, bool *loop_exit_p) {
 // Temporal query command: Query edges at a specific snapshot
 static void temporal_query_command(int connFd, SQLiteDBInterface *, bool *) {
     frontend_logger.info("Temporal query command received");
-    
+
     std::string message = "Graph ID?";
     int resultWr = write(connFd, message.c_str(), message.length());
     resultWr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
-    
+
     std::string graphIdBuf(FRONTEND_DATA_LENGTH, '\0');
     read(connFd, graphIdBuf.data(), FRONTEND_DATA_LENGTH);
     std::string graphIdStr(graphIdBuf);
     graphIdStr = Utils::trim_copy(graphIdStr);
     int graphId = std::stoi(graphIdStr);
-    
+
     message = "Snapshot ID?";
     resultWr = write(connFd, message.c_str(), message.length());
     resultWr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
-    
+
     std::string snapshotStr = read_frontend_socket_value(connFd);
     uint32_t snapshotId = std::stoul(snapshotStr);
-    
+
     try {
         // Create temporal store and load from disk
         std::string snapshotDir = Utils::getJasmineGraphHome() + "/env/data/temporal_snapshots";
         std::string filePath = TemporalStorePersistence::generateFilePath(snapshotDir, graphId, 0, snapshotId);
-        
+
         uint64_t timeThreshold = 60;
         uint64_t edgeThreshold = 10000;
-        auto temporalStore = std::make_shared<TemporalStore>(graphId, 0, timeThreshold, edgeThreshold, 
+        auto temporalStore = std::make_shared<TemporalStore>(graphId, 0, timeThreshold, edgeThreshold,
                                                              SnapshotManager::SnapshotMode::HYBRID);
-        
+
         if (!temporalStore->loadSnapshotFromDisk(filePath)) {
-            std::string error = "Failed to load snapshot " + std::to_string(snapshotId) + " for graph " + std::to_string(graphId) + "\n";
+            std::string error = "Failed to load snapshot " + std::to_string(snapshotId) +
+                                " for graph " + std::to_string(graphId) + "\n";
             resultWr = write(connFd, error.c_str(), error.length());
             return;
         }
-        
+
         // Query edges at snapshot
         TemporalQueryExecutor executor(temporalStore);
         auto result = executor.getEdgesAtSnapshot(snapshotId);
-        
+
         std::stringstream response;
         response << "Edges in snapshot " << snapshotId << ": " << result.edges.size() << "\n";
-        
+
         int displayLimit = 10;
         int count = 0;
         for (const auto& [source, destination] : result.edges) {
@@ -3398,11 +3403,11 @@ static void temporal_query_command(int connFd, SQLiteDBInterface *, bool *) {
             response << source << " -> " << destination << "\n";
         }
         response << "Query time: " << result.executionTimeMs << "ms\n";
-        
+
         std::string responseStr = response.str();
         resultWr = write(connFd, responseStr.c_str(), responseStr.length());
         resultWr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
-        
+
         frontend_logger.info("Temporal query completed: " + std::to_string(result.edges.size()) + " edges found");
     } catch (const std::exception& e) {
         std::string error = "Error: " + std::string(e.what());
@@ -3415,21 +3420,21 @@ static void temporal_query_command(int connFd, SQLiteDBInterface *, bool *) {
 // Temporal snapshot command: Get snapshot statistics
 static void temporal_snapshot_command(int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_p) {
     frontend_logger.info("Temporal snapshot stats command received");
-    
+
     std::string message = "Graph ID?";
     int resultWr = write(connFd, message.c_str(), message.length());
     resultWr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
-    
+
     std::string graphIdStr = read_frontend_socket_value(connFd);
     int graphId = std::stoi(graphIdStr);
-    
+
     try {
         std::string snapshotDir = Utils::getJasmineGraphHome() + "/env/data/temporal_snapshots";
         std::vector<std::string> files = Utils::getListOfFilesInDirectory(snapshotDir);
-        
+
         std::stringstream response;
         response << "Temporal Snapshots for Graph " << graphId << ":\n";
-        
+
         // Read from _snapmeta.bin files (one per partition per graph).
         // Collect unique snapshotId → (totalEdges, timestamp) from all partitions.
         // We keep the FIRST occurrence of each snapshotId (they are globally
@@ -3462,11 +3467,11 @@ static void temporal_snapshot_command(int connFd, SQLiteDBInterface *sqlite, boo
                          << "  created=" << timeStr << "\n";
             }
         }
-        
+
         std::string responseStr = response.str();
         resultWr = write(connFd, responseStr.c_str(), responseStr.length());
         resultWr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
-        
+
         frontend_logger.info("Temporal snapshot stats completed");
     } catch (const std::exception& e) {
         std::string error = "Error: " + std::string(e.what());
@@ -3479,39 +3484,40 @@ static void temporal_snapshot_command(int connFd, SQLiteDBInterface *sqlite, boo
 // Temporal range command: Query edges in a time range
 static void temporal_range_command(int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_p) {
     frontend_logger.info("Temporal range query command received");
-    
+
     std::string message = "Graph ID?";
     int resultWr = write(connFd, message.c_str(), message.length());
     resultWr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
-    
+
     std::string graphIdStr = read_frontend_socket_value(connFd);
     int graphId = std::stoi(graphIdStr);
-    
+
     message = "Start Snapshot ID?";
     resultWr = write(connFd, message.c_str(), message.length());
     resultWr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
-    
+
     std::string startStr = read_frontend_socket_value(connFd);
     uint32_t startSnapshot = std::stoul(startStr);
-    
+
     message = "End Snapshot ID?";
     resultWr = write(connFd, message.c_str(), message.length());
     resultWr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
-    
+
     std::string endStr = read_frontend_socket_value(connFd);
     uint32_t endSnapshot = std::stoul(endStr);
-    
+
     try {
         // Load snapshots from disk and collect edges
         std::vector<std::pair<std::string, std::string>> allEdges;
-        std::string snapshotDir = Utils::getJasmineGraphHome() + "/env/data/temporal_snapshots/graph_" + std::to_string(graphId);
-        
+        std::string snapshotDir =
+            Utils::getJasmineGraphHome() + "/env/data/temporal_snapshots/graph_" + std::to_string(graphId);
+
         for (uint32_t sid = startSnapshot; sid <= endSnapshot; sid++) {
             uint64_t timeThreshold = 60;
             uint64_t edgeThreshold = 10000;
-            auto temporalStore = std::make_shared<TemporalStore>(graphId, 0, timeThreshold, edgeThreshold, 
+            auto temporalStore = std::make_shared<TemporalStore>(graphId, 0, timeThreshold, edgeThreshold,
                                                                  SnapshotManager::SnapshotMode::HYBRID);
-            
+
             std::string filePath = snapshotDir + "/snapshot_" + std::to_string(sid) + ".bin";
             if (temporalStore->loadSnapshotFromDisk(filePath)) {
                 TemporalQueryExecutor executor(temporalStore);
@@ -3520,10 +3526,10 @@ static void temporal_range_command(int connFd, SQLiteDBInterface *sqlite, bool *
             }
         }
         auto edges = allEdges;
-        
+
         std::stringstream response;
         response << "Edges in range [" << startSnapshot << ", " << endSnapshot << "]: " << edges.size() << "\n";
-        
+
         int displayLimit = 10;
         int count = 0;
         for (const auto& edge : edges) {
@@ -3533,11 +3539,11 @@ static void temporal_range_command(int connFd, SQLiteDBInterface *sqlite, bool *
             }
             response << edge.first << " -> " << edge.second << "\n";
         }
-        
+
         std::string responseStr = response.str();
         resultWr = write(connFd, responseStr.c_str(), responseStr.length());
         resultWr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
-        
+
         frontend_logger.info("Temporal range query completed: " + std::to_string(edges.size()) + " edges found");
     } catch (const std::exception& e) {
         std::string error = "Error: " + std::string(e.what());
@@ -3553,33 +3559,33 @@ static void temporal_range_command(int connFd, SQLiteDBInterface *sqlite, bool *
 // Count triangles at a specific historical snapshot using HistoryTriangles class
 static void history_triangle_command(int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_p) {
     frontend_logger.info("History triangle count command received");
-    
+
     std::string message = "Graph ID?";
     int resultWr = write(connFd, message.c_str(), message.length());
     resultWr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
-    
+
     std::string graphIdStr = read_frontend_socket_value(connFd);
     int graphId = std::stoi(graphIdStr);
-    
+
     message = "Snapshot ID?";
     resultWr = write(connFd, message.c_str(), message.length());
     resultWr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
-    
+
     std::string snapshotStr = read_frontend_socket_value(connFd);
     uint32_t snapshotId = std::stoul(snapshotStr);
-    
+
     try {
         std::string snapshotDir = Utils::getJasmineGraphHome() + "/env/data/temporal_snapshots";
-        
+
         uint64_t timeThreshold = 60;
         uint64_t edgeThreshold = 10000;
-        
+
         // Use HistoryTriangles class to count triangles at snapshot
         TemporalTriangleResult result = HistoryTriangles::countTrianglesAtSnapshot(
             graphId, snapshotId, snapshotDir, timeThreshold, edgeThreshold);
-        
+
         if (result.partitionsProcessed == 0) {
-            std::string error = "Error: No snapshot files found for graph " + 
+            std::string error = "Error: No snapshot files found for graph " +
                               std::to_string(graphId) + " at snapshot " + std::to_string(snapshotId);
             resultWr = write(connFd, error.c_str(), error.length());
             resultWr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
@@ -3591,13 +3597,13 @@ static void history_triangle_command(int connFd, SQLiteDBInterface *sqlite, bool
             response << "Unique nodes: " << result.uniqueNodes << "\n";
             response << "Partitions processed: " << result.partitionsProcessed << "\n";
             response << "Time taken: " << result.durationMs << "ms\n";
-            
+
             std::string responseStr = response.str();
             resultWr = write(connFd, responseStr.c_str(), responseStr.length());
             resultWr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
-            
-            frontend_logger.info("History triangle count completed: " + std::to_string(result.triangleCount) + 
-                               " triangles on merged graph with " + std::to_string(result.totalEdges) + 
+
+            frontend_logger.info("History triangle count completed: " + std::to_string(result.triangleCount) +
+                               " triangles on merged graph with " + std::to_string(result.totalEdges) +
                                " edges across " + std::to_string(result.partitionsProcessed) + " partitions");
         }
     } catch (const std::exception& e) {
@@ -3670,20 +3676,20 @@ static std::string formatSnapshotTimestamp(uint64_t timestampNs) {
 
 static void history_triangle_timestamp_command(int connFd, SQLiteDBInterface *, bool *) {
     frontend_logger.info("History triangle count by timestamp command received");
-    
+
     std::string message = "Graph ID?";
     int resultWr = write(connFd, message.c_str(), message.length());
     resultWr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
-    
+
     std::string graphIdStr = read_frontend_socket_value(connFd);
     int graphId = std::stoi(graphIdStr);
-    
+
     message = "Timestamp (YYYY-MM-DD HH:MM:SS or Unix epoch)?";
     resultWr = write(connFd, message.c_str(), message.length());
     resultWr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
-    
+
     std::string timestampStr = read_frontend_socket_value(connFd);
-    
+
     try {
         uint64_t targetTimestamp = 0;
         if (!parseTemporalTargetTimestamp(timestampStr, targetTimestamp)) {
@@ -3692,10 +3698,10 @@ static void history_triangle_timestamp_command(int connFd, SQLiteDBInterface *, 
             resultWr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
             return;
         }
-        
+
         std::string snapshotDir = Utils::getJasmineGraphHome() + "/env/data/temporal_snapshots";
         std::map<uint32_t, uint64_t> snapshotTimestamps = loadSnapshotTimestampsForGraph(snapshotDir, graphId);
-        
+
         if (snapshotTimestamps.empty()) {
             std::string error = "Error: No snapshots found for graph " + std::to_string(graphId);
             resultWr = write(connFd, error.c_str(), error.length());
@@ -3704,13 +3710,13 @@ static void history_triangle_timestamp_command(int connFd, SQLiteDBInterface *, 
         }
 
         uint32_t closestSnapshotId = findClosestSnapshotId(snapshotTimestamps, targetTimestamp);
-        
+
         uint64_t timeThreshold = 60;
         uint64_t edgeThreshold = 10000;
-        
+
         TemporalTriangleResult result = HistoryTriangles::countTrianglesAtSnapshot(
             graphId, closestSnapshotId, snapshotDir, timeThreshold, edgeThreshold);
-        
+
         if (result.partitionsProcessed == 0) {
             std::string error = "Error: Failed to process snapshot " + std::to_string(closestSnapshotId);
             resultWr = write(connFd, error.c_str(), error.length());

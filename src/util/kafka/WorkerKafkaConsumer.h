@@ -52,18 +52,18 @@ LIMITATION: Currently applies to HASH partitioning only.
 // Configuration bundle serialized as JSON and sent from master → worker
 // ─────────────────────────────────────────────────────────────────────────────
 struct WorkerKafkaConfig {
-    std::string brokers;             // e.g. "kafka:9092"
-    std::string topic;               // Kafka topic to subscribe to
-    std::string groupId;             // unique consumer-group ID per (session, worker)
+    std::string brokers;  // e.g. "kafka:9092"
+    std::string topic;  // Kafka topic to subscribe to
+    std::string groupId;  // unique consumer-group ID per (session, worker)
     int         graphId         = 0;
     int         numberOfPartitions = 1;
-    std::vector<int> ownedPartitions; // graph-partitions owned by THIS worker
+    std::vector<int> ownedPartitions;  // graph-partitions owned by THIS worker
     bool        temporalEnabled = false;
-    uint64_t    timeThreshold   = 60;    // snapshot time threshold (seconds)
-    uint64_t    edgeThreshold   = 10000; // snapshot edge-count threshold
+    uint64_t    timeThreshold   = 60;  // snapshot time threshold (seconds)
+    uint64_t    edgeThreshold   = 10000;  // snapshot edge-count threshold
     uint32_t    initialSnapshotId = 0;
     int         numConsumerThreads = 3;  // parallel Kafka consumer threads
-    int         workerIndex     = 0;     // index of this worker (0, 1, 2, ...)
+    int         workerIndex     = 0;  // index of this worker (0, 1, 2, ...)
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -102,7 +102,7 @@ class WorkerKafkaConsumer {
  private:
     WorkerKafkaConfig   cfg;
     std::map<std::string, JasmineGraphIncrementalLocalStore*>& localStoreMap;
-    InstanceStreamHandler streamHandler;   // wraps localStoreMap for edge writes
+    InstanceStreamHandler streamHandler;  // wraps localStoreMap for edge writes
 
     // Temporal stores: per owned-partition + one shared central store
     std::map<int, std::unique_ptr<TemporalStore>> localTemporalStores;
@@ -116,7 +116,7 @@ class WorkerKafkaConsumer {
     // Per-partition mutexes: reduce contention vs. a single global lock
     std::map<int, std::mutex> partitionTemporalMutexes_;
     std::mutex centralTemporalMutex_;
-    std::mutex snapshotMutex_;   // serialises createGlobalSnapshot() calls
+    std::mutex snapshotMutex_;  // serialises createGlobalSnapshot() calls
 
     // Fast O(1) ownership lookup
     std::unordered_set<int> ownedPartitionSet;

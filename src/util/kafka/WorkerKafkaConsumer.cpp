@@ -42,7 +42,6 @@ WorkerKafkaConsumer::WorkerKafkaConsumer(
       localStoreMap(incrementalLocalStoreMap),
       streamHandler(incrementalLocalStoreMap),
       globalSnapshotId(config.initialSnapshotId) {
-
     for (int p : config.ownedPartitions) {
         ownedPartitionSet.insert(p);
     }
@@ -52,7 +51,7 @@ WorkerKafkaConsumer::WorkerKafkaConsumer(
 
     // Pre-initialize per-partition temporal mutexes
     for (int p : config.ownedPartitions) {
-        partitionTemporalMutexes_[p]; // default-construct mutex
+        partitionTemporalMutexes_[p];  // default-construct mutex
     }
 
     initTemporalStores();
@@ -65,7 +64,7 @@ WorkerKafkaConsumer::WorkerKafkaConsumer(
         "WorkerKafkaConsumer ready: graph=" + std::to_string(cfg.graphId) +
         " worker=" + std::to_string(cfg.workerIndex) +
         " centralPartitionId=" + std::to_string(centralPartitionId) +
-        " ownedPartitions=[" + [&]{
+        " ownedPartitions=[" + [&] {
             std::string s;
             for (int p : cfg.ownedPartitions) s += std::to_string(p) + ",";
             if (!s.empty()) s.pop_back();
@@ -188,7 +187,7 @@ void WorkerKafkaConsumer::finalizeAllSnapshots() {
     workerKafkaLogger().info("[FINALIZE] Saving final snapshots for graph=" +
                              std::to_string(cfg.graphId) + " dir=" + snapshotDir);
 
-    uint32_t finalSnapId = globalSnapshotId.load();   // use the same global ID used by addEdge
+    uint32_t finalSnapId = globalSnapshotId.load();  // use the same global ID used by addEdge
     for (auto& [pid, store] : localTemporalStores) {
         if (store) {
             bool ok = store->saveBitmapIndexToDisk(snapshotDir, finalSnapId);
@@ -281,18 +280,17 @@ void WorkerKafkaConsumer::consumerThreadFunc(
         std::atomic<uint64_t>& totalLocal,
         std::atomic<uint64_t>& totalCentral,
         std::atomic<bool>&     endSignalReceived) {
-
     try {
     consumer->subscribe({cfg.topic});
     workerKafkaLogger().info("Worker consumer thread " + std::to_string(threadId) +
                              " subscribed to " + cfg.topic);
 
     const size_t   KAFKA_BATCH   = 2000;
-    const uint64_t MAX_IDLE_POLLS = 30;    // seconds with zero real messages before giving up
+    const uint64_t MAX_IDLE_POLLS = 30;  // seconds with zero real messages before giving up
                                            // (primary stop = endSignalReceived via -1 sentinel)
-    uint64_t       idleSeconds    = 0;     // counts seconds with zero valid messages
+    uint64_t       idleSeconds    = 0;  // counts seconds with zero valid messages
     uint64_t       threadMsgs    = 0;
-    uint64_t       errorMsgs     = 0;      // total error/EOF messages seen
+    uint64_t       errorMsgs     = 0;  // total error/EOF messages seen
 
     // Thread-local done flag: this thread exits only when IT receives -1
     // from its own assigned Kafka partition.  The shared endSignalReceived

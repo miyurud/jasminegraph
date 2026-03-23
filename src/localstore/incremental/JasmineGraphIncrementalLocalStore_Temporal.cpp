@@ -20,11 +20,11 @@ limitations under the License.
  */
 void JasmineGraphIncrementalLocalStore::enableTemporalStorage(
     TemporalStore* store, DataAggregator* aggregator) {
-    
+
     if (!store || !aggregator) {
         return;  // Invalid parameters
     }
-    
+
     temporalStore = store;
     dataAggregator = aggregator;
     temporalEnabled = true;
@@ -44,28 +44,27 @@ void JasmineGraphIncrementalLocalStore::disableTemporalStorage() {
  */
 void JasmineGraphIncrementalLocalStore::recordEdgeAddition(
     const std::string& source, const std::string& dest) {
-    
+
     if (!temporalEnabled || !temporalStore || !dataAggregator) {
         return;
     }
-    
+
     // Get current snapshot ID
     uint32_t currentSnapshot = temporalStore->getCurrentSnapshotId();
-    
+
     // Buffer the edge update
     dataAggregator->bufferEdgeUpdate(
         gc.partitionID,  // partition ID
         source,
         dest,
         currentSnapshot,
-        true  // isAddition = true
-    );
-    
+        true);  // isAddition = true
+
     // Check if we should flush
     if (dataAggregator->shouldFlush(gc.partitionID)) {
         flushTemporalUpdates();
     }
-    
+
     // Check if we should create new snapshot
     if (temporalStore->shouldCreateSnapshot()) {
         temporalStore->closeCurrentSnapshot();
@@ -78,23 +77,22 @@ void JasmineGraphIncrementalLocalStore::recordEdgeAddition(
  */
 void JasmineGraphIncrementalLocalStore::recordEdgeDeletion(
     const std::string& source, const std::string& dest) {
-    
+
     if (!temporalEnabled || !temporalStore || !dataAggregator) {
         return;
     }
-    
+
     // Get current snapshot ID
     uint32_t currentSnapshot = temporalStore->getCurrentSnapshotId();
-    
+
     // Buffer the edge removal
     dataAggregator->bufferEdgeUpdate(
         gc.partitionID,
         source,
         dest,
         currentSnapshot,
-        false  // isAddition = false
-    );
-    
+        false);  // isAddition = false
+
     // Check if we should flush
     if (dataAggregator->shouldFlush(gc.partitionID)) {
         flushTemporalUpdates();
@@ -109,14 +107,14 @@ void JasmineGraphIncrementalLocalStore::recordPropertyUpdate(
     const std::string& key,
     const std::string& value,
     bool isNodeProperty) {
-    
+
     if (!temporalEnabled || !temporalStore || !dataAggregator) {
         return;
     }
-    
+
     // Get current snapshot ID
     uint32_t currentSnapshot = temporalStore->getCurrentSnapshotId();
-    
+
     // Buffer the property update
     dataAggregator->bufferPropertyUpdate(
         gc.partitionID,
@@ -124,8 +122,7 @@ void JasmineGraphIncrementalLocalStore::recordPropertyUpdate(
         key,
         value,
         currentSnapshot,
-        isNodeProperty
-    );
+        isNodeProperty);
 }
 
 /**
@@ -135,7 +132,7 @@ void JasmineGraphIncrementalLocalStore::flushTemporalUpdates() {
     if (!temporalEnabled || !temporalStore || !dataAggregator) {
         return;
     }
-    
+
     // Flush this partition's buffer
     dataAggregator->flushPartition(gc.partitionID, temporalStore);
 }

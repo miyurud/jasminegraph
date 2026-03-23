@@ -131,7 +131,10 @@ static void initiate_model_collection_command(int connFd, bool *loop_exit_p);
 static void initiate_fragment_resolution_command(int connFd, bool *loop_exit_p);
 static void check_file_accessible_command(int connFd, bool *loop_exit_p);
 static void graph_stream_start_command(int connFd, InstanceStreamHandler &instanceStreamHandler, bool *loop_exit_p);
-static void graph_stream_batch_start_command(int connFd, InstanceStreamHandler &instanceStreamHandler, bool *loop_exit_p);
+static void graph_stream_batch_start_command(
+    int connFd,
+    InstanceStreamHandler &instanceStreamHandler,
+    bool *loop_exit_p);
 // Worker-direct Kafka streaming: worker consumes from Kafka independently
 static void worker_direct_kafka_stream_command(
     int connFd,
@@ -4522,7 +4525,10 @@ static void graph_stream_start_command(int connFd, InstanceStreamHandler &instan
     instance_logger.debug("Sent CRLF string to mark the end");
 }
 
-static void graph_stream_batch_start_command(int connFd, InstanceStreamHandler &instanceStreamHandler, bool *loop_exit_p) {
+static void graph_stream_batch_start_command(
+    int connFd,
+    InstanceStreamHandler &instanceStreamHandler,
+    bool *loop_exit_p) {
     // Send batch start acknowledgment
     if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::GRAPH_STREAM_BATCH_START_ACK)) {
         *loop_exit_p = true;

@@ -187,11 +187,11 @@ std::vector<std::pair<std::string, double>> HistoryPageRank::computePageRankOnMe
 
     // Use a flat hash set of encoded 64-bit edge keys for deduplication
     struct PairHash {
-        std::size_t operator()(std::pair<uint32_t,uint32_t> p) const noexcept {
+        std::size_t operator()(std::pair<uint32_t, uint32_t> p) const noexcept {
             return std::hash<uint64_t>{}((static_cast<uint64_t>(p.first) << 32) | p.second);
         }
     };
-    std::unordered_set<std::pair<uint32_t,uint32_t>, PairHash> seenEdges;
+    std::unordered_set<std::pair<uint32_t, uint32_t>, PairHash> seenEdges;
     seenEdges.reserve(allEdges.size());
 
     for (const auto& e : allEdges) {

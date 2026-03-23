@@ -38,12 +38,12 @@ struct TemporalTriangleResult {
 
 /**
  * HistoryTriangles: Triangle counting for temporal graph snapshots
- * 
+ *
  * This class implements efficient triangle counting on historical snapshots
  * of streaming graphs stored in temporal storage. It merges edges from both
  * local partition stores and central stores (cross-partition edges) to count
  * ALL triangles including those spanning multiple partitions.
- * 
+ *
  * Algorithm:
  * 1. Load edges from all local partition snapshots at given snapshot ID
  * 2. Load edges from central store snapshot (cross-partition edges)
@@ -55,7 +55,7 @@ class HistoryTriangles {
  public:
     /**
      * Count triangles at a specific snapshot across all partitions
-     * 
+     *
      * @param graphId Graph ID
      * @param snapshotId Snapshot ID to query
      * @param snapshotDir Directory containing temporal snapshot files
@@ -73,7 +73,7 @@ class HistoryTriangles {
     /**
      * Count triangles using merged adjacency from all stores
      * This is the core algorithm that handles the actual triangle counting
-     * 
+     *
      * @param allEdges Vector of all edges from local + central stores
      * @return Pair of (triangle count, unique node count)
      */
@@ -84,7 +84,7 @@ class HistoryTriangles {
     /**
      * Build node index mapping: string nodeId -> uint32_t index
      * This enables efficient Roaring bitmap operations
-     * 
+     *
      * @param edges Vector of edges
      * @param nodeToIndex Output map: nodeId -> index
      * @param indexToNode Output vector: index -> nodeId
@@ -97,7 +97,7 @@ class HistoryTriangles {
 
     /**
      * Build adjacency map using Roaring bitmaps
-     * 
+     *
      * @param edges Vector of edges
      * @param nodeToIndex Map from nodeId to index
      * @return Map from node index to neighbor bitmap
@@ -108,7 +108,7 @@ class HistoryTriangles {
 
     /**
      * Count triangles using bitmap intersection (SIMD-optimized)
-     * 
+     *
      * @param edges Vector of edges
      * @param nodeToIndex Map from nodeId to index
      * @param neighbors Adjacency bitmap map

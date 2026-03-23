@@ -75,20 +75,19 @@ StreamHandler::StreamHandler(KafkaConnector *kstream, int numberOfPartitions,
           stopPublishing(false),
           snapshotsFinalized(false),
           globalSnapshotId(0) {
-    
     // Initialize batch buffers for each worker
     workerBatches.resize(workerClients.size());
     for (size_t i = 0; i < workerClients.size(); i++) {
         workerBatchMutexes.push_back(std::make_unique<std::mutex>());
     }
-    
+
     // Start async publish thread pool
     startPublishThreads();
-    
-    streamHandlerLogger().info("Initialized StreamHandler with " + std::to_string(workerClients.size()) + 
-                              " workers, batch size " + std::to_string(BATCH_SIZE) + 
+
+    streamHandlerLogger().info("Initialized StreamHandler with " + std::to_string(workerClients.size()) +
+                              " workers, batch size " + std::to_string(BATCH_SIZE) +
                               ", " + std::to_string(PUBLISH_THREADS) + " publish threads");
-    
+
     // When starting a fresh (non-existing) graph, remove any stale snapshot files
     // from a previous run with the same graph ID so workers start from a clean state.
     if (isNewGraph) {
@@ -104,39 +103,37 @@ StreamHandler::StreamHandler(KafkaConnector *kstream, int numberOfPartitions,
     if (temporalEnabled == "true") {
         uint64_t timeThreshold = 60;
         uint64_t edgeThreshold = 10000;
-        
+
         std::string timeStr = Utils::getJasmineGraphProperty("org.jasminegraph.temporal.snapshot.time.seconds");
         if (!timeStr.empty()) {
             timeThreshold = std::stoull(timeStr);
         }
-        
+
         std::string edgeStr = Utils::getJasmineGraphProperty("org.jasminegraph.temporal.snapshot.edge.count");
         if (!edgeStr.empty()) {
             edgeThreshold = std::stoull(edgeStr);
         }
-        
+
         for (int partitionId = 0; partitionId < numberOfPartitions; partitionId++) {
             localTemporalStores[partitionId] = std::make_unique<TemporalStore>(
-                graphId, partitionId, timeThreshold, edgeThreshold, 
-                SnapshotManager::SnapshotMode::HYBRID
-            );
+                graphId, partitionId, timeThreshold, edgeThreshold,
+                SnapshotManager::SnapshotMode::HYBRID);
         }
-        
+
         centralTemporalStore = std::make_unique<TemporalStore>(
             graphId, numberOfPartitions, timeThreshold, edgeThreshold,
-            SnapshotManager::SnapshotMode::HYBRID
-        );
-        
+            SnapshotManager::SnapshotMode::HYBRID);
+
         // Restore snapshot state from disk if snapshots exist
         std::string snapshotDir = Utils::getJasmineGraphHome() + "/env/data/temporal_snapshots";
-        
+
         // Check if directory exists
         struct stat st;
         if (stat(snapshotDir.c_str(), &st) == 0 && S_ISDIR(st.st_mode)) {
             // Track the highest snapshot ID found across ALL partitions (for global synchronization)
             uint32_t maxGlobalSnapshotId = 0;
             bool foundAnySnapshot = false;
-            
+
             // Restore local partition stores
             for (int partitionId = 0; partitionId < numberOfPartitions; partitionId++) {
                 std::string metaPath = TemporalStorePersistence::generateMetaFilePath(
@@ -166,7 +163,7 @@ StreamHandler::StreamHandler(KafkaConnector *kstream, int numberOfPartitions,
                     }
                 }
             }
-            
+
             // Restore central store (partitionId = numberOfPartitions)
             {
                 std::string centralMeta = TemporalStorePersistence::generateMetaFilePath(
@@ -185,24 +182,27 @@ StreamHandler::StreamHandler(KafkaConnector *kstream, int numberOfPartitions,
                     if (centralTemporalStore->loadBitmapIndexFromDisk(centralBitmapPath)) {
                         uint32_t newCentralSnapshotId = centralTemporalStore->openNewSnapshot();
 
-                        streamHandlerLogger().info("Restored central temporal state for graph " + std::to_string(graphId) +
-                                                  " from snapshot " + std::to_string(maxCentralSnapshotId) +
-                                                  ", continuing with snapshot " + std::to_string(newCentralSnapshotId));
+                        streamHandlerLogger().info(
+                            "Restored central temporal state for graph " + std::to_string(graphId) +
+                            " from snapshot " + std::to_string(maxCentralSnapshotId) +
+                            ", continuing with snapshot " + std::to_string(newCentralSnapshotId));
                     } else {
-                        streamHandlerLogger().error("Failed to load central bitmap index for graph " + std::to_string(graphId));
+                        streamHandlerLogger().error(
+                            "Failed to load central bitmap index for graph " + std::to_string(graphId));
                     }
                 }
             }
-            
+
             // Set global snapshot ID to continue from the highest found (synchronized across all partitions)
             if (foundAnySnapshot) {
                 globalSnapshotId = maxGlobalSnapshotId + 1;
-                streamHandlerLogger().info("Global snapshot ID restored to " + std::to_string(globalSnapshotId) + 
-                                          " (continuing from highest snapshot " + std::to_string(maxGlobalSnapshotId) + ")");
+                streamHandlerLogger().info(
+                    "Global snapshot ID restored to " + std::to_string(globalSnapshotId) +
+                    " (continuing from highest snapshot " + std::to_string(maxGlobalSnapshotId) + ")");
             }
         }
-        
-        streamHandlerLogger().info("Temporal storage enabled for graph " + std::to_string(graphId) + 
+
+        streamHandlerLogger().info("Temporal storage enabled for graph " + std::to_string(graphId) +
                                   " with " + std::to_string(numberOfPartitions) + " partitions");
     }
 }
@@ -236,16 +236,16 @@ void StreamHandler::finalizeAllSnapshots() {
         // Already finalized by another thread or normal completion
         return;
     }
-    
+
     if (localTemporalStores.empty() && centralTemporalStore == nullptr) {
         return;  // No temporal stores to save
     }
-    
+
     streamHandlerLogger().info("Finalizing all temporal snapshots (saving open snapshots)");
-    
+
     std::string snapshotDir = Utils::getJasmineGraphHome() + "/env/data/temporal_snapshots";
     Utils::createDirectory(snapshotDir);
-    
+
     // Save all local partition snapshots (even if below threshold)
     for (auto& [partitionId, store] : localTemporalStores) {
         if (store != nullptr) {
@@ -256,25 +256,27 @@ void StreamHandler::finalizeAllSnapshots() {
                 store->appendSnapshotMetaToDisk(snapshotDir, globalSnapshotId);
                 if (saved) {
                     streamHandlerLogger().info("Saved final bitmap index for partition " +
-                                              std::to_string(partitionId) + " snapId=" + std::to_string(globalSnapshotId));
+                                               std::to_string(partitionId) +
+                                               " snapId=" + std::to_string(globalSnapshotId));
                 } else {
                     streamHandlerLogger().error("Failed to save final bitmap index for partition " +
-                                               std::to_string(partitionId));
+                                                std::to_string(partitionId));
                 }
             } catch (const std::exception& e) {
                 streamHandlerLogger().error("Exception saving partition " +
-                                           std::to_string(partitionId) + ": " + e.what());
+                                            std::to_string(partitionId) + ": " + e.what());
             }
         }
     }
-    
+
     // Save central store snapshot
     if (centralTemporalStore != nullptr) {
         try {
             bool saved = centralTemporalStore->saveBitmapIndexToDisk(snapshotDir, globalSnapshotId);
             centralTemporalStore->appendSnapshotMetaToDisk(snapshotDir, globalSnapshotId);
             if (saved) {
-                streamHandlerLogger().info("Saved final central bitmap index snapId=" + std::to_string(globalSnapshotId));
+                streamHandlerLogger().info(
+                    "Saved final central bitmap index snapId=" + std::to_string(globalSnapshotId));
             } else {
                 streamHandlerLogger().error("Failed to save final central bitmap index");
             }
@@ -289,10 +291,10 @@ void StreamHandler::finalizeAllSnapshots() {
 void StreamHandler::createGlobalSnapshot() {
     std::string snapshotDir = Utils::getJasmineGraphHome() + "/env/data/temporal_snapshots";
     Utils::createDirectory(snapshotDir);
-    
-    streamHandlerLogger().info("Creating GLOBAL snapshot " + std::to_string(globalSnapshotId) + 
+
+    streamHandlerLogger().info("Creating GLOBAL snapshot " + std::to_string(globalSnapshotId) +
                               " for ALL partitions");
-    
+
     // Save ALL local partition stores with the SAME snapshot ID
     int partitionsSaved = 0;
     for (auto& [partitionId, store] : localTemporalStores) {
@@ -315,7 +317,7 @@ void StreamHandler::createGlobalSnapshot() {
             }
         }
     }
-    
+
     // Save central store with the same snapshot ID
     if (centralTemporalStore != nullptr) {
         try {
@@ -333,7 +335,7 @@ void StreamHandler::createGlobalSnapshot() {
                                        std::to_string(globalSnapshotId) + ": " + e.what());
         }
     }
-    
+
     // Open new snapshots for ALL stores (synchronized)
     for (auto& [partitionId, store] : localTemporalStores) {
         if (store != nullptr) {
@@ -343,11 +345,11 @@ void StreamHandler::createGlobalSnapshot() {
     if (centralTemporalStore != nullptr) {
         centralTemporalStore->openNewSnapshot();
     }
-    
+
     // Increment global snapshot counter
     globalSnapshotId++;
-    
-    streamHandlerLogger().info("Global snapshot created across " + std::to_string(partitionsSaved) + 
+
+    streamHandlerLogger().info("Global snapshot created across " + std::to_string(partitionsSaved) +
                               " partitions. Next snapshot ID: " + std::to_string(globalSnapshotId));
 }
 
@@ -375,7 +377,7 @@ bool StreamHandler::isErrorInMessage(const cppkafka::Message &msg) {
             // Poll timeout - normal, just no messages available
             return true;
         } else {
-            streamHandlerLogger().error("Kafka message error: " + msg.get_error().to_string() + 
+            streamHandlerLogger().error("Kafka message error: " + msg.get_error().to_string() +
                                        " (code: " + std::to_string(errorCode) + ")");
         }
         return true;
@@ -447,15 +449,15 @@ void StreamHandler::enqueuePublish(std::function<void()> task) {
 // Flush worker batch - send accumulated edges to worker
 void StreamHandler::flushWorkerBatch(int workerId, bool force) {
     std::unique_lock<std::mutex> lock(*workerBatchMutexes[workerId]);
-    
+
     if (workerBatches[workerId].empty()) return;
     if (!force && workerBatches[workerId].size() < BATCH_SIZE) return;
-    
+
     // Send all edges individually but asynchronously
     std::vector<std::string> edges = std::move(workerBatches[workerId]);
     workerBatches[workerId].clear();
     lock.unlock();
-    
+
     // Enqueue ONE task that publishes the entire batch — avoids 1000 heap allocs
     // and 1000 string copies per flush that the per-edge lambda approach incurred.
     enqueuePublish([this, workerId, edges = std::move(edges)]() mutable {
@@ -563,7 +565,7 @@ void StreamHandler::consumerThreadFunc(int threadId,
             total_parse_time += std::chrono::duration_cast<std::chrono::microseconds>(
                 std::chrono::high_resolution_clock::now() - parse_start);
 
-            // ---- 2. PARTITION ---- 
+            // ---- 2. PARTITION ----
             // HASH partitioning is lock-free: the destination partition is purely
             // deterministic (hash % n) and each Partition protects its own state
             // with an internal per-partition mutex.  FENNEL/LDG touch shared
@@ -801,8 +803,7 @@ void StreamHandler::listen_to_kafka_topic() {
                 this->consumerThreadFunc(threadId, c.get(), topic, n_workers,
                                          totalMessages, totalLocal, totalCentral,
                                          endSignalReceived);
-            }
-        );
+            });
     }
 
     // Wait for all consumer threads to finish
@@ -841,13 +842,11 @@ void StreamHandler::listen_to_kafka_topic() {
 
     // Unsubscribe the original (unused) consumer cleanly
     kstream->Unsubscribe();
-
 }
 
 void StreamHandler::listenViaDirectWorkers(
         const std::string& topic,
         const std::vector<JasmineGraphServer::worker>& workers) {
-
     const int n_workers = static_cast<int>(workers.size());
 
     // Kafka broker address

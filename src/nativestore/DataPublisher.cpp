@@ -58,9 +58,9 @@ DataPublisher::~DataPublisher() {
 
 void DataPublisher::publishBatch(const std::vector<std::string>& messages) {
     if (messages.empty()) return;
-    
+
     std::lock_guard<std::mutex> lock(socket_mutex);  // Protect socket from concurrent access
-    
+
     // Send batch start signal
     send(this->sock, JasmineGraphInstanceProtocol::GRAPH_STREAM_BATCH_START.c_str(),
          JasmineGraphInstanceProtocol::GRAPH_STREAM_BATCH_START.length(), 0);
@@ -76,19 +76,19 @@ void DataPublisher::publishBatch(const std::vector<std::string>& messages) {
         data_publisher_logger.error("Error while receiving batch start command ack");
         return;
     }
-    
+
     // Send batch size (number of edges)
     int batch_size = messages.size();
     int converted_batch_size = htonl(batch_size);
     send(this->sock, &converted_batch_size, sizeof(converted_batch_size), 0);
-    
+
     int received_int = 0;
     auto return_status = receiveFromSocket(this->sock, &received_int, sizeof(received_int));
     if (return_status <= 0) {
         data_publisher_logger.error("Error while receiving batch size ack");
         return;
     }
-    
+
     // Build batch message: newline-separated JSON objects
     std::string batch_message;
     for (size_t i = 0; i < messages.size(); i++) {
@@ -97,22 +97,22 @@ void DataPublisher::publishBatch(const std::vector<std::string>& messages) {
             batch_message += "\n";
         }
     }
-    
+
     // Send total message length
     int message_length = batch_message.length();
     int converted_number = htonl(message_length);
     send(this->sock, &converted_number, sizeof(converted_number), 0);
-    
+
     received_int = 0;
     return_status = receiveFromSocket(this->sock, &received_int, sizeof(received_int));
     if (return_status <= 0) {
         data_publisher_logger.error("Error while receiving content length ack");
         return;
     }
-    
+
     // Send the batch message
     send(this->sock, batch_message.c_str(), batch_message.length(), 0);
-    
+
     // Wait for end acknowledgment
     char returnCharResult;
     do {
@@ -124,7 +124,7 @@ void DataPublisher::publishBatch(const std::vector<std::string>& messages) {
             if (returnCharResult == '\n') break;
         }
     } while (true);
-    
+
     data_publisher_logger.debug("Batch published successfully: " + std::to_string(batch_size) + " edges");
 }
 
