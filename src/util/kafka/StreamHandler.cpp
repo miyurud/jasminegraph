@@ -60,6 +60,17 @@ static int getKafkaTopicPartitionCount(cppkafka::Consumer& consumer, const std::
     return -1;
 }
 
+static std::string getTemporalSnapshotDir() {
+    std::string configuredPath =
+        Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.temporalsnapshotfolder");
+    if (!configuredPath.empty()) {
+        return configuredPath;
+    }
+
+    return Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder") +
+           "/temporal_snapshots";
+}
+
 StreamHandler::StreamHandler(KafkaConnector *kstream, int numberOfPartitions,
                              vector<DataPublisher *> &workerClients, SQLiteDBInterface* sqlite,
                              int graphId, bool isDirected, spt::Algorithms algorithms,
@@ -91,7 +102,7 @@ StreamHandler::StreamHandler(KafkaConnector *kstream, int numberOfPartitions,
     // When starting a fresh (non-existing) graph, remove any stale snapshot files
     // from a previous run with the same graph ID so workers start from a clean state.
     if (isNewGraph) {
-        std::string snapshotDir = Utils::getJasmineGraphHome() + "/env/data/temporal_snapshots";
+        std::string snapshotDir = getTemporalSnapshotDir();
         streamHandlerLogger().info("[NEW GRAPH] Deleting stale snapshot files for graph " +
                                    std::to_string(graphId) + " in " + snapshotDir);
         // Delete all files matching graph<N>_part*_snap*.tgs
@@ -125,7 +136,7 @@ StreamHandler::StreamHandler(KafkaConnector *kstream, int numberOfPartitions,
             SnapshotManager::SnapshotMode::HYBRID);
 
         // Restore snapshot state from disk if snapshots exist
-        std::string snapshotDir = Utils::getJasmineGraphHome() + "/env/data/temporal_snapshots";
+        std::string snapshotDir = getTemporalSnapshotDir();
 
         // Check if directory exists
         struct stat st;
@@ -243,7 +254,7 @@ void StreamHandler::finalizeAllSnapshots() {
 
     streamHandlerLogger().info("Finalizing all temporal snapshots (saving open snapshots)");
 
-    std::string snapshotDir = Utils::getJasmineGraphHome() + "/env/data/temporal_snapshots";
+    std::string snapshotDir = getTemporalSnapshotDir();
     Utils::createDirectory(snapshotDir);
 
     // Save all local partition snapshots (even if below threshold)
@@ -289,7 +300,7 @@ void StreamHandler::finalizeAllSnapshots() {
 // Create global snapshot: Save ALL partitions with the SAME snapshot ID
 // This ensures snapshot IDs represent consistent graph states across all partitions
 void StreamHandler::createGlobalSnapshot() {
-    std::string snapshotDir = Utils::getJasmineGraphHome() + "/env/data/temporal_snapshots";
+    std::string snapshotDir = getTemporalSnapshotDir();
     Utils::createDirectory(snapshotDir);
 
     streamHandlerLogger().info("Creating GLOBAL snapshot " + std::to_string(globalSnapshotId) +

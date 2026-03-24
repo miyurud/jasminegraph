@@ -159,6 +159,17 @@ static size_t WriteCallback(void *contents, size_t size, size_t nmemb, std::stri
     return totalSize;
 }
 
+static std::string getTemporalSnapshotDir() {
+    std::string configuredPath =
+        Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.temporalsnapshotfolder");
+    if (!configuredPath.empty()) {
+        return configuredPath;
+    }
+
+    return Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder") +
+           "/temporal_snapshots";
+}
+
 void *frontendservicesesion(void *dummyPt) {
     frontendservicesessionargs *sessionargs = (frontendservicesessionargs *)dummyPt;
     std::string masterIP = sessionargs->masterIP;
@@ -3371,7 +3382,7 @@ static void temporal_query_command(int connFd, SQLiteDBInterface *, bool *) {
 
     try {
         // Create temporal store and load from disk
-        std::string snapshotDir = Utils::getJasmineGraphHome() + "/env/data/temporal_snapshots";
+        std::string snapshotDir = getTemporalSnapshotDir();
         std::string filePath = TemporalStorePersistence::generateFilePath(snapshotDir, graphId, 0, snapshotId);
 
         uint64_t timeThreshold = 60;
@@ -3429,7 +3440,7 @@ static void temporal_snapshot_command(int connFd, SQLiteDBInterface *sqlite, boo
     int graphId = std::stoi(graphIdStr);
 
     try {
-        std::string snapshotDir = Utils::getJasmineGraphHome() + "/env/data/temporal_snapshots";
+        std::string snapshotDir = getTemporalSnapshotDir();
         std::vector<std::string> files = Utils::getListOfFilesInDirectory(snapshotDir);
 
         std::stringstream response;
@@ -3509,8 +3520,7 @@ static void temporal_range_command(int connFd, SQLiteDBInterface *sqlite, bool *
     try {
         // Load snapshots from disk and collect edges
         std::vector<std::pair<std::string, std::string>> allEdges;
-        std::string snapshotDir =
-            Utils::getJasmineGraphHome() + "/env/data/temporal_snapshots/graph_" + std::to_string(graphId);
+        std::string snapshotDir = getTemporalSnapshotDir() + "/graph_" + std::to_string(graphId);
 
         for (uint32_t sid = startSnapshot; sid <= endSnapshot; sid++) {
             uint64_t timeThreshold = 60;
@@ -3575,7 +3585,7 @@ static void history_triangle_command(int connFd, SQLiteDBInterface *sqlite, bool
     uint32_t snapshotId = std::stoul(snapshotStr);
 
     try {
-        std::string snapshotDir = Utils::getJasmineGraphHome() + "/env/data/temporal_snapshots";
+        std::string snapshotDir = getTemporalSnapshotDir();
 
         uint64_t timeThreshold = 60;
         uint64_t edgeThreshold = 10000;
@@ -3699,7 +3709,7 @@ static void history_triangle_timestamp_command(int connFd, SQLiteDBInterface *, 
             return;
         }
 
-        std::string snapshotDir = Utils::getJasmineGraphHome() + "/env/data/temporal_snapshots";
+        std::string snapshotDir = getTemporalSnapshotDir();
         std::map<uint32_t, uint64_t> snapshotTimestamps = loadSnapshotTimestampsForGraph(snapshotDir, graphId);
 
         if (snapshotTimestamps.empty()) {
@@ -3779,7 +3789,7 @@ static void history_pagerank_command(int connFd, SQLiteDBInterface *sqlite, bool
     int maxIterations = iterStr.empty() ? 100 : std::stoi(iterStr);
 
     try {
-        std::string snapshotDir = Utils::getJasmineGraphHome() + "/env/data/temporal_snapshots";
+        std::string snapshotDir = getTemporalSnapshotDir();
 
         HistoryPageRankResult result = HistoryPageRank::computePageRankAtSnapshot(
             graphId, snapshotId, snapshotDir, topK,
@@ -3880,7 +3890,7 @@ static void history_pagerank_timestamp_command(int connFd, SQLiteDBInterface *sq
             }
         }
 
-        std::string snapshotDir = Utils::getJasmineGraphHome() + "/env/data/temporal_snapshots";
+        std::string snapshotDir = getTemporalSnapshotDir();
         std::vector<std::string> files = Utils::getListOfFilesInDirectory(snapshotDir);
 
         std::string graphPrefix = "graph" + std::to_string(graphId) + "_part";

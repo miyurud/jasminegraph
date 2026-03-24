@@ -21,6 +21,17 @@ limitations under the License.
 
 Logger common_logger;
 
+static std::string getTemporalSnapshotDir() {
+    std::string configuredPath =
+        Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.temporalsnapshotfolder");
+    if (!configuredPath.empty()) {
+        return configuredPath;
+    }
+
+    return Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder") +
+           "/temporal_snapshots";
+}
+
 /**
  * This method checks if a graph exists in JasmineGraph.
  * This method uses the unique path of the graph.
@@ -83,7 +94,7 @@ void JasmineGraphFrontEndCommon::removeGraph(std::string graphID, SQLiteDBInterf
     //   graph{id}_part{n}_snap{n}.tgs   - snapshot data
     //   graph{id}_part{n}_bitmaps.ebm   - bitmap index
     //   graph{id}_part{n}_snapmeta.bin  - snapshot metadata
-    std::string snapshotDir = Utils::getJasmineGraphHome() + "/env/data/temporal_snapshots";
+    std::string snapshotDir = getTemporalSnapshotDir();
     DIR* dir = opendir(snapshotDir.c_str());
     if (dir != nullptr) {
         std::string graphPrefix = "graph" + graphID + "_";

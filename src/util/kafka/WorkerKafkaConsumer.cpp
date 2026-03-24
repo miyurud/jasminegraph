@@ -28,6 +28,17 @@ Logger& workerKafkaLogger() {
     static Logger logger;
     return logger;
 }
+
+std::string getTemporalSnapshotDir() {
+    std::string configuredPath =
+        Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.temporalsnapshotfolder");
+    if (!configuredPath.empty()) {
+        return configuredPath;
+    }
+
+    return Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder") +
+           "/temporal_snapshots";
+}
 }  // namespace
 
 
@@ -94,7 +105,7 @@ void WorkerKafkaConsumer::initTemporalStores() {
         return;
     }
 
-    std::string snapshotDir = Utils::getJasmineGraphHome() + "/env/data/temporal_snapshots";
+    std::string snapshotDir = getTemporalSnapshotDir();
     workerKafkaLogger().info("[TEMPORAL INIT] graph=" + std::to_string(cfg.graphId) +
                              " edgeThreshold=" + std::to_string(cfg.edgeThreshold) +
                              " timeThreshold=" + std::to_string(cfg.timeThreshold) +
@@ -182,7 +193,7 @@ void WorkerKafkaConsumer::finalizeAllSnapshots() {
         return;
     }
 
-    std::string snapshotDir = Utils::getJasmineGraphHome() + "/env/data/temporal_snapshots";
+    std::string snapshotDir = getTemporalSnapshotDir();
     Utils::createDirectory(snapshotDir);
     workerKafkaLogger().info("[FINALIZE] Saving final snapshots for graph=" +
                              std::to_string(cfg.graphId) + " dir=" + snapshotDir);
@@ -211,7 +222,7 @@ void WorkerKafkaConsumer::finalizeAllSnapshots() {
 }
 
 void WorkerKafkaConsumer::createGlobalSnapshot() {
-    std::string snapshotDir = Utils::getJasmineGraphHome() + "/env/data/temporal_snapshots";
+    std::string snapshotDir = getTemporalSnapshotDir();
     Utils::createDirectory(snapshotDir);
 
     uint32_t snapId = globalSnapshotId.load();
