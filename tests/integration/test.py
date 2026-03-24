@@ -55,6 +55,7 @@ STRIAN = b'strian'
 STOPSTRIAN = b'stopstrian'
 LINE_END = b'\r\n'
 CYPHER = b'cypher'
+TRUNCATE = b'truncate'
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 KAFKA_TOPIC = 'stream-triangle-test'
@@ -463,7 +464,7 @@ def expect_response_file(conn: socket.socket, expected: bytes, timeout=5000):
             if received:
                 buffer.extend(received)
                 start = time.time()
-                if b'done' in buffer:
+                if b'done\r\n' in buffer:
                     break
             else:
                 time.sleep(0.01)
@@ -721,27 +722,6 @@ def test(host, port):  # pylint: disable=too-many-branches
                                  b'done', exit_on_failure=True)
 
         print()
-        logging.info('[Cypher] Uploading graph for cypher testing')
-        send_and_expect_response(sock, 'adhdfs', ADHDFS,
-                                 b'Do you want to use the default HDFS server(y/n)?',
-                                 exit_on_failure=True)
-        send_and_expect_response(sock, 'adhdfs', b'n',
-                                 b'Send the file path to the HDFS configuration file.' +
-                                 b' This file needs to be in some directory location ' +
-                                 b'that is accessible for JasmineGraph master',
-                                 exit_on_failure=True)
-        send_and_expect_response(sock, 'adhdfs', b'/var/tmp/config/hdfs_config.txt',
-                                 b'HDFS file path: ',
-                                 exit_on_failure=True)
-        send_and_expect_response(sock, 'adhdfs', b'/home/graph_with_properties.txt',
-                                 b'Is this an edge list type graph(y/n)?',
-                                 exit_on_failure=True)
-        send_and_expect_response(sock, 'adhdfs', b'n',
-                                 b'Is this a directed graph(y/n)?',
-                                 exit_on_failure=True)
-        send_and_expect_response(sock, 'adhdfs', b'y', DONE, exit_on_failure=True)
-
-        print()
         logging.info('[Cypher] Uploading large graph for cypher testing')
         send_and_expect_response(sock, 'adhdfs', ADHDFS,
                                  b'Do you want to use the default HDFS server(y/n)?',
@@ -968,12 +948,6 @@ def test(host, port):  # pylint: disable=too-many-branches
         logging.info('[Cypher] Testing rmgr after adhdfs')
         send_and_expect_response(sock, 'rmgr', RMGR, SEND, exit_on_failure=True)
         send_and_expect_response(sock, 'rmgr', b'1', DONE, exit_on_failure=True)
-        print()
-        logging.info('Testing rmgr after adhdfs')
-        send_and_expect_response(sock, 'rmgr', RMGR, SEND, exit_on_failure=True)
-        send_and_expect_response(sock, 'rmgr', b'2', DONE, exit_on_failure=True)
-        send_and_expect_response(sock, 'rmgr', RMGR, SEND, exit_on_failure=True)
-        send_and_expect_response(sock, 'rmgr', b'3', DONE, exit_on_failure=True)
 
         print()
         logging.info(
@@ -1026,8 +1000,7 @@ def test(host, port):  # pylint: disable=too-many-branches
             '[IntraPartition] Testing getAllProperties on large graph (parallel execution)'
         )
         send_and_expect_response(sock, 'cypher', CYPHER, b'Graph ID:', exit_on_failure=True)
-        send_and_expect_response(sock, 'cypher', large_property_graph_id_bytes,
-                                 b'Input query :', exit_on_failure=True)
+        send_and_expect_response(sock, 'cypher', b'3', b'Input query :', exit_on_failure=True)
         # Spot check: verify a node query works on large graph
         sock.sendall(b'MATCH (n) WHERE n.id = 1 RETURN n' + LINE_END)
         print('MATCH (n) WHERE n.id = 1 RETURN n')
@@ -1050,8 +1023,7 @@ def test(host, port):  # pylint: disable=too-many-branches
         print()
         logging.info('[IntraPartition] Testing relationship getAllProperties')
         send_and_expect_response(sock, 'cypher', CYPHER, b'Graph ID:', exit_on_failure=True)
-        send_and_expect_response(sock, 'cypher', large_property_graph_id_bytes,
-                     b'Input query :', exit_on_failure=True)
+        send_and_expect_response(sock, 'cypher', b'3', b'Input query :', exit_on_failure=True)
         # Verify relationship scan works
         sock.sendall(b'MATCH (n)-[r]->(m) WHERE n.id = 1 RETURN n, r, m' + LINE_END)
         print('MATCH (n)-[r]->(m) WHERE n.id = 1 RETURN n, r, m')
@@ -1074,8 +1046,7 @@ def test(host, port):  # pylint: disable=too-many-branches
         print()
         logging.info('[Cypher] Testing OrderBy for Large Graph')
         send_and_expect_response(sock, 'cypher', CYPHER, b'Graph ID:', exit_on_failure=True)
-        send_and_expect_response(sock, 'cypher', large_property_graph_id_bytes,
-                     b'Input query :', exit_on_failure=True)
+        send_and_expect_response(sock, 'cypher', b'3', b'Input query :', exit_on_failure=True)
         send_and_expect_response_file(sock,'cypher', b'MATCH (n) RETURN n.id, n.name, n.code '
                                                      b'ORDER BY n.code ASC',
                                       'tests/integration/utils/expected_output/'
@@ -1084,6 +1055,14 @@ def test(host, port):  # pylint: disable=too-many-branches
         print()
         logging.info('Testing strian')
         test_streaming_triangle_count_with_kafka(host, port)
+        # removing all the uploaded graphs after testing
+        print()
+        logging.info('Removing all uploaded graphs after testing')
+        send_and_expect_response(sock, 'lst before truncate', LIST,
+        b'|2|/home/graph_with_properties.txt|hdfs:/home/graph_with_properties.txt|op|' + LINE_END +
+        b'|3|/home/graph_with_properties_large.txt|hdfs:/home/graph_with_properties_large.txt|op|')
+        send_and_expect_response(sock, 'truncate', TRUNCATE, DONE)
+        send_and_expect_response(sock, 'lst after truncate', LIST, EMPTY)
 
         # shutting down workers after testing
         print()
