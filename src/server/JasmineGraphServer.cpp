@@ -442,7 +442,17 @@ void JasmineGraphServer::startRemoteWorkers(std::vector<int> workerPortsVector, 
             } else {
                 chmod(worker_logdir.c_str(), 0777);
             }
-            std::string snapshotDataFolder = Utils::getJasmineGraphHome() + "/env/data";
+            std::string snapshotDataFolder =
+                Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.temporalsnapshotfolder");
+            if (snapshotDataFolder.empty()) {
+                std::string dataFolder =
+                    Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder");
+                if (!dataFolder.empty()) {
+                    snapshotDataFolder = dataFolder + "/temporal_snapshots";
+                } else {
+                    snapshotDataFolder = Utils::getJasmineGraphHome() + "/env/data/temporal_snapshots";
+                }
+            }
 
             // Keep tests flexible, but default non-test workers to the compose network.
             std::string dockerNetwork = Utils::trim_copy(

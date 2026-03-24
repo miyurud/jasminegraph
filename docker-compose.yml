@@ -9,6 +9,7 @@ services:
       - './env/databases/metadb:/home/ubuntu/software/jasminegraph/metadb'
       - './env/databases/performancedb:/home/ubuntu/software/jasminegraph/performancedb'
       - './env/data:/home/ubuntu/software/jasminegraph/env/data'
+      - '/var/tmp/jasminegraph-localstore:/var/tmp/jasminegraph-localstore'
       - '/tmp/jasminegraph:/tmp/jasminegraph'
       - '/var/tmp/jasminegraph:/var/tmp/jasminegraph'
       - './conf:/home/ubuntu/software/jasminegraph/conf'
