@@ -364,26 +364,11 @@ void WorkerKafkaConsumer::consumerThreadFunc(
 
             if (isEndOfStream(msg)) {
                 workerKafkaLogger().info("Worker thread " + std::to_string(threadId) +
-                                         " received end-of-stream signal on its Kafka partition"
-                                         " — signalling all threads to stop");
-                // Set BOTH flags:
-                //   myDone          → this thread exits its inner batch loop immediately
-                //   endSignalReceived → all other threads exit their outer while loop
-                //                      before their cppkafka::Consumer is destroyed.
-                //
-                // Why both? When this thread exits and its Consumer goes out of scope,
-                // librdkafka triggers a Kafka consumer-group REBALANCE which revokes
-                // partition assignments from every other thread in the group.  After
-                // rebalance those threads get no new messages (committed offset is already
-                // at end-of-topic) and they would idle for MAX_IDLE_POLLS seconds before
-                // timing out.  Setting endSignalReceived=true here lets all threads exit
-                // cleanly in the CURRENT poll iteration — before the rebalance fires.
-                //
-                // Safety: -1 is only published AFTER the Python producer has flushed and
-                // closed all connections (all edges are in Kafka before -1 arrives), so it
-                // is always safe to stop every thread the moment any thread sees -1.
+                                         " received end-of-stream signal on its Kafka partition");
+                // IMPORTANT: do NOT stop other threads here.
+                // EOS ordering is guaranteed only within a partition, so another thread may
+                // still be draining data from a different partition.
                 myDone = true;
-                endSignalReceived = true;
                 break;
             }
             if (isErrorInMessage(msg)) continue;

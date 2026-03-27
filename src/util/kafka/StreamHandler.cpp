@@ -556,8 +556,9 @@ void StreamHandler::consumerThreadFunc(int threadId,
 
             if (isEndOfStream(msg)) {
                 streamHandlerLogger().info("Thread " + std::to_string(threadId) +
-                                           " received termination signal (-1)");
-                endSignalReceived = true;
+                                           " received termination signal (-1) on its partition");
+                // Do not terminate other threads here. EOS ordering is partition-local,
+                // so other partitions may still carry data before their own -1 marker.
                 break;
             }
             if (isErrorInMessage(msg)) continue;
