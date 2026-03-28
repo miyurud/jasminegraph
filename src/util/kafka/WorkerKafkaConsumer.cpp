@@ -294,8 +294,9 @@ void WorkerKafkaConsumer::finalizeAllSnapshots() {
     uint32_t finalSnapId = globalSnapshotId.load();  // use the same global ID used by addEdge
     for (auto& [pid, store] : localTemporalStores) {
         if (store) {
-            bool ok = store->saveBitmapIndexToDisk(snapshotDir, finalSnapId);
-            store->appendSnapshotMetaToDisk(snapshotDir, finalSnapId);
+            uint64_t savedEdges = 0;
+            bool ok = store->saveBitmapIndexToDisk(snapshotDir, finalSnapId, &savedEdges);
+            store->appendSnapshotMetaToDisk(snapshotDir, finalSnapId, savedEdges, 0);
             std::string bitmapPath = TemporalStorePersistence::generateBitmapFilePath(
                 snapshotDir, cfg.graphId, pid);
             workerKafkaLogger().info("[FINALIZE] partition=" + std::to_string(pid) +
@@ -305,8 +306,9 @@ void WorkerKafkaConsumer::finalizeAllSnapshots() {
         }
     }
     if (centralTemporalStore) {
-        bool ok = centralTemporalStore->saveBitmapIndexToDisk(snapshotDir, finalSnapId);
-        centralTemporalStore->appendSnapshotMetaToDisk(snapshotDir, finalSnapId);
+        uint64_t savedEdges = 0;
+        bool ok = centralTemporalStore->saveBitmapIndexToDisk(snapshotDir, finalSnapId, &savedEdges);
+        centralTemporalStore->appendSnapshotMetaToDisk(snapshotDir, finalSnapId, savedEdges, 0);
         std::string bitmapPath = TemporalStorePersistence::generateBitmapFilePath(
             snapshotDir, cfg.graphId, centralPartitionId);
         workerKafkaLogger().info("[FINALIZE] central path=" + bitmapPath + " snapId=" + std::to_string(finalSnapId) +
@@ -325,15 +327,17 @@ void WorkerKafkaConsumer::createGlobalSnapshot() {
 
     for (auto& [pid, store] : localTemporalStores) {
         if (store) {
-            bool ok = store->saveBitmapIndexToDisk(snapshotDir, snapId);
-            store->appendSnapshotMetaToDisk(snapshotDir, snapId);
+            uint64_t savedEdges = 0;
+            bool ok = store->saveBitmapIndexToDisk(snapshotDir, snapId, &savedEdges);
+            store->appendSnapshotMetaToDisk(snapshotDir, snapId, savedEdges, 0);
             workerKafkaLogger().info("[SNAPSHOT] partition=" + std::to_string(pid) +
                                      (ok ? " SAVED OK" : " SAVE FAILED"));
         }
     }
     if (centralTemporalStore) {
-        bool ok = centralTemporalStore->saveBitmapIndexToDisk(snapshotDir, snapId);
-        centralTemporalStore->appendSnapshotMetaToDisk(snapshotDir, snapId);
+        uint64_t savedEdges = 0;
+        bool ok = centralTemporalStore->saveBitmapIndexToDisk(snapshotDir, snapId, &savedEdges);
+        centralTemporalStore->appendSnapshotMetaToDisk(snapshotDir, snapId, savedEdges, 0);
         workerKafkaLogger().info("[SNAPSHOT] central" +
                                  std::string(ok ? " SAVED OK" : " SAVE FAILED"));
     }

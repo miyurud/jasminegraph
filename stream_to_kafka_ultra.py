@@ -9,7 +9,7 @@ Performance modes:
 - EXTREME: ~2M-10M+ edges/sec (fire-and-forget with multiprocessing)
 
 Usage:
-    python3 stream_to_kafka_ultra.py <input_file> <topic> [mode] [num_workers] [bootstrap_server] [input_format]
+    python3 stream_to_kafka_ultra.py <input_file> <topic> [mode] [num_workers] [bootstrap_server] [input_format] [payload_mode]
   
 Examples:
     # Balanced mode (default, JSON lines)
@@ -21,8 +21,13 @@ Examples:
     # Extreme mode with 8 parallel workers
   python3 stream_to_kafka_ultra.py edges.json my_topic extreme 8
 
-    # CSV input (source,target columns)
-    python3 stream_to_kafka_ultra.py edges.csv my_topic extreme 1 172.28.5.8:9092 csv
+    # CSV input (source,target columns) as raw CSV payloads (fastest for adstrmkcsv)
+    python3 stream_to_kafka_ultra.py edges.csv my_topic extreme 8 172.28.5.8:9092 csv csv-raw
+
+Payload modes:
+- auto: csv->csv-raw, json->json-edge
+- csv-raw: publish source,target bytes directly (recommended for adstrmkcsv)
+- json-edge: publish normalized JSON edge objects
 """
 
 import sys
@@ -89,6 +94,18 @@ def resolve_input_format(file_path, input_format_arg):
     return 'json'
 
 
+def resolve_payload_mode(input_format, payload_mode_arg):
+    """Resolve payload mode for Kafka publishing."""
+    mode = (payload_mode_arg or 'auto').lower()
+    if mode in ('csv-raw', 'json-edge'):
+        return mode
+
+    # Auto mode
+    if input_format == 'csv':
+        return 'csv-raw'
+    return 'json-edge'
+
+
 def build_edge_from_csv_values(source_id, target_id):
     """Build edge JSON object expected by downstream StreamHandler."""
     return {
@@ -134,8 +151,37 @@ def parse_csv_line_to_edge(line):
     return build_edge_from_csv_values(source_id, target_id)
 
 
-def iterate_csv_edges(file_path):
-    """Yield edges from CSV file with header or plain source,target rows."""
+def normalize_csv_line_to_raw_payload(raw_line):
+    """Normalize a CSV line to canonical source,target bytes for direct Kafka publish."""
+    line = raw_line.strip()
+    if not line:
+        return None
+
+    parts = line.split(b',', 2)
+    if len(parts) < 2:
+        return None
+
+    source = parts[0].strip().strip(b'"')
+    target = parts[1].strip().strip(b'"')
+    if not source or not target:
+        return None
+
+    if source.lower() == b'source' and target.lower() == b'target':
+        return None
+
+    return source + b',' + target
+
+
+def iterate_csv_edges(file_path, payload_mode='csv-raw'):
+    """Yield normalized Kafka payloads from CSV input."""
+    if payload_mode == 'csv-raw':
+        with open(file_path, 'rb', buffering=4 * 1024 * 1024) as f:
+            for raw in f:
+                payload = normalize_csv_line_to_raw_payload(raw)
+                if payload is not None:
+                    yield payload
+        return
+
     with open(file_path, 'r', buffering=1024 * 1024) as f:
         for line in f:
             edge = parse_csv_line_to_edge(line)
@@ -270,7 +316,8 @@ def create_producer(bootstrap_server, config):
 
 def worker_process(worker_id, file_path, topic, bootstrap_server, config,
                    start_line, end_line, counter, error_queue,
-                   input_format='json', start_offset=0, end_offset=0):
+                   input_format='json', start_offset=0, end_offset=0,
+                   payload_mode='auto'):
     """Worker process for parallel streaming"""
     try:
         producer = create_producer(bootstrap_server, config)
@@ -291,12 +338,17 @@ def worker_process(worker_id, file_path, topic, bootstrap_server, config,
                         break
 
                     try:
-                        line = raw.decode('utf-8', errors='ignore')
-                        edge = parse_csv_line_to_edge(line)
-                        if edge is None:
-                            continue
-
-                        producer.send(topic, value=edge)
+                        if payload_mode == 'csv-raw':
+                            payload = normalize_csv_line_to_raw_payload(raw)
+                            if payload is None:
+                                continue
+                            producer.send(topic, value=payload)
+                        else:
+                            line = raw.decode('utf-8', errors='ignore')
+                            edge = parse_csv_line_to_edge(line)
+                            if edge is None:
+                                continue
+                            producer.send(topic, value=edge)
                         edge_count += 1
 
                         if edge_count % config['flush_interval'] == 0:
@@ -365,7 +417,7 @@ def count_lines(file_path):
     return count
 
 
-def stream_edges_single(file_path, topic, bootstrap_server, config, input_format='json'):
+def stream_edges_single(file_path, topic, bootstrap_server, config, input_format='json', payload_mode='auto'):
     """Single-threaded streaming with optimized settings"""
     
     print(f"╔{'═'*70}╗")
@@ -392,7 +444,7 @@ def stream_edges_single(file_path, topic, bootstrap_server, config, input_format
     
     try:
         if input_format == 'csv':
-            edge_iterator = iterate_csv_edges(file_path)
+            edge_iterator = iterate_csv_edges(file_path, payload_mode)
         else:
             with open(file_path, 'rb') as f:
                 edge_iterator = (payload for payload in (normalize_json_payload_bytes(line) for line in f)
@@ -461,7 +513,8 @@ def stream_edges_single(file_path, topic, bootstrap_server, config, input_format
     print(f"╚{'═'*70}╝")
 
 
-def stream_edges_parallel(file_path, topic, bootstrap_server, config, num_workers, input_format='json'):
+def stream_edges_parallel(file_path, topic, bootstrap_server, config, num_workers,
+                          input_format='json', payload_mode='auto'):
     """Multi-process parallel streaming for maximum throughput"""
     
     print(f"╔{'═'*70}╗")
@@ -516,7 +569,7 @@ def stream_edges_parallel(file_path, topic, bootstrap_server, config, num_worker
             target=worker_process,
             args=(i, file_path, topic, bootstrap_server, config,
                   start_line, end_line, counter, error_queue,
-                  input_format, start_offset, end_offset)
+                input_format, start_offset, end_offset, payload_mode)
         )
         p.start()
         workers.append(p)
@@ -615,6 +668,7 @@ if __name__ == "__main__":
     num_workers = int(sys.argv[4]) if len(sys.argv) > 4 else 1
     bootstrap_server = "172.28.5.8:9092"
     input_format_arg = 'auto'
+    payload_mode_arg = 'auto'
 
     if len(sys.argv) > 5:
         arg5 = sys.argv[5].lower()
@@ -626,7 +680,11 @@ if __name__ == "__main__":
     if len(sys.argv) > 6:
         input_format_arg = sys.argv[6].lower()
 
+    if len(sys.argv) > 7:
+        payload_mode_arg = sys.argv[7].lower()
+
     input_format = resolve_input_format(file_path, input_format_arg)
+    payload_mode = resolve_payload_mode(input_format, payload_mode_arg)
     
     # Select configuration
     if mode == 'FAST':
@@ -643,6 +701,6 @@ if __name__ == "__main__":
 
     # Stream edges
     if num_workers > 1:
-        stream_edges_parallel(file_path, topic, bootstrap_server, config, num_workers, input_format)
+        stream_edges_parallel(file_path, topic, bootstrap_server, config, num_workers, input_format, payload_mode)
     else:
-        stream_edges_single(file_path, topic, bootstrap_server, config, input_format)
+        stream_edges_single(file_path, topic, bootstrap_server, config, input_format, payload_mode)

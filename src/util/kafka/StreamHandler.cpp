@@ -357,8 +357,9 @@ void StreamHandler::finalizeAllSnapshots() {
             try {
                 // Use globalSnapshotId — the same counter passed to addEdge() — so the
                 // snapshot meta records match the bitmap bit positions exactly.
-                bool saved = store->saveBitmapIndexToDisk(snapshotDir, globalSnapshotId);
-                store->appendSnapshotMetaToDisk(snapshotDir, globalSnapshotId);
+                uint64_t savedEdges = 0;
+                bool saved = store->saveBitmapIndexToDisk(snapshotDir, globalSnapshotId, &savedEdges);
+                store->appendSnapshotMetaToDisk(snapshotDir, globalSnapshotId, savedEdges, 0);
                 if (saved) {
                     streamHandlerLogger().info("Saved final bitmap index for partition " +
                                                std::to_string(partitionId) +
@@ -377,8 +378,9 @@ void StreamHandler::finalizeAllSnapshots() {
     // Save central store snapshot
     if (centralTemporalStore != nullptr) {
         try {
-            bool saved = centralTemporalStore->saveBitmapIndexToDisk(snapshotDir, globalSnapshotId);
-            centralTemporalStore->appendSnapshotMetaToDisk(snapshotDir, globalSnapshotId);
+            uint64_t savedEdges = 0;
+            bool saved = centralTemporalStore->saveBitmapIndexToDisk(snapshotDir, globalSnapshotId, &savedEdges);
+            centralTemporalStore->appendSnapshotMetaToDisk(snapshotDir, globalSnapshotId, savedEdges, 0);
             if (saved) {
                 streamHandlerLogger().info(
                     "Saved final central bitmap index snapId=" + std::to_string(globalSnapshotId));
@@ -405,8 +407,9 @@ void StreamHandler::createGlobalSnapshot() {
     for (auto& [partitionId, store] : localTemporalStores) {
         if (store != nullptr) {
             try {
-                bool saved = store->saveBitmapIndexToDisk(snapshotDir, globalSnapshotId);
-                store->appendSnapshotMetaToDisk(snapshotDir, globalSnapshotId);
+                uint64_t savedEdges = 0;
+                bool saved = store->saveBitmapIndexToDisk(snapshotDir, globalSnapshotId, &savedEdges);
+                store->appendSnapshotMetaToDisk(snapshotDir, globalSnapshotId, savedEdges, 0);
                 if (saved) {
                     streamHandlerLogger().info("Saved global snapshot " + std::to_string(globalSnapshotId) +
                                               " for partition " + std::to_string(partitionId));
@@ -426,8 +429,9 @@ void StreamHandler::createGlobalSnapshot() {
     // Save central store with the same snapshot ID
     if (centralTemporalStore != nullptr) {
         try {
-            bool saved = centralTemporalStore->saveBitmapIndexToDisk(snapshotDir, globalSnapshotId);
-            centralTemporalStore->appendSnapshotMetaToDisk(snapshotDir, globalSnapshotId);
+            uint64_t savedEdges = 0;
+            bool saved = centralTemporalStore->saveBitmapIndexToDisk(snapshotDir, globalSnapshotId, &savedEdges);
+            centralTemporalStore->appendSnapshotMetaToDisk(snapshotDir, globalSnapshotId, savedEdges, 0);
             if (saved) {
                 streamHandlerLogger().info("Saved global snapshot " + std::to_string(globalSnapshotId) +
                                           " for central store");

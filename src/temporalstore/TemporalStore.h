@@ -183,7 +183,8 @@ class TemporalStore {
         EdgeKey key(sourceId, destId);
         auto it = edgeBitmaps_.find(key);
         if (it != edgeBitmaps_.end()) {
-            return it->second.intersectsRange(0, snapshotId);  // lazy inheritance: edge present in [firstSnap, query]
+            // Window semantics: edge must be present in this exact snapshot.
+            return it->second.getBit(snapshotId);
         }
         return false;
     }
@@ -260,7 +261,7 @@ class TemporalStore {
 
         std::vector<EdgeKey> edges;
         for (const auto& [key, bitmap] : edgeBitmaps_) {
-            if (bitmap.intersectsRange(0, snapshotId)) {  // lazy inheritance
+            if (bitmap.getBit(snapshotId)) {
                 edges.push_back(key);
             }
         }
@@ -288,7 +289,7 @@ class TemporalStore {
         // Collect all edges at this snapshot and build node index
         std::vector<EdgeKey> edges;
         for (const auto& [key, bitmap] : edgeBitmaps_) {
-            if (bitmap.intersectsRange(0, snapshotId)) {  // lazy inheritance
+            if (bitmap.getBit(snapshotId)) {
                 edges.push_back(key);
 
                 if (nodeToIndex.find(key.sourceId) == nodeToIndex.end()) {
@@ -386,17 +387,12 @@ class TemporalStore {
 
     /**
      * Open new snapshot
-     * Inherits all edges from previous snapshot (cumulative semantics)
+     * Starts a new window for incoming edges.
      */
     uint32_t openNewSnapshot() {
         std::lock_guard<std::mutex> lock(mutex_);
 
         uint32_t newSnapshotId = snapshotManager_->openNewSnapshot();
-
-        // LAZY INHERITANCE: No need to iterate all edges to copy bits.
-        // edgeExistsAtSnapshot / getEdgesAtSnapshot now use intersectsRange(0, snapshotId)
-        // so any edge added in snapshot N is implicitly visible in all snapshots >= N.
-        // This turns a blocking O(N_edges) iteration into O(1).
 
         return newSnapshotId;
     }
@@ -503,30 +499,39 @@ class TemporalStore {
 
     /**
      * Rewrite graph{G}_part{P}_bitmaps.ebm with the current edgeBitmaps_ map.
-     * After a successful write, evict from RAM all edges that were NOT active
-     * in closedSnapshotId (keeping only edges still live for the next snapshot).
+     * After a successful write, evict from RAM all edges that are not part of
+     * closedSnapshotId so each snapshot window keeps only incoming edges.
      */
-    bool saveBitmapIndexToDisk(const std::string& baseDir, uint32_t closedSnapshotId) {
+    bool saveBitmapIndexToDisk(const std::string& baseDir,
+                               uint32_t closedSnapshotId,
+                               uint64_t* savedEdgeCount = nullptr) {
         std::string filePath = TemporalStorePersistence::generateBitmapFilePath(
             baseDir, graphId_, partitionId_);
 
-        // Phase 1: copy under lock (fast — in-memory copy)
-        decltype(edgeBitmaps_) bitmapsCopy;
+        // Move the current window out in O(1) under lock, then persist outside the lock.
+        // This removes the expensive full-map copy and the second eviction pass.
+        decltype(edgeBitmaps_) windowBitmaps;
         {
             std::lock_guard<std::mutex> lock(mutex_);
-            bitmapsCopy = edgeBitmaps_;
+            windowBitmaps.swap(edgeBitmaps_);
+            totalEdgesTracked_ = 0;
         }
 
-        // Write the full cumulative map to disk.
-        // NOTE: Do NOT evict from edgeBitmaps_ here.
-        // Lazy-inheritance semantics mean edge "A→B" added at snapshot 0 only has
-        // bit 0 set — it will not have bit N set just because it persists to snapshot N.
-        // Evicting on !getBit(closedSnapshotId) would therefore delete all edges from
-        // previous snapshots, leaving each .ebm file with only the current batch
-        // (~100K edges) instead of the full cumulative history.
-        // The in-memory map IS the cumulative store; disk is just a checkpoint of it.
-        return TemporalStorePersistence::saveBitmapIndex(
-            filePath, graphId_, partitionId_, closedSnapshotId, bitmapsCopy);
+        bool saved = TemporalStorePersistence::saveBitmapIndex(
+            filePath, graphId_, partitionId_, closedSnapshotId, windowBitmaps);
+
+        if (!saved) {
+            // Restore data on failure to avoid dropping the in-memory window.
+            std::lock_guard<std::mutex> lock(mutex_);
+            edgeBitmaps_.insert(windowBitmaps.begin(), windowBitmaps.end());
+            totalEdgesTracked_ = edgeBitmaps_.size();
+            return false;
+        }
+
+        if (savedEdgeCount != nullptr) {
+            *savedEdgeCount = windowBitmaps.size();
+        }
+        return true;
     }
 
     /**
@@ -546,6 +551,21 @@ class TemporalStore {
         return TemporalStorePersistence::appendSnapshotMeta(
             metaPath, graphId_, partitionId_,
             closedSnapshotId, totalEdges, newEdgesInSnapshot);
+    }
+
+    /**
+     * Append one record to graph{G}_part{P}_snapmeta.bin with explicit total edge count.
+     * Use this in window mode where edgeBitmaps_ may already be rotated/cleared.
+     */
+    bool appendSnapshotMetaToDisk(const std::string& baseDir,
+                                  uint32_t closedSnapshotId,
+                                  uint64_t totalEdgesInSnapshot,
+                                  uint64_t newEdgesInSnapshot) {
+        std::string metaPath = TemporalStorePersistence::generateMetaFilePath(
+            baseDir, graphId_, partitionId_);
+        return TemporalStorePersistence::appendSnapshotMeta(
+            metaPath, graphId_, partitionId_,
+            closedSnapshotId, totalEdgesInSnapshot, newEdgesInSnapshot);
     }
 
     /**
