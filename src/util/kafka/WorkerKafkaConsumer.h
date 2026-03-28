@@ -62,6 +62,7 @@ struct WorkerKafkaConfig {
     uint64_t    timeThreshold   = 60;  // snapshot time threshold (seconds)
     uint64_t    edgeThreshold   = 10000;  // snapshot edge-count threshold
     uint32_t    initialSnapshotId = 0;
+    bool        csvInputMode   = false;  // raw Kafka payload is CSV source,target
     int         numConsumerThreads = 3;  // parallel Kafka consumer threads
     int         workerIndex     = 0;  // index of this worker (0, 1, 2, ...)
 };

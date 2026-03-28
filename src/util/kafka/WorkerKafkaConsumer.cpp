@@ -13,7 +13,9 @@ limitations under the License.
 
 #include "WorkerKafkaConsumer.h"
 
+#include <algorithm>
 #include <chrono>
+#include <cctype>
 #include <sys/stat.h>
 #include <nlohmann/json.hpp>
 
@@ -27,6 +29,97 @@ namespace {
 Logger& workerKafkaLogger() {
     static Logger logger;
     return logger;
+}
+
+std::string trimCopy(const std::string& input) {
+    size_t start = 0;
+    size_t end = input.size();
+    while (start < end && std::isspace(static_cast<unsigned char>(input[start]))) {
+        start++;
+    }
+    while (end > start && std::isspace(static_cast<unsigned char>(input[end - 1]))) {
+        end--;
+    }
+    return input.substr(start, end - start);
+}
+
+std::string stripOptionalQuotes(const std::string& value) {
+    std::string out = trimCopy(value);
+    if (out.size() >= 2 && out.front() == '"' && out.back() == '"') {
+        out = out.substr(1, out.size() - 2);
+    }
+    return trimCopy(out);
+}
+
+bool parseCsvEdgePayload(const std::string& payload, std::string& sourceId, std::string& targetId) {
+    std::string line = trimCopy(payload);
+    if (line.empty()) {
+        return false;
+    }
+
+    size_t commaPos = line.find(',');
+    if (commaPos == std::string::npos) {
+        return false;
+    }
+
+    sourceId = stripOptionalQuotes(line.substr(0, commaPos));
+    targetId = stripOptionalQuotes(line.substr(commaPos + 1));
+
+    if (sourceId.empty() || targetId.empty()) {
+        return false;
+    }
+
+    std::string srcLower = sourceId;
+    std::string dstLower = targetId;
+    std::transform(srcLower.begin(), srcLower.end(), srcLower.begin(), [](unsigned char c) {
+        return static_cast<char>(std::tolower(c));
+    });
+    std::transform(dstLower.begin(), dstLower.end(), dstLower.begin(), [](unsigned char c) {
+        return static_cast<char>(std::tolower(c));
+    });
+
+    if (srcLower == "source" && dstLower == "target") {
+        return false;
+    }
+
+    return true;
+}
+
+bool normalizeKafkaPayloadToEdgeJson(const std::string& payload, bool csvInputMode,
+                                     json& edgeJson, std::string& error) {
+    if (!csvInputMode) {
+        try {
+            edgeJson = json::parse(payload);
+            return true;
+        } catch (const std::exception& e) {
+            error = e.what();
+            return false;
+        }
+    }
+
+    std::string trimmed = trimCopy(payload);
+    if (!trimmed.empty() && trimmed.front() == '{') {
+        try {
+            edgeJson = json::parse(trimmed);
+            return true;
+        } catch (const std::exception& e) {
+            error = e.what();
+            return false;
+        }
+    }
+
+    std::string sourceId;
+    std::string targetId;
+    if (!parseCsvEdgePayload(payload, sourceId, targetId)) {
+        return false;
+    }
+
+    edgeJson = {
+        {"source", {{"id", sourceId}, {"properties", {{"name", "Node_" + sourceId}}}}},
+        {"destination", {{"id", targetId}, {"properties", {{"name", "Node_" + targetId}}}}},
+        {"properties", {{"publication", "1"}, {"title", "CSV"}, {"graphId", "1"}}}
+    };
+    return true;
 }
 
 std::string getTemporalSnapshotDir() {
@@ -303,11 +396,6 @@ void WorkerKafkaConsumer::consumerThreadFunc(
     uint64_t       threadMsgs    = 0;
     uint64_t       errorMsgs     = 0;  // total error/EOF messages seen
 
-    // Thread-local done flag: this thread exits only when IT receives -1
-    // from its own assigned Kafka partition.  The shared endSignalReceived
-    // is kept only as an emergency stop (exceptions / crashes).
-    bool myDone = false;
-
     // Hash functor used for deterministic partition assignment (HASH algo)
     std::hash<std::string> hasher;
 
@@ -318,7 +406,7 @@ void WorkerKafkaConsumer::consumerThreadFunc(
                              " entering consume loop (MAX_IDLE=" +
                              std::to_string(MAX_IDLE_POLLS) + "s)");
 
-    while (!endSignalReceived && !myDone) {
+    while (!endSignalReceived) {
         auto batch = consumer->poll_batch(KAFKA_BATCH, std::chrono::milliseconds(1000));
 
         // Count how many messages in this batch are actual data (not errors)
@@ -360,27 +448,28 @@ void WorkerKafkaConsumer::consumerThreadFunc(
         }
 
         for (auto& msg : batch) {
-            if (myDone) break;
+            if (endSignalReceived) break;
 
             if (isEndOfStream(msg)) {
                 workerKafkaLogger().info("Worker thread " + std::to_string(threadId) +
-                                         " received end-of-stream signal on its Kafka partition");
-                // IMPORTANT: do NOT stop other threads here.
-                // EOS ordering is guaranteed only within a partition, so another thread may
-                // still be draining data from a different partition.
-                myDone = true;
-                break;
+                                         " observed end-of-stream signal on one Kafka partition");
+                // Keep consuming: a thread can temporarily own multiple partitions and EOS
+                // ordering is partition-local. We exit only after sustained idleness.
+                continue;
             }
             if (isErrorInMessage(msg)) continue;
 
             // ── 1. JSON PARSE ──────────────────────────────────────────────
             std::string raw(msg.get_payload());
             json edgeJson;
-            try {
-                edgeJson = json::parse(raw);
-            } catch (const std::exception& e) {
-                workerKafkaLogger().error("T" + std::to_string(threadId) +
-                                          " JSON parse error: " + e.what());
+            std::string parseError;
+            if (!normalizeKafkaPayloadToEdgeJson(raw, cfg.csvInputMode, edgeJson, parseError)) {
+                if (!parseError.empty()) {
+                    workerKafkaLogger().error("T" + std::to_string(threadId) +
+                                              " payload parse error in " +
+                                              std::string(cfg.csvInputMode ? "CSV" : "JSON") +
+                                              " mode: " + parseError);
+                }
                 continue;
             }
 

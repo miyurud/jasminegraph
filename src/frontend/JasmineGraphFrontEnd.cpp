@@ -107,7 +107,8 @@ static void temporal_range_command(int connFd, SQLiteDBInterface *sqlite, bool *
 static void add_stream_kafka_command(int connFd, std::string &kafka_server_IP, cppkafka::Configuration &configs,
                                      KafkaConnector *&kstream, thread &input_stream_handler_thread,
                                      vector<DataPublisher *> &workerClients, int numberOfPartitions,
-                                     SQLiteDBInterface *sqlite, bool *loop_exit_p);
+                                     SQLiteDBInterface *sqlite, bool *loop_exit_p,
+                                     bool isCsvMode = false);
 static void addStreamHDFSCommand(std::string masterIP, int connFd, std::string &hdfsServerIp,
                                  std::thread &inputStreamHandlerThread, int numberOfPartitions,
                                  SQLiteDBInterface *sqlite, bool *loop_exit_p);
@@ -253,7 +254,14 @@ void *frontendservicesesion(void *dummyPt) {
                 workerClientsInitialized = true;
             }
             add_stream_kafka_command(connFd, kafka_server_IP, configs, kstream, input_stream_handler, workerClients,
-                                     numberOfPartitions, sqlite, &loop_exit);
+                                     numberOfPartitions, sqlite, &loop_exit, false);
+        } else if (line.compare(ADD_STREAM_KAFKA_CSV) == 0) {
+            if (!workerClientsInitialized) {
+                workerClients = getWorkerClients(sqlite);
+                workerClientsInitialized = true;
+            }
+            add_stream_kafka_command(connFd, kafka_server_IP, configs, kstream, input_stream_handler, workerClients,
+                                     numberOfPartitions, sqlite, &loop_exit, true);
         } else if (line.compare(ADD_STREAM_HDFS) == 0) {
             addStreamHDFSCommand(masterIP, connFd, hdfsServerIp, input_stream_handler, numberOfPartitions, sqlite,
                                  &loop_exit);
@@ -1282,7 +1290,8 @@ static void add_model_command(int connFd, SQLiteDBInterface *sqlite, bool *loop_
 static void add_stream_kafka_command(int connFd, std::string &kafka_server_IP, cppkafka::Configuration &configs,
                                      KafkaConnector *&kstream, thread &input_stream_handler_thread,
                                      vector<DataPublisher *> &workerClients, int numberOfPartitions,
-                                     SQLiteDBInterface *sqlite, bool *loop_exit_p) {
+                                     SQLiteDBInterface *sqlite, bool *loop_exit_p,
+                                     bool isCsvMode) {
     string exist = "Do you want to stream into existing graph(y/n) ? ";
     int result_wr = write(connFd, exist.c_str(), exist.length());
     if (result_wr < 0) {
@@ -1532,8 +1541,9 @@ static void add_stream_kafka_command(int connFd, std::string &kafka_server_IP, c
         };
     }
 
-    frontend_logger.info("Start serving `" + ADD_STREAM_KAFKA + "` command");
-    string message = "send kafka topic name";
+    std::string activeCommand = isCsvMode ? ADD_STREAM_KAFKA_CSV : ADD_STREAM_KAFKA;
+    frontend_logger.info("Start serving `" + activeCommand + "` command");
+    string message = isCsvMode ? "send kafka topic name (CSV edges)" : "send kafka topic name";
     result_wr = write(connFd, message.c_str(), message.length());
     if (result_wr < 0) {
         frontend_logger.error("Error writing to socket");
@@ -1568,7 +1578,7 @@ static void add_stream_kafka_command(int connFd, std::string &kafka_server_IP, c
     bool isNewGraph = (existingGraph != "y");
     StreamHandler *stream_handler = new StreamHandler(kstream, numberOfPartitions, workerClients, sqlite, stoi(graphId),
                                                       direction == Conts::DIRECTED, spt::getPartitioner(partitionAlgo),
-                                                      isNewGraph);
+                                                      isNewGraph, isCsvMode);
 
     if (existingGraph != "y") {
         string path = "kafka:\\" + topic_name_s + ":" + group_id;

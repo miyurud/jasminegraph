@@ -4642,6 +4642,7 @@ static void worker_direct_kafka_stream_command(
         cfg.timeThreshold      = configJson["timeThreshold"].get<uint64_t>();
         cfg.edgeThreshold      = configJson["edgeThreshold"].get<uint64_t>();
         cfg.initialSnapshotId  = configJson["initialSnapshotId"].get<uint32_t>();
+        cfg.csvInputMode       = configJson.value("csvInputMode", false);
         cfg.numConsumerThreads = configJson["numConsumerThreads"].get<int>();
         cfg.workerIndex        = configJson.value("workerIndex", 0);
         for (auto& p : configJson["ownedPartitions"]) {

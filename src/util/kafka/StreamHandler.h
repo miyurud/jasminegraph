@@ -36,7 +36,7 @@ class StreamHandler {
     StreamHandler(KafkaConnector *kstream, int numberOfPartitions,
                   std::vector<DataPublisher *> &workerClients, SQLiteDBInterface* sqlite,
                   int graphId, bool isDirected, spt::Algorithms algo = spt::Algorithms::HASH,
-                  bool isNewGraph = false);
+                  bool isNewGraph = false, bool csvInputMode = false);
     ~StreamHandler() noexcept;
     void listen_to_kafka_topic();
     void listenViaDirectWorkers(const std::string& topic,
@@ -60,6 +60,7 @@ class StreamHandler {
     std::string stream_topic_name;
     std::vector<DataPublisher *> &workerClients;
     int numberOfPartitions;
+   bool csvInputMode;
 
     // Batch publishing optimization
     static constexpr size_t BATCH_SIZE = 1000;

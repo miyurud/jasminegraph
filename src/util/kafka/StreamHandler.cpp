@@ -13,7 +13,9 @@ limitations under the License.
 
 #include "StreamHandler.h"
 
+#include <algorithm>
 #include <chrono>
+#include <cctype>
 #include <nlohmann/json.hpp>
 #include <string>
 #include <stdlib.h>
@@ -38,6 +40,97 @@ namespace {
 Logger& streamHandlerLogger() {
     static Logger logger;
     return logger;
+}
+
+std::string trimCopy(const std::string& input) {
+    size_t start = 0;
+    size_t end = input.size();
+    while (start < end && std::isspace(static_cast<unsigned char>(input[start]))) {
+        start++;
+    }
+    while (end > start && std::isspace(static_cast<unsigned char>(input[end - 1]))) {
+        end--;
+    }
+    return input.substr(start, end - start);
+}
+
+std::string stripOptionalQuotes(const std::string& value) {
+    std::string out = trimCopy(value);
+    if (out.size() >= 2 && out.front() == '"' && out.back() == '"') {
+        out = out.substr(1, out.size() - 2);
+    }
+    return trimCopy(out);
+}
+
+bool parseCsvEdgePayload(const std::string& payload, std::string& sourceId, std::string& targetId) {
+    std::string line = trimCopy(payload);
+    if (line.empty()) {
+        return false;
+    }
+
+    size_t commaPos = line.find(',');
+    if (commaPos == std::string::npos) {
+        return false;
+    }
+
+    sourceId = stripOptionalQuotes(line.substr(0, commaPos));
+    targetId = stripOptionalQuotes(line.substr(commaPos + 1));
+
+    if (sourceId.empty() || targetId.empty()) {
+        return false;
+    }
+
+    std::string srcLower = sourceId;
+    std::string dstLower = targetId;
+    std::transform(srcLower.begin(), srcLower.end(), srcLower.begin(), [](unsigned char c) {
+        return static_cast<char>(std::tolower(c));
+    });
+    std::transform(dstLower.begin(), dstLower.end(), dstLower.begin(), [](unsigned char c) {
+        return static_cast<char>(std::tolower(c));
+    });
+
+    if (srcLower == "source" && dstLower == "target") {
+        return false;
+    }
+
+    return true;
+}
+
+bool normalizeKafkaPayloadToEdgeJson(const std::string& payload, bool csvInputMode,
+                                     json& edgeJson, std::string& error) {
+    if (!csvInputMode) {
+        try {
+            edgeJson = json::parse(payload);
+            return true;
+        } catch (const std::exception& e) {
+            error = e.what();
+            return false;
+        }
+    }
+
+    std::string trimmed = trimCopy(payload);
+    if (!trimmed.empty() && trimmed.front() == '{') {
+        try {
+            edgeJson = json::parse(trimmed);
+            return true;
+        } catch (const std::exception& e) {
+            error = e.what();
+            return false;
+        }
+    }
+
+    std::string sourceId;
+    std::string targetId;
+    if (!parseCsvEdgePayload(payload, sourceId, targetId)) {
+        return false;
+    }
+
+    edgeJson = {
+        {"source", {{"id", sourceId}, {"properties", {{"name", "Node_" + sourceId}}}}},
+        {"destination", {{"id", targetId}, {"properties", {{"name", "Node_" + targetId}}}}},
+        {"properties", {{"publication", "1"}, {"title", "CSV"}, {"graphId", "1"}}}
+    };
+    return true;
 }
 }  // namespace
 
@@ -74,7 +167,7 @@ static std::string getTemporalSnapshotDir() {
 StreamHandler::StreamHandler(KafkaConnector *kstream, int numberOfPartitions,
                              vector<DataPublisher *> &workerClients, SQLiteDBInterface* sqlite,
                              int graphId, bool isDirected, spt::Algorithms algorithms,
-                             bool isNewGraph)
+                                                         bool isNewGraph, bool csvInputMode)
         : kstream(kstream),
           graphId(graphId),
           workerClients(workerClients),
@@ -83,6 +176,7 @@ StreamHandler::StreamHandler(KafkaConnector *kstream, int numberOfPartitions,
           currentSnapshot(0),
           centralTemporalStore(nullptr),
           numberOfPartitions(numberOfPartitions),
+                    csvInputMode(csvInputMode),
           stopPublishing(false),
           snapshotsFinalized(false),
           globalSnapshotId(0) {
@@ -556,17 +650,27 @@ void StreamHandler::consumerThreadFunc(int threadId,
 
             if (isEndOfStream(msg)) {
                 streamHandlerLogger().info("Thread " + std::to_string(threadId) +
-                                           " received termination signal (-1) on its partition");
-                // Do not terminate other threads here. EOS ordering is partition-local,
-                // so other partitions may still carry data before their own -1 marker.
-                break;
+                                           " observed termination signal (-1)");
+                // Do not stop on EOS immediately. A thread can momentarily own multiple
+                // Kafka partitions; stopping on first EOS may leave another assigned
+                // partition undrained. Continue consuming until natural idle timeout.
+                continue;
             }
             if (isErrorInMessage(msg)) continue;
 
             // ---- 1. JSON PARSE ----
             auto parse_start = std::chrono::high_resolution_clock::now();
             string data(msg.get_payload());
-            auto edgeJson = json::parse(data);
+            json edgeJson;
+            std::string parseError;
+            if (!normalizeKafkaPayloadToEdgeJson(data, csvInputMode, edgeJson, parseError)) {
+                if (!parseError.empty()) {
+                    streamHandlerLogger().warn("Failed to parse Kafka payload in " +
+                                               std::string(csvInputMode ? "CSV" : "JSON") +
+                                               " mode: " + parseError);
+                }
+                continue;
+            }
 
             auto prop = edgeJson["properties"];
             prop["graphId"] = to_string(this->graphId);
@@ -976,6 +1080,7 @@ void StreamHandler::listenViaDirectWorkers(
         configJson["timeThreshold"]      = timeThreshold;
         configJson["edgeThreshold"]      = edgeThreshold;
         configJson["initialSnapshotId"]  = initialSnapshotId;
+        configJson["csvInputMode"]       = csvInputMode;
         // Thread count = total Kafka topic partitions (worker reads ALL of them in its own group).
         // Owned graph partitions are a separate concept — they control which EDGES are stored,
         // not how many Kafka partitions this worker's consumer group is assigned.
