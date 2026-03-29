@@ -13,6 +13,7 @@ limitations under the License.
 
 #include "RelationBlock.h"
 
+#include <memory>
 #include <sstream>
 #include <vector>
 
@@ -747,7 +748,7 @@ thread_local unsigned int RelationBlock::nextCentralRelationIndex =
 
 void RelationBlock::addLocalProperty(std::string name, char* value) {
     if (this->propertyAddress == 0) {
-        PropertyEdgeLink* newLink = PropertyEdgeLink::create(name, value);
+        std::unique_ptr<PropertyEdgeLink> newLink(PropertyEdgeLink::create(name, value));
         if (newLink) {
             this->propertyAddress = newLink->blockAddress;
             // If it was an empty prop link before inserting, Then update the property reference of this node
@@ -758,12 +759,15 @@ void RelationBlock::addLocalProperty(std::string name, char* value) {
                     std::to_string(this->addr) + " node block");
         }
     } else {
-        this->propertyAddress = this->getPropertyHead()->insert(name, value);
+        std::unique_ptr<PropertyEdgeLink> propertyHead(this->getPropertyHead());
+        if (propertyHead) {
+            this->propertyAddress = propertyHead->insert(name, value);
+        }
     }
 }
 void RelationBlock::addCentralProperty(std::string name, char* value) {
     if (this->propertyAddress == 0) {
-        PropertyEdgeLink* newLink = PropertyEdgeLink::create(name, value);
+        std::unique_ptr<PropertyEdgeLink> newLink(PropertyEdgeLink::create(name, value));
         if (newLink) {
             this->propertyAddress = newLink->blockAddress;
             // If it was an empty prop link before inserting, Then update the property reference of this node
@@ -774,13 +778,16 @@ void RelationBlock::addCentralProperty(std::string name, char* value) {
                     std::to_string(this->addr) + " node block");
         }
     } else {
-        this->propertyAddress = this->getPropertyHead()->insert(name, value);
+        std::unique_ptr<PropertyEdgeLink> propertyHead(this->getPropertyHead());
+        if (propertyHead) {
+            this->propertyAddress = propertyHead->insert(name, value);
+        }
     }
 }
 
 void RelationBlock::addMetaProperty(std::string name, char *value) {
     if (this->metaPropertyAddress == 0) {
-        MetaPropertyEdgeLink* newLink = MetaPropertyEdgeLink::create(name, value);
+        std::unique_ptr<MetaPropertyEdgeLink> newLink(MetaPropertyEdgeLink::create(name, value));
         if (newLink) {
             this->metaPropertyAddress = newLink->blockAddress;
             // If it was an empty prop link before inserting, Then update the property reference of this node
@@ -792,7 +799,10 @@ void RelationBlock::addMetaProperty(std::string name, char *value) {
                                         std::to_string(this->addr) + " node block");
         }
     } else {
-        this->metaPropertyAddress = this->getMetaPropertyHead()->insert(name, value);
+        std::unique_ptr<MetaPropertyEdgeLink> metaPropertyHead(this->getMetaPropertyHead());
+        if (metaPropertyHead) {
+            this->metaPropertyAddress = metaPropertyHead->insert(name, value);
+        }
     }
 }
 

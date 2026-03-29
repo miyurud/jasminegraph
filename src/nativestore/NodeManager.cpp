@@ -249,8 +249,8 @@ std::unordered_map<std::string, unsigned int> NodeManager::readEdgeIndex() {
 RelationBlock *NodeManager::addLocalRelation(NodeBlock source, NodeBlock destination) {
     RelationBlock *newRelation = NULL;
 
-        RelationBlock *relationBlock = new RelationBlock(source, destination);
-        newRelation = relationBlock->addLocalRelation(source, destination);
+        RelationBlock relationBlock(source, destination);
+        newRelation = relationBlock.addLocalRelation(source, destination);
         if (newRelation) {
             source.updateLocalRelation(newRelation, true);
             destination.updateLocalRelation(newRelation, true);
@@ -271,8 +271,8 @@ RelationBlock *NodeManager::addLocalRelation(NodeBlock source, NodeBlock destina
 RelationBlock *NodeManager::addCentralRelation(NodeBlock source, NodeBlock destination) {
     RelationBlock *newRelation = NULL;
 
-        RelationBlock *relationBlock = new RelationBlock(source, destination);
-        newRelation = relationBlock->addCentralRelation(source, destination);
+        RelationBlock relationBlock(source, destination);
+        newRelation = relationBlock.addCentralRelation(source, destination);
         if (newRelation) {
             source.updateCentralRelation(newRelation, true);
             destination.updateCentralRelation(newRelation, true);

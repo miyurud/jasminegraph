@@ -125,6 +125,7 @@ void JasmineGraphIncrementalLocalStore::addEdgeFromJson(const json& edgeJson) {
       std::string sourcePid = std::to_string(edgeJson["pid"].get<int>());
       strcpy(meta, sourcePid.c_str());
       newNode->addMetaProperty(MetaPropertyLink::PARTITION_ID, &meta[0]);
+      delete newNode;
       return;
     }
 
@@ -154,6 +155,12 @@ void JasmineGraphIncrementalLocalStore::addEdgeFromJson(const json& edgeJson) {
 
     addSourceProperties(newRelation, sourceJson);
     addDestinationProperties(newRelation, destinationJson);
+
+    // Release per-edge objects created by NodeManager for streaming ingest.
+    delete newRelation->getSource();
+    delete newRelation->getDestination();
+    delete newRelation;
+
     incremental_localstore_logger.debug("Edge (" + sId + ", " + dId +
                                         ") Added successfully!");
   } catch (const json::type_error &ex) {
