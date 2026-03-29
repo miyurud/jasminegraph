@@ -68,6 +68,8 @@ class RelationBlock {
 
     NodeBlock *sourceBlock;
     NodeBlock *destinationBlock;
+    bool ownsSourceBlock = false;
+    bool ownsDestinationBlock = false;
 
  public:
     RelationBlock(NodeBlock source, NodeBlock destination) {
@@ -78,8 +80,8 @@ class RelationBlock {
     RelationBlock(unsigned int addr, NodeRelation source, NodeRelation destination, unsigned int propertyAddress,
                   std::string type) : addr(addr), source(source), destination(destination),
                   propertyAddress(propertyAddress), type(type){
-        this->sourceBlock = NodeBlock::get(source.address);
-        this->destinationBlock = NodeBlock::get(destination.address);
+        this->sourceBlock = nullptr;
+        this->destinationBlock = nullptr;
         this->source = source;
         this->destination = destination;
     };
@@ -88,11 +90,13 @@ class RelationBlock {
                   unsigned int metaPropertyAddress, std::string type) : addr(address), source(source),
                   destination(destination), propertyAddress(propertyAddress), metaPropertyAddress(metaPropertyAddress),
                   type(type){
-        this->sourceBlock = NodeBlock::get(source.address);
-        this->destinationBlock = NodeBlock::get(destination.address);
+        this->sourceBlock = nullptr;
+        this->destinationBlock = nullptr;
         this->source = source;
         this->destination = destination;
     };
+
+    ~RelationBlock();
 
     char usage;
     unsigned int addr = 0;  // Block size * block ID for this block
@@ -137,8 +141,20 @@ class RelationBlock {
 
     NodeBlock *getSource();
     NodeBlock *getDestination();
-    void setSource(NodeBlock *src) { sourceBlock = src; };
-    void setDestination(NodeBlock *dst) { destinationBlock = dst; };
+    void setSource(NodeBlock *src) {
+        if (ownsSourceBlock && sourceBlock) {
+            delete sourceBlock;
+        }
+        sourceBlock = src;
+        ownsSourceBlock = false;
+    };
+    void setDestination(NodeBlock *dst) {
+        if (ownsDestinationBlock && destinationBlock) {
+            delete destinationBlock;
+        }
+        destinationBlock = dst;
+        ownsDestinationBlock = false;
+    };
 
 
     RelationBlock *previousLocalSource();

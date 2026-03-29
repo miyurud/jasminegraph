@@ -740,6 +740,17 @@ bool RelationBlock::updateCentralRelationshipType(int offset, std::string data) 
 }
 
 bool RelationBlock::isInUse() { return this->usage == '\1'; }
+
+RelationBlock::~RelationBlock() {
+    if (ownsSourceBlock && sourceBlock) {
+        delete sourceBlock;
+        sourceBlock = nullptr;
+    }
+    if (ownsDestinationBlock && destinationBlock) {
+        delete destinationBlock;
+        destinationBlock = nullptr;
+    }
+}
 thread_local unsigned int RelationBlock::nextLocalRelationIndex =
         1;  // Starting with 1 because of the 0 and '\0' differentiation issue
 thread_local unsigned int RelationBlock::nextCentralRelationIndex =
@@ -880,6 +891,11 @@ NodeBlock* RelationBlock::getSource() {
     if (this->sourceBlock) {
         return sourceBlock;
     }
+    if (this->source.address != 0) {
+        this->sourceBlock = NodeBlock::get(this->source.address);
+        this->ownsSourceBlock = true;
+        return sourceBlock;
+    }
     relation_block_logger.warn("Get source from node block address is not implemented yet!");
     return NULL;
 }
@@ -890,6 +906,11 @@ NodeBlock* RelationBlock::getSource() {
  * */
 NodeBlock* RelationBlock::getDestination() {
     if (this->destinationBlock) {
+        return destinationBlock;
+    }
+    if (this->destination.address != 0) {
+        this->destinationBlock = NodeBlock::get(this->destination.address);
+        this->ownsDestinationBlock = true;
         return destinationBlock;
     }
     relation_block_logger.warn("Get destination from node block address is not implemented yet!");

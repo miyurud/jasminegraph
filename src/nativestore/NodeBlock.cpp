@@ -148,14 +148,10 @@ void NodeBlock::addMetaProperty(std::string name, const char* value) {
     }
 }
 
-static void freeRelationBlockWithNodes(RelationBlock* relation) {
+static void freeRelationBlock(RelationBlock* relation) {
     if (!relation) {
         return;
     }
-    NodeBlock* source = relation->getSource();
-    NodeBlock* destination = relation->getDestination();
-    delete source;
-    delete destination;
     delete relation;
 }
 
@@ -183,7 +179,7 @@ bool NodeBlock::updateLocalRelation(RelationBlock* newRelation, bool relocateHea
             }
         }
         bool result = this->setLocalRelationHead(*newRelation);
-        freeRelationBlockWithNodes(currentHead);
+        freeRelationBlock(currentHead);
         return result;
     }
     RelationBlock* currentRelation = currentHead;
@@ -195,21 +191,21 @@ bool NodeBlock::updateLocalRelation(RelationBlock* newRelation, bool relocateHea
         if (currentRelation->source.address == this->addr) {
             if (currentRelation->source.nextRelationId == 0) {
                 bool result = currentRelation->setLocalNextSource(edgeReferenceAddress);
-                freeRelationBlockWithNodes(currentRelation);
+                freeRelationBlock(currentRelation);
                 return result;
             }
             nextRelation = currentRelation->nextLocalSource();
         } else if (!this->isDirected && currentRelation->destination.address == this->addr) {
             if (currentRelation->destination.nextRelationId == 0) {
                 bool result = currentRelation->setLocalNextDestination(edgeReferenceAddress);
-                freeRelationBlockWithNodes(currentRelation);
+                freeRelationBlock(currentRelation);
                 return result;
             }
             nextRelation = currentRelation->nextLocalDestination();
         } else {
             node_block_logger.warn("Invalid relation block" + std::to_string(currentRelation->addr));
         }
-        freeRelationBlockWithNodes(currentRelation);
+        freeRelationBlock(currentRelation);
         currentRelation = nextRelation;
     }
     return false;
@@ -239,7 +235,7 @@ bool NodeBlock::updateCentralRelation(RelationBlock* newRelation, bool relocateH
             }
         }
         bool result = this->setCentralRelationHead(*newRelation);
-        freeRelationBlockWithNodes(currentHead);
+        freeRelationBlock(currentHead);
         return result;
     } else {
         RelationBlock* currentRelation = currentHead;
@@ -252,7 +248,7 @@ bool NodeBlock::updateCentralRelation(RelationBlock* newRelation, bool relocateH
             if (currentRelation->source.address == this->addr) {
                 if (currentRelation->source.nextRelationId == 0) {
                     bool result = currentRelation->setCentralNextSource(edgeReferenceAddress);
-                    freeRelationBlockWithNodes(currentRelation);
+                    freeRelationBlock(currentRelation);
                     return result;
                 } else {
                     nextRelation = currentRelation->nextCentralSource();
@@ -260,7 +256,7 @@ bool NodeBlock::updateCentralRelation(RelationBlock* newRelation, bool relocateH
             } else if (!this->isDirected && currentRelation->destination.address == this->addr) {
                 if (currentRelation->destination.nextRelationId == 0) {
                     bool result = currentRelation->setCentralNextDestination(edgeReferenceAddress);
-                    freeRelationBlockWithNodes(currentRelation);
+                    freeRelationBlock(currentRelation);
                     return result;
                 } else {
                     nextRelation = currentRelation->nextCentralDestination();
@@ -268,7 +264,7 @@ bool NodeBlock::updateCentralRelation(RelationBlock* newRelation, bool relocateH
             } else {
                 node_block_logger.warn("Invalid relation block : " + std::to_string(currentRelation->addr));
             }
-            freeRelationBlockWithNodes(currentRelation);
+            freeRelationBlock(currentRelation);
             currentRelation = nextRelation;
         }
         return false;
