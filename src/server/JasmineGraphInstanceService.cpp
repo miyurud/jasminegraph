@@ -61,7 +61,7 @@ std::string masterIP;
 
 static void handshake_command(int connFd, bool *loop_exit_p);
 static inline void close_command(int connFd, bool *loop_exit_p);
-__attribute__((noreturn)) static inline void shutdown_command(int connFd);
+static inline void shutdown_command(int connFd, bool *loop_exit_p);
 static void ready_command(int connFd, bool *loop_exit_p);
 static void batch_upload_command(int connFd, bool *loop_exit_p);
 static void batch_upload_central_command(int connFd, bool *loop_exit_p);
@@ -219,7 +219,7 @@ void *instanceservicesession(void *dummyPt) {
         } else if (line.compare(JasmineGraphInstanceProtocol::CLOSE) == 0) {
             close_command(connFd, &loop_exit);
         } else if (line.compare(JasmineGraphInstanceProtocol::SHUTDOWN) == 0) {
-            shutdown_command(connFd);
+            shutdown_command(connFd, &loop_exit);
         } else if (line.compare(JasmineGraphInstanceProtocol::READY) == 0) {
             ready_command(connFd, &loop_exit);
         } else if (line.compare(JasmineGraphInstanceProtocol::BATCH_UPLOAD) == 0) {
@@ -2063,11 +2063,11 @@ static inline void close_command(int connFd, bool *loop_exit_p) {
     close(connFd);
 }
 
-static inline void shutdown_command(int connFd) {
+static inline void shutdown_command(int connFd, bool *loop_exit_p) {
+    *loop_exit_p = true;
     close(connFd);
     pid_t ppid = getppid();
     kill(ppid, SIGTERM);
-    exit(0);
 }
 
 static inline void ready_command(int connFd, bool *loop_exit_p) {
