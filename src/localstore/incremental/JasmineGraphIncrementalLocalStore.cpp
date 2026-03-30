@@ -52,6 +52,25 @@ JasmineGraphIncrementalLocalStore::JasmineGraphIncrementalLocalStore(
             "org.jasminegraph.vectorstore.embedding.model"));
   }
 };
+
+JasmineGraphIncrementalLocalStore::~JasmineGraphIncrementalLocalStore() {
+  if (nm) {
+    nm->close();
+    delete nm;
+    nm = nullptr;
+  }
+
+  if (embedding_requests) {
+    delete embedding_requests;
+    embedding_requests = nullptr;
+  }
+
+  if (embedNode && textEmbedder) {
+    delete textEmbedder;
+    textEmbedder = nullptr;
+  }
+}
+
 bool JasmineGraphIncrementalLocalStore::getAndStoreEmbeddings() {
   std::vector<string> batch_request;
   for (EmbeddingRequest& request : *embedding_requests) {
@@ -64,6 +83,7 @@ bool JasmineGraphIncrementalLocalStore::getAndStoreEmbeddings() {
   }
   embedding_requests->clear();
   faissStore->save();
+  return true;
 }
 
 std::pair<std::string, unsigned int> JasmineGraphIncrementalLocalStore::getIDs(

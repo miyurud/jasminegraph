@@ -410,6 +410,13 @@ void JasmineGraphInstanceService::run(string masterHost, string host, int server
         }
     }
 
+    // Explicitly release incremental stores to run their destructors before process exit.
+    for (auto &entry : incrementalLocalStore) {
+        delete entry.second;
+        entry.second = nullptr;
+    }
+    incrementalLocalStore.clear();
+
     pthread_mutex_destroy(&file_lock);
     exit(0);  // FIXME: Cleanup before exit.
 }
