@@ -61,7 +61,6 @@ TRUNCATE = b'truncate'
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 KAFKA_TOPIC = 'stream-triangle-test'
-KAFKA_CONTAINER = 'integration-kafka-1'
 DOCKER_COMPOSE_FILE = os.path.join(BASE_DIR, 'docker-compose.yml')
 UPLOAD_SCRIPT = os.path.join(BASE_DIR, 'utils/datasets/upload-hdfs-file.sh')
 OLLAMA_SETUP_SCRIPT = os.path.join(BASE_DIR, 'graphRAG/utils/start-ollama.sh')
@@ -77,27 +76,51 @@ def run_cmd(cmd):
     return result
 
 def kafka_up():
+    """Start the Kafka service for the streaming test."""
     run_cmd(['docker', 'compose', '-f', DOCKER_COMPOSE_FILE, 'up', '-d', 'kafka'])
 
+
 def kafka_down():
+    """Stop the Kafka service used by the streaming test."""
     run_cmd(['docker', 'compose', '-f', DOCKER_COMPOSE_FILE, 'stop', 'kafka'])
 
+
+def run_kafka_command(args, timeout=60, input_data=None):
+    """Run a Kafka command through docker compose service execution."""
+    result = subprocess.run(
+        ['docker', 'compose', '-f', DOCKER_COMPOSE_FILE, 'exec', '-T', 'kafka', *args],
+        capture_output=True,
+        text=True,
+        check=False,
+        timeout=timeout,
+        input=input_data,
+    )
+    if result.returncode != 0:
+        raise RuntimeError(
+            f"Kafka command failed: {' '.join(args)}\nSTDOUT:\n{result.stdout}\nSTDERR:\n{result.stderr}"
+        )
+    return result
+
+
 def wait_for_kafka(timeout=60):
+    """Wait until Kafka responds to topic listing requests."""
     deadline = time.time() + timeout
     while time.time() < deadline:
         try:
-            run_cmd([
-                'docker', 'exec', KAFKA_CONTAINER,
-                '/opt/kafka/bin/kafka-topics.sh', '--bootstrap-server', 'localhost:9092', '--list'
+            run_kafka_command([
+                '/opt/kafka/bin/kafka-topics.sh',
+                '--bootstrap-server', 'localhost:9092',
+                '--list'
             ])
             return
         except Exception:
             time.sleep(2)
     raise TimeoutError("Kafka broker did not become ready in time")
 
+
 def create_topic():
-    run_cmd([
-        'docker', 'exec', KAFKA_CONTAINER,
+    """Create the Kafka topic used by the streaming test."""
+    run_kafka_command([
         '/opt/kafka/bin/kafka-topics.sh',
         '--bootstrap-server', 'localhost:9092',
         '--create',
@@ -107,7 +130,9 @@ def create_topic():
         '--replication-factor', '1'
     ])
 
+
 def publish_stream(records, delay_sec=0.2):
+    """Publish the generated triangle stream to Kafka."""
     payload_lines = []
     for record in records:
         if isinstance(record, dict):
@@ -116,33 +141,21 @@ def publish_stream(records, delay_sec=0.2):
             payload_lines.append(str(record))
 
     payload = '\n'.join(payload_lines) + '\n'
-    result = subprocess.run(
-        [
-            'docker', 'exec', '-i', KAFKA_CONTAINER,
-            '/opt/kafka/bin/kafka-console-producer.sh',
-            '--bootstrap-server', 'localhost:9092',
-            '--topic', KAFKA_TOPIC
-        ],
-        input=payload,
-        capture_output=True,
-        text=True,
-        check=False
-    )
-    if result.returncode != 0:
-        raise RuntimeError(
-            'Failed to publish kafka messages. '
-            f'STDOUT: {result.stdout} STDERR: {result.stderr}'
-        )
+    run_kafka_command([
+        '/opt/kafka/bin/kafka-console-producer.sh',
+        '--bootstrap-server', 'localhost:9092',
+        '--topic', KAFKA_TOPIC
+    ], input_data=payload)
 
     if delay_sec > 0:
         time.sleep(delay_sec)
 
+
 def consume_stream(expected_messages, consumed_records, stop_event):
-    if stop_event.is_set():
-        return
-    result = subprocess.run(
+    """Consume a bounded number of Kafka messages until completion or stop."""
+    process = subprocess.Popen(
         [
-            'docker', 'exec', KAFKA_CONTAINER,
+            'docker', 'compose', '-f', DOCKER_COMPOSE_FILE, 'exec', '-T', 'kafka',
             '/opt/kafka/bin/kafka-console-consumer.sh',
             '--bootstrap-server', 'localhost:9092',
             '--topic', KAFKA_TOPIC,
@@ -150,14 +163,27 @@ def consume_stream(expected_messages, consumed_records, stop_event):
             '--max-messages', str(expected_messages),
             '--timeout-ms', '30000'
         ],
-        capture_output=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
         text=True,
-        check=False
     )
-    if result.returncode not in (0, 124):
-        return
-    stdout_lines = [line.strip() for line in result.stdout.splitlines() if line.strip()]
-    consumed_records.extend(stdout_lines)
+
+    while process.poll() is None:
+        if stop_event.is_set():
+            process.terminate()
+            break
+        time.sleep(0.5)
+
+    try:
+        stdout, _stderr = process.communicate(timeout=5)
+    except subprocess.TimeoutExpired:
+        process.kill()
+        stdout, _stderr = process.communicate()
+
+    if process.returncode in (0, 124) and stdout:
+        stdout_lines = [line.strip() for line in stdout.splitlines() if line.strip()]
+        consumed_records.extend(stdout_lines)
+
 
 def recv_until_contains(conn: socket.socket, expected_tokens, timeout=30):
     deadline = time.time() + timeout
@@ -181,6 +207,7 @@ def recv_until_contains(conn: socket.socket, expected_tokens, timeout=30):
     )
 
 def configure_streaming_graph(conn: socket.socket):
+    """Configure a new streaming graph with the default Kafka consumer path."""
     conn.sendall(ADSTRMK + LINE_END)
     recv_until_contains(conn, [b'existing graph'])
 
@@ -199,7 +226,7 @@ def configure_streaming_graph(conn: socket.socket):
     conn.sendall(b'1' + LINE_END)
     recv_until_contains(conn, [b'Directed'])
 
-    conn.sendall(b'n' + LINE_END)
+    conn.sendall(b'y' + LINE_END)
     recv_until_contains(conn, [b'default KAFKA consumer'])
 
     conn.sendall(b'y' + LINE_END)
@@ -211,12 +238,15 @@ def configure_streaming_graph(conn: socket.socket):
     return graph_id
 
 def send_stopstrian(host, port):
+    """Send the stopstrian command."""
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as stop_socket:
         stop_socket.settimeout(10)
         stop_socket.connect((host, port))
         stop_socket.sendall(STOPSTRIAN + LINE_END)
 
+
 def cleanup_streaming_graph(host, port, graph_id):
+    """Remove the temporary graph created for the streaming test."""
     if not graph_id:
         return
 
@@ -231,6 +261,7 @@ def cleanup_streaming_graph(host, port, graph_id):
         recv_until_contains(cleanup_socket, [b'done'])
 
 def list_graphs(host, port):
+    """Return the current graph list from the server."""
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as list_socket:
         list_socket.settimeout(1)
         list_socket.connect((host, port))
@@ -257,6 +288,7 @@ def list_graphs(host, port):
     return graphs
 
 def get_graph_id_by_path(host, port, graph_path, prefer='lowest'):
+    """Resolve a graph ID by matching the stored graph path or name."""
     def normalize_path(path):
         if path.startswith('hdfs:'):
             return path[len('hdfs:'):]
@@ -276,6 +308,7 @@ def get_graph_id_by_path(host, port, graph_path, prefer='lowest'):
     return str(ids[0])
 
 def query_streaming_triangle_count(host, port, graph_id, mode='0', result_timeout=120):
+    """Query the streaming triangle count and parse the returned count."""
     try:
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as strian_sock:
             strian_sock.settimeout(30)
@@ -304,6 +337,7 @@ def query_streaming_triangle_count(host, port, graph_id, mode='0', result_timeou
     return int(count_match.group(1)), decoded_response
 
 def test_streaming_triangle_count_with_kafka(host, port):
+    """Exercise Kafka-backed streaming triangle counting end-to-end."""
     logging.info('Testing Kafka streaming triangle counting integration')
 
     graph_id = None
@@ -340,7 +374,7 @@ def test_streaming_triangle_count_with_kafka(host, port):
 
         publish_stream(records, delay_sec=1.0)
 
-        expected_triangle_count = 0
+        expected_triangle_count = len(records) // 3
         latest_triangle_count = 0
         latest_response = ''
 
@@ -378,20 +412,25 @@ def test_streaming_triangle_count_with_kafka(host, port):
             )
 
         if latest_triangle_count < expected_triangle_count:
-            logging.warning(
+            raise RuntimeError(
                 '[Streaming] Streaming triangle count below threshold. '
-                'Expected >= %s, got %s. Last response: %s',
-                expected_triangle_count,
-                latest_triangle_count,
-                latest_response
+                f'Expected >= {expected_triangle_count}, got {latest_triangle_count}. '
+                f'Last response: {latest_response}'
             )
 
         logging.info('[Streaming] Streaming triangle counting integration test passed')
     except Exception as streaming_error:
-        logging.warning(
-            '[Streaming] Encountered error but marking test as passed as requested: %s',
-            str(streaming_error)
-        )
+        if os.getenv('JASMINEGRAPH_ALLOW_STREAMING_TEST_FAILURE_SUPPRESSION') == '1':
+            logging.warning(
+                '[Streaming] Encountered error but marking test as passed as requested: %s',
+                str(streaming_error)
+            )
+        else:
+            logging.error(
+                '[Streaming] Streaming triangle counting integration test failed: %s',
+                str(streaming_error)
+            )
+            raise
     finally:
         stop_consumer.set()
         try:
