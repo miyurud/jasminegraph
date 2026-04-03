@@ -9,6 +9,7 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 """
+# pylint: disable=too-many-lines
 
 import sys
 import socket
@@ -97,7 +98,8 @@ def run_kafka_command(args, timeout=60, input_data=None):
     )
     if result.returncode != 0:
         raise RuntimeError(
-            f"Kafka command failed: {' '.join(args)}\nSTDOUT:\n{result.stdout}\nSTDERR:\n{result.stderr}"
+            'Kafka command failed: '
+            f"{' '.join(args)}\nSTDOUT:\n{result.stdout}\nSTDERR:\n{result.stderr}"
         )
     return result
 
@@ -115,7 +117,7 @@ def wait_for_kafka(timeout=60):
             return
         except Exception:
             time.sleep(2)
-    raise TimeoutError("Kafka broker did not become ready in time")
+    raise TimeoutError('Kafka broker did not become ready in time')
 
 
 def create_topic():
@@ -153,32 +155,32 @@ def publish_stream(records, delay_sec=0.2):
 
 def consume_stream(expected_messages, consumed_records, stop_event):
     """Consume a bounded number of Kafka messages until completion or stop."""
-    process = subprocess.Popen(
-        [
-            'docker', 'compose', '-f', DOCKER_COMPOSE_FILE, 'exec', '-T', 'kafka',
-            '/opt/kafka/bin/kafka-console-consumer.sh',
-            '--bootstrap-server', 'localhost:9092',
-            '--topic', KAFKA_TOPIC,
-            '--from-beginning',
-            '--max-messages', str(expected_messages),
-            '--timeout-ms', '30000'
-        ],
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        text=True,
-    )
+    with subprocess.Popen(
+            [
+                'docker', 'compose', '-f', DOCKER_COMPOSE_FILE, 'exec', '-T', 'kafka',
+                '/opt/kafka/bin/kafka-console-consumer.sh',
+                '--bootstrap-server', 'localhost:9092',
+                '--topic', KAFKA_TOPIC,
+                '--from-beginning',
+                '--max-messages', str(expected_messages),
+                '--timeout-ms', '30000'
+            ],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+    ) as process:
 
-    while process.poll() is None:
-        if stop_event.is_set():
-            process.terminate()
-            break
-        time.sleep(0.5)
+        while process.poll() is None:
+            if stop_event.is_set():
+                process.terminate()
+                break
+            time.sleep(0.5)
 
-    try:
-        stdout, _stderr = process.communicate(timeout=5)
-    except subprocess.TimeoutExpired:
-        process.kill()
-        stdout, _stderr = process.communicate()
+        try:
+            stdout, _stderr = process.communicate(timeout=5)
+        except subprocess.TimeoutExpired:
+            process.kill()
+            stdout, _stderr = process.communicate()
 
     if process.returncode in (0, 124) and stdout:
         stdout_lines = [line.strip() for line in stdout.splitlines() if line.strip()]
@@ -186,6 +188,7 @@ def consume_stream(expected_messages, consumed_records, stop_event):
 
 
 def recv_until_contains(conn: socket.socket, expected_tokens, timeout=30):
+    """Receive from a socket until any expected token appears or timeout elapses."""
     deadline = time.time() + timeout
     data = bytearray()
     conn.settimeout(1)
@@ -295,10 +298,12 @@ def get_graph_id_by_path(host, port, graph_path, prefer='lowest'):
         return path
 
     target_path = normalize_path(graph_path)
-    graphs = [
-        graph for graph in list_graphs(host, port)
-        if normalize_path(graph['path']) == target_path or normalize_path(graph['name']) == target_path
-    ]
+    graphs = []
+    for graph in list_graphs(host, port):
+        graph_path_matches = normalize_path(graph['path']) == target_path
+        graph_name_matches = normalize_path(graph['name']) == target_path
+        if graph_path_matches or graph_name_matches:
+            graphs.append(graph)
     if not graphs:
         raise RuntimeError(f'Unable to find graph id for path: {graph_path}')
 
@@ -353,7 +358,7 @@ def query_streaming_triangle_count(host, port, graph_id, mode='0', result_timeou
 
     return int(count_text), decoded_response
 
-def test_streaming_triangle_count_with_kafka(host, port):
+def test_streaming_triangle_count_with_kafka(host, port):  # pylint: disable=too-many-branches
     """Exercise Kafka-backed streaming triangle counting end-to-end."""
     logging.info('Testing Kafka streaming triangle counting integration')
 
