@@ -103,7 +103,7 @@ wait_for_hadoop() {
             sleep 2
         done
 
-        if [ "$left_safe_mode" = true ]; then
+        if [[ "$left_safe_mode" = true ]]; then
             echo "Safe mode exited."
         else
             echo "Warning: Could not confirm safe mode exit. Continuing test setup."
