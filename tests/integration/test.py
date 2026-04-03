@@ -9,6 +9,7 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 """
+
 import sys
 import socket
 import logging
@@ -18,7 +19,8 @@ import json
 import re
 import subprocess
 import threading
-from utils.telnetScripts.validate_uploaded_graph import  test_graph_validation
+
+from utils.telnetScripts.validate_uploaded_graph import test_graph_validation
 
 logging.addLevelName(
     logging.INFO, f'\033[1;32m{logging.getLevelName(logging.INFO)}\033[1;0m')
@@ -66,7 +68,8 @@ OLLAMA_SETUP_SCRIPT = os.path.join(BASE_DIR, 'graphRAG/utils/start-ollama.sh')
 TEXT_FOLDER = os.path.join(BASE_DIR, 'graphRAG/KG/gold')
 
 def run_cmd(cmd):
-    result = subprocess.run(cmd, capture_output=True, text=True)
+    """Run a command and raise on failure."""
+    result = subprocess.run(cmd, capture_output=True, text=True, check=False)
     if result.returncode != 0:
         raise RuntimeError(
             f"Command failed: {' '.join(cmd)}\nSTDOUT:\n{result.stdout}\nSTDERR:\n{result.stderr}"
@@ -295,7 +298,9 @@ def query_streaming_triangle_count(host, port, graph_id, mode='0', result_timeou
     decoded_response = response.decode(errors='ignore')
     count_match = re.search(r'(\d+)\s+Time Taken:', decoded_response)
     if count_match is None:
-        raise RuntimeError(f'Unable to parse streaming triangle count from: {decoded_response}')
+        raise RuntimeError(
+            f'Unable to parse streaming triangle count from: {decoded_response}'
+        )
     return int(count_match.group(1)), decoded_response
 
 def test_streaming_triangle_count_with_kafka(host, port):
@@ -401,7 +406,7 @@ def test_streaming_triangle_count_with_kafka(host, port):
             kafka_down()
         except Exception as kafka_error:
             logging.warning('[Streaming] Kafka shutdown warning: %s', str(kafka_error))
-        
+
 def expect_response(conn: socket.socket, expected: bytes, timeout: float = 30000.0):
     """Check if the response is equal to the expected response within a timeout.
     Return True if they are equal, False otherwise.
@@ -544,8 +549,6 @@ def test(host, port):  # pylint: disable=too-many-branches
 
     small_property_graph_id = None
     small_property_graph_id_bytes = None
-    large_property_graph_id = None
-    large_property_graph_id_bytes = None
 
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
         sock.connect((host, port))
@@ -741,11 +744,6 @@ def test(host, port):  # pylint: disable=too-many-branches
                                  b'Is this a directed graph(y/n)?',
                                  exit_on_failure=True)
         send_and_expect_response(sock, 'adhdfs', b'y', DONE, exit_on_failure=True)
-
-        large_property_graph_id = get_graph_id_by_path(
-            host, port, '/home/graph_with_properties_large.txt', prefer='highest'
-        )
-        large_property_graph_id_bytes = large_property_graph_id.encode()
 
         print()
         logging.info('[Adhdfs] Testing uploaded graph')
