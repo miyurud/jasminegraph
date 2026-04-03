@@ -255,6 +255,7 @@ done
 sleep 2
 stop_tests_on_failure &
 
+JASMINEGRAPH_ENABLE_STREAMING_TEST="${JASMINEGRAPH_ENABLE_STREAMING_TEST:-1}" \
 timeout "$TIMEOUT_SECONDS" python3 -u "${TEST_ROOT}/test.py" |& tee "$TEST_LOG"
 exit_code="${PIPESTATUS[0]}"
 set +ex

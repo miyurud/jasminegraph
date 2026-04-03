@@ -25,7 +25,7 @@ RUN_LOG="${LOG_DIR}/run_master.log"
 MASTER_LOG="${LOG_DIR}/master.log"
 TEST_LOG="${LOG_DIR}/test.log"
 WORKER_LOG_DIR="/tmp/jasminegraph"
-rm -rf "${WORKER_LOG_DIR}"
+rm -rf "${WORKER_LOG_DIR}" &>/dev/null || sudo rm -rf "${WORKER_LOG_DIR}" &>/dev/null || true
 mkdir -p "${WORKER_LOG_DIR}"
 
 MASTER_LOG_PID=""
@@ -297,6 +297,7 @@ echo '------------------ services -----------------------------------'
 kubectl get services -o wide
 echo
 
+JASMINEGRAPH_ENABLE_STREAMING_TEST="${JASMINEGRAPH_ENABLE_STREAMING_TEST:-0}" \
 timeout "$TIMEOUT_SECONDS" python3 -u "${TEST_ROOT}/test-k8s.py" "$masterIP" |& tee "$TEST_LOG"
 exit_code="${PIPESTATUS[0]}"
 

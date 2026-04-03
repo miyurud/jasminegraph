@@ -329,12 +329,29 @@ def query_streaming_triangle_count(host, port, graph_id, mode='0', result_timeou
             pass
 
     decoded_response = response.decode(errors='ignore')
-    count_match = re.search(r'(\d+)\s+Time Taken:', decoded_response)
-    if count_match is None:
+    marker = 'Time Taken:'
+    marker_index = decoded_response.find(marker)
+    if marker_index == -1:
         raise RuntimeError(
             f'Unable to parse streaming triangle count from: {decoded_response}'
         )
-    return int(count_match.group(1)), decoded_response
+
+    prefix = decoded_response[:marker_index]
+    end_index = len(prefix) - 1
+    while end_index >= 0 and prefix[end_index].isspace():
+        end_index -= 1
+
+    start_index = end_index
+    while start_index >= 0 and prefix[start_index].isdigit():
+        start_index -= 1
+
+    count_text = prefix[start_index + 1:end_index + 1]
+    if not count_text:
+        raise RuntimeError(
+            f'Unable to parse streaming triangle count from: {decoded_response}'
+        )
+
+    return int(count_text), decoded_response
 
 def test_streaming_triangle_count_with_kafka(host, port):
     """Exercise Kafka-backed streaming triangle counting end-to-end."""
@@ -1089,9 +1106,14 @@ def test(host, port):  # pylint: disable=too-many-branches
                                       'tests/integration/utils/expected_output/'
                                       'orderby_expected_output_file.txt',exit_on_failure=True)
 
-        print()
-        logging.info('Testing strian')
-        test_streaming_triangle_count_with_kafka(host, port)
+        enable_streaming_test = os.getenv('JASMINEGRAPH_ENABLE_STREAMING_TEST', '1') == '1'
+        if enable_streaming_test:
+            print()
+            logging.info('Testing strian')
+            test_streaming_triangle_count_with_kafka(host, port)
+        else:
+            print()
+            logging.info('Skipping strian test (JASMINEGRAPH_ENABLE_STREAMING_TEST != 1)')
         # removing all the uploaded graphs after testing
         print()
         logging.info('Removing all uploaded graphs after testing')

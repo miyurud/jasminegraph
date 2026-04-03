@@ -96,7 +96,14 @@ kubectl wait --for=condition=Ready pod --all -n loki --timeout=180s
 sleep .2
 
 helm install grafana-alloy grafana/alloy -n loki -f ./k8s/helm/alloy.yaml
-kubectl wait --for=condition=Ready pod -l app.kubernetes.io/name=alloy -n loki --timeout=180s
+alloy_selector="app.kubernetes.io/instance=grafana-alloy"
+if ! timeout "$TIMEOUT_SECONDS" bash -c "until kubectl get pods -n loki -l \"$alloy_selector\" -o name | grep -q '^pod/'; do sleep 2; done"; then
+    echo "Timed out waiting for Grafana Alloy pods to be created"
+    kubectl get pods -n loki -o wide || true
+    exit 1
+fi
+
+kubectl wait --for=condition=Ready pod -n loki -l "$alloy_selector" --timeout=180s
 sleep .2
 
 helm install grafana grafana/grafana -n grafana --create-namespace -f ./k8s/helm/grafana.yaml
