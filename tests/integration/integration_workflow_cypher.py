@@ -15,6 +15,56 @@ import integration_common as common
 from utils.telnetScripts.validate_uploaded_graph import test_graph_validation
 
 
+HDFS_USE_DEFAULT_PROMPT = b'Do you want to use the default HDFS server(y/n)?'
+HDFS_CONFIG_PROMPT = b'Send the file path to the HDFS configuration file.'
+HDFS_CONFIG_PROMPT_SUFFIX = b' This file needs to be in some directory location '
+HDFS_CONFIG_PROMPT_SUFFIX_2 = b'that is accessible for JasmineGraph master'
+HDFS_FILE_PATH_PROMPT = b'HDFS file path: '
+HDFS_CONFIG_PATH = b'/var/tmp/config/hdfs_config.txt'
+HDFS_IS_EDGE_LIST_PROMPT = b'Is this an edge list type graph(y/n)?'
+HDFS_IS_DIRECTED_PROMPT = b'Is this a directed graph(y/n)?'
+
+
+def _upload_hdfs_graph(sock, graph_path, is_edge_list):
+    """Upload graph from HDFS via adhdfs flow."""
+    common.send_and_expect_response(
+        sock,
+        'adhdfs',
+        common.ADHDFS,
+        HDFS_USE_DEFAULT_PROMPT,
+        exit_on_failure=True,
+    )
+    common.send_and_expect_response(
+        sock,
+        'adhdfs',
+        b'n',
+        HDFS_CONFIG_PROMPT + HDFS_CONFIG_PROMPT_SUFFIX + HDFS_CONFIG_PROMPT_SUFFIX_2,
+        exit_on_failure=True,
+    )
+    common.send_and_expect_response(
+        sock,
+        'adhdfs',
+        HDFS_CONFIG_PATH,
+        HDFS_FILE_PATH_PROMPT,
+        exit_on_failure=True,
+    )
+    common.send_and_expect_response(
+        sock,
+        'adhdfs',
+        graph_path,
+        HDFS_IS_EDGE_LIST_PROMPT,
+        exit_on_failure=True,
+    )
+    common.send_and_expect_response(
+        sock,
+        'adhdfs',
+        is_edge_list,
+        HDFS_IS_DIRECTED_PROMPT,
+        exit_on_failure=True,
+    )
+    common.send_and_expect_response(sock, 'adhdfs', b'y', common.DONE, exit_on_failure=True)
+
+
 def _start_cypher_query(sock, graph_id):
     """Open a cypher query prompt for the given graph id."""
     common.send_and_expect_response(
@@ -37,24 +87,7 @@ def run_cypher_workflow(sock, host, port):
     """Run cypher and graph upload scenario tests."""
     print()
     common.logging.info('Testing adhdfs for custom graph with properties')
-    common.send_and_expect_response(sock, 'adhdfs', common.ADHDFS,
-                                    b'Do you want to use the default HDFS server(y/n)?',
-                                    exit_on_failure=True)
-    common.send_and_expect_response(sock, 'adhdfs', b'n',
-                                    b'Send the file path to the HDFS configuration file.' +
-                                    b' This file needs to be in some directory location ' +
-                                    b'that is accessible for JasmineGraph master',
-                                    exit_on_failure=True)
-    common.send_and_expect_response(sock, 'adhdfs', b'/var/tmp/config/hdfs_config.txt',
-                                    b'HDFS file path: ',
-                                    exit_on_failure=True)
-    common.send_and_expect_response(sock, 'adhdfs', b'/home/graph_with_properties.txt',
-                                    b'Is this an edge list type graph(y/n)?',
-                                    exit_on_failure=True)
-    common.send_and_expect_response(sock, 'adhdfs', b'n',
-                                    b'Is this a directed graph(y/n)?',
-                                    exit_on_failure=True)
-    common.send_and_expect_response(sock, 'adhdfs', b'y', common.DONE, exit_on_failure=True)
+    _upload_hdfs_graph(sock, b'/home/graph_with_properties.txt', b'n')
 
     print()
     common.logging.info('2. Testing cypher aggregate query after adding the graph')
@@ -65,45 +98,11 @@ def run_cypher_workflow(sock, host, port):
 
     print()
     common.logging.info('[Cypher] Uploading graph for cypher testing')
-    common.send_and_expect_response(sock, 'adhdfs', common.ADHDFS,
-                                    b'Do you want to use the default HDFS server(y/n)?',
-                                    exit_on_failure=True)
-    common.send_and_expect_response(sock, 'adhdfs', b'n',
-                                    b'Send the file path to the HDFS configuration file.' +
-                                    b' This file needs to be in some directory location ' +
-                                    b'that is accessible for JasmineGraph master',
-                                    exit_on_failure=True)
-    common.send_and_expect_response(sock, 'adhdfs', b'/var/tmp/config/hdfs_config.txt',
-                                    b'HDFS file path: ',
-                                    exit_on_failure=True)
-    common.send_and_expect_response(sock, 'adhdfs', b'/home/graph_with_properties.txt',
-                                    b'Is this an edge list type graph(y/n)?',
-                                    exit_on_failure=True)
-    common.send_and_expect_response(sock, 'adhdfs', b'n',
-                                    b'Is this a directed graph(y/n)?',
-                                    exit_on_failure=True)
-    common.send_and_expect_response(sock, 'adhdfs', b'y', common.DONE, exit_on_failure=True)
+    _upload_hdfs_graph(sock, b'/home/graph_with_properties.txt', b'n')
 
     print()
     common.logging.info('[Cypher] Uploading large graph for cypher testing')
-    common.send_and_expect_response(sock, 'adhdfs', common.ADHDFS,
-                                    b'Do you want to use the default HDFS server(y/n)?',
-                                    exit_on_failure=True)
-    common.send_and_expect_response(sock, 'adhdfs', b'n',
-                                    b'Send the file path to the HDFS configuration file.' +
-                                    b' This file needs to be in some directory location ' +
-                                    b'that is accessible for JasmineGraph master',
-                                    exit_on_failure=True)
-    common.send_and_expect_response(sock, 'adhdfs', b'/var/tmp/config/hdfs_config.txt',
-                                    b'HDFS file path: ',
-                                    exit_on_failure=True)
-    common.send_and_expect_response(sock, 'adhdfs', b'/home/graph_with_properties_large.txt',
-                                    b'Is this an edge list type graph(y/n)?',
-                                    exit_on_failure=True)
-    common.send_and_expect_response(sock, 'adhdfs', b'n',
-                                    b'Is this a directed graph(y/n)?',
-                                    exit_on_failure=True)
-    common.send_and_expect_response(sock, 'adhdfs', b'y', common.DONE, exit_on_failure=True)
+    _upload_hdfs_graph(sock, b'/home/graph_with_properties_large.txt', b'n')
 
     print()
     common.logging.info('[Adhdfs] Testing uploaded graph')

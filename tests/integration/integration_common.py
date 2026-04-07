@@ -58,6 +58,25 @@ passed_all = True
 failed_tests = []
 
 
+def _append_length_mismatch_details(received_lines, expected_lines, mismatches):
+    """Populate mismatch details when expected/received line counts differ."""
+    if len(received_lines) > len(expected_lines):
+        for i in range(len(expected_lines) + 1, len(received_lines) + 1):
+            mismatches.append(
+                f'Line {i}:\n  expected: <no line>\n  received: {received_lines[i - 1]}'
+            )
+        return True
+
+    if len(expected_lines) > len(received_lines):
+        for i in range(len(received_lines) + 1, len(expected_lines) + 1):
+            mismatches.append(
+                f'Line {i}:\n  expected: {expected_lines[i - 1]}\n  received: <no line>'
+            )
+        return True
+
+    return False
+
+
 def reset_state():
     """Reset shared result state before running a new integration session."""
     global passed_all, failed_tests
@@ -146,22 +165,7 @@ def expect_response_file(conn: socket.socket, expected: bytes, timeout=5000):
         if exp_line != rec_line:
             mismatches.append(f'Line {i}:\n  expected: {exp_line}\n  received: {rec_line}')
 
-    if len(received_lines) > len(expected_lines):
-        for i in range(len(expected_lines) + 1, len(received_lines) + 1):
-            mismatches.append(
-                f'Line {i}:\n  expected: <no line>\n  received: {received_lines[i - 1]}'
-            )
-        logging.warning(
-            'Output mismatch! Showing first 10 differences:\n%s',
-            '\n'.join(mismatches[:10]),
-        )
-        passed_all = False
-        return False
-    if len(expected_lines) > len(received_lines):
-        for i in range(len(received_lines) + 1, len(expected_lines) + 1):
-            mismatches.append(
-                f'Line {i}:\n  expected: {expected_lines[i - 1]}\n  received: <no line>'
-            )
+    if _append_length_mismatch_details(received_lines, expected_lines, mismatches):
         logging.warning(
             'Output mismatch! Showing first 10 differences:\n%s',
             '\n'.join(mismatches[:10]),

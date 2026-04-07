@@ -12,6 +12,9 @@ limitations under the License.
 import integration_common as common
 
 
+POWERGRID_ROW = b'|1|powergrid|/var/tmp/data/powergrid.dl|op|'
+
+
 def run_core_workflow(sock):
     """Run core non-cypher integration test sequence."""
     print()
@@ -31,8 +34,7 @@ def run_core_workflow(sock):
 
     print()
     common.logging.info('Testing lst after adgr')
-    common.send_and_expect_response(sock, 'lst after adgr', common.LIST,
-                                    b'|1|powergrid|/var/tmp/data/powergrid.dl|op|')
+    common.send_and_expect_response(sock, 'lst after adgr', common.LIST, POWERGRID_ROW)
 
     print()
     common.logging.info('Testing ecnt')
@@ -83,7 +85,7 @@ def run_core_workflow(sock):
     print()
     common.logging.info('Testing lst after adgr-cust')
     common.send_and_expect_response(sock, 'lst after adgr-cust', common.LIST,
-                                    b'|1|powergrid|/var/tmp/data/powergrid.dl|op|'
+                                    POWERGRID_ROW
                                     + common.LINE_END
                                     + b'|2|cora|/var/tmp/data/cora/cora.cites|op|')
 
@@ -114,8 +116,7 @@ def run_core_workflow(sock):
 
     print()
     common.logging.info('Testing lst after rmgr')
-    common.send_and_expect_response(sock, 'lst after rmgr',
-                                    common.LIST, b'|1|powergrid|/var/tmp/data/powergrid.dl|op|')
+    common.send_and_expect_response(sock, 'lst after rmgr', common.LIST, POWERGRID_ROW)
 
     common.send_and_expect_response(sock, 'rmgr', common.RMGR, common.SEND)
     common.send_and_expect_response(sock, 'rmgr', b'1', common.DONE)

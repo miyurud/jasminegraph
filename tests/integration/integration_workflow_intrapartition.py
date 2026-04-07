@@ -13,26 +13,48 @@ limitations under the License.
 import integration_common as common
 
 
+GRAPH_ID_PROMPT = b'Graph ID:'
+INPUT_QUERY_PROMPT = b'Input query :'
+
+
+def _start_graph_query(sock, graph_id):
+    """Open query prompt for the given graph id."""
+    common.send_and_expect_response(
+        sock,
+        'cypher',
+        common.CYPHER,
+        GRAPH_ID_PROMPT,
+        exit_on_failure=True,
+    )
+    common.send_and_expect_response(
+        sock,
+        'cypher',
+        graph_id,
+        INPUT_QUERY_PROMPT,
+        exit_on_failure=True,
+    )
+
+
+def _read_query_line(sock):
+    """Read one response line from socket for query validation."""
+    response = b''
+    while True:
+        byte = sock.recv(1)
+        if not byte:
+            break
+        response += byte
+        if response.endswith(b'\r\n') or response.endswith(b'\n'):
+            break
+    return response
+
+
 def run_intrapartition_workflow(sock):
     """Run getAllProperties and large-graph cypher checks."""
     print()
     common.logging.info(
         '[IntraPartition] Testing getAllProperties on small graph (sequential fallback)'
     )
-    common.send_and_expect_response(
-        sock,
-        'cypher',
-        common.CYPHER,
-        b'Graph ID:',
-        exit_on_failure=True,
-    )
-    common.send_and_expect_response(
-        sock,
-        'cypher',
-        b'2',
-        b'Input query :',
-        exit_on_failure=True,
-    )
+    _start_graph_query(sock, b'2')
     common.send_and_expect_response(
         sock,
         'cypher',
@@ -45,20 +67,7 @@ def run_intrapartition_workflow(sock):
 
     print()
     common.logging.info('[IntraPartition] Testing getAllProperties with null values')
-    common.send_and_expect_response(
-        sock,
-        'cypher',
-        common.CYPHER,
-        b'Graph ID:',
-        exit_on_failure=True,
-    )
-    common.send_and_expect_response(
-        sock,
-        'cypher',
-        b'2',
-        b'Input query :',
-        exit_on_failure=True,
-    )
+    _start_graph_query(sock, b'2')
     common.send_and_expect_response(
         sock,
         'cypher',
@@ -73,20 +82,7 @@ def run_intrapartition_workflow(sock):
     common.logging.info(
         '[IntraPartition] Testing getAllProperties multiple nodes (lifetime safety)'
     )
-    common.send_and_expect_response(
-        sock,
-        'cypher',
-        common.CYPHER,
-        b'Graph ID:',
-        exit_on_failure=True,
-    )
-    common.send_and_expect_response(
-        sock,
-        'cypher',
-        b'2',
-        b'Input query :',
-        exit_on_failure=True,
-    )
+    _start_graph_query(sock, b'2')
     query = b'MATCH (n:Person) WHERE n.id < 4 RETURN n.id, n.name ORDER BY n.id ASC'
     sock.sendall(query + common.LINE_END)
     print('MATCH (n:Person) WHERE n.id < 4 RETURN n.id, n.name ORDER BY n.id ASC')
@@ -105,30 +101,10 @@ def run_intrapartition_workflow(sock):
     common.logging.info(
         '[IntraPartition] Testing getAllProperties on large graph (parallel execution)'
     )
-    common.send_and_expect_response(
-        sock,
-        'cypher',
-        common.CYPHER,
-        b'Graph ID:',
-        exit_on_failure=True,
-    )
-    common.send_and_expect_response(
-        sock,
-        'cypher',
-        b'4',
-        b'Input query :',
-        exit_on_failure=True,
-    )
+    _start_graph_query(sock, b'4')
     sock.sendall(b'MATCH (n) WHERE n.id = 1 RETURN n' + common.LINE_END)
     print('MATCH (n) WHERE n.id = 1 RETURN n')
-    response = b''
-    while True:
-        byte = sock.recv(1)
-        if not byte:
-            break
-        response += byte
-        if response.endswith(b'\r\n') or response.endswith(b'\n'):
-            break
+    response = _read_query_line(sock)
 
     if b'"id":"1"' in response:
         common.logging.info('✓ Large graph node query returned results')
@@ -139,30 +115,10 @@ def run_intrapartition_workflow(sock):
 
     print()
     common.logging.info('[IntraPartition] Testing relationship getAllProperties')
-    common.send_and_expect_response(
-        sock,
-        'cypher',
-        common.CYPHER,
-        b'Graph ID:',
-        exit_on_failure=True,
-    )
-    common.send_and_expect_response(
-        sock,
-        'cypher',
-        b'4',
-        b'Input query :',
-        exit_on_failure=True,
-    )
+    _start_graph_query(sock, b'4')
     sock.sendall(b'MATCH (n)-[r]->(m) WHERE n.id = 1 RETURN n, r, m' + common.LINE_END)
     print('MATCH (n)-[r]->(m) WHERE n.id = 1 RETURN n, r, m')
-    response = b''
-    while True:
-        byte = sock.recv(1)
-        if not byte:
-            break
-        response += byte
-        if response.endswith(b'\r\n') or response.endswith(b'\n'):
-            break
+    response = _read_query_line(sock)
 
     if b'"n":' in response and b'"r":' in response and b'"m":' in response:
         common.logging.info('✓ Relationship query returned results with correct structure')
@@ -173,20 +129,7 @@ def run_intrapartition_workflow(sock):
 
     print()
     common.logging.info('[Cypher] Testing OrderBy for Large Graph')
-    common.send_and_expect_response(
-        sock,
-        'cypher',
-        common.CYPHER,
-        b'Graph ID:',
-        exit_on_failure=True,
-    )
-    common.send_and_expect_response(
-        sock,
-        'cypher',
-        b'4',
-        b'Input query :',
-        exit_on_failure=True,
-    )
+    _start_graph_query(sock, b'4')
     common.send_and_expect_response_file(
         sock,
         'cypher',
