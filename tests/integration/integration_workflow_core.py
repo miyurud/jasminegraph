@@ -14,11 +14,10 @@ from integration_workflow_cypher import HDFS_CONFIG_PATH
 
 
 # Test fixture paths for graph and configuration data
-POWERGRID_ROW = b'|1|powergrid|/var/tmp/data/powergrid.dl|op|'
-POWERGRID_GRAPH_PATH = b'powergrid|/var/tmp/data/powergrid.dl'
-CORA_GRAPH_PATH = (b'cora|/var/tmp/data/cora/cora.cites|' +
-                   b'/var/tmp/data/cora/cora.content')
-CORA_ROW = b'|2|cora|/var/tmp/data/cora/cora.cites|op|'
+POWERGRID_ROW = b'|1|powergrid|/var/tmp/data/powergrid.dl|op|'  # NOSONAR
+POWERGRID_GRAPH_PATH = b'powergrid|/var/tmp/data/powergrid.dl'  # NOSONAR
+CORA_GRAPH_PATH = b'cora|/var/tmp/data/cora/cora.cites|/var/tmp/data/cora/cora.content'  # NOSONAR
+CORA_ROW = b'|2|cora|/var/tmp/data/cora/cora.cites|op|'  # NOSONAR
 
 
 def run_core_workflow(sock):

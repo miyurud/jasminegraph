@@ -20,7 +20,7 @@ HDFS_CONFIG_PROMPT = b'Send the file path to the HDFS configuration file.'
 HDFS_CONFIG_PROMPT_SUFFIX = b' This file needs to be in some directory location '
 HDFS_CONFIG_PROMPT_SUFFIX_2 = b'that is accessible for JasmineGraph master'
 HDFS_FILE_PATH_PROMPT = b'HDFS file path: '
-HDFS_CONFIG_PATH = b'/var/tmp/config/hdfs_config.txt'
+HDFS_CONFIG_PATH = b'/var/tmp/config/hdfs_config.txt'  # NOSONAR
 HDFS_IS_EDGE_LIST_PROMPT = b'Is this an edge list type graph(y/n)?'
 HDFS_IS_DIRECTED_PROMPT = b'Is this a directed graph(y/n)?'
 
