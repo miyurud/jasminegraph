@@ -4,7 +4,6 @@ set -e
 
 TIMEOUT_SECONDS=2400
 
-
 wait_for_pods_created() {
     namespace="$1"
     selector="$2"
