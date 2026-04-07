@@ -1,4 +1,14 @@
-"""Core graph upload and management integration workflow."""
+"""Copyright 2026 JasmineGraph Team
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+    http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+"""
 import integration_common as common
 
 
@@ -12,7 +22,12 @@ def run_core_workflow(sock):
     common.logging.info('Testing adgr')
     common.send_and_expect_response(sock, 'adgr', common.ADGR, common.SEND, exit_on_failure=True)
     common.send_and_expect_response(
-        sock, 'adgr', b'powergrid|/var/tmp/data/powergrid.dl', common.DONE, exit_on_failure=True)
+        sock,
+        'adgr',
+        b'powergrid|/var/tmp/data/powergrid.dl',
+        common.DONE,
+        exit_on_failure=True,
+    )
 
     print()
     common.logging.info('Testing lst after adgr')
@@ -49,8 +64,10 @@ def run_core_workflow(sock):
     common.logging.info('Testing adgr-cust')
     common.send_and_expect_response(sock, 'adgr-cust', common.ADGR_CUST,
                                     b'Select a custom graph upload option' + common.LINE_END +
-                                    b'1 : Graph with edge list + text attributes list' + common.LINE_END +
-                                    b'2 : Graph with edge list + JSON attributes list' + common.LINE_END +
+                                    b'1 : Graph with edge list + text attributes list'
+                                    + common.LINE_END +
+                                    b'2 : Graph with edge list + JSON attributes list'
+                                    + common.LINE_END +
                                     b'3 : Graph with edge list + XML attributes list',
                                     exit_on_failure=True)
     common.send_and_expect_response(sock, 'adgr-cust',
@@ -66,8 +83,9 @@ def run_core_workflow(sock):
     print()
     common.logging.info('Testing lst after adgr-cust')
     common.send_and_expect_response(sock, 'lst after adgr-cust', common.LIST,
-                                    b'|1|powergrid|/var/tmp/data/powergrid.dl|op|' + common.LINE_END +
-                                    b'|2|cora|/var/tmp/data/cora/cora.cites|op|')
+                                    b'|1|powergrid|/var/tmp/data/powergrid.dl|op|'
+                                    + common.LINE_END
+                                    + b'|2|cora|/var/tmp/data/cora/cora.cites|op|')
 
     print()
     common.logging.info('Testing merge')
@@ -83,7 +101,8 @@ def run_core_workflow(sock):
     common.send_and_expect_response(sock, 'train', common.TRAIN,
                                     b'Available main flags:' + common.LINE_END +
                                     b'graph_id learning_rate batch_size validate_iter epochs' +
-                                    common.LINE_END + b'Send --<flag1> <value1> --<flag2> <value2> ..',
+                                    common.LINE_END
+                                    + b'Send --<flag1> <value1> --<flag2> <value2> ..',
                                     exit_on_failure=True)
     common.send_and_expect_response(
         sock, 'train', b'--graph_id 2', common.DONE, exit_on_failure=True)

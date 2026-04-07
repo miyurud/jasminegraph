@@ -1,7 +1,35 @@
-"""Cypher-focused integration workflow."""
+"""Copyright 2026 JasmineGraph Team
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+    http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+"""
 import os
 
 import integration_common as common
+
+
+def _start_cypher_query(sock, graph_id):
+    """Open a cypher query prompt for the given graph id."""
+    common.send_and_expect_response(
+        sock,
+        'cypher',
+        common.CYPHER,
+        b'Graph ID:',
+        exit_on_failure=True,
+    )
+    common.send_and_expect_response(
+        sock,
+        'cypher',
+        graph_id,
+        b'Input query :',
+        exit_on_failure=True,
+    )
 
 
 def run_cypher_workflow(sock, host, port):
@@ -29,8 +57,7 @@ def run_cypher_workflow(sock, host, port):
 
     print()
     common.logging.info('2. Testing cypher aggregate query after adding the graph')
-    common.send_and_expect_response(sock, 'cypher', common.CYPHER, b'Graph ID:', exit_on_failure=True)
-    common.send_and_expect_response(sock, 'cypher', b'2', b'Input query :', exit_on_failure=True)
+    _start_cypher_query(sock, b'2')
     common.send_and_expect_response(sock, 'cypher', b'match (n) where n.id < 10 return avg(n.id)',
                                     b'{"avg(n.id)":4.5}', exit_on_failure=True)
     common.send_and_expect_response(sock, 'cypher', b'', b'done', exit_on_failure=True)
@@ -84,8 +111,7 @@ def run_cypher_workflow(sock, host, port):
 
     print()
     common.logging.info('[Cypher] Testing AllNodeScan ')
-    common.send_and_expect_response(sock, 'cypher', common.CYPHER, b'Graph ID:', exit_on_failure=True)
-    common.send_and_expect_response(sock, 'cypher', b'2', b'Input query :', exit_on_failure=True)
+    _start_cypher_query(sock, b'2')
     common.send_and_expect_response(sock, 'cypher', b'MATCH (n) WHERE n.id=2 RETURN n ',
                                     b'{"n":{"id":"2","label":"Person","name":"Charlie",'
                                     b'"occupation":"IT Engineer",'
@@ -94,107 +120,133 @@ def run_cypher_workflow(sock, host, port):
 
     print()
     common.logging.info('[Cypher] Testing ProduceResults ')
-    common.send_and_expect_response(sock, 'cypher', common.CYPHER, b'Graph ID:', exit_on_failure=True)
-    common.send_and_expect_response(sock, 'cypher', b'2', b'Input query :', exit_on_failure=True)
-    common.send_and_expect_response(sock, 'cypher', b'MATCH (n) WHERE n.id = 18 RETURN n.age, n.name ',
-                                    b'{"n.age":null,"n.name":"Skyport Airport"}',
-                                    exit_on_failure=True)
+    _start_cypher_query(sock, b'2')
+    common.send_and_expect_response(
+        sock,
+        'cypher',
+        b'MATCH (n) WHERE n.id = 18 RETURN n.age, n.name ',
+        b'{"n.age":null,"n.name":"Skyport Airport"}',
+        exit_on_failure=True,
+    )
     common.send_and_expect_response(sock, 'cypher', b'', b'done', exit_on_failure=True)
 
     print()
     common.logging.info('[Cypher] Testing ProduceResults')
-    common.send_and_expect_response(sock, 'cypher', common.CYPHER, b'Graph ID:', exit_on_failure=True)
-    common.send_and_expect_response(sock, 'cypher', b'2', b'Input query :', exit_on_failure=True)
-    common.send_and_expect_response(sock, 'cypher', b'MATCH (n) WHERE n.id = 18 RETURN n.age, n.name ',
-                                    b'{"n.age":null,"n.name":"Skyport Airport"}',
-                                    exit_on_failure=True)
+    _start_cypher_query(sock, b'2')
+    common.send_and_expect_response(
+        sock,
+        'cypher',
+        b'MATCH (n) WHERE n.id = 18 RETURN n.age, n.name ',
+        b'{"n.age":null,"n.name":"Skyport Airport"}',
+        exit_on_failure=True,
+    )
     common.send_and_expect_response(sock, 'cypher', b'', b'done', exit_on_failure=True)
 
     print()
     common.logging.info('[Cypher] Testing filter by equality check')
-    common.send_and_expect_response(sock, 'cypher', common.CYPHER, b'Graph ID:', exit_on_failure=True)
-    common.send_and_expect_response(sock, 'cypher', b'2', b'Input query :', exit_on_failure=True)
-    common.send_and_expect_response(sock, 'cypher', b"MATCH (n) WHERE n.name = 'Fiona' RETURN n",
-                                    b'{"n":{"age":"25","id":"10","label":"Person",'
-                                    b'"name":"Fiona","occupation":"Artist",'
-                                    b'"partitionID":"0"}}',
-                                    exit_on_failure=True)
+    _start_cypher_query(sock, b'2')
+    common.send_and_expect_response(
+        sock,
+        'cypher',
+        b"MATCH (n) WHERE n.name = 'Fiona' RETURN n",
+        b'{"n":{"age":"25","id":"10","label":"Person",'
+        b'"name":"Fiona","occupation":"Artist",'
+        b'"partitionID":"0"}}',
+        exit_on_failure=True,
+    )
     common.send_and_expect_response(sock, 'cypher', b'', b'done', exit_on_failure=True)
 
     print()
     common.logging.info('[Cypher] Testing filter by comparison of integer attribute')
-    common.send_and_expect_response(sock, 'cypher', common.CYPHER, b'Graph ID:', exit_on_failure=True)
-    common.send_and_expect_response(sock, 'cypher', b'2', b'Input query :', exit_on_failure=True)
-    common.send_and_expect_response(sock, 'cypher', b'MATCH (n) WHERE n.age < 30 return n',
-                                    b'{"n":{"age":"25","id":"10","label":"Person",'
-                                    b'"name":"Fiona","occupation":"Artist",'
-                                    b'"partitionID":"0"}}',
-                                    exit_on_failure=True)
+    _start_cypher_query(sock, b'2')
+    common.send_and_expect_response(
+        sock,
+        'cypher',
+        b'MATCH (n) WHERE n.age < 30 return n',
+        b'{"n":{"age":"25","id":"10","label":"Person",'
+        b'"name":"Fiona","occupation":"Artist",'
+        b'"partitionID":"0"}}',
+        exit_on_failure=True,
+    )
     common.send_and_expect_response(sock, 'cypher', b'', b'done', exit_on_failure=True)
 
     print()
     common.logging.info('[Cypher] Testing expand all ')
-    common.send_and_expect_response(sock, 'cypher', common.CYPHER, b'Graph ID:', exit_on_failure=True)
-    common.send_and_expect_response(sock, 'cypher', b'2', b'Input query :', exit_on_failure=True)
-    common.send_and_expect_response(sock, 'cypher', b'MATCH (a)-[r]-(b)-[d]-(s)'
-                                    b' WHERE (a.id = 10 AND s.id=14) RETURN a, b, s',
-                                    b'{"a":{"age":"25","id":"10","label":"Person",'
-                                    b'"name":"Fiona","occupation":"Artist","partitionID":"0"},'
-                                    b'"b":{"id":"2","label":"Person","name":"Charlie",'
-                                    b'"occupation":"IT Engineer","partitionID":"0"},'
-                                    b'"s":{"id":"14","label":"Person",'
-                                    b'"name":"Julia","occupation":"Entrepreneur","partitionID":"0"}}',
-                                    exit_on_failure=True)
+    _start_cypher_query(sock, b'2')
+    common.send_and_expect_response(
+        sock,
+        'cypher',
+        b'MATCH (a)-[r]-(b)-[d]-(s)'
+        b' WHERE (a.id = 10 AND s.id=14) RETURN a, b, s',
+        b'{"a":{"age":"25","id":"10","label":"Person",'
+        b'"name":"Fiona","occupation":"Artist","partitionID":"0"},'
+        b'"b":{"id":"2","label":"Person","name":"Charlie",'
+        b'"occupation":"IT Engineer","partitionID":"0"},'
+        b'"s":{"id":"14","label":"Person",'
+        b'"name":"Julia","occupation":"Entrepreneur","partitionID":"0"}}',
+        exit_on_failure=True,
+    )
 
     common.send_and_expect_response(sock, 'cypher', b'', b'done', exit_on_failure=True)
     print()
     common.logging.info('[Cypher] Testing Undirected Relationship Type Scan')
-    common.send_and_expect_response(sock, 'cypher', common.CYPHER, b'Graph ID:', exit_on_failure=True)
-    common.send_and_expect_response(sock, 'cypher', b'2', b'Input query :', exit_on_failure=True)
-    common.send_and_expect_response(sock, 'cypher', b'MATCH '
-                                    b"(n {name:'Eva'})-[:NEIGHBORS]-(x ) RETURN x",
-                                    b'{"x":{"id":"0","label":"Person","name":"Alice",'
-                                    b'"occupation":"Teacher","partitionID":"0"}}',
-                                    exit_on_failure=True)
+    _start_cypher_query(sock, b'2')
+    common.send_and_expect_response(
+        sock,
+        'cypher',
+        b'MATCH '
+        b"(n {name:'Eva'})-[:NEIGHBORS]-(x ) RETURN x",
+        b'{"x":{"id":"0","label":"Person","name":"Alice",'
+        b'"occupation":"Teacher","partitionID":"0"}}',
+        exit_on_failure=True,
+    )
     common.send_and_expect_response(sock, 'cypher', b'', b'done', exit_on_failure=True)
 
     print()
     common.logging.info('[Cypher] Testing Undirected All Relationship Scan')
-    common.send_and_expect_response(sock, 'cypher', common.CYPHER, b'Graph ID:', exit_on_failure=True)
-    common.send_and_expect_response(sock, 'cypher', b'2', b'Input query :', exit_on_failure=True)
-    common.send_and_expect_response(sock, 'cypher', b'MATCH (n)-[r]-(m {id:6} ) WHERE n.age = 25'
-                                    b' RETURN n, r, m',
-                                    b'{"m":{"category":"Park","id":"6","label":"Location",'
-                                    b'"name":"Central Park",'
-                                    b'"partitionID":"0"},"n":{"age":"25","id":"10","label":"Person",'
-                                    b'"name":"Fiona","occupation":"Artist","partitionID":"0"'
-                                    b'},"r":{"description":"Fiona and Central Park have'
-                                    b' been friends since college.","id":"11",'
-                                    b'"type":"FRIENDS"}}',
-                                    exit_on_failure=True)
+    _start_cypher_query(sock, b'2')
+    common.send_and_expect_response(
+        sock,
+        'cypher',
+        b'MATCH (n)-[r]-(m {id:6} ) WHERE n.age = 25'
+        b' RETURN n, r, m',
+        b'{"m":{"category":"Park","id":"6","label":"Location",'
+        b'"name":"Central Park",'
+        b'"partitionID":"0"},"n":{"age":"25","id":"10","label":"Person",'
+        b'"name":"Fiona","occupation":"Artist","partitionID":"0"'
+        b'},"r":{"description":"Fiona and Central Park have'
+        b' been friends since college.","id":"11",'
+        b'"type":"FRIENDS"}}',
+        exit_on_failure=True,
+    )
     common.send_and_expect_response(sock, 'cypher', b'', b'done', exit_on_failure=True)
 
     print()
     common.logging.info('[Cypher] Testing Directed Relationship Type Scan ')
-    common.send_and_expect_response(sock, 'cypher', common.CYPHER, b'Graph ID:', exit_on_failure=True)
-    common.send_and_expect_response(sock, 'cypher', b'2', b'Input query :',
-                                    exit_on_failure=True)
-    common.send_and_expect_response(sock, 'cypher', b'MATCH'
-                                    b" (n {name:'Eva'})-[:NEIGHBORS]->(x ) RETURN x",
-                                    b'{"x":{"id":"0","label":"Person","name":"Alice",'
-                                    b'"occupation":"Teacher","partitionID":"0"}}',
-                                    exit_on_failure=True)
+    _start_cypher_query(sock, b'2')
+    common.send_and_expect_response(
+        sock,
+        'cypher',
+        b'MATCH'
+        b" (n {name:'Eva'})-[:NEIGHBORS]->(x ) RETURN x",
+        b'{"x":{"id":"0","label":"Person","name":"Alice",'
+        b'"occupation":"Teacher","partitionID":"0"}}',
+        exit_on_failure=True,
+    )
     common.send_and_expect_response(sock, 'cypher', b'', b'done', exit_on_failure=True)
 
     print()
     common.logging.info('[Cypher] Testing OrderBy ')
-    common.send_and_expect_response(sock, 'cypher', common.CYPHER, b'Graph ID:', exit_on_failure=True)
-    common.send_and_expect_response(sock, 'cypher', b'2', b'Input query :', exit_on_failure=True)
-    common.send_and_expect_response(sock, 'cypher', b"match (n) where n.partitionID = '1' return n "
-                                    b'order by n.name ASC',
-                                    b'''{"n":{"category":"Studio","id":"15","label":"Location",'''
-                                    b'''"name":"Art Studio","partitionID":"1"}}''',
-                                    exit_on_failure=True)
+    _start_cypher_query(sock, b'2')
+    common.send_and_expect_response(
+        sock,
+        'cypher',
+        b"match (n) where n.partitionID = '1' return n "
+        b'order by n.name ASC',
+        b'''{"n":{"category":"Studio","id":"15","label":"Location",'''
+        b'''"name":"Art Studio","partitionID":"1"}}''',
+        exit_on_failure=True,
+    )
     common.send_and_expect_response(sock, 'cypher', b'',
                                     b'{"n":{"id":"1","label":"Person","name":"Bob","occupation":'
                                     b'"Banker","partitionID":"1"}}', exit_on_failure=True)
@@ -238,8 +290,7 @@ def run_cypher_workflow(sock, host, port):
 
     print()
     common.logging.info('[Cypher] Testing Node Scan By Label')
-    common.send_and_expect_response(sock, 'cypher', common.CYPHER, b'Graph ID:', exit_on_failure=True)
-    common.send_and_expect_response(sock, 'cypher', b'2', b'Input query :', exit_on_failure=True)
+    _start_cypher_query(sock, b'2')
     common.send_and_expect_response(sock, 'cypher', b'match(n:Person) where n.id=2 return n'
                                     b' RETURN n', b'{"n":{"id":"2","label":"Person",'
                                     b'"name":"Charlie","occupation":"IT Engineer",'

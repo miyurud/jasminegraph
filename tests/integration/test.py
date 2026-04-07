@@ -19,7 +19,7 @@ from integration_workflow_cypher import run_cypher_workflow
 from integration_workflow_intrapartition import run_intrapartition_workflow
 
 
-def test(host, port):  # pylint: disable=too-many-branches
+def test(host, port):
     """Test JasmineGraph server by running all integration workflows."""
     common.reset_state()
 

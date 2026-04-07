@@ -1,26 +1,40 @@
-"""Shared helpers and constants for JasmineGraph integration tests."""
+"""Copyright 2026 JasmineGraph Team
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+    http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+"""
 import logging
-import os
 import socket
 import sys
 import time
 
-from utils.telnetScripts.validate_uploaded_graph import test_graph_validation
-
 logging.addLevelName(
-    logging.INFO, f'\033[1;32m{logging.getLevelName(logging.INFO)}\033[1;0m')
+    logging.INFO,
+    f'\033[1;32m{logging.getLevelName(logging.INFO)}\033[1;0m',
+)
 logging.addLevelName(
-    logging.WARNING, f'\033[1;33m{logging.getLevelName(logging.WARNING)}\033[1;0m')
+    logging.WARNING,
+    f'\033[1;33m{logging.getLevelName(logging.WARNING)}\033[1;0m',
+)
 logging.addLevelName(
-    logging.ERROR, f'\033[1;31m{logging.getLevelName(logging.ERROR)}\033[1;0m')
+    logging.ERROR,
+    f'\033[1;31m{logging.getLevelName(logging.ERROR)}\033[1;0m',
+)
 logging.addLevelName(
-    logging.CRITICAL, f'\033[1;41m{logging.getLevelName(logging.CRITICAL)}\033[1;0m')
+    logging.CRITICAL,
+    f'\033[1;41m{logging.getLevelName(logging.CRITICAL)}\033[1;0m',
+)
 
 logging.getLogger().setLevel(logging.INFO)
 
 HOST = '127.0.0.1'
 PORT = 7777  # The port used by the server
-UI_PORT = 7776  # The port used by the frontend-ui
 
 LIST = b'lst'
 ADGR = b'adgr'
@@ -39,11 +53,6 @@ DONE = b'done'
 ADHDFS = b'adhdfs'
 LINE_END = b'\r\n'
 CYPHER = b'cypher'
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-
-UPLOAD_SCRIPT = os.path.join(BASE_DIR, 'utils/datasets/upload-hdfs-file.sh')
-OLLAMA_SETUP_SCRIPT = os.path.join(BASE_DIR, 'graphRAG/utils/start-ollama.sh')
-TEXT_FOLDER = os.path.join(BASE_DIR, 'graphRAG/KG/gold')
 
 passed_all = True
 failed_tests = []
@@ -81,7 +90,9 @@ def expect_response(conn: socket.socket, expected: bytes, timeout: float = 30000
             return False
 
         if not received:
-            logging.warning('Connection closed before expected response was fully received')
+            logging.warning(
+                'Connection closed before expected response was fully received'
+            )
             passed_all = False
             return False
 
@@ -137,18 +148,24 @@ def expect_response_file(conn: socket.socket, expected: bytes, timeout=5000):
 
     if len(received_lines) > len(expected_lines):
         for i in range(len(expected_lines) + 1, len(received_lines) + 1):
-            mismatches.append(f'Line {i}:\n  expected: <no line>\n  '
-                              f'received: {received_lines[i-1]}')
-        logging.warning('Output mismatch! Showing first 10 differences:\n%s',
-                        '\n'.join(mismatches[:10]))
+            mismatches.append(
+                f'Line {i}:\n  expected: <no line>\n  received: {received_lines[i - 1]}'
+            )
+        logging.warning(
+            'Output mismatch! Showing first 10 differences:\n%s',
+            '\n'.join(mismatches[:10]),
+        )
         passed_all = False
         return False
     if len(expected_lines) > len(received_lines):
         for i in range(len(received_lines) + 1, len(expected_lines) + 1):
-            mismatches.append(f'Line {i}:\n  expected: {expected_lines[i-1]}\n'
-                              f'  received: <no line>')
-        logging.warning('Output mismatch! Showing first 10 differences:\n%s',
-                        '\n'.join(mismatches[:10]))
+            mismatches.append(
+                f'Line {i}:\n  expected: {expected_lines[i - 1]}\n  received: <no line>'
+            )
+        logging.warning(
+            'Output mismatch! Showing first 10 differences:\n%s',
+            '\n'.join(mismatches[:10]),
+        )
         passed_all = False
         return False
 
