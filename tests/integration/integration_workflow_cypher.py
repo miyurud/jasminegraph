@@ -12,6 +12,7 @@ limitations under the License.
 import os
 
 import integration_common as common
+from utils.telnetScripts.validate_uploaded_graph import test_graph_validation
 
 
 def _start_cypher_query(sock, graph_id):
@@ -107,7 +108,7 @@ def run_cypher_workflow(sock, host, port):
     print()
     common.logging.info('[Adhdfs] Testing uploaded graph')
     abs_path = os.path.abspath('tests/integration/env_init/data/graph_with_properties.txt')
-    common.test_graph_validation(abs_path, '2', host, port)
+    test_graph_validation(abs_path, '2', host, port)
 
     print()
     common.logging.info('[Cypher] Testing AllNodeScan ')
