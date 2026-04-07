@@ -10,9 +10,15 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 import integration_common as common
+from integration_workflow_cypher import HDFS_CONFIG_PATH
 
 
+# Test fixture paths for graph and configuration data
 POWERGRID_ROW = b'|1|powergrid|/var/tmp/data/powergrid.dl|op|'
+POWERGRID_GRAPH_PATH = b'powergrid|/var/tmp/data/powergrid.dl'
+CORA_GRAPH_PATH = (b'cora|/var/tmp/data/cora/cora.cites|' +
+                   b'/var/tmp/data/cora/cora.content')
+CORA_ROW = b'|2|cora|/var/tmp/data/cora/cora.cites|op|'
 
 
 def run_core_workflow(sock):
@@ -27,7 +33,7 @@ def run_core_workflow(sock):
     common.send_and_expect_response(
         sock,
         'adgr',
-        b'powergrid|/var/tmp/data/powergrid.dl',
+        POWERGRID_GRAPH_PATH,
         common.DONE,
         exit_on_failure=True,
     )
@@ -78,8 +84,7 @@ def run_core_workflow(sock):
                                     b'(optional)<attribute data type: int8. int16, int32 or float>',
                                     exit_on_failure=True)
     common.send_and_expect_response(sock, 'adgr-cust',
-                                    b'cora|/var/tmp/data/cora/cora.cites|' +
-                                    b'/var/tmp/data/cora/cora.content',
+                                    CORA_GRAPH_PATH,
                                     common.DONE, exit_on_failure=True)
 
     print()
@@ -87,7 +92,7 @@ def run_core_workflow(sock):
     common.send_and_expect_response(sock, 'lst after adgr-cust', common.LIST,
                                     POWERGRID_ROW
                                     + common.LINE_END
-                                    + b'|2|cora|/var/tmp/data/cora/cora.cites|op|')
+                                    + CORA_ROW)
 
     print()
     common.logging.info('Testing merge')
@@ -131,7 +136,7 @@ def run_core_workflow(sock):
                                     b' This file needs to be in some directory location ' +
                                     b'that is accessible for JasmineGraph master',
                                     exit_on_failure=True)
-    common.send_and_expect_response(sock, 'adhdfs', b'/var/tmp/config/hdfs_config.txt',
+    common.send_and_expect_response(sock, 'adhdfs', HDFS_CONFIG_PATH,
                                     b'HDFS file path: ',
                                     exit_on_failure=True)
     common.send_and_expect_response(sock, 'adhdfs', b'/home/powergrid.dl',
