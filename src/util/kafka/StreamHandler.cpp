@@ -16,6 +16,7 @@ limitations under the License.
 #include <algorithm>
 #include <chrono>
 #include <cctype>
+#include <future>
 #include <nlohmann/json.hpp>
 #include <string>
 #include <stdlib.h>
@@ -351,44 +352,75 @@ void StreamHandler::finalizeAllSnapshots() {
     std::string snapshotDir = getTemporalSnapshotDir();
     Utils::createDirectory(snapshotDir);
 
+    struct SnapshotPersistResult {
+        int partitionId;
+        bool isCentral;
+        bool saved;
+        uint64_t savedEdges;
+        std::string error;
+    };
+    std::vector<std::future<SnapshotPersistResult>> persistTasks;
+
     // Save all local partition snapshots (even if below threshold)
     for (auto& [partitionId, store] : localTemporalStores) {
         if (store != nullptr) {
-            try {
-                // Use globalSnapshotId — the same counter passed to addEdge() — so the
-                // snapshot meta records match the bitmap bit positions exactly.
-                uint64_t savedEdges = 0;
-                bool saved = store->saveBitmapIndexToDisk(snapshotDir, globalSnapshotId, &savedEdges);
-                store->appendSnapshotMetaToDisk(snapshotDir, globalSnapshotId, savedEdges, 0);
-                if (saved) {
-                    streamHandlerLogger().info("Saved final bitmap index for partition " +
-                                               std::to_string(partitionId) +
-                                               " snapId=" + std::to_string(globalSnapshotId));
-                } else {
-                    streamHandlerLogger().error("Failed to save final bitmap index for partition " +
-                                                std::to_string(partitionId));
-                }
-            } catch (const std::exception& e) {
-                streamHandlerLogger().error("Exception saving partition " +
-                                            std::to_string(partitionId) + ": " + e.what());
-            }
+            TemporalStore* storePtr = store.get();
+            persistTasks.push_back(std::async(std::launch::async,
+                [storePtr, partitionId, snapshotDir, snapId = globalSnapshotId]() {
+                    SnapshotPersistResult result{partitionId, false, false, 0, ""};
+                    try {
+                        result.saved = storePtr->saveBitmapIndexToDisk(snapshotDir, snapId, &result.savedEdges);
+                        storePtr->appendSnapshotMetaToDisk(snapshotDir, snapId, result.savedEdges, 0);
+                    } catch (const std::exception& e) {
+                        result.error = e.what();
+                    }
+                    return result;
+                }));
         }
     }
 
     // Save central store snapshot
     if (centralTemporalStore != nullptr) {
-        try {
-            uint64_t savedEdges = 0;
-            bool saved = centralTemporalStore->saveBitmapIndexToDisk(snapshotDir, globalSnapshotId, &savedEdges);
-            centralTemporalStore->appendSnapshotMetaToDisk(snapshotDir, globalSnapshotId, savedEdges, 0);
-            if (saved) {
-                streamHandlerLogger().info(
-                    "Saved final central bitmap index snapId=" + std::to_string(globalSnapshotId));
+        persistTasks.push_back(std::async(std::launch::async,
+            [this, snapshotDir, snapId = globalSnapshotId]() {
+                SnapshotPersistResult result{static_cast<int>(numberOfPartitions), true, false, 0, ""};
+                try {
+                    result.saved = centralTemporalStore->saveBitmapIndexToDisk(snapshotDir, snapId,
+                                                                               &result.savedEdges);
+                    centralTemporalStore->appendSnapshotMetaToDisk(snapshotDir, snapId, result.savedEdges, 0);
+                } catch (const std::exception& e) {
+                    result.error = e.what();
+                }
+                return result;
+            }));
+    }
+
+    for (auto& task : persistTasks) {
+        SnapshotPersistResult result = task.get();
+        if (!result.error.empty()) {
+            if (result.isCentral) {
+                streamHandlerLogger().error("Exception saving central bitmap index: " + result.error);
+            } else {
+                streamHandlerLogger().error("Exception saving partition " +
+                                            std::to_string(result.partitionId) + ": " + result.error);
+            }
+            continue;
+        }
+
+        if (result.isCentral) {
+            if (result.saved) {
+                streamHandlerLogger().info("Saved final central bitmap index snapId=" +
+                                           std::to_string(globalSnapshotId));
             } else {
                 streamHandlerLogger().error("Failed to save final central bitmap index");
             }
-        } catch (const std::exception& e) {
-            streamHandlerLogger().error("Exception saving central bitmap index: " + std::string(e.what()));
+        } else if (result.saved) {
+            streamHandlerLogger().info("Saved final bitmap index for partition " +
+                                       std::to_string(result.partitionId) +
+                                       " snapId=" + std::to_string(globalSnapshotId));
+        } else {
+            streamHandlerLogger().error("Failed to save final bitmap index for partition " +
+                                        std::to_string(result.partitionId));
         }
     }
 }
@@ -402,46 +434,81 @@ void StreamHandler::createGlobalSnapshot() {
     streamHandlerLogger().info("Creating GLOBAL snapshot " + std::to_string(globalSnapshotId) +
                               " for ALL partitions");
 
+    struct SnapshotPersistResult {
+        int partitionId;
+        bool isCentral;
+        bool saved;
+        uint64_t savedEdges;
+        std::string error;
+    };
+    std::vector<std::future<SnapshotPersistResult>> persistTasks;
+
     // Save ALL local partition stores with the SAME snapshot ID
     int partitionsSaved = 0;
     for (auto& [partitionId, store] : localTemporalStores) {
         if (store != nullptr) {
-            try {
-                uint64_t savedEdges = 0;
-                bool saved = store->saveBitmapIndexToDisk(snapshotDir, globalSnapshotId, &savedEdges);
-                store->appendSnapshotMetaToDisk(snapshotDir, globalSnapshotId, savedEdges, 0);
-                if (saved) {
-                    streamHandlerLogger().info("Saved global snapshot " + std::to_string(globalSnapshotId) +
-                                              " for partition " + std::to_string(partitionId));
-                    partitionsSaved++;
-                } else {
-                    streamHandlerLogger().error("Failed to save global snapshot " +
-                                               std::to_string(globalSnapshotId) +
-                                               " for partition " + std::to_string(partitionId));
-                }
-            } catch (const std::exception& e) {
-                streamHandlerLogger().error("Exception saving partition " + std::to_string(partitionId) +
-                                           " snapshot " + std::to_string(globalSnapshotId) + ": " + e.what());
-            }
+            TemporalStore* storePtr = store.get();
+            persistTasks.push_back(std::async(std::launch::async,
+                [storePtr, partitionId, snapshotDir, snapId = globalSnapshotId]() {
+                    SnapshotPersistResult result{partitionId, false, false, 0, ""};
+                    try {
+                        result.saved = storePtr->saveBitmapIndexToDisk(snapshotDir, snapId, &result.savedEdges);
+                        storePtr->appendSnapshotMetaToDisk(snapshotDir, snapId, result.savedEdges, 0);
+                    } catch (const std::exception& e) {
+                        result.error = e.what();
+                    }
+                    return result;
+                }));
         }
     }
 
     // Save central store with the same snapshot ID
     if (centralTemporalStore != nullptr) {
-        try {
-            uint64_t savedEdges = 0;
-            bool saved = centralTemporalStore->saveBitmapIndexToDisk(snapshotDir, globalSnapshotId, &savedEdges);
-            centralTemporalStore->appendSnapshotMetaToDisk(snapshotDir, globalSnapshotId, savedEdges, 0);
-            if (saved) {
+        persistTasks.push_back(std::async(std::launch::async,
+            [this, snapshotDir, snapId = globalSnapshotId]() {
+                SnapshotPersistResult result{static_cast<int>(numberOfPartitions), true, false, 0, ""};
+                try {
+                    result.saved = centralTemporalStore->saveBitmapIndexToDisk(snapshotDir, snapId,
+                                                                               &result.savedEdges);
+                    centralTemporalStore->appendSnapshotMetaToDisk(snapshotDir, snapId, result.savedEdges, 0);
+                } catch (const std::exception& e) {
+                    result.error = e.what();
+                }
+                return result;
+            }));
+    }
+
+    for (auto& task : persistTasks) {
+        SnapshotPersistResult result = task.get();
+        if (!result.error.empty()) {
+            if (result.isCentral) {
+                streamHandlerLogger().error("Exception saving central store bitmap index " +
+                                            std::to_string(globalSnapshotId) + ": " + result.error);
+            } else {
+                streamHandlerLogger().error("Exception saving partition " +
+                                            std::to_string(result.partitionId) +
+                                            " snapshot " + std::to_string(globalSnapshotId) +
+                                            ": " + result.error);
+            }
+            continue;
+        }
+
+        if (result.isCentral) {
+            if (result.saved) {
                 streamHandlerLogger().info("Saved global snapshot " + std::to_string(globalSnapshotId) +
-                                          " for central store");
+                                           " for central store");
             } else {
                 streamHandlerLogger().error("Failed to save central store global snapshot " +
-                                           std::to_string(globalSnapshotId));
+                                            std::to_string(globalSnapshotId));
             }
-        } catch (const std::exception& e) {
-            streamHandlerLogger().error("Exception saving central store bitmap index " +
-                                       std::to_string(globalSnapshotId) + ": " + e.what());
+        } else if (result.saved) {
+            partitionsSaved++;
+            streamHandlerLogger().info("Saved global snapshot " + std::to_string(globalSnapshotId) +
+                                       " for partition " + std::to_string(result.partitionId));
+        } else {
+            streamHandlerLogger().error("Failed to save global snapshot " +
+                                        std::to_string(globalSnapshotId) +
+                                        " for partition " + std::to_string(result.partitionId));
         }
     }
 

@@ -449,6 +449,10 @@ class TemporalStorePersistence {
         std::ofstream file(filePath, std::ios::binary | std::ios::trunc);
         if (!file.is_open()) return false;
 
+        // Use a larger buffered stream to reduce syscall overhead for large bitmap dumps.
+        std::vector<char> writeBuffer(4 * 1024 * 1024);
+        file.rdbuf()->pubsetbuf(writeBuffer.data(), static_cast<std::streamsize>(writeBuffer.size()));
+
         // Write header
         BitmapFileHeader header;
         std::memcpy(header.magic, "JGBINDEX", 8);

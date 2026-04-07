@@ -128,33 +128,21 @@ class TemporalStore {
     bool addEdge(const std::string& sourceId,
                 const std::string& destId,
                 uint32_t snapshotId) {
-        std::lock_guard<std::mutex> lock(mutex_);
+        bool inserted = false;
+        {
+            std::lock_guard<std::mutex> lock(mutex_);
 
-        EdgeKey key(sourceId, destId);
-
-        // Check if edge already exists
-        auto it = edgeBitmaps_.find(key);
-        if (it == edgeBitmaps_.end()) {
-            try {
-                // New edge - create bitmap
-                EdgeLifespanBitmap bitmap(snapshotId + 100);  // Allocate extra space
-                bitmap.setBit(snapshotId, true);
-                edgeBitmaps_[key] = bitmap;
+            auto emplaceResult = edgeBitmaps_.try_emplace(EdgeKey(sourceId, destId));
+            inserted = emplaceResult.second;
+            emplaceResult.first->second.setBit(snapshotId, true);
+            if (inserted) {
                 totalEdgesTracked_++;
-
-                // Record in snapshot manager
-                snapshotManager_->recordEdge();
-                return true;
-            } catch (const std::bad_alloc& e) {
-                // Memory allocation failed - re-throw with context
-                throw std::bad_alloc();
             }
-        } else {
-            // Existing edge - update bitmap
-            it->second.setBit(snapshotId, true);
-            snapshotManager_->recordEdge();
-            return false;
         }
+
+        // Keep counter update outside the store mutex to reduce lock hold time.
+        snapshotManager_->recordEdge();
+        return inserted;
     }
 
     /**

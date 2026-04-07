@@ -113,6 +113,8 @@ class WorkerKafkaConsumer {
     std::atomic<uint32_t> globalSnapshotId{0};
     std::atomic<bool>     snapshotsFinalized{false};
     std::atomic<bool>     snapshotInProgress_{false};  // CAS guard: only one thread triggers snapshot
+    std::atomic<bool>     snapshotTimerActive_{false};  // signals snapshot timer to exit
+    std::thread           snapshotTimerThread_;  // background thread for time-based snapshots
 
     // Per-partition mutexes: reduce contention vs. a single global lock
     std::map<int, std::mutex> partitionTemporalMutexes_;
@@ -131,11 +133,14 @@ class WorkerKafkaConsumer {
         std::atomic<uint64_t>& totalMessages,
         std::atomic<uint64_t>& totalLocal,
         std::atomic<uint64_t>& totalCentral,
-        std::atomic<bool>&     endSignalReceived);
+        std::atomic<bool>&     endSignalReceived,
+        std::atomic<bool>&     eosSeenAnyThread);
 
     void initTemporalStores();
     void finalizeAllSnapshots();
     void createGlobalSnapshot();
+    void snapshotTimerThreadFunc();  // background thread for periodic time-based snapshots
+    void tryCreateTimeBasedSnapshot();  // check and create snapshot if time threshold reached
 
     static bool isEndOfStream(const cppkafka::Message& msg);
     static bool isErrorInMessage(const cppkafka::Message& msg);

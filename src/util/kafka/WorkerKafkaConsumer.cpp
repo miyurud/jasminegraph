@@ -16,6 +16,7 @@ limitations under the License.
 #include <algorithm>
 #include <chrono>
 #include <cctype>
+#include <future>
 #include <sys/stat.h>
 #include <nlohmann/json.hpp>
 
@@ -179,6 +180,11 @@ WorkerKafkaConsumer::WorkerKafkaConsumer(
 
 WorkerKafkaConsumer::~WorkerKafkaConsumer() noexcept {
     try {
+        // Stop the snapshot timer thread first if it's still running
+        snapshotTimerActive_.store(false, std::memory_order_relaxed);
+        if (snapshotTimerThread_.joinable()) {
+            snapshotTimerThread_.join();
+        }
         finalizeAllSnapshots();
     } catch (const std::exception& e) {
         workerKafkaLogger().error(std::string("[FINALIZE] Exception in destructor: ") + e.what());
@@ -291,28 +297,71 @@ void WorkerKafkaConsumer::finalizeAllSnapshots() {
     workerKafkaLogger().info("[FINALIZE] Saving final snapshots for graph=" +
                              std::to_string(cfg.graphId) + " dir=" + snapshotDir);
 
+    struct SnapshotPersistResult {
+        int partitionId;
+        bool isCentral;
+        bool saved;
+        uint64_t savedEdges;
+        std::string error;
+    };
+    std::vector<std::future<SnapshotPersistResult>> persistTasks;
+
     uint32_t finalSnapId = globalSnapshotId.load();  // use the same global ID used by addEdge
     for (auto& [pid, store] : localTemporalStores) {
         if (store) {
-            uint64_t savedEdges = 0;
-            bool ok = store->saveBitmapIndexToDisk(snapshotDir, finalSnapId, &savedEdges);
-            store->appendSnapshotMetaToDisk(snapshotDir, finalSnapId, savedEdges, 0);
-            std::string bitmapPath = TemporalStorePersistence::generateBitmapFilePath(
-                snapshotDir, cfg.graphId, pid);
-            workerKafkaLogger().info("[FINALIZE] partition=" + std::to_string(pid) +
-                                     " snapId=" + std::to_string(finalSnapId) +
-                                     " path=" + bitmapPath +
-                                     (ok ? " SAVED OK" : " SAVE FAILED"));
+            persistTasks.push_back(std::async(std::launch::async,
+                [storePtr = store.get(), pid, snapshotDir, finalSnapId]() {
+                    SnapshotPersistResult result{pid, false, false, 0, ""};
+                    try {
+                        result.saved = storePtr->saveBitmapIndexToDisk(snapshotDir, finalSnapId, &result.savedEdges);
+                        storePtr->appendSnapshotMetaToDisk(snapshotDir, finalSnapId, result.savedEdges, 0);
+                    } catch (const std::exception& e) {
+                        result.error = e.what();
+                    }
+                    return result;
+                }));
         }
     }
     if (centralTemporalStore) {
-        uint64_t savedEdges = 0;
-        bool ok = centralTemporalStore->saveBitmapIndexToDisk(snapshotDir, finalSnapId, &savedEdges);
-        centralTemporalStore->appendSnapshotMetaToDisk(snapshotDir, finalSnapId, savedEdges, 0);
+        persistTasks.push_back(std::async(std::launch::async,
+            [this, snapshotDir, finalSnapId]() {
+                SnapshotPersistResult result{centralPartitionId, true, false, 0, ""};
+                try {
+                    result.saved = centralTemporalStore->saveBitmapIndexToDisk(snapshotDir, finalSnapId,
+                                                                               &result.savedEdges);
+                    centralTemporalStore->appendSnapshotMetaToDisk(snapshotDir, finalSnapId, result.savedEdges, 0);
+                } catch (const std::exception& e) {
+                    result.error = e.what();
+                }
+                return result;
+            }));
+    }
+
+    for (auto& task : persistTasks) {
+        SnapshotPersistResult result = task.get();
         std::string bitmapPath = TemporalStorePersistence::generateBitmapFilePath(
-            snapshotDir, cfg.graphId, centralPartitionId);
-        workerKafkaLogger().info("[FINALIZE] central path=" + bitmapPath + " snapId=" + std::to_string(finalSnapId) +
-                                 (ok ? " SAVED OK" : " SAVE FAILED"));
+            snapshotDir, cfg.graphId, result.partitionId);
+
+        if (!result.error.empty()) {
+            if (result.isCentral) {
+                workerKafkaLogger().error("[FINALIZE] central save exception: " + result.error);
+            } else {
+                workerKafkaLogger().error("[FINALIZE] partition=" + std::to_string(result.partitionId) +
+                                          " save exception: " + result.error);
+            }
+            continue;
+        }
+
+        if (result.isCentral) {
+            workerKafkaLogger().info("[FINALIZE] central path=" + bitmapPath +
+                                     " snapId=" + std::to_string(finalSnapId) +
+                                     (result.saved ? " SAVED OK" : " SAVE FAILED"));
+        } else {
+            workerKafkaLogger().info("[FINALIZE] partition=" + std::to_string(result.partitionId) +
+                                     " snapId=" + std::to_string(finalSnapId) +
+                                     " path=" + bitmapPath +
+                                     (result.saved ? " SAVED OK" : " SAVE FAILED"));
+        }
     }
 }
 
@@ -325,21 +374,64 @@ void WorkerKafkaConsumer::createGlobalSnapshot() {
                              " for graph=" + std::to_string(cfg.graphId) +
                              " dir=" + snapshotDir);
 
+    struct SnapshotPersistResult {
+        int partitionId;
+        bool isCentral;
+        bool saved;
+        uint64_t savedEdges;
+        std::string error;
+    };
+    std::vector<std::future<SnapshotPersistResult>> persistTasks;
+
     for (auto& [pid, store] : localTemporalStores) {
         if (store) {
-            uint64_t savedEdges = 0;
-            bool ok = store->saveBitmapIndexToDisk(snapshotDir, snapId, &savedEdges);
-            store->appendSnapshotMetaToDisk(snapshotDir, snapId, savedEdges, 0);
-            workerKafkaLogger().info("[SNAPSHOT] partition=" + std::to_string(pid) +
-                                     (ok ? " SAVED OK" : " SAVE FAILED"));
+            persistTasks.push_back(std::async(std::launch::async,
+                [storePtr = store.get(), pid, snapshotDir, snapId]() {
+                    SnapshotPersistResult result{pid, false, false, 0, ""};
+                    try {
+                        result.saved = storePtr->saveBitmapIndexToDisk(snapshotDir, snapId, &result.savedEdges);
+                        storePtr->appendSnapshotMetaToDisk(snapshotDir, snapId, result.savedEdges, 0);
+                    } catch (const std::exception& e) {
+                        result.error = e.what();
+                    }
+                    return result;
+                }));
         }
     }
     if (centralTemporalStore) {
-        uint64_t savedEdges = 0;
-        bool ok = centralTemporalStore->saveBitmapIndexToDisk(snapshotDir, snapId, &savedEdges);
-        centralTemporalStore->appendSnapshotMetaToDisk(snapshotDir, snapId, savedEdges, 0);
-        workerKafkaLogger().info("[SNAPSHOT] central" +
-                                 std::string(ok ? " SAVED OK" : " SAVE FAILED"));
+        persistTasks.push_back(std::async(std::launch::async,
+            [this, snapshotDir, snapId]() {
+                SnapshotPersistResult result{centralPartitionId, true, false, 0, ""};
+                try {
+                    result.saved = centralTemporalStore->saveBitmapIndexToDisk(snapshotDir, snapId,
+                                                                               &result.savedEdges);
+                    centralTemporalStore->appendSnapshotMetaToDisk(snapshotDir, snapId, result.savedEdges, 0);
+                } catch (const std::exception& e) {
+                    result.error = e.what();
+                }
+                return result;
+            }));
+    }
+
+    for (auto& task : persistTasks) {
+        SnapshotPersistResult result = task.get();
+        if (!result.error.empty()) {
+            if (result.isCentral) {
+                workerKafkaLogger().error("[SNAPSHOT] central save exception: " + result.error);
+            } else {
+                workerKafkaLogger().error("[SNAPSHOT] partition=" + std::to_string(result.partitionId) +
+                                          " save exception: " + result.error);
+            }
+            continue;
+        }
+
+        if (result.isCentral) {
+            workerKafkaLogger().info("[SNAPSHOT] central" +
+                                     std::string(result.saved ? " SAVED OK" : " SAVE FAILED"));
+        } else {
+            workerKafkaLogger().info("[SNAPSHOT] partition=" + std::to_string(result.partitionId) +
+                                     (result.saved ? " SAVED OK" : " SAVE FAILED"));
+        }
     }
 
     // Open next snapshot epoch on all stores
@@ -350,6 +442,60 @@ void WorkerKafkaConsumer::createGlobalSnapshot() {
 
     globalSnapshotId++;
     workerKafkaLogger().info("[SNAPSHOT] Global snapshot " + std::to_string(snapId) + " created.");
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Background snapshot timer thread for time-based snapshots
+// ─────────────────────────────────────────────────────────────────────────────
+
+void WorkerKafkaConsumer::snapshotTimerThreadFunc() {
+    workerKafkaLogger().info("[SNAPSHOT_TIMER] Started for graph=" + std::to_string(cfg.graphId) +
+                             " timeThreshold=" + std::to_string(cfg.timeThreshold) + "s");
+
+    // Timer thread wakes up every 5 seconds to check if time-based snapshots are needed
+    // This prevents a 30+ second delay waiting for the idle timeout when the stream ends
+    const int CHECK_INTERVAL_SECS = 5;
+
+    while (snapshotTimerActive_.load(std::memory_order_relaxed)) {
+        std::this_thread::sleep_for(std::chrono::seconds(CHECK_INTERVAL_SECS));
+
+        if (!snapshotTimerActive_.load(std::memory_order_relaxed)) break;
+        if (snapshotsFinalized.load(std::memory_order_relaxed)) break;
+
+        tryCreateTimeBasedSnapshot();
+    }
+
+    workerKafkaLogger().info("[SNAPSHOT_TIMER] Exiting for graph=" + std::to_string(cfg.graphId));
+}
+
+void WorkerKafkaConsumer::tryCreateTimeBasedSnapshot() {
+    if (cfg.timeThreshold == 0) return;  // time-based snapshots disabled
+    if (snapshotsFinalized.load(std::memory_order_relaxed)) return;
+
+    // Check if any temporal store needs a time-based snapshot
+    bool shouldSnapshot = false;
+
+    for (auto& [pid, store] : localTemporalStores) {
+        if (store && store->shouldCreateSnapshot()) {
+            shouldSnapshot = true;
+            break;
+        }
+    }
+
+    if (!shouldSnapshot && centralTemporalStore && centralTemporalStore->shouldCreateSnapshot()) {
+        shouldSnapshot = true;
+    }
+
+    if (shouldSnapshot) {
+        bool expected = false;
+        if (snapshotInProgress_.compare_exchange_strong(expected, true,
+                std::memory_order_acq_rel, std::memory_order_relaxed)) {
+            workerKafkaLogger().info("[SNAPSHOT_TIMER] Time-based snapshot triggered for graph=" +
+                                    std::to_string(cfg.graphId));
+            createGlobalSnapshot();
+            snapshotInProgress_.store(false, std::memory_order_release);
+        }
+    }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -387,7 +533,8 @@ void WorkerKafkaConsumer::consumerThreadFunc(
         std::atomic<uint64_t>& totalMessages,
         std::atomic<uint64_t>& totalLocal,
         std::atomic<uint64_t>& totalCentral,
-        std::atomic<bool>&     endSignalReceived) {
+    std::atomic<bool>&     endSignalReceived,
+    std::atomic<bool>&     eosSeenAnyThread) {
     try {
     consumer->subscribe({cfg.topic});
     workerKafkaLogger().info("Worker consumer thread " + std::to_string(threadId) +
@@ -395,7 +542,7 @@ void WorkerKafkaConsumer::consumerThreadFunc(
 
     const size_t   KAFKA_BATCH   = 2000;
     const uint64_t MAX_IDLE_POLLS = 30;  // seconds with zero real messages before giving up
-                                           // (primary stop = endSignalReceived via -1 sentinel)
+    const uint64_t EOS_DRAIN_IDLE_POLLS = 2;  // after EOS, drain briefly then stop
     uint64_t       idleSeconds    = 0;  // counts seconds with zero valid messages
     uint64_t       threadMsgs    = 0;
     uint64_t       errorMsgs     = 0;  // total error/EOF messages seen
@@ -426,6 +573,8 @@ void WorkerKafkaConsumer::consumerThreadFunc(
         if (validInBatch == 0) {
             // No real messages — increment idle counter
             ++idleSeconds;
+            const uint64_t idleLimit =
+                eosSeenAnyThread.load(std::memory_order_relaxed) ? EOS_DRAIN_IDLE_POLLS : MAX_IDLE_POLLS;
             if (idleSeconds % 30 == 0) {
                 workerKafkaLogger().info("Worker thread " + std::to_string(threadId) +
                     ": idle " + std::to_string(idleSeconds) + "s" +
@@ -433,11 +582,14 @@ void WorkerKafkaConsumer::consumerThreadFunc(
                     " errors=" + std::to_string(errorMsgs) +
                     " processed=" + std::to_string(threadMsgs) + ")");
             }
-            if (idleSeconds >= MAX_IDLE_POLLS) {
+            if (idleSeconds >= idleLimit) {
                 workerKafkaLogger().warn("Worker thread " + std::to_string(threadId) +
                                          ": idle timeout (" +
                                          std::to_string(idleSeconds) +
-                                         "s, errors=" + std::to_string(errorMsgs) +
+                                         "s, mode=" +
+                                         std::string(eosSeenAnyThread.load(std::memory_order_relaxed) ?
+                                                 "post-eos-drain" : "normal") +
+                             ", errors=" + std::to_string(errorMsgs) +
                                          ") — exiting");
                 break;
             }
@@ -457,8 +609,8 @@ void WorkerKafkaConsumer::consumerThreadFunc(
             if (isEndOfStream(msg)) {
                 workerKafkaLogger().info("Worker thread " + std::to_string(threadId) +
                                          " observed end-of-stream signal on one Kafka partition");
-                // Keep consuming: a thread can temporarily own multiple partitions and EOS
-                // ordering is partition-local. We exit only after sustained idleness.
+                eosSeenAnyThread.store(true, std::memory_order_relaxed);
+                // Keep consuming briefly to drain any buffered records already fetched.
                 continue;
             }
             if (isErrorInMessage(msg)) continue;
@@ -608,6 +760,7 @@ WorkerKafkaStats WorkerKafkaConsumer::run() {
     std::atomic<uint64_t> totalLocal   {0};
     std::atomic<uint64_t> totalCentral {0};
     std::atomic<bool>     endSignalReceived{false};
+    std::atomic<bool>     eosSeenAnyThread{false};
 
     // Build Kafka consumer configuration.
     // Each worker uses a DISTINCT consumer group so it gets ALL messages
@@ -635,6 +788,13 @@ WorkerKafkaStats WorkerKafkaConsumer::run() {
                              " offset=earliest threads=" + std::to_string(cfg.numConsumerThreads) +
                              " (consuming ALL messages from beginning of topic)");
 
+    // Start background snapshot timer thread for time-based snapshots
+    // This prevents waiting for the 30-second idle timeout when the stream ends
+    if (cfg.temporalEnabled && cfg.timeThreshold > 0) {
+        snapshotTimerActive_.store(true, std::memory_order_relaxed);
+        snapshotTimerThread_ = std::thread(&WorkerKafkaConsumer::snapshotTimerThreadFunc, this);
+    }
+
     // Spawn N parallel consumer threads
     std::vector<std::thread> threads;
     threads.reserve(cfg.numConsumerThreads);
@@ -643,15 +803,22 @@ WorkerKafkaStats WorkerKafkaConsumer::run() {
         auto consumer = std::make_unique<cppkafka::Consumer>(kafkaCfg);
         threads.emplace_back(
             [this, i, c = std::move(consumer),
-             &totalMessages, &totalLocal, &totalCentral, &endSignalReceived]() mutable {
+                 &totalMessages, &totalLocal, &totalCentral,
+                 &endSignalReceived, &eosSeenAnyThread]() mutable {
                 consumerThreadFunc(i, c.get(),
                                    totalMessages, totalLocal, totalCentral,
-                                   endSignalReceived);
+                           endSignalReceived, eosSeenAnyThread);
             });
     }
 
     for (auto& t : threads) {
         if (t.joinable()) t.join();
+    }
+
+    // Stop the snapshot timer thread and wait for it to finish
+    snapshotTimerActive_.store(false, std::memory_order_relaxed);
+    if (snapshotTimerThread_.joinable()) {
+        snapshotTimerThread_.join();
     }
 
     // Persist temporal snapshots NOW — consumer threads are all done so the
