@@ -95,6 +95,9 @@ extern const string SEMANTIC_BEAM_SEARCH;
 extern const string PROPERTIES;
 extern const string  UPDATE_PARTITION_META;
 extern const string  META;
+extern const string SHEEP;
+extern const string SHTRIAN;
+extern const string SHEEP_TRIANGLES;
 
 class JasminGraphFrontEndProtocol {
     // Note that this protocol do not need a handshake session since the communication in most of the time is conducted

@@ -98,9 +98,11 @@ void StreamingTriangleCountExecutor::execute() {
     jobResponse.setJobId(request.getJobId());
     jobResponse.addParameter(Conts::PARAM_KEYS::STREAMING_TRIANGLE_COUNT, std::to_string(result));
     jobResponse.setEndTime(chrono::high_resolution_clock::now());
+    
+    responseVectorMutex.lock();
     responseVector.push_back(jobResponse);
-
     responseMap[request.getJobId()] = jobResponse;
+    responseVectorMutex.unlock();
 }
 
 long StreamingTriangleCountExecutor::getTriangleCount(int graphId, std::string host, int port,

@@ -27,6 +27,7 @@ limitations under the License.
 #include "../knowledgegraph/construction/Pipeline.h"
 #include "../knowledgegraph/construction/VLLMTupleStreamer.h"
 #include "../query/algorithms/triangles/StreamingTriangles.h"
+#include "../query/algorithms/triangles/SheepTriangles.h"
 #include "../query/processor/cypher/runtime/InstanceHandler.h"
 #include "../query/processor/nlp/semanticbeamsearch/SemanticBeamSearch.h"
 #include "../server/JasmineGraphServer.h"
@@ -473,8 +474,8 @@ long countLocalTriangles(
     std::string duplicateCentralGraphIdentifier = graphId + "_centralstore_dp_" + partitionId;
 
     auto localMapIterator = graphDBMapLocalStores.find(graphIdentifier);
-    auto centralStoreIterator = graphDBMapCentralStores.find(graphIdentifier);
-    auto duplicateCentralStoreIterator = graphDBMapDuplicateCentralStores.find(graphIdentifier);
+    auto centralStoreIterator = graphDBMapCentralStores.find(centralGraphIdentifier);
+    auto duplicateCentralStoreIterator = graphDBMapDuplicateCentralStores.find(duplicateCentralGraphIdentifier);
 
     if (localMapIterator == graphDBMapLocalStores.end() &&
         JasmineGraphInstanceService::isGraphDBExists(graphId, partitionId)) {
@@ -496,7 +497,41 @@ long countLocalTriangles(
     JasmineGraphHashMapDuplicateCentralStore duplicateCentralGraphDB =
         graphDBMapDuplicateCentralStores[duplicateCentralGraphIdentifier];
 
-    result = Triangles::run(graphDB, centralGraphDB, duplicateCentralGraphDB, graphId, partitionId, threadPriority);
+    // Check which algorithm was used for partitioning
+    std::string algorithm = "4";  // default to METIS
+    try {
+        SQLiteDBInterface *refToSqlite = new SQLiteDBInterface();
+        refToSqlite->init();
+        // COALESCE + CAST avoids null/typed-value conversion issues from metadb rows.
+        std::string query = "SELECT COALESCE(CAST(id_algorithm AS TEXT), '4') AS id_algorithm FROM graph WHERE idgraph = '" +
+                            graphId + "' LIMIT 1";
+        std::vector<vector<pair<string, string>>> queryResults = refToSqlite->runSelect(query);
+        if (!queryResults.empty() && !queryResults[0].empty()) {
+            for (const auto &column : queryResults[0]) {
+                if (column.first == "id_algorithm") {
+                    algorithm = Utils::trim_copy(column.second);
+                    break;
+                }
+            }
+
+            if (algorithm.empty()) {
+                algorithm = "4";
+            }
+        }
+        refToSqlite->finalize();
+        delete refToSqlite;
+    } catch (const std::exception &e) {
+        instance_logger.error("Error checking graph algorithm: " + std::string(e.what()));
+    }
+
+    // Use appropriate triangle counting algorithm
+    if (algorithm == "5" || algorithm == "sheep" || algorithm == "SHEEP") {
+        instance_logger.info("###INSTANCE### Using SheepTriangles algorithm for sheep-partitioned graph");
+        result = SheepTriangles::run(graphDB, centralGraphDB, duplicateCentralGraphDB, graphId, partitionId);
+    } else {
+        instance_logger.info("###INSTANCE### Using standard Triangles algorithm");
+        result = Triangles::run(graphDB, centralGraphDB, duplicateCentralGraphDB, graphId, partitionId, threadPriority);
+    }
 
     instance_logger.info("###INSTANCE### Local Triangle Count : Completed: Triangles: " + to_string(result));
 

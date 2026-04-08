@@ -46,7 +46,8 @@ void *startScheduler(void *dummyPt) {
             while (!jobQueue.empty()) {
                 JobRequest request = jobQueue.top();
 
-                if (request.getPriority() == Conts::HIGH_PRIORITY_DEFAULT_VALUE && request.getJobType() == TRIANGLES) {
+                if (request.getPriority() == Conts::HIGH_PRIORITY_DEFAULT_VALUE && 
+                    (request.getJobType() == TRIANGLES || request.getJobType() == SHEEP_TRIANGLES)) {
                     pendingHPJobList.push_back(request);
                     highPriorityGraphList.push_back(request.getParameter(Conts::PARAM_KEYS::GRAPH_ID));
                     jobQueue.pop();

@@ -63,3 +63,6 @@ const string SEMANTIC_BEAM_SEARCH = "sbs";
 const string PROPERTIES = "prp";
 const string UPDATE_PARTITION_META = "update-partition-meta";
 const string META = "meta";
+const string SHEEP = "sheep";
+const string SHTRIAN = "shtrian";
+const string SHEEP_TRIANGLES = "sheep-triangles";

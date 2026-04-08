@@ -100,3 +100,4 @@ INSERT INTO partitioning_algorithm (id_algorithm, algorithm_name) VALUES (1, 'HA
 INSERT INTO partitioning_algorithm (id_algorithm, algorithm_name) VALUES (2, 'FENNEL');
 INSERT INTO partitioning_algorithm (id_algorithm, algorithm_name) VALUES (3, 'LDG');
 INSERT INTO partitioning_algorithm (id_algorithm, algorithm_name) VALUES (4, 'METIS');
+INSERT INTO partitioning_algorithm (id_algorithm, algorithm_name) VALUES (5, 'SHEEP');

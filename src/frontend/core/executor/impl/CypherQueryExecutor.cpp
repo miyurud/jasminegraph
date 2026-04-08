@@ -357,9 +357,9 @@ void CypherQueryExecutor::execute() {
     workerResponded = true;
     JobResponse jobResponse;
     jobResponse.setJobId(request.getJobId());
-    responseVector.push_back(jobResponse);
-
+    
     responseVectorMutex.lock();
+    responseVector.push_back(jobResponse);
     responseMap[request.getJobId()] = jobResponse;
     responseVectorMutex.unlock();
 

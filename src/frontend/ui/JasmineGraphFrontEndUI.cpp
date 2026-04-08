@@ -827,6 +827,7 @@ static void triangles_command(std::string masterIP, int connFd,
         string reqId = to_string(reqCounter++);
         ui_frontend_logger.info("Started processing request " + reqId);
         auto begin = chrono::high_resolution_clock::now();
+
         JobRequest jobDetails;
         jobDetails.setJobId(std::to_string(uniqueId));
         jobDetails.setJobType(TRIANGLES);

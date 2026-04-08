@@ -31,7 +31,7 @@ std::mutex responseVectorMutex;
 static std::mutex fileCombinationMutex;
 static std::mutex aggregateWeightMutex;
 
-static time_t last_exec_time = 0;
+time_t last_exec_time = 0;
 
 static string isFileAccessibleToWorker(std::string graphId, std::string partitionId, std::string aggregatorHostName,
                                        std::string aggregatorPort, std::string masterIP, std::string fileType,
@@ -53,7 +53,7 @@ TriangleCountExecutor::TriangleCountExecutor(SQLiteDBInterface *db, PerformanceS
     this->request = jobRequest;
 }
 
-static void allocate(int p, string w, std::map<int, string> &alloc, std::set<int> &remain,
+void allocate(int p, string w, std::map<int, string> &alloc, std::set<int> &remain,
                      std::map<int, std::vector<string>> &p_avail, std::map<string, int> &loads) {
     alloc[p] = w;
     remain.erase(p);
@@ -86,7 +86,7 @@ static int get_min_partition(std::set<int> &remain, std::map<int, std::vector<st
 
 static const std::vector<int> LOAD_PREFERENCE = {2, 3, 1, 0};
 
-static int alloc_plan(std::map<int, string> &alloc, std::set<int> &remain, std::map<int, std::vector<string>> &p_avail,
+int alloc_plan(std::map<int, string> &alloc, std::set<int> &remain, std::map<int, std::vector<string>> &p_avail,
                       std::map<string, int> &loads) {
     for (bool done = false; !done;) {
         string w = "";
@@ -147,7 +147,7 @@ static int alloc_plan(std::map<int, string> &alloc, std::set<int> &remain, std::
     return best_rem;
 }
 
-static std::vector<int> reallocate_parts(std::map<int, string> &alloc, std::set<int> &remain,
+std::vector<int> reallocate_parts(std::map<int, string> &alloc, std::set<int> &remain,
                                          const std::map<int, std::vector<string>> &P_AVAIL) {
     map<int, int> P_COUNT;
     for (auto it = P_AVAIL.begin(); it != P_AVAIL.end(); it++) {
@@ -198,7 +198,7 @@ static std::vector<int> reallocate_parts(std::map<int, string> &alloc, std::set<
     return copying;
 }
 
-static void scale_up(std::map<string, int> &loads, map<string, string> &workers, int copy_cnt) {
+void scale_up(std::map<string, int> &loads, map<string, string> &workers, int copy_cnt) {
     int curr_load = 0;
     for (auto it = loads.begin(); it != loads.end(); it++) {
         curr_load += it->second;
@@ -220,7 +220,7 @@ static void scale_up(std::map<string, int> &loads, map<string, string> &workers,
     }
 }
 
-static int alloc_net_plan(std::map<int, string> &alloc, std::vector<int> &parts,
+int alloc_net_plan(std::map<int, string> &alloc, std::vector<int> &parts,
                           std::map<int, std::pair<string, string>> &transfer, std::map<string, int> &net_loads,
                           std::map<string, int> &loads, const std::map<int, std::vector<string>> &p_avail,
                           int curr_best) {
@@ -301,7 +301,7 @@ static int alloc_net_plan(std::map<int, string> &alloc, std::vector<int> &parts,
     return best;
 }
 
-static void filter_partitions(std::map<string, std::vector<string>> &partitionMap, SQLiteDBInterface *sqlite,
+void filter_partitions(std::map<string, std::vector<string>> &partitionMap, SQLiteDBInterface *sqlite,
                               string graphId) {
     map<string, string> workers;  // id => "ip:port"
     const std::vector<vector<pair<string, string>>> &results =
@@ -701,9 +701,9 @@ void TriangleCountExecutor::execute() {
     JobResponse jobResponse;
     jobResponse.setJobId(request.getJobId());
     jobResponse.addParameter(Conts::PARAM_KEYS::TRIANGLE_COUNT, std::to_string(result));
-    responseVector.push_back(jobResponse);
-
+    
     responseVectorMutex.lock();
+    responseVector.push_back(jobResponse);
     responseMap[request.getJobId()] = jobResponse;
     responseVectorMutex.unlock();
 
@@ -1083,7 +1083,7 @@ static int updateTriangleTreeAndGetTriangleCount(
     return aggregateCount;
 }
 
-static long aggregateCentralStoreTriangles(SQLiteDBInterface *sqlite, std::string graphId, std::string masterIP,
+long TriangleCountExecutor::aggregateCentralStoreTriangles(SQLiteDBInterface *sqlite, std::string graphId, std::string masterIP,
                                            int threadPriority,
                                            const std::map<string, std::vector<string>> &partitionMap) {
     OTEL_TRACE_FUNCTION();
