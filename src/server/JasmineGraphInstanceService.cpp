@@ -2223,7 +2223,7 @@ static void delete_graph_command(int connFd, bool *loop_exit_p) {
     }
     instance_logger.info("Sent : " + JasmineGraphInstanceProtocol::SEND_PARTITION_ID);
 
-    string partitionID = Utils::read_str_wrapper(connFd, data, INSTANCE_DATA_LENGTH, false);
+    string partitionID = Utils::read_str_wrapper(connFd, data.data(), INSTANCE_DATA_LENGTH, false);
     instance_logger.info("Received partition ID: " + partitionID);
     deleteGraphPartition(graphID, partitionID);
     deleteStreamingGraphPartition(graphID, partitionID);
@@ -2279,7 +2279,7 @@ static void duplicate_centralstore_command(int connFd, int serverPort, bool *loo
     }
     instance_logger.info("Sent : " + JasmineGraphInstanceProtocol::OK);
 
-    string partitionID = Utils::read_str_trim_wrapper(connFd, data.data(), INSTANCE_DATA_LENGTH);
+    string partitionID = Utils::read_str_trim_wrapper(connFd, data, INSTANCE_DATA_LENGTH);
     instance_logger.info("Received Partition ID: " + partitionID);
 
     if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::OK)) {
