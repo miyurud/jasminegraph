@@ -1620,72 +1620,70 @@ static void add_stream_kafka_command(int connFd, std::string &kafka_server_IP, c
     input_stream_handler_thread = thread(&StreamHandler::listen_to_kafka_topic, stream_handler);
 }
 
-static void send_graph_hdfs_command_impl(const std::string &masterIP, int connectionFd,
-                                        SQLiteDBInterface *sqlite, bool *loop_exit_p) {
-    frontend_logger.info("Save graph to HDFS command received");
-
-    // Ask for graph ID
-    std::string graphIdMsg = "Graph ID:";
-    int resultWr = write(connectionFd, graphIdMsg.c_str(), graphIdMsg.length());
+static bool writeSocketLine(int connectionFd, const std::string &message, bool *loop_exit_p) {
+    int resultWr = write(connectionFd, message.c_str(), message.length());
     if (resultWr < 0) {
         frontend_logger.error("Error writing to socket");
         *loop_exit_p = true;
-        return;
+        return false;
     }
+
     resultWr = write(connectionFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
     if (resultWr < 0) {
         frontend_logger.error("Error writing to socket");
         *loop_exit_p = true;
-        return;
+        return false;
     }
 
-    std::string graphIdBuf;
-    graphIdBuf.resize(FRONTEND_DATA_LENGTH);
-    if (int graphBytesRead = read(connectionFd, &graphIdBuf[0], FRONTEND_DATA_LENGTH); graphBytesRead > 0) {
-        graphIdBuf.resize(static_cast<size_t>(graphBytesRead));
+    return true;
+}
+
+static std::string readTrimmedSocketInput(int connectionFd) {
+    std::string input;
+    input.resize(FRONTEND_DATA_LENGTH);
+    if (int bytesRead = read(connectionFd, &input[0], FRONTEND_DATA_LENGTH); bytesRead > 0) {
+        input.resize(static_cast<size_t>(bytesRead));
     } else {
-        graphIdBuf.clear();
+        input.clear();
     }
-    std::string graphId = Utils::trim_copy(graphIdBuf);
+
+    return Utils::trim_copy(input);
+}
+
+static bool sendClientErrorAndExit(int connectionFd, const std::string &logMessage, const std::string &clientMessage,
+                                   bool *loop_exit_p) {
+    frontend_logger.error(logMessage);
+    write(connectionFd, clientMessage.c_str(), clientMessage.length());
+    write(connectionFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
+    *loop_exit_p = true;
+    return false;
+}
+
+static bool requestGraphIdAndValidate(int connectionFd, SQLiteDBInterface *sqlite, std::string &graphId,
+                                      bool *loop_exit_p) {
+    if (!writeSocketLine(connectionFd, "Graph ID:", loop_exit_p)) {
+        return false;
+    }
+
+    graphId = readTrimmedSocketInput(connectionFd);
     frontend_logger.info("Graph ID received: " + graphId);
 
-    // Verify graph exists
     std::string graphQuery = "SELECT idgraph, name FROM graph WHERE idgraph = '" + graphId + "'";
-    if (std::vector<std::vector<std::pair<std::string, std::string>>> graphResults = sqlite->runSelect(graphQuery);
-        graphResults.empty()) {
-        frontend_logger.error("Graph not found: " + graphId);
-        std::string errorMsg = "Graph not found";
-        write(connectionFd, errorMsg.c_str(), errorMsg.length());
-        write(connectionFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
-        *loop_exit_p = true;
-        return;
+    std::vector<std::vector<std::pair<std::string, std::string>>> graphResults = sqlite->runSelect(graphQuery);
+    if (graphResults.empty()) {
+        return sendClientErrorAndExit(connectionFd, "Graph not found: " + graphId, "Graph not found", loop_exit_p);
     }
 
-    // Ask for HDFS server configuration
-    std::string hdfsServerIp;
-    std::string hdfsPort;
-    std::string hdfsMsg = "Do you want to use the default HDFS server(y/n)?";
-    resultWr = write(connectionFd, hdfsMsg.c_str(), hdfsMsg.length());
-    if (resultWr < 0) {
-        frontend_logger.error("Error writing to socket");
-        *loop_exit_p = true;
-        return;
-    }
-    resultWr = write(connectionFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
-    if (resultWr < 0) {
-        frontend_logger.error("Error writing to socket");
-        *loop_exit_p = true;
-        return;
+    return true;
+}
+
+static bool requestHdfsServerConfig(int connectionFd, std::string &hdfsServerIp, std::string &hdfsPort,
+                                    bool *loop_exit_p) {
+    if (!writeSocketLine(connectionFd, "Do you want to use the default HDFS server(y/n)?", loop_exit_p)) {
+        return false;
     }
 
-    std::string userResBuf;
-    userResBuf.resize(FRONTEND_DATA_LENGTH);
-    if (int userBytesRead = read(connectionFd, &userResBuf[0], FRONTEND_DATA_LENGTH); userBytesRead > 0) {
-        userResBuf.resize(static_cast<size_t>(userBytesRead));
-    } else {
-        userResBuf.clear();
-    }
-    std::string userRes = Utils::trim_copy(userResBuf);
+    std::string userRes = readTrimmedSocketInput(connectionFd);
     std::transform(userRes.begin(), userRes.end(), userRes.begin(), ::tolower);
 
     if (userRes == "y") {
@@ -1696,30 +1694,13 @@ static void send_graph_hdfs_command_impl(const std::string &masterIP, int connec
             "Send the file path to the HDFS configuration file."
             " This file needs to be in some directory location"
             " that is accessible for JasmineGraph master";
-        resultWr = write(connectionFd, configMsg.c_str(), configMsg.length());
-        if (resultWr < 0) {
-            frontend_logger.error("Error writing to socket");
-            *loop_exit_p = true;
-            return;
-        }
-        resultWr = write(connectionFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
-        if (resultWr < 0) {
-            frontend_logger.error("Error writing to socket");
-            *loop_exit_p = true;
-            return;
+        if (!writeSocketLine(connectionFd, configMsg, loop_exit_p)) {
+            return false;
         }
 
-        std::string filePathBuf;
-        filePathBuf.resize(FRONTEND_DATA_LENGTH);
-        if (int filePathBytesRead = read(connectionFd, &filePathBuf[0], FRONTEND_DATA_LENGTH); filePathBytesRead > 0) {
-            filePathBuf.resize(static_cast<size_t>(filePathBytesRead));
-        } else {
-            filePathBuf.clear();
-        }
-        std::string filePathS = Utils::trim_copy(filePathBuf);
-        frontend_logger.info("Reading HDFS configuration file: " + filePathS);
-
-        parseHdfsConfigFile(filePathS, hdfsServerIp, hdfsPort);
+        std::string filePath = readTrimmedSocketInput(connectionFd);
+        frontend_logger.info("Reading HDFS configuration file: " + filePath);
+        parseHdfsConfigFile(filePath, hdfsServerIp, hdfsPort);
 
         if (hdfsServerIp.empty()) {
             frontend_logger.error("HDFS server IP is empty.");
@@ -1730,42 +1711,29 @@ static void send_graph_hdfs_command_impl(const std::string &masterIP, int connec
     }
 
     frontend_logger.info("HDFS Server: " + hdfsServerIp + ":" + hdfsPort);
+    return true;
+}
 
-    // Ask for HDFS output path
-    std::string pathMsg = "HDFS destination file path:";
-    resultWr = write(connectionFd, pathMsg.c_str(), pathMsg.length());
-    if (resultWr < 0) {
-        frontend_logger.error("Error writing to socket");
-        *loop_exit_p = true;
-        return;
-    }
-    resultWr = write(connectionFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
-    if (resultWr < 0) {
-        frontend_logger.error("Error writing to socket");
-        *loop_exit_p = true;
-        return;
+static bool requestHdfsDestinationPath(int connectionFd, std::string &hdfsDestinationFilePath, bool *loop_exit_p) {
+    if (!writeSocketLine(connectionFd, "HDFS destination file path:", loop_exit_p)) {
+        return false;
     }
 
-    std::string pathBuf;
-    pathBuf.resize(FRONTEND_DATA_LENGTH);
-    if (int bytesRead = read(connectionFd, &pathBuf[0], FRONTEND_DATA_LENGTH); bytesRead > 0) {
-        pathBuf.resize(static_cast<size_t>(bytesRead));
-    } else {
-        pathBuf.clear();
-    }
-    std::string hdfsDestinationFilePath = Utils::trim_copy(pathBuf);
+    hdfsDestinationFilePath = readTrimmedSocketInput(connectionFd);
     frontend_logger.info("HDFS destination file path: " + hdfsDestinationFilePath);
 
     if (hdfsDestinationFilePath.empty()) {
-        frontend_logger.error("HDFS destination file path is empty");
-        std::string errorMsg = "Invalid HDFS destination file path";
-        write(connectionFd, errorMsg.c_str(), errorMsg.length());
-        write(connectionFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
-        *loop_exit_p = true;
-        return;
+        return sendClientErrorAndExit(connectionFd, "HDFS destination file path is empty",
+                                      "Invalid HDFS destination file path", loop_exit_p);
     }
 
-    // Get partition information from database
+    return true;
+}
+
+static bool loadWorkerPartitions(SQLiteDBInterface *sqlite, const std::string &graphId,
+                                 std::map<std::string, std::vector<std::string>, std::less<>> &workerPartitionMap,
+                                 std::map<std::string, Utils::worker, std::less<>> &workerMap,
+                                 int connectionFd, bool *loop_exit_p) {
     std::string partitionQuery =
         "SELECT DISTINCT worker_idworker, partition_idpartition "
         "FROM worker_has_partition INNER JOIN worker ON worker_has_partition.worker_idworker=worker.idworker "
@@ -1773,205 +1741,196 @@ static void send_graph_hdfs_command_impl(const std::string &masterIP, int connec
     std::vector<std::vector<std::pair<std::string, std::string>>> partitionResults = sqlite->runSelect(partitionQuery);
 
     if (partitionResults.empty()) {
-        frontend_logger.error("No partitions found for graph ID: " + graphId);
-        std::string errorMsg = "Graph not found or has no partitions";
-        write(connectionFd, errorMsg.c_str(), errorMsg.length());
-        write(connectionFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
-        *loop_exit_p = true;
-        return;
+        return sendClientErrorAndExit(connectionFd, "No partitions found for graph ID: " + graphId,
+                                      "Graph not found or has no partitions", loop_exit_p);
     }
 
-    // Group partitions by worker ID
-    std::map<std::string, std::vector<std::string>, std::less<>> workerPartitionMap;
     for (const auto &row : partitionResults) {
-        std::string workerID = row[0].second;
-        std::string partitionID = row[1].second;
-        workerPartitionMap[workerID].push_back(partitionID);
+        workerPartitionMap[row[0].second].push_back(row[1].second);
     }
 
-    // Get worker connection details
     std::vector<Utils::worker> workerList = Utils::getWorkerList(sqlite);
-    std::map<std::string, Utils::worker, std::less<>> workerMap;
-    for (const auto &w : workerList) {
-        workerMap[w.workerID] = w;
+    for (const auto &worker : workerList) {
+        workerMap[worker.workerID] = worker;
     }
 
-    auto trimTrailingSlashes = [](std::string path) {
-        while (path.size() > 1 && path.back() == '/') {
-            path.pop_back();
-        }
-        return path;
-    };
+    return true;
+}
 
-    auto getParentDirectory = [&](const std::string& path) {
-        std::string normalized = trimTrailingSlashes(path);
-        size_t pos = normalized.find_last_of('/');
-        if (pos == std::string::npos) {
-            return std::string();
-        }
-        if (pos == 0) {
-            return std::string("/");
-        }
-        return normalized.substr(0, pos);
-    };
+static std::string trimTrailingSlashes(std::string path) {
+    while (path.size() > 1 && path.back() == '/') {
+        path.pop_back();
+    }
+    return path;
+}
 
-    std::string shardDirectory = trimTrailingSlashes(hdfsDestinationFilePath) + "_shards";
+static std::string getParentDirectory(const std::string &path) {
+    std::string normalized = trimTrailingSlashes(path);
+    size_t pos = normalized.find_last_of('/');
+    if (pos == std::string::npos) {
+        return std::string();
+    }
+    if (pos == 0) {
+        return std::string("/");
+    }
+    return normalized.substr(0, pos);
+}
 
-    // Connect to HDFS and ensure destination directories exist
-    auto hdfsConnector = std::make_unique<HDFSConnector>(hdfsServerIp, hdfsPort);
-    if (std::string mergedParentDirectory = getParentDirectory(hdfsDestinationFilePath);
-        !mergedParentDirectory.empty() && !hdfsConnector->createDirectory(mergedParentDirectory)) {
-        frontend_logger.error("Failed to create parent directory for destination file: " + mergedParentDirectory);
-        std::string errorMsg = "Failed to create parent directory for destination file";
-        write(connectionFd, errorMsg.c_str(), errorMsg.length());
-        write(connectionFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
-        *loop_exit_p = true;
-        return;
+static bool prepareHdfsDestination(HDFSConnector &hdfsConnector, const std::string &destinationPath,
+                                   std::string &shardDirectory, int connectionFd, bool *loop_exit_p) {
+    shardDirectory = trimTrailingSlashes(destinationPath) + "_shards";
+
+    std::string mergedParentDirectory = getParentDirectory(destinationPath);
+    if (!mergedParentDirectory.empty() && !hdfsConnector.createDirectory(mergedParentDirectory)) {
+        return sendClientErrorAndExit(connectionFd,
+                                      "Failed to create parent directory for destination file: " +
+                                          mergedParentDirectory,
+                                      "Failed to create parent directory for destination file", loop_exit_p);
     }
 
-    if (!hdfsConnector->createDirectory(shardDirectory)) {
-        frontend_logger.error("Failed to create HDFS shard directory: " + shardDirectory);
-        std::string errorMsg = "Failed to create HDFS shard directory";
-        write(connectionFd, errorMsg.c_str(), errorMsg.length());
-        write(connectionFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
-        *loop_exit_p = true;
-        return;
+    if (!hdfsConnector.createDirectory(shardDirectory)) {
+        return sendClientErrorAndExit(connectionFd, "Failed to create HDFS shard directory: " + shardDirectory,
+                                      "Failed to create HDFS shard directory", loop_exit_p);
     }
 
+    return true;
+}
+
+static bool exportPartitionShard(const std::string &masterIP, const std::string &graphId, const std::string &workerID,
+                                 const std::string &partitionId, const Utils::worker &currentWorker,
+                                 const std::string &hdfsServerIp, const std::string &hdfsPort,
+                                 const std::string &shardPath) {
+    std::string host = currentWorker.hostname;
+    if (host.find('@') != std::string::npos) {
+        host = Utils::split(host, '@')[1];
+    }
+    int workerPort = std::stoi(currentWorker.port);
+
+    int sockfd = socket(AF_INET, SOCK_STREAM, 0);
+    if (sockfd < 0) {
+        frontend_logger.error("Cannot create socket for worker " + workerID);
+        return false;
+    }
+
+    struct hostent hostEntry;
+    struct hostent *server = nullptr;
+    int hostErrno = 0;
+    char hostBuffer[8192];
+    int hostLookupResult = gethostbyname_r(host.c_str(), &hostEntry, hostBuffer, sizeof(hostBuffer), &server, &hostErrno);
+    if (hostLookupResult != 0 || server == nullptr) {
+        frontend_logger.error("No host named " + host);
+        close(sockfd);
+        return false;
+    }
+
+    struct sockaddr_in serv_addr;
+    memset((char *)&serv_addr, 0, sizeof(serv_addr));
+    serv_addr.sin_family = AF_INET;
+    memcpy(&serv_addr.sin_addr.s_addr, server->h_addr, server->h_length);
+    serv_addr.sin_port = htons(workerPort);
+
+    if (Utils::connect_wrapper(sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
+        frontend_logger.error("Error connecting to worker " + workerID + " at " + host);
+        close(sockfd);
+        return false;
+    }
+
+    char data[INSTANCE_LONG_DATA_LENGTH + 1];
+    bool success = Utils::performHandshake(sockfd, data, INSTANCE_DATA_LENGTH, masterIP) &&
+                   Utils::sendExpectResponse(sockfd, data, INSTANCE_LONG_DATA_LENGTH,
+                                             JasmineGraphInstanceProtocol::SEND_EDGES_TO_HDFS,
+                                             JasmineGraphInstanceProtocol::OK) &&
+                   Utils::sendExpectResponse(sockfd, data, INSTANCE_LONG_DATA_LENGTH,
+                                             graphId,
+                                             JasmineGraphInstanceProtocol::SEND_PARTITION_ID) &&
+                   Utils::sendExpectResponse(sockfd, data, INSTANCE_LONG_DATA_LENGTH,
+                                             partitionId,
+                                             JasmineGraphInstanceProtocol::OK) &&
+                   Utils::sendExpectResponse(sockfd, data, INSTANCE_LONG_DATA_LENGTH,
+                                             hdfsServerIp,
+                                             JasmineGraphInstanceProtocol::OK) &&
+                   Utils::sendExpectResponse(sockfd, data, INSTANCE_LONG_DATA_LENGTH,
+                                             hdfsPort,
+                                             JasmineGraphInstanceProtocol::OK);
+
+    if (success) {
+        success = Utils::send_str_wrapper(sockfd, shardPath);
+    }
+
+    std::string status;
+    if (success) {
+        status = Utils::read_str_trim_wrapper(sockfd, data, INSTANCE_LONG_DATA_LENGTH);
+        success = (status == JasmineGraphInstanceProtocol::OK);
+    }
+
+    Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::CLOSE);
+    close(sockfd);
+    return success;
+}
+
+struct HdfsShardExportResult {
     int totalPartitions = 0;
     int processedPartitions = 0;
     bool writeError = false;
     std::vector<std::pair<int, std::string>> shardPaths;
+};
+
+static HdfsShardExportResult exportWorkerShards(
+    const std::string &masterIP, const std::string &graphId, const std::string &hdfsServerIp,
+    const std::string &hdfsPort, const std::string &shardDirectory,
+    const std::map<std::string, std::vector<std::string>, std::less<>> &workerPartitionMap,
+    const std::map<std::string, Utils::worker, std::less<>> &workerMap) {
+    HdfsShardExportResult result;
     std::mutex exportResultMutex;
 
-    auto buildShardPath = [&shardDirectory, &graphId](const std::string& workerID,
-                                                      const std::string& partitionID) {
+    auto buildShardPath = [&shardDirectory, &graphId](const std::string &workerID, const std::string &partitionID) {
         std::string basePath = shardDirectory;
         std::string separator = (basePath == "/") ? "" : "/";
-        return basePath + separator + "graph_" + graphId + "_worker_" + workerID + "_partition_" + partitionID + ".txt";
+        return basePath + separator + "graph_" + graphId + "_worker_" + workerID + "_partition_" + partitionID +
+               ".txt";
     };
 
     std::vector<std::thread> exportThreads;
     exportThreads.reserve(workerPartitionMap.size());
 
     for (const auto &[workerID, partitions] : workerPartitionMap) {
-        totalPartitions += static_cast<int>(partitions.size());
+        result.totalPartitions += static_cast<int>(partitions.size());
 
-        auto wit = workerMap.find(workerID);
-        if (wit == workerMap.end()) {
+        auto workerIterator = workerMap.find(workerID);
+        if (workerIterator == workerMap.end()) {
             frontend_logger.error("Worker " + workerID + " not found in worker list");
-            writeError = true;
+            result.writeError = true;
             continue;
         }
 
-        const Utils::worker currentWorker = wit->second;
-        exportThreads.emplace_back([&exportResultMutex, &writeError, &shardPaths, &processedPartitions, &masterIP,
-            &graphId, &hdfsServerIp, &hdfsPort, &buildShardPath, workerID, partitions, currentWorker]() {
-            std::string host = currentWorker.hostname;
-            if (host.find('@') != std::string::npos) {
-                host = Utils::split(host, '@')[1];
-            }
-            int workerPort = std::stoi(currentWorker.port);
-
+        const Utils::worker currentWorker = workerIterator->second;
+        exportThreads.emplace_back([&exportResultMutex, &result, &masterIP, &graphId, &hdfsServerIp, &hdfsPort,
+                                    &buildShardPath, workerID, partitions, currentWorker]() {
             for (const std::string &partitionId : partitions) {
                 {
                     std::lock_guard lock(exportResultMutex);
-                    if (writeError) {
+                    if (result.writeError) {
                         break;
                     }
                 }
 
-                bool isError = false;
+                std::string shardPath = buildShardPath(workerID, partitionId);
+                bool success = exportPartitionShard(masterIP, graphId, workerID, partitionId, currentWorker,
+                                                    hdfsServerIp, hdfsPort, shardPath);
 
-                int sockfd = socket(AF_INET, SOCK_STREAM, 0);
-                if (sockfd < 0) {
-                    frontend_logger.error("Cannot create socket for worker " + workerID);
-                    isError = true;
-                }
-
-                struct hostent hostEntry;
-                struct hostent *server = nullptr;
-                int hostErrno = 0;
-                char hostBuffer[8192];
-                if (!isError) {
-                    int hostLookupResult =
-                        gethostbyname_r(host.c_str(), &hostEntry, hostBuffer, sizeof(hostBuffer), &server, &hostErrno);
-
-                    if (hostLookupResult != 0 || server == nullptr) {
-                        frontend_logger.error("No host named " + host);
-                        close(sockfd);
-                        isError = true;
-                    }
-                }
-
-                if (!isError) {
-                    struct sockaddr_in serv_addr;
-                    memset((char *)&serv_addr, 0, sizeof(serv_addr));
-                    serv_addr.sin_family = AF_INET;
-                    memcpy(&serv_addr.sin_addr.s_addr, server->h_addr, server->h_length);
-                    serv_addr.sin_port = htons(workerPort);
-
-                    if (Utils::connect_wrapper(sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
-                        frontend_logger.error("Error connecting to worker " + workerID + " at " + host);
-                        close(sockfd);
-                        isError = true;
-                    }
-                }
-
-                if (!isError) {
-                    char data[INSTANCE_LONG_DATA_LENGTH + 1];
-                    bool success = Utils::performHandshake(sockfd, data, INSTANCE_DATA_LENGTH, masterIP) &&
-                                   Utils::sendExpectResponse(sockfd, data, INSTANCE_LONG_DATA_LENGTH,
-                                                             JasmineGraphInstanceProtocol::SEND_EDGES_TO_HDFS,
-                                                             JasmineGraphInstanceProtocol::OK) &&
-                                   Utils::sendExpectResponse(sockfd, data, INSTANCE_LONG_DATA_LENGTH,
-                                                             graphId,
-                                                             JasmineGraphInstanceProtocol::SEND_PARTITION_ID) &&
-                                   Utils::sendExpectResponse(sockfd, data, INSTANCE_LONG_DATA_LENGTH,
-                                                             partitionId,
-                                                             JasmineGraphInstanceProtocol::OK) &&
-                                   Utils::sendExpectResponse(sockfd, data, INSTANCE_LONG_DATA_LENGTH,
-                                                             hdfsServerIp,
-                                                             JasmineGraphInstanceProtocol::OK) &&
-                                   Utils::sendExpectResponse(sockfd, data, INSTANCE_LONG_DATA_LENGTH,
-                                                             hdfsPort,
-                                                             JasmineGraphInstanceProtocol::OK);
-
-                    std::string shardPath = buildShardPath(workerID, partitionId);
-                    if (success) {
-                        success = Utils::send_str_wrapper(sockfd, shardPath);
-                    }
-
-                    std::string status;
-                    if (success) {
-                        status = Utils::read_str_trim_wrapper(sockfd, data, INSTANCE_LONG_DATA_LENGTH);
-                        success = (status == JasmineGraphInstanceProtocol::OK);
-                    }
-
-                    if (!success) {
-                        frontend_logger.error("Worker " + workerID + " failed to write partition " + partitionId +
-                                              " to HDFS path " + shardPath);
-                        Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::CLOSE);
-                        close(sockfd);
-                        isError = true;
-                    } else {
-                        frontend_logger.info("Worker " + workerID + " wrote partition " + partitionId +
-                                             " directly to HDFS path " + shardPath);
-                        {
-                            std::lock_guard lock(exportResultMutex);
-                            shardPaths.emplace_back(std::stoi(partitionId), shardPath);
-                            ++processedPartitions;
-                        }
-
-                        Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::CLOSE);
-                        close(sockfd);
-                    }
-                }
-
-                if (isError) {
+                if (!success) {
+                    frontend_logger.error("Worker " + workerID + " failed to write partition " + partitionId +
+                                          " to HDFS path " + shardPath);
                     std::lock_guard lock(exportResultMutex);
-                    writeError = true;
+                    result.writeError = true;
+                    break;
                 }
+
+                frontend_logger.info("Worker " + workerID + " wrote partition " + partitionId +
+                                     " directly to HDFS path " + shardPath);
+                std::lock_guard lock(exportResultMutex);
+                result.shardPaths.emplace_back(std::stoi(partitionId), shardPath);
+                ++result.processedPartitions;
             }
         });
     }
@@ -1982,57 +1941,91 @@ static void send_graph_hdfs_command_impl(const std::string &masterIP, int connec
         }
     }
 
-    frontend_logger.info("Processed " + std::to_string(processedPartitions) + " out of " +
-                         std::to_string(totalPartitions) + " partitions");
+    frontend_logger.info("Processed " + std::to_string(result.processedPartitions) + " out of " +
+                         std::to_string(result.totalPartitions) + " partitions");
+    return result;
+}
 
-    if (processedPartitions == 0) {
-        frontend_logger.error("No graph data collected for graph ID: " + graphId);
-        std::string errorMsg = "Failed to collect graph data";
-        write(connectionFd, errorMsg.c_str(), errorMsg.length());
-        write(connectionFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
-        *loop_exit_p = true;
+static bool mergeShardsAndRespond(HDFSConnector &hdfsConnector, const std::string &hdfsDestinationFilePath,
+                                  const std::string &shardDirectory, HdfsShardExportResult &exportResult,
+                                  int connectionFd, bool *loop_exit_p) {
+    if (exportResult.processedPartitions == 0) {
+        return sendClientErrorAndExit(connectionFd, "No graph data collected for requested graph",
+                                      "Failed to collect graph data", loop_exit_p);
+    }
+
+    if (exportResult.writeError || exportResult.processedPartitions != exportResult.totalPartitions) {
+        return sendClientErrorAndExit(connectionFd, "Failed to write one or more graph shards to HDFS", ERROR,
+                                      loop_exit_p);
+    }
+
+    std::sort(exportResult.shardPaths.begin(), exportResult.shardPaths.end(),
+              [](const std::pair<int, std::string> &left, const std::pair<int, std::string> &right) {
+                  return left.first < right.first;
+              });
+
+    std::vector<std::string> orderedShardPaths;
+    orderedShardPaths.reserve(exportResult.shardPaths.size());
+    for (const auto &[partitionId, shardPath] : exportResult.shardPaths) {
+        orderedShardPaths.push_back(shardPath);
+    }
+
+    if (!hdfsConnector.concatenateFiles(orderedShardPaths, hdfsDestinationFilePath)) {
+        return sendClientErrorAndExit(connectionFd,
+                                      "Failed to concatenate worker shards into merged HDFS file: " +
+                                          hdfsDestinationFilePath,
+                                      ERROR, loop_exit_p);
+    }
+
+    if (!hdfsConnector.deletePath(shardDirectory, true)) {
+        return sendClientErrorAndExit(connectionFd,
+                                      "Failed to delete HDFS shard directory after merge: " + shardDirectory,
+                                      ERROR, loop_exit_p);
+    }
+
+    frontend_logger.info("Successfully merged graph shards into destination file " + hdfsDestinationFilePath +
+                         " and deleted shard directory " + shardDirectory);
+    return writeSocketLine(connectionFd, DONE, loop_exit_p);
+}
+
+static void send_graph_hdfs_command_impl(const std::string &masterIP, int connectionFd,
+                                         SQLiteDBInterface *sqlite, bool *loop_exit_p) {
+    frontend_logger.info("Save graph to HDFS command received");
+
+    std::string graphId;
+    if (!requestGraphIdAndValidate(connectionFd, sqlite, graphId, loop_exit_p)) {
         return;
     }
 
-    if (!writeError && processedPartitions == totalPartitions) {
-        std::sort(shardPaths.begin(), shardPaths.end(),
-                  [](const std::pair<int, std::string> &left, const std::pair<int, std::string> &right) {
-                      return left.first < right.first;
-                  });
+    std::string hdfsServerIp;
+    std::string hdfsPort;
+    if (!requestHdfsServerConfig(connectionFd, hdfsServerIp, hdfsPort, loop_exit_p)) {
+        return;
+    }
 
-        std::vector<std::string> orderedShardPaths;
-        orderedShardPaths.reserve(shardPaths.size());
-        for (const auto &[id, path] : shardPaths) {
-            orderedShardPaths.push_back(path);
-        }
+    std::string hdfsDestinationFilePath;
+    if (!requestHdfsDestinationPath(connectionFd, hdfsDestinationFilePath, loop_exit_p)) {
+        return;
+    }
 
-        std::string mergedOutputPath = hdfsDestinationFilePath;
+    std::map<std::string, std::vector<std::string>, std::less<>> workerPartitionMap;
+    std::map<std::string, Utils::worker, std::less<>> workerMap;
+    if (!loadWorkerPartitions(sqlite, graphId, workerPartitionMap, workerMap, connectionFd, loop_exit_p)) {
+        return;
+    }
 
-        if (!hdfsConnector->concatenateFiles(orderedShardPaths, mergedOutputPath)) {
-            frontend_logger.error("Failed to concatenate worker shards into merged HDFS file: " + mergedOutputPath);
-            write(connectionFd, ERROR.c_str(), ERROR.length());
-            write(connectionFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
-            *loop_exit_p = true;
-            return;
-        }
+    auto hdfsConnector = std::make_unique<HDFSConnector>(hdfsServerIp, hdfsPort);
+    std::string shardDirectory;
+    if (!prepareHdfsDestination(*hdfsConnector, hdfsDestinationFilePath, shardDirectory, connectionFd, loop_exit_p)) {
+        return;
+    }
 
-        if (!hdfsConnector->deletePath(shardDirectory, true)) {
-            frontend_logger.error("Failed to delete HDFS shard directory after merge: " + shardDirectory);
-            write(connectionFd, ERROR.c_str(), ERROR.length());
-            write(connectionFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
-            *loop_exit_p = true;
-            return;
-        }
+    HdfsShardExportResult exportResult = exportWorkerShards(masterIP, graphId, hdfsServerIp, hdfsPort,
+                                                             shardDirectory, workerPartitionMap, workerMap);
 
-        frontend_logger.info("Successfully merged graph shards into destination file " + mergedOutputPath +
-                             " and deleted shard directory " + shardDirectory);
-        write(connectionFd, DONE.c_str(), DONE.length());
-        write(connectionFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
-    } else {
-        frontend_logger.error("Failed to write one or more graph shards to HDFS");
-        write(connectionFd, ERROR.c_str(), ERROR.length());
-        write(connectionFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
-        *loop_exit_p = true;
+    if (!mergeShardsAndRespond(*hdfsConnector, hdfsDestinationFilePath, shardDirectory, exportResult,
+                               connectionFd, loop_exit_p)) {
+        return;
     }
 }
 
