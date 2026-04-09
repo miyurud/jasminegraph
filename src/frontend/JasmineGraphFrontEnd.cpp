@@ -1654,9 +1654,8 @@ static void send_graph_hdfs_command(std::string masterIP, int connFd, SQLiteDBIn
 
     // Verify graph exists
     std::string graphQuery = "SELECT idgraph, name FROM graph WHERE idgraph = '" + graphId + "'";
-    std::vector<std::vector<std::pair<std::string, std::string>>> graphResults = sqlite->runSelect(graphQuery);
-
-    if (graphResults.empty()) {
+    if (std::vector<std::vector<std::pair<std::string, std::string>>> graphResults = sqlite->runSelect(graphQuery);
+        graphResults.empty()) {
         frontend_logger.error("Graph not found: " + graphId);
         std::string errorMsg = "Graph not found";
         write(connFd, errorMsg.c_str(), errorMsg.length());
@@ -1823,8 +1822,8 @@ static void send_graph_hdfs_command(std::string masterIP, int connFd, SQLiteDBIn
 
     // Connect to HDFS and ensure destination directories exist
     auto hdfsConnector = std::make_unique<HDFSConnector>(hdfsServerIp, hdfsPort);
-    std::string mergedParentDirectory = getParentDirectory(hdfsDestinationFilePath);
-    if (!mergedParentDirectory.empty() && !hdfsConnector->createDirectory(mergedParentDirectory)) {
+    if (std::string mergedParentDirectory = getParentDirectory(hdfsDestinationFilePath);
+        !mergedParentDirectory.empty() && !hdfsConnector->createDirectory(mergedParentDirectory)) {
         frontend_logger.error("Failed to create parent directory for destination file: " + mergedParentDirectory);
         std::string errorMsg = "Failed to create parent directory for destination file";
         write(connFd, errorMsg.c_str(), errorMsg.length());
@@ -1912,7 +1911,7 @@ static void send_graph_hdfs_command(std::string masterIP, int connFd, SQLiteDBIn
                     struct sockaddr_in serv_addr;
                     memset((char *)&serv_addr, 0, sizeof(serv_addr));
                     serv_addr.sin_family = AF_INET;
-                    memcpy((char *)&serv_addr.sin_addr.s_addr, (char *)server->h_addr, server->h_length);
+                    memcpy(&serv_addr.sin_addr.s_addr, server->h_addr, server->h_length);
                     serv_addr.sin_port = htons(workerPort);
 
                     if (Utils::connect_wrapper(sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {

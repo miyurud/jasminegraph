@@ -204,7 +204,7 @@ void SemanticBeamSearchExecutor::doSemanticBeamSearch(
 
   memset((char *)&serv_addr, 0, sizeof(serv_addr));
   serv_addr.sin_family = AF_INET;
-  memcpy((char *)&serv_addr.sin_addr.s_addr, (char *)server->h_addr, server->h_length);
+  memcpy(&serv_addr.sin_addr.s_addr, server->h_addr, server->h_length);
   serv_addr.sin_port = htons(port);
 
   semantic_beam_search_logger_executor.debug("Attempting to connect to " +

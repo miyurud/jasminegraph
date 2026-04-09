@@ -46,13 +46,15 @@ class K8sWorkerControllerTest : public ::testing::Test {
                     list_ForEach(label, dep->metadata->labels) {
                         auto *pair = static_cast<keyValuePair_t *>(label->data);
                         if (strcmp(pair->key, "workerId") == 0) {
-                            int wId = std::stoi(static_cast<char *>(pair->value));
                             try {
+                                int wId = std::stoi(static_cast<char *>(pair->value));
                                 cleanupInterface->deleteJasmineGraphWorkerDeployment(wId);
                                 cleanupInterface->deleteJasmineGraphWorkerService(wId);
                                 cleanupInterface->deleteJasmineGraphPersistentVolumeClaim(wId);
                                 cleanupInterface->deleteJasmineGraphPersistentVolume(wId);
-                            } catch (const std::runtime_error& e) {
+                            } catch (const std::invalid_argument &e) {
+                                std::cerr << "Cleanup: " << e.what() << std::endl;
+                            } catch (const std::out_of_range &e) {
                                 std::cerr << "Cleanup: " << e.what() << std::endl;
                             }
                             break;
@@ -73,10 +75,12 @@ class K8sWorkerControllerTest : public ::testing::Test {
                     list_ForEach(label, svc->metadata->labels) {
                         auto *pair = static_cast<keyValuePair_t *>(label->data);
                         if (strcmp(pair->key, "workerId") == 0) {
-                            int wId = std::stoi(static_cast<char *>(pair->value));
                             try {
+                                int wId = std::stoi(static_cast<char *>(pair->value));
                                 cleanupInterface->deleteJasmineGraphWorkerService(wId);
-                            } catch (const std::runtime_error& e) {
+                            } catch (const std::invalid_argument &e) {
+                                std::cerr << "Cleanup: " << e.what() << std::endl;
+                            } catch (const std::out_of_range &e) {
                                 std::cerr << "Cleanup: " << e.what() << std::endl;
                             }
                             break;
