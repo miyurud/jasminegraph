@@ -547,8 +547,7 @@ void TriangleCountExecutor::execute() {
         fileCombinations = AbstractExecutor::getCombinations(compositeCentralStoreFiles);
     }
 
-    for (const auto &entry : partitionMap) {
-        string worker = entry.first;
+    for (const auto &[worker, partitions] : partitionMap) {
         if (used_workers.find(worker) != used_workers.end()) {
             used_workers[worker]++;
         } else {

@@ -2213,8 +2213,8 @@ static void delete_graph_command(int connFd, bool *loop_exit_p) {
     }
     instance_logger.info("Sent : " + JasmineGraphInstanceProtocol::OK);
 
-    char data[DATA_BUFFER_SIZE];
-    string graphID = Utils::read_str_trim_wrapper(connFd, data, INSTANCE_DATA_LENGTH);
+    std::string data(DATA_BUFFER_SIZE, '\0');
+    string graphID = Utils::read_str_trim_wrapper(connFd, data.data(), INSTANCE_DATA_LENGTH);
     instance_logger.info("Received Graph ID: " + graphID);
 
     if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::SEND_PARTITION_ID)) {
@@ -2279,7 +2279,7 @@ static void duplicate_centralstore_command(int connFd, int serverPort, bool *loo
     }
     instance_logger.info("Sent : " + JasmineGraphInstanceProtocol::OK);
 
-    string partitionID = Utils::read_str_trim_wrapper(connFd, data, INSTANCE_DATA_LENGTH);
+    string partitionID = Utils::read_str_trim_wrapper(connFd, data.data(), INSTANCE_DATA_LENGTH);
     instance_logger.info("Received Partition ID: " + partitionID);
 
     if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::OK)) {
@@ -5565,8 +5565,8 @@ static void send_edges_to_hdfs_command(int connFd, bool *loop_exit_p) {
         return;
     }
 
-    char data[INSTANCE_LONG_DATA_LENGTH + 1];
-    std::string graphID = Utils::read_str_trim_wrapper(connFd, data, INSTANCE_LONG_DATA_LENGTH);
+    std::string data(INSTANCE_LONG_DATA_LENGTH + 1, '\0');
+    std::string graphID = Utils::read_str_trim_wrapper(connFd, data.data(), INSTANCE_LONG_DATA_LENGTH);
     instance_logger.info("Received Graph ID for direct HDFS export: " + graphID);
 
     if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::SEND_PARTITION_ID)) {
@@ -5574,7 +5574,7 @@ static void send_edges_to_hdfs_command(int connFd, bool *loop_exit_p) {
         return;
     }
 
-    std::string partitionID = Utils::read_str_trim_wrapper(connFd, data, INSTANCE_LONG_DATA_LENGTH);
+    std::string partitionID = Utils::read_str_trim_wrapper(connFd, data.data(), INSTANCE_LONG_DATA_LENGTH);
     instance_logger.info("Received Partition ID for direct HDFS export: " + partitionID);
 
     if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::OK)) {
@@ -5582,19 +5582,19 @@ static void send_edges_to_hdfs_command(int connFd, bool *loop_exit_p) {
         return;
     }
 
-    std::string hdfsHost = Utils::read_str_trim_wrapper(connFd, data, INSTANCE_LONG_DATA_LENGTH);
+    std::string hdfsHost = Utils::read_str_trim_wrapper(connFd, data.data(), INSTANCE_LONG_DATA_LENGTH);
     if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::OK)) {
         *loop_exit_p = true;
         return;
     }
 
-    std::string hdfsPort = Utils::read_str_trim_wrapper(connFd, data, INSTANCE_LONG_DATA_LENGTH);
+    std::string hdfsPort = Utils::read_str_trim_wrapper(connFd, data.data(), INSTANCE_LONG_DATA_LENGTH);
     if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::OK)) {
         *loop_exit_p = true;
         return;
     }
 
-    std::string hdfsPath = Utils::read_str_trim_wrapper(connFd, data, INSTANCE_LONG_DATA_LENGTH);
+    std::string hdfsPath = Utils::read_str_trim_wrapper(connFd, data.data(), INSTANCE_LONG_DATA_LENGTH);
 
     HDFSConnector hdfsConnector(hdfsHost, hdfsPort);
     bool ok = true;

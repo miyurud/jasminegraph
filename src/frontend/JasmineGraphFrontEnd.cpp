@@ -2617,8 +2617,8 @@ bool JasmineGraphFrontEnd::constructKGStreamHDFSCommand(std::string masterIP, in
         }
 
         std::time_t endTime = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
-        char uploadEndTimeBuffer[26];
-        std::string uploadEndTime = ctime_r(&endTime, uploadEndTimeBuffer);
+        std::string uploadEndTimeBuffer(26, '\0');
+        std::string uploadEndTime = ctime_r(&endTime, uploadEndTimeBuffer.data());
 
         std::string sqlStatementUpdateEndTime = "UPDATE graph SET upload_end_time = \"" + uploadEndTime +
                                                 "\" WHERE idgraph = " + std::to_string(newGraphID);

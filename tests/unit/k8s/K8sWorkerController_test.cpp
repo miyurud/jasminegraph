@@ -24,6 +24,37 @@ namespace {
 constexpr const char *kWorkerName = "jasminegraph-worker";
 const std::string kDeploymentLabel = std::string("deployment=") + kWorkerName;
 const std::string kServiceLabel = std::string("service=") + kWorkerName;
+
+bool extractWorkerIdFromLabels(list_t *labels, int &workerId) {
+    if (!labels) {
+        return false;
+    }
+
+    listEntry_t *label = NULL;
+    list_ForEach(label, labels) {
+        auto *pair = static_cast<keyValuePair_t *>(label->data);
+        if (!pair || !pair->key || !pair->value) {
+            continue;
+        }
+
+        if (strcmp(pair->key, "workerId") != 0) {
+            continue;
+        }
+
+        try {
+            workerId = std::stoi(static_cast<char *>(pair->value));
+            return true;
+        } catch (const std::invalid_argument &e) {
+            std::cerr << "Cleanup: " << e.what() << std::endl;
+            return false;
+        } catch (const std::out_of_range &e) {
+            std::cerr << "Cleanup: " << e.what() << std::endl;
+            return false;
+        }
+    }
+
+    return false;
+}
 }  // namespace
 
 class K8sWorkerControllerTest : public ::testing::Test {
@@ -41,25 +72,16 @@ class K8sWorkerControllerTest : public ::testing::Test {
             listEntry_t *entry = NULL;
             list_ForEach(entry, deployments->items) {
                 auto *dep = static_cast<v1_deployment_t *>(entry->data);
-                if (dep && dep->metadata && dep->metadata->labels) {
-                    listEntry_t *label = NULL;
-                    list_ForEach(label, dep->metadata->labels) {
-                        auto *pair = static_cast<keyValuePair_t *>(label->data);
-                        if (strcmp(pair->key, "workerId") == 0) {
-                            try {
-                                int wId = std::stoi(static_cast<char *>(pair->value));
-                                cleanupInterface->deleteJasmineGraphWorkerDeployment(wId);
-                                cleanupInterface->deleteJasmineGraphWorkerService(wId);
-                                cleanupInterface->deleteJasmineGraphPersistentVolumeClaim(wId);
-                                cleanupInterface->deleteJasmineGraphPersistentVolume(wId);
-                            } catch (const std::invalid_argument &e) {
-                                std::cerr << "Cleanup: " << e.what() << std::endl;
-                            } catch (const std::out_of_range &e) {
-                                std::cerr << "Cleanup: " << e.what() << std::endl;
-                            }
-                            break;
-                        }
-                    }
+                if (!dep || !dep->metadata) {
+                    continue;
+                }
+
+                int workerId = 0;
+                if (extractWorkerIdFromLabels(dep->metadata->labels, workerId)) {
+                    cleanupInterface->deleteJasmineGraphWorkerDeployment(workerId);
+                    cleanupInterface->deleteJasmineGraphWorkerService(workerId);
+                    cleanupInterface->deleteJasmineGraphPersistentVolumeClaim(workerId);
+                    cleanupInterface->deleteJasmineGraphPersistentVolume(workerId);
                 }
             }
         }
@@ -70,22 +92,13 @@ class K8sWorkerControllerTest : public ::testing::Test {
             listEntry_t *entry = NULL;
             list_ForEach(entry, services->items) {
                 auto *svc = static_cast<v1_service_t *>(entry->data);
-                if (svc && svc->metadata && svc->metadata->labels) {
-                    listEntry_t *label = NULL;
-                    list_ForEach(label, svc->metadata->labels) {
-                        auto *pair = static_cast<keyValuePair_t *>(label->data);
-                        if (strcmp(pair->key, "workerId") == 0) {
-                            try {
-                                int wId = std::stoi(static_cast<char *>(pair->value));
-                                cleanupInterface->deleteJasmineGraphWorkerService(wId);
-                            } catch (const std::invalid_argument &e) {
-                                std::cerr << "Cleanup: " << e.what() << std::endl;
-                            } catch (const std::out_of_range &e) {
-                                std::cerr << "Cleanup: " << e.what() << std::endl;
-                            }
-                            break;
-                        }
-                    }
+                if (!svc || !svc->metadata) {
+                    continue;
+                }
+
+                int workerId = 0;
+                if (extractWorkerIdFromLabels(svc->metadata->labels, workerId)) {
+                    cleanupInterface->deleteJasmineGraphWorkerService(workerId);
                 }
             }
         }
