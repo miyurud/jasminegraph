@@ -95,7 +95,10 @@ std::string K8sWorkerController::spawnWorker(int workerId) {
         this->interface->deleteJasmineGraphPersistentVolume(workerId);
         this->interface->deleteJasmineGraphPersistentVolumeClaim(workerId);
         std::this_thread::sleep_for(std::chrono::milliseconds(500));
-    } catch (const std::exception &e) {
+    } catch (const std::invalid_argument &e) {
+        controller_logger.info("Ignoring stale worker resource cleanup error for worker " + std::to_string(workerId) +
+                               ": " + e.what());
+    } catch (const std::out_of_range &e) {
         controller_logger.info("Ignoring stale worker resource cleanup error for worker " + std::to_string(workerId) +
                                ": " + e.what());
     }

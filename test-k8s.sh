@@ -176,13 +176,13 @@ ready_hdfs() {
         return 1
     }
     docker exec -i "${NAMENODE_CONTAINER}" hdfs dfs -chmod 777 "${HDFS_DIRECTORY}" || {
-        echo "Error setting permissions on HDFS directory."
+        echo "Error setting permissions on HDFS directory." >&2
         return 1
     }
     echo "HDFS directory ${HDFS_DIRECTORY} created with write permissions."
 
     docker exec -i "${NAMENODE_CONTAINER}" mkdir -p "${LOCAL_DIRECTORY}" || {
-        echo "Error creating ${LOCAL_DIRECTORY} in Namenode container."
+        echo "Error creating ${LOCAL_DIRECTORY} in Namenode container." >&2
         return 1
     }
 
