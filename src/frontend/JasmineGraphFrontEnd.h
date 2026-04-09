@@ -38,6 +38,7 @@ limitations under the License.
 #include "../metadb/SQLiteDBInterface.h"
 #include "../performancedb/PerformanceSQLiteDBInterface.h"
 #include "../query/algorithms/triangles/Triangles.h"
+#include "../query/algorithms/triangles/HistoryTriangles.h"
 #include "core/scheduler/JobScheduler.h"
 
 struct KGConstructionRate;

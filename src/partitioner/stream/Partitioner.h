@@ -58,6 +58,8 @@ class Partitioner {
     partitionedEdge hashPartitioning(std::pair<std::string, std::string> edge);
     partitionedEdge fennelPartitioning(std::pair<std::string, std::string> edge);
     partitionedEdge ldgPartitioning(std::pair<std::string, std::string> edge);
+    /** Returns true when HASH partitioning is active (lock-free — per-partition mutex suffices). */
+    bool isHashAlgorithm() const { return algorithmInUse == spt::Algorithms::HASH; }
     static std::pair<long, long> deserialize(std::string data);
     void updateMetaDB();
     void setGraphID(int graphId){this->graphID = graphId;};

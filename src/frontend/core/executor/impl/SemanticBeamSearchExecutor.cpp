@@ -177,7 +177,7 @@ void SemanticBeamSearchExecutor::doSemanticBeamSearch(
   struct sockaddr_in serv_addr;
   struct hostent *server;
   static const int ACK_MESSAGE_SIZE = 1024;
-  char ack[ACK_MESSAGE_SIZE] = {0};
+  std::string ack(ACK_MESSAGE_SIZE, '\0');
 
   // --- Create socket ---
   sockfd = socket(AF_INET, SOCK_STREAM, 0);
@@ -228,9 +228,9 @@ void SemanticBeamSearchExecutor::doSemanticBeamSearch(
     return;
   }
 
-  bzero(ack, ACK_MESSAGE_SIZE);
+  bzero(ack.data(), ACK_MESSAGE_SIZE);
   semantic_beam_search_logger_executor.debug("Waiting for ACK after command");
-  if (recv(sockfd, ack, strlen("stream-c-length-ack"), 0) <= 0) {
+  if (recv(sockfd, ack.data(), strlen("stream-c-length-ack"), 0) <= 0) {
     semantic_beam_search_logger_executor.error(
         "Failed to receive ACK after command");
     close(sockfd);
@@ -251,9 +251,9 @@ void SemanticBeamSearchExecutor::doSemanticBeamSearch(
     close(sockfd);
     return;
   }
-  bzero(ack, ACK_MESSAGE_SIZE);
+  bzero(ack.data(), ACK_MESSAGE_SIZE);
   semantic_beam_search_logger_executor.debug("Waiting for ACK after graphID");
-  if (recv(sockfd, ack, strlen("stream-c-length-ack"), 0) <= 0) {
+  if (recv(sockfd, ack.data(), strlen("stream-c-length-ack"), 0) <= 0) {
     semantic_beam_search_logger_executor.error(
         "Failed to receive ACK after graphID");
     close(sockfd);
@@ -274,10 +274,10 @@ void SemanticBeamSearchExecutor::doSemanticBeamSearch(
     close(sockfd);
     return;
   }
-  bzero(ack, ACK_MESSAGE_SIZE);
+  bzero(ack.data(), ACK_MESSAGE_SIZE);
   semantic_beam_search_logger_executor.debug(
       "Waiting for ACK after partitionId");
-  if (recv(sockfd, ack, strlen("stream-c-length-ack"), 0) <= 0) {
+  if (recv(sockfd, ack.data(), strlen("stream-c-length-ack"), 0) <= 0) {
     semantic_beam_search_logger_executor.error(
         "Failed to receive ACK after partitionId");
     close(sockfd);
@@ -297,9 +297,9 @@ void SemanticBeamSearchExecutor::doSemanticBeamSearch(
     close(sockfd);
     return;
   }
-  bzero(ack, ACK_MESSAGE_SIZE);
+  bzero(ack.data(), ACK_MESSAGE_SIZE);
   semantic_beam_search_logger_executor.debug("Waiting for ACK after query");
-  if (recv(sockfd, ack, strlen("stream-c-length-ack"), 0) <= 0) {
+  if (recv(sockfd, ack.data(), strlen("stream-c-length-ack"), 0) <= 0) {
     semantic_beam_search_logger_executor.error(
         "Failed to receive ACK after query");
     close(sockfd);
@@ -333,9 +333,9 @@ void SemanticBeamSearchExecutor::doSemanticBeamSearch(
     close(sockfd);
     return;
   }
-  bzero(ack, ACK_MESSAGE_SIZE);
+  bzero(ack.data(), ACK_MESSAGE_SIZE);
   semantic_beam_search_logger_executor.debug("Waiting for ACK after query");
-  if (recv(sockfd, ack, strlen("stream-c-length-ack"), 0) <= 0) {
+  if (recv(sockfd, ack.data(), strlen("stream-c-length-ack"), 0) <= 0) {
     semantic_beam_search_logger_executor.info(ack);
     semantic_beam_search_logger_executor.error(
         "Failed to receive ACK after query");
@@ -346,18 +346,18 @@ void SemanticBeamSearchExecutor::doSemanticBeamSearch(
   semantic_beam_search_logger_executor.info("Received ACK after query ");
 
 
-  char start[ACK_MESSAGE_SIZE] = {0};
-  recv(sockfd, &start, sizeof(start), 0);
+  std::string start(ACK_MESSAGE_SIZE, '\0');
+  recv(sockfd, start.data(), start.size(), 0);
   std::string start_msg(start);
-  char ack2[ACK_MESSAGE_SIZE] = {0};
-  recv(sockfd, &ack2, sizeof(start), 0);
+  std::string ack2(ACK_MESSAGE_SIZE, '\0');
+  recv(sockfd, ack2.data(), ack2.size(), 0);
   std::string ack2_msg(ack2);
   semantic_beam_search_logger_executor.info(start_msg);
   semantic_beam_search_logger_executor.info(
       "Semantic Beam Search request sent successfully");
   while (true) {
-    char start[ACK_MESSAGE_SIZE] = {0};
-    recv(sockfd, &start, sizeof(start), 0);
+    std::string start(ACK_MESSAGE_SIZE, '\0');
+    recv(sockfd, start.data(), start.size(), 0);
     std::string start_msg(start);
     if (JasmineGraphInstanceProtocol::QUERY_DATA_START != start_msg) {
       semantic_beam_search_logger_executor.error(
