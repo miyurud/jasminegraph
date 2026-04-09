@@ -128,7 +128,8 @@ static void add_stream_kafka_command(int connFd, std::string &kafka_server_IP, c
 static void addStreamHDFSCommand(std::string masterIP, int connFd, std::string &hdfsServerIp,
                                  std::thread &inputStreamHandlerThread, int numberOfPartitions,
                                  SQLiteDBInterface *sqlite, bool *loop_exit_p);
-static void send_graph_hdfs_command(std::string masterIP, int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_p);
+static void send_graph_hdfs_command(const std::string &masterIP, int connectionFd, SQLiteDBInterface *sqlite,
+                                    bool *loop_exit_p);
 static void stop_stream_kafka_command(int connFd, KafkaConnector *kstream, bool *loop_exit_p);
 static void process_dataset_command(int connFd, bool *loop_exit_p);
 static void triangles_command(std::string masterIP, int connFd, SQLiteDBInterface *sqlite,
@@ -492,7 +493,7 @@ static void list_command(int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_
     }
 }
 
-void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface *sqlite,
+void *frontendservicesesion(const std::string &masterIP, int connFd, SQLiteDBInterface *sqlite,
                             PerformanceSQLiteDBInterface *perfSqlite, JobScheduler *jobScheduler) {
 }
 
@@ -1623,19 +1624,19 @@ static void add_stream_kafka_command(int connFd, std::string &kafka_server_IP, c
     input_stream_handler_thread = thread(&StreamHandler::listen_to_kafka_topic, stream_handler);
 }
 
-static void send_graph_hdfs_command(std::string masterIP, int connFd, SQLiteDBInterface *sqlite,
-        bool *loop_exit_p) {
+static void send_graph_hdfs_command_impl(const std::string &masterIP, int connectionFd,
+                                        SQLiteDBInterface *sqlite, bool *loop_exit_p) {
     frontend_logger.info("Save graph to HDFS command received");
 
     // Ask for graph ID
     std::string graphIdMsg = "Graph ID:";
-    int resultWr = write(connFd, graphIdMsg.c_str(), graphIdMsg.length());
+    int resultWr = write(connectionFd, graphIdMsg.c_str(), graphIdMsg.length());
     if (resultWr < 0) {
         frontend_logger.error("Error writing to socket");
         *loop_exit_p = true;
         return;
     }
-    resultWr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
+    resultWr = write(connectionFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
     if (resultWr < 0) {
         frontend_logger.error("Error writing to socket");
         *loop_exit_p = true;
@@ -1644,7 +1645,7 @@ static void send_graph_hdfs_command(std::string masterIP, int connFd, SQLiteDBIn
 
     std::string graphIdBuf;
     graphIdBuf.resize(FRONTEND_DATA_LENGTH);
-    if (int graphBytesRead = read(connFd, &graphIdBuf[0], FRONTEND_DATA_LENGTH); graphBytesRead > 0) {
+    if (int graphBytesRead = read(connectionFd, &graphIdBuf[0], FRONTEND_DATA_LENGTH); graphBytesRead > 0) {
         graphIdBuf.resize(static_cast<size_t>(graphBytesRead));
     } else {
         graphIdBuf.clear();
@@ -1658,8 +1659,8 @@ static void send_graph_hdfs_command(std::string masterIP, int connFd, SQLiteDBIn
         graphResults.empty()) {
         frontend_logger.error("Graph not found: " + graphId);
         std::string errorMsg = "Graph not found";
-        write(connFd, errorMsg.c_str(), errorMsg.length());
-        write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
+        write(connectionFd, errorMsg.c_str(), errorMsg.length());
+        write(connectionFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
         *loop_exit_p = true;
         return;
     }
@@ -1668,13 +1669,13 @@ static void send_graph_hdfs_command(std::string masterIP, int connFd, SQLiteDBIn
     std::string hdfsServerIp;
     std::string hdfsPort;
     std::string hdfsMsg = "Do you want to use the default HDFS server(y/n)?";
-    resultWr = write(connFd, hdfsMsg.c_str(), hdfsMsg.length());
+    resultWr = write(connectionFd, hdfsMsg.c_str(), hdfsMsg.length());
     if (resultWr < 0) {
         frontend_logger.error("Error writing to socket");
         *loop_exit_p = true;
         return;
     }
-    resultWr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
+    resultWr = write(connectionFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
     if (resultWr < 0) {
         frontend_logger.error("Error writing to socket");
         *loop_exit_p = true;
@@ -1683,7 +1684,7 @@ static void send_graph_hdfs_command(std::string masterIP, int connFd, SQLiteDBIn
 
     std::string userResBuf;
     userResBuf.resize(FRONTEND_DATA_LENGTH);
-    if (int userBytesRead = read(connFd, &userResBuf[0], FRONTEND_DATA_LENGTH); userBytesRead > 0) {
+    if (int userBytesRead = read(connectionFd, &userResBuf[0], FRONTEND_DATA_LENGTH); userBytesRead > 0) {
         userResBuf.resize(static_cast<size_t>(userBytesRead));
     } else {
         userResBuf.clear();
@@ -1699,13 +1700,13 @@ static void send_graph_hdfs_command(std::string masterIP, int connFd, SQLiteDBIn
             "Send the file path to the HDFS configuration file."
             " This file needs to be in some directory location"
             " that is accessible for JasmineGraph master";
-        resultWr = write(connFd, configMsg.c_str(), configMsg.length());
+        resultWr = write(connectionFd, configMsg.c_str(), configMsg.length());
         if (resultWr < 0) {
             frontend_logger.error("Error writing to socket");
             *loop_exit_p = true;
             return;
         }
-        resultWr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
+        resultWr = write(connectionFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
         if (resultWr < 0) {
             frontend_logger.error("Error writing to socket");
             *loop_exit_p = true;
@@ -1714,7 +1715,7 @@ static void send_graph_hdfs_command(std::string masterIP, int connFd, SQLiteDBIn
 
         std::string filePathBuf;
         filePathBuf.resize(FRONTEND_DATA_LENGTH);
-        if (int filePathBytesRead = read(connFd, &filePathBuf[0], FRONTEND_DATA_LENGTH); filePathBytesRead > 0) {
+        if (int filePathBytesRead = read(connectionFd, &filePathBuf[0], FRONTEND_DATA_LENGTH); filePathBytesRead > 0) {
             filePathBuf.resize(static_cast<size_t>(filePathBytesRead));
         } else {
             filePathBuf.clear();
@@ -1736,13 +1737,13 @@ static void send_graph_hdfs_command(std::string masterIP, int connFd, SQLiteDBIn
 
     // Ask for HDFS output path
     std::string pathMsg = "HDFS destination file path:";
-    resultWr = write(connFd, pathMsg.c_str(), pathMsg.length());
+    resultWr = write(connectionFd, pathMsg.c_str(), pathMsg.length());
     if (resultWr < 0) {
         frontend_logger.error("Error writing to socket");
         *loop_exit_p = true;
         return;
     }
-    resultWr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
+    resultWr = write(connectionFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
     if (resultWr < 0) {
         frontend_logger.error("Error writing to socket");
         *loop_exit_p = true;
@@ -1751,7 +1752,7 @@ static void send_graph_hdfs_command(std::string masterIP, int connFd, SQLiteDBIn
 
     std::string pathBuf;
     pathBuf.resize(FRONTEND_DATA_LENGTH);
-    if (int bytesRead = read(connFd, &pathBuf[0], FRONTEND_DATA_LENGTH); bytesRead > 0) {
+    if (int bytesRead = read(connectionFd, &pathBuf[0], FRONTEND_DATA_LENGTH); bytesRead > 0) {
         pathBuf.resize(static_cast<size_t>(bytesRead));
     } else {
         pathBuf.clear();
@@ -1762,8 +1763,8 @@ static void send_graph_hdfs_command(std::string masterIP, int connFd, SQLiteDBIn
     if (hdfsDestinationFilePath.empty()) {
         frontend_logger.error("HDFS destination file path is empty");
         std::string errorMsg = "Invalid HDFS destination file path";
-        write(connFd, errorMsg.c_str(), errorMsg.length());
-        write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
+        write(connectionFd, errorMsg.c_str(), errorMsg.length());
+        write(connectionFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
         *loop_exit_p = true;
         return;
     }
@@ -1778,8 +1779,8 @@ static void send_graph_hdfs_command(std::string masterIP, int connFd, SQLiteDBIn
     if (partitionResults.empty()) {
         frontend_logger.error("No partitions found for graph ID: " + graphId);
         std::string errorMsg = "Graph not found or has no partitions";
-        write(connFd, errorMsg.c_str(), errorMsg.length());
-        write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
+        write(connectionFd, errorMsg.c_str(), errorMsg.length());
+        write(connectionFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
         *loop_exit_p = true;
         return;
     }
@@ -1826,8 +1827,8 @@ static void send_graph_hdfs_command(std::string masterIP, int connFd, SQLiteDBIn
         !mergedParentDirectory.empty() && !hdfsConnector->createDirectory(mergedParentDirectory)) {
         frontend_logger.error("Failed to create parent directory for destination file: " + mergedParentDirectory);
         std::string errorMsg = "Failed to create parent directory for destination file";
-        write(connFd, errorMsg.c_str(), errorMsg.length());
-        write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
+        write(connectionFd, errorMsg.c_str(), errorMsg.length());
+        write(connectionFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
         *loop_exit_p = true;
         return;
     }
@@ -1835,8 +1836,8 @@ static void send_graph_hdfs_command(std::string masterIP, int connFd, SQLiteDBIn
     if (!hdfsConnector->createDirectory(shardDirectory)) {
         frontend_logger.error("Failed to create HDFS shard directory: " + shardDirectory);
         std::string errorMsg = "Failed to create HDFS shard directory";
-        write(connFd, errorMsg.c_str(), errorMsg.length());
-        write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
+        write(connectionFd, errorMsg.c_str(), errorMsg.length());
+        write(connectionFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
         *loop_exit_p = true;
         return;
     }
@@ -1991,8 +1992,8 @@ static void send_graph_hdfs_command(std::string masterIP, int connFd, SQLiteDBIn
     if (processedPartitions == 0) {
         frontend_logger.error("No graph data collected for graph ID: " + graphId);
         std::string errorMsg = "Failed to collect graph data";
-        write(connFd, errorMsg.c_str(), errorMsg.length());
-        write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
+        write(connectionFd, errorMsg.c_str(), errorMsg.length());
+        write(connectionFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
         *loop_exit_p = true;
         return;
     }
@@ -2013,30 +2014,35 @@ static void send_graph_hdfs_command(std::string masterIP, int connFd, SQLiteDBIn
 
         if (!hdfsConnector->concatenateFiles(orderedShardPaths, mergedOutputPath)) {
             frontend_logger.error("Failed to concatenate worker shards into merged HDFS file: " + mergedOutputPath);
-            write(connFd, ERROR.c_str(), ERROR.length());
-            write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
+            write(connectionFd, ERROR.c_str(), ERROR.length());
+            write(connectionFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
             *loop_exit_p = true;
             return;
         }
 
         if (!hdfsConnector->deletePath(shardDirectory, true)) {
             frontend_logger.error("Failed to delete HDFS shard directory after merge: " + shardDirectory);
-            write(connFd, ERROR.c_str(), ERROR.length());
-            write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
+            write(connectionFd, ERROR.c_str(), ERROR.length());
+            write(connectionFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
             *loop_exit_p = true;
             return;
         }
 
         frontend_logger.info("Successfully merged graph shards into destination file " + mergedOutputPath +
                              " and deleted shard directory " + shardDirectory);
-        write(connFd, DONE.c_str(), DONE.length());
-        write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
+        write(connectionFd, DONE.c_str(), DONE.length());
+        write(connectionFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
     } else {
         frontend_logger.error("Failed to write one or more graph shards to HDFS");
-        write(connFd, ERROR.c_str(), ERROR.length());
-        write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
+        write(connectionFd, ERROR.c_str(), ERROR.length());
+        write(connectionFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
         *loop_exit_p = true;
     }
+}
+
+static void send_graph_hdfs_command(const std::string &masterIP, int connectionFd, SQLiteDBInterface *sqlite,
+                                    bool *loop_exit_p) {
+    send_graph_hdfs_command_impl(masterIP, connectionFd, sqlite, loop_exit_p);
 }
 
 void addStreamHDFSCommand(std::string masterIP, int connFd, std::string &hdfsServerIp,
@@ -2233,7 +2239,7 @@ void addStreamHDFSCommand(std::string masterIP, int connFd, std::string &hdfsSer
     }
 }
 
-bool JasmineGraphFrontEnd::constructKGStreamHDFSCommand(std::string masterIP, int connFd, int numberOfPartitions,
+bool JasmineGraphFrontEnd::constructKGStreamHDFSCommand(const std::string &masterIP, int connFd, int numberOfPartitions,
                                                         SQLiteDBInterface *sqlite, bool *loop_exit_p) {
     std::string hdfsPort;
     std::string hdfsServerIp;
@@ -3944,3 +3950,4 @@ void JasmineGraphFrontEnd::stop_graph_streaming(int connFd, bool *loop_exit_p) {
         int resultWr = write(connFd, message2.c_str(), message2.length());
     }
 }
+

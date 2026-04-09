@@ -43,7 +43,7 @@ limitations under the License.
 struct KGConstructionRate;
 class JasmineGraphHashMapCentralStore;
 
-void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface *sqlite,
+void *frontendservicesesion(const std::string &masterIP, int connFd, SQLiteDBInterface *sqlite,
                             PerformanceSQLiteDBInterface *perfSqlite, JobScheduler *jobScheduler);
 
 class JasmineGraphFrontEnd {
@@ -59,7 +59,7 @@ class JasmineGraphFrontEnd {
 
     static int getRunningHighPriorityTaskCount();
     static bool areRunningJobsForSameGraph();
-    static bool constructKGStreamHDFSCommand(std::string masterIP, int connFd, int numberOfPartitions,
+    static bool constructKGStreamHDFSCommand(const std::string &masterIP, int connFd, int numberOfPartitions,
                                              SQLiteDBInterface *sqlite, bool *loop_exit_p);
     static void stop_graph_streaming(int connfd, bool *loop_exit_p);
     static bool strian_exit;
