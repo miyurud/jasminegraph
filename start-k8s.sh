@@ -4,6 +4,35 @@ set -e
 
 TIMEOUT_SECONDS=2400
 
+wait_for_pods_created() {
+    namespace="$1"
+    selector="$2"
+    timeout_seconds="$3"
+    timeout_message="$4"
+
+    start_time="$(date +%s)"
+    end_time="$((start_time + timeout_seconds))"
+
+    while true; do
+        if [ "$(date +%s)" -gt "$end_time" ]; then
+            echo "$timeout_message"
+            exit 1
+        fi
+
+        if [ -n "$selector" ]; then
+            pod_count="$(kubectl get pod -n "$namespace" -l "$selector" --no-headers 2>/dev/null | wc -l)"
+        else
+            pod_count="$(kubectl get pod -n "$namespace" --no-headers 2>/dev/null | wc -l)"
+        fi
+
+        if [ "$pod_count" -gt 0 ]; then
+            break
+        fi
+
+        sleep .2
+    done
+}
+
 if [ $1 == "clean" ]; then
     echo "Cleaning JasmineGraph resources..."
     kubectl delete deployments -l application=jasminegraph
@@ -121,14 +150,17 @@ helm repo add grafana https://grafana.github.io/helm-charts
 helm repo update
 
 helm install loki grafana/loki -n loki --create-namespace --set singleBinary.persistence.storageClass="$STORAGE_CLASS_NAME" -f ./k8s/helm/loki.yaml
+wait_for_pods_created "loki" "" 180 "Timed out waiting for Loki pods to be created"
 kubectl wait --for=condition=Ready pod --all -n loki --timeout=180s
 sleep .2
 
 helm install grafana-alloy grafana/alloy -n loki -f ./k8s/helm/alloy.yaml
-wait_for_release_pods loki grafana-alloy 180
+wait_for_pods_created "loki" "app.kubernetes.io/name=alloy" 180 "Timed out waiting for Alloy pods to be created"
+kubectl wait --for=condition=Ready pod -l app.kubernetes.io/name=alloy -n loki --timeout=180s
 sleep .2
 
 helm install grafana grafana/grafana -n grafana --create-namespace -f ./k8s/helm/grafana.yaml
+wait_for_pods_created "grafana" "" 300 "Timed out waiting for Grafana pods to be created"
 kubectl wait --for=condition=Ready pod --all -n grafana --timeout=300s
 sleep .2
 
