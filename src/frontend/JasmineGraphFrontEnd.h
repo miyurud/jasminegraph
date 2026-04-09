@@ -33,6 +33,7 @@ limitations under the License.
 #include <iostream>
 #include <map>
 #include <string>
+#include <string_view>
 #include <thread>
 
 #include "../metadb/SQLiteDBInterface.h"
@@ -42,9 +43,6 @@ limitations under the License.
 
 struct KGConstructionRate;
 class JasmineGraphHashMapCentralStore;
-
-void *frontendservicesesion(const std::string &masterIP, int connFd, SQLiteDBInterface *sqlite,
-                            PerformanceSQLiteDBInterface *perfSqlite, JobScheduler *jobScheduler);
 
 class JasmineGraphFrontEnd {
  public:
