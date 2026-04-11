@@ -2373,7 +2373,7 @@ static bool requestKgLlmConfiguration(int connectionFd, std::string &hostnamePor
 static bool validateKgModelAvailability(int connectionFd, const std::string &hostnamePort,
                                         const std::string &llmInferenceEngine, const std::string &llm,
                                         bool *loop_exit_p) {
-    vector<std::string> llmServers = Utils::getUniqueLLMRunners(hostnamePort);
+    std::vector<std::string> llmServers = Utils::getUniqueLLMRunners(hostnamePort);
 
     for (const auto &llmServer : llmServers) {
         std::string endpointPath;
@@ -2391,11 +2391,22 @@ static bool validateKgModelAvailability(int connectionFd, const std::string &hos
         std::string url = Utils::normalizeURL(llmServer, endpointPath);
         frontend_logger.info("Final LLM endpoint: " + url);
 
+        // Initialize CURL handle
+        CURL *curl = curl_easy_init();
+        if (curl == nullptr) {
+            frontend_logger.error("Failed to initialize CURL for " + llmServer);
+            writeSocketLine(connectionFd, "Could not initialize HTTP client for model check.", loop_exit_p);
+            *loop_exit_p = true;
+            return false;
+        }
+
+        std::string response;
+
         // TLS settings — set immediately after init for static analysis visibility
         long sslver = CURL_SSLVERSION_TLSv1_2;
-        #if defined(CURL_SSLVERSION_MAX_TLSv1_3)
+#if defined(CURL_SSLVERSION_MAX_TLSv1_3)
         sslver |= CURL_SSLVERSION_MAX_TLSv1_3;
-        #endif
+#endif
 
         // for the actual HTTPS connection
         curl_easy_setopt(curl, CURLOPT_SSLVERSION, sslver);
@@ -2403,14 +2414,23 @@ static bool validateKgModelAvailability(int connectionFd, const std::string &hos
         // only if you are actually using an HTTPS proxy; otherwise you can remove it
         curl_easy_setopt(curl, CURLOPT_PROXY_SSLVERSION, sslver);
 
+        // certificate verification
         curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 1L);
         curl_easy_setopt(curl, CURLOPT_SSL_VERIFYHOST, 2L);
 
+        // Request settings
+        curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
+        curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, WriteCallback);
+        curl_easy_setopt(curl, CURLOPT_WRITEDATA, &response);
+        curl_easy_setopt(curl, CURLOPT_TIMEOUT, 5L);
+
+        // Execute request
         CURLcode res = curl_easy_perform(curl);
         curl_easy_cleanup(curl);
 
         if (res != CURLE_OK) {
-            frontend_logger.error("Failed to reach " + llmInferenceEngine + " server at " + llmServer);
+            frontend_logger.error("Failed to reach " + llmInferenceEngine + " server at " + llmServer +
+                                  " curl error: " + std::string(curl_easy_strerror(res)));
             writeSocketLine(connectionFd, "Could not connect to " + llmInferenceEngine + " server.", loop_exit_p);
             *loop_exit_p = true;
             return false;
@@ -2419,14 +2439,15 @@ static bool validateKgModelAvailability(int connectionFd, const std::string &hos
         bool modelFound = false;
         if (llmInferenceEngine == "ollama") {
             modelFound = response.find(R"("name":")" + llm + "\"") != std::string::npos;
-        } else {
+        } else {  // vllm
             frontend_logger.info(response);
             modelFound = response.find(R"("id\":")" + llm + "\"") != std::string::npos;
         }
 
         if (!modelFound) {
             frontend_logger.error("Model '" + llm + "' not found on " + llmInferenceEngine + " server.");
-            writeSocketLine(connectionFd, "Model '" + llm + "' not available on " + llmInferenceEngine + " server.",
+            writeSocketLine(connectionFd,
+                            "Model '" + llm + "' not available on " + llmInferenceEngine + " server.",
                             loop_exit_p);
             *loop_exit_p = true;
             return false;
