@@ -1817,8 +1817,8 @@ static bool exportPartitionShard(const std::string &masterIP, const std::string 
     struct hostent hostEntry;
     struct hostent *server = nullptr;
     int hostErrno = 0;
-    char hostBuffer[8192];
-    if (int hostLookupResult = gethostbyname_r(host.c_str(), &hostEntry, hostBuffer, sizeof(hostBuffer), &server,
+    std::string hostBuffer(8192, '\0');
+    if (int hostLookupResult = gethostbyname_r(host.c_str(), &hostEntry, hostBuffer.data(), hostBuffer.size(), &server,
                                                &hostErrno);
         hostLookupResult != 0 || server == nullptr) {
         frontend_logger.error("No host named " + host);
@@ -1838,21 +1838,21 @@ static bool exportPartitionShard(const std::string &masterIP, const std::string 
         return false;
     }
 
-    char data[INSTANCE_LONG_DATA_LENGTH + 1];
-    bool success = Utils::performHandshake(sockfd, data, INSTANCE_DATA_LENGTH, masterIP) &&
-                   Utils::sendExpectResponse(sockfd, data, INSTANCE_LONG_DATA_LENGTH,
+    std::string data(INSTANCE_LONG_DATA_LENGTH + 1, '\0');
+    bool success = Utils::performHandshake(sockfd, data.data(), INSTANCE_DATA_LENGTH, masterIP) &&
+                   Utils::sendExpectResponse(sockfd, data.data(), INSTANCE_LONG_DATA_LENGTH,
                                              JasmineGraphInstanceProtocol::SEND_EDGES_TO_HDFS,
                                              JasmineGraphInstanceProtocol::OK) &&
-                   Utils::sendExpectResponse(sockfd, data, INSTANCE_LONG_DATA_LENGTH,
+                   Utils::sendExpectResponse(sockfd, data.data(), INSTANCE_LONG_DATA_LENGTH,
                                              graphId,
                                              JasmineGraphInstanceProtocol::SEND_PARTITION_ID) &&
-                   Utils::sendExpectResponse(sockfd, data, INSTANCE_LONG_DATA_LENGTH,
+                   Utils::sendExpectResponse(sockfd, data.data(), INSTANCE_LONG_DATA_LENGTH,
                                              partitionId,
                                              JasmineGraphInstanceProtocol::OK) &&
-                   Utils::sendExpectResponse(sockfd, data, INSTANCE_LONG_DATA_LENGTH,
+                   Utils::sendExpectResponse(sockfd, data.data(), INSTANCE_LONG_DATA_LENGTH,
                                              hdfsEndpoint.first,
                                              JasmineGraphInstanceProtocol::OK) &&
-                   Utils::sendExpectResponse(sockfd, data, INSTANCE_LONG_DATA_LENGTH,
+                   Utils::sendExpectResponse(sockfd, data.data(), INSTANCE_LONG_DATA_LENGTH,
                                              hdfsEndpoint.second,
                                              JasmineGraphInstanceProtocol::OK);
 
@@ -1862,7 +1862,7 @@ static bool exportPartitionShard(const std::string &masterIP, const std::string 
 
     std::string status;
     if (success) {
-        status = Utils::read_str_trim_wrapper(sockfd, data, INSTANCE_LONG_DATA_LENGTH);
+        status = Utils::read_str_trim_wrapper(sockfd, data.data(), INSTANCE_LONG_DATA_LENGTH);
         success = (status == JasmineGraphInstanceProtocol::OK);
     }
 
@@ -1914,7 +1914,7 @@ static HdfsShardExportResult exportWorkerShards(
                 {
                     std::lock_guard lock(exportResultMutex);
                     if (result.writeError) {
-                        break;
+                        return;
                     }
                 }
 
