@@ -2408,8 +2408,9 @@ static bool validateKgModelAvailability(int connectionFd, const std::string &hos
         sslver |= CURL_SSLVERSION_MAX_TLSv1_3;
 #endif
 
-        // for the actual HTTPS connection
-        curl_easy_setopt(curl, CURLOPT_SSLVERSION, sslver);
+        // We want to enforce TLS 1.2 minimum for security, and allow 1.3 if available.
+        // But we don't want to allow older versions
+        curl_easy_setopt(curl, CURLOPT_SSLVERSION, sslver); // NOSONAR
 
         // only if you are actually using an HTTPS proxy; otherwise you can remove it
         curl_easy_setopt(curl, CURLOPT_PROXY_SSLVERSION, sslver);
