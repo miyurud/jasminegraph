@@ -2391,26 +2391,20 @@ static bool validateKgModelAvailability(int connectionFd, const std::string &hos
         std::string url = Utils::normalizeURL(llmServer, endpointPath);
         frontend_logger.info("Final LLM endpoint: " + url);
 
-        CURL *curl = curl_easy_init();
-        if (curl == nullptr) {
-            frontend_logger.error("Failed to initialize CURL for " + llmServer);
-            writeSocketLine(connectionFd, "Could not initialize HTTP client for model check.", loop_exit_p);
-            *loop_exit_p = true;
-            return false;
-        }
-
         // TLS settings — set immediately after init for static analysis visibility
-        curl_easy_setopt(curl, CURLOPT_PROXY_SSLVERSION,
-                 CURL_SSLVERSION_TLSv1_2 | CURL_SSLVERSION_MAX_TLSv1_3);
-        curl_easy_setopt(curl, CURLOPT_PROXY_SSLVERSION, CURL_SSLVERSION_TLSv1_2);
+        long sslver = CURL_SSLVERSION_TLSv1_2;
+        #if defined(CURL_SSLVERSION_MAX_TLSv1_3)
+        sslver |= CURL_SSLVERSION_MAX_TLSv1_3;
+        #endif
+
+        // for the actual HTTPS connection
+        curl_easy_setopt(curl, CURLOPT_SSLVERSION, sslver);
+
+        // only if you are actually using an HTTPS proxy; otherwise you can remove it
+        curl_easy_setopt(curl, CURLOPT_PROXY_SSLVERSION, sslver);
+
         curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 1L);
         curl_easy_setopt(curl, CURLOPT_SSL_VERIFYHOST, 2L);
-
-        std::string response;
-        curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
-        curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, WriteCallback);
-        curl_easy_setopt(curl, CURLOPT_WRITEDATA, &response);
-        curl_easy_setopt(curl, CURLOPT_TIMEOUT, 5L);
 
         CURLcode res = curl_easy_perform(curl);
         curl_easy_cleanup(curl);
