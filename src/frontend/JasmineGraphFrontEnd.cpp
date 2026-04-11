@@ -2485,27 +2485,21 @@ static bool resolveKgGraphId(int connectionFd, SQLiteDBInterface *sqlite, const 
     return true;
 }
 
-static void launchKgStreamingThread(const std::string &masterIP, int newGraphID, int numberOfPartitions,
-                                    const std::string &hdfsServerIp, const std::string &hdfsPort,
-                                    const std::string &hostnamePort, const std::string &llmInferenceEngine,
-                                    const std::string &llm, const std::string &chunkSize,
-                                    const std::string &hdfsFilePath, bool graphExists, SQLiteDBInterface *sqlite) {
-    JasmineGraphServer::worker designatedWorker = JasmineGraphServer::getDesignatedWorker();
+static void launchKgStreamingThread(KGStreamingTaskContext taskContext) {
+    JasmineGraphServer::worker designatedWorker = taskContext.designatedWorker;
     auto stopFlag = std::make_shared<std::atomic<bool>>(false);
     {
         std::lock_guard lock(threadMapMutex);
-        stopFlags[newGraphID] = stopFlag;
+        stopFlags[taskContext.graphId] = stopFlag;
     }
 
-    KGStreamingTaskContext taskContext{designatedWorker, masterIP,      newGraphID,    numberOfPartitions,
-                                       hdfsServerIp,     hdfsPort,      hostnamePort,  llmInferenceEngine,
-                                       llm,              chunkSize,     hdfsFilePath,  graphExists,
-                                       sqlite,           stopFlag};
+    taskContext.designatedWorker = designatedWorker;
+    taskContext.stopFlag = stopFlag;
     std::thread streamingThread(runKGStreamingTask, taskContext);
 
     {
         std::lock_guard lock(threadMapMutex);
-        activeStreamThreads[newGraphID] = streamingThread.get_id();
+        activeStreamThreads[taskContext.graphId] = streamingThread.get_id();
     }
 
     streamingThread.detach();
@@ -2544,7 +2538,8 @@ bool JasmineGraphFrontEnd::constructKGStreamHDFSCommand(const std::string &maste
     std::string path = "hdfs:" + hdfsFilePath;
     double_t totalFileSize = hdfsGetPathInfo(hdfsConnector->getFileSystem(), hdfsFilePath.c_str())->mSize;
     std::time_t now = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
-    std::string uploadStartTime = ctime(&now);
+    std::string uploadStartTimeBuffer(26, '\0');
+    std::string uploadStartTime = ctime_r(&now, uploadStartTimeBuffer.data());
     uploadStartTime.erase(uploadStartTime.find_last_not_of(Conts::CARRIAGE_RETURN_NEW_LINE) + 1);
 
     int newGraphID = -1;
@@ -2554,8 +2549,11 @@ bool JasmineGraphFrontEnd::constructKGStreamHDFSCommand(const std::string &maste
         return false;
     }
 
-    launchKgStreamingThread(masterIP, newGraphID, numberOfPartitions, hdfsServerIp, hdfsPort, hostnamePort,
-                            llmInferenceEngine, llm, chunkSize, hdfsFilePath, graphExists, sqlite);
+    KGStreamingTaskContext taskContext{JasmineGraphServer::getDesignatedWorker(), masterIP, newGraphID,
+                                       numberOfPartitions, hdfsServerIp, hdfsPort, hostnamePort,
+                                       llmInferenceEngine, llm, chunkSize, hdfsFilePath, graphExists,
+                                       sqlite, nullptr};
+    launchKgStreamingThread(taskContext);
 
     return writeSocketLine(connectionFd, "Graph Id: " + std::to_string(newGraphID), loop_exit_p);
 }
