@@ -2399,10 +2399,16 @@ static bool validateKgModelAvailability(int connectionFd, const std::string &hos
         }
 
         std::string response;
+        long sslVersion = CURL_SSLVERSION_TLSv1_2;
+    #ifdef CURL_SSLVERSION_MAX_TLSv1_3
+        sslVersion |= CURL_SSLVERSION_MAX_TLSv1_3;
+    #endif
         curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
         curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, WriteCallback);
         curl_easy_setopt(curl, CURLOPT_WRITEDATA, &response);
         curl_easy_setopt(curl, CURLOPT_TIMEOUT, 5L);
+        curl_easy_setopt(curl, CURLOPT_SSLVERSION, sslVersion);
+        curl_easy_setopt(curl, CURLOPT_PROXY_SSLVERSION, sslVersion);
 
         CURLcode res = curl_easy_perform(curl);
         curl_easy_cleanup(curl);
@@ -2416,10 +2422,10 @@ static bool validateKgModelAvailability(int connectionFd, const std::string &hos
 
         bool modelFound = false;
         if (llmInferenceEngine == "ollama") {
-            modelFound = response.find("\"name\":\"" + llm + "\"") != std::string::npos;
+            modelFound = response.find(R"("name":")" + llm + "\"") != std::string::npos;
         } else {
             frontend_logger.info(response);
-            modelFound = response.find("\"id\":\"" + llm + "\"") != std::string::npos;
+            modelFound = response.find(R"("id\":")" + llm + "\"") != std::string::npos;
         }
 
         if (!modelFound) {
@@ -2451,9 +2457,9 @@ static int insertNewKgGraph(SQLiteDBInterface *sqlite, const std::string &hdfsFi
         "upload_end_time, graph_status_idgraph_status, "
         "vertexcount, centralpartitioncount, edgecount, is_directed , "
         "file_size_bytes ) VALUES(\"" +
-        hdfsFilePath + "\", \"" + path + "\", \"" + uploadStartTime + "\", \"\", \"" +
-        std::to_string(Conts::GRAPH_STATUS::NONOPERATIONAL) + "\", \"\", \"\", \"\", \"TRUE\", \"" +
-        to_string(totalFileSize) + "\");";
+        hdfsFilePath + R"(", ")" + path + R"(", ")" + uploadStartTime + R"(", "", ")" +
+        std::to_string(Conts::GRAPH_STATUS::NONOPERATIONAL) + R"(", "", "", "", "TRUE", ")" +
+        to_string(totalFileSize) + R"(");)";
 
     int newGraphId = sqlite->runInsert(insertQuery);
     frontend_logger.info("Constructing new Knowledge Graph with new GraphID: " + to_string(newGraphId));
@@ -2472,9 +2478,7 @@ struct KGGraphResolveContext {
 
 static bool resolveKgGraphId(const KGGraphResolveContext &context, int &newGraphID, bool &graphExists) {
     std::string checkQuery = "SELECT idgraph FROM graph WHERE upload_path = \"" + context.path + "\";";
-    auto queryResults = context.sqlite->runSelect(checkQuery);
-
-    if (!queryResults.empty() && !queryResults[0].empty()) {
+    if (auto queryResults = context.sqlite->runSelect(checkQuery); !queryResults.empty() && !queryResults[0].empty()) {
         int existingId = std::stoi(queryResults[0][0].second);
         frontend_logger.info("Graph already exists with ID: " + std::to_string(existingId));
 
