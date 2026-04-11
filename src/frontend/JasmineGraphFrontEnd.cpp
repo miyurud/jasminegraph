@@ -1878,43 +1878,52 @@ struct HdfsShardExportResult {
     std::vector<std::pair<int, std::string>> shardPaths;
 };
 
-static void exportWorkerPartitions(const std::string &masterIP, const std::string &graphId,
-                                   const HdfsEndpoint &hdfsEndpoint, const std::string &workerID,
-                                   const std::vector<std::string> &partitions,
-                                   const Utils::worker &currentWorker, const std::string &shardDirectory,
-                                   HdfsShardExportResult &result, std::mutex &exportResultMutex) {
-    auto buildShardPath = [&shardDirectory, &graphId](const std::string &localWorkerID,
+struct WorkerPartitionExportContext {
+    std::string masterIP;
+    std::string graphId;
+    HdfsEndpoint hdfsEndpoint;
+    std::string workerID;
+    std::vector<std::string> partitions;
+    Utils::worker currentWorker;
+    std::string shardDirectory;
+    HdfsShardExportResult *result = nullptr;
+    std::mutex *exportResultMutex = nullptr;
+};
+
+static void exportWorkerPartitions(const WorkerPartitionExportContext &context) {
+    auto buildShardPath = [&context](const std::string &localWorkerID,
                                                       const std::string &partitionID) {
-        std::string basePath = shardDirectory;
+        std::string basePath = context.shardDirectory;
         std::string separator = (basePath == "/") ? "" : "/";
-        return basePath + separator + "graph_" + graphId + "_worker_" + localWorkerID + "_partition_" +
+        return basePath + separator + "graph_" + context.graphId + "_worker_" + localWorkerID + "_partition_" +
                partitionID + ".txt";
     };
 
-    for (const std::string &partitionId : partitions) {
+    for (const std::string &partitionId : context.partitions) {
         {
-            std::lock_guard lock(exportResultMutex);
-            if (result.writeError) {
+            std::lock_guard lock(*context.exportResultMutex);
+            if (context.result->writeError) {
                 return;
             }
         }
 
-        std::string shardPath = buildShardPath(workerID, partitionId);
+        std::string shardPath = buildShardPath(context.workerID, partitionId);
         if (bool success =
-                exportPartitionShard(masterIP, graphId, workerID, partitionId, currentWorker, hdfsEndpoint, shardPath);
+                exportPartitionShard(context.masterIP, context.graphId, context.workerID, partitionId,
+                                     context.currentWorker, context.hdfsEndpoint, shardPath);
             !success) {
-            frontend_logger.error("Worker " + workerID + " failed to write partition " + partitionId +
+            frontend_logger.error("Worker " + context.workerID + " failed to write partition " + partitionId +
                                   " to HDFS path " + shardPath);
-            std::lock_guard lock(exportResultMutex);
-            result.writeError = true;
+            std::lock_guard lock(*context.exportResultMutex);
+            context.result->writeError = true;
             break;
         }
 
-        frontend_logger.info("Worker " + workerID + " wrote partition " + partitionId +
+        frontend_logger.info("Worker " + context.workerID + " wrote partition " + partitionId +
                              " directly to HDFS path " + shardPath);
-        std::lock_guard lock(exportResultMutex);
-        result.shardPaths.emplace_back(std::stoi(partitionId), shardPath);
-        ++result.processedPartitions;
+        std::lock_guard lock(*context.exportResultMutex);
+        context.result->shardPaths.emplace_back(std::stoi(partitionId), shardPath);
+        ++context.result->processedPartitions;
     }
 }
 
@@ -1940,10 +1949,10 @@ static HdfsShardExportResult exportWorkerShards(
             continue;
         }
 
-        const Utils::worker currentWorker = workerIterator->second;
-        exportThreads.emplace_back(exportWorkerPartitions, std::cref(masterIP), std::cref(graphId),
-                                   std::cref(hdfsEndpoint), workerID, partitions, currentWorker,
-                                   std::cref(shardDirectory), std::ref(result), std::ref(exportResultMutex));
+        WorkerPartitionExportContext exportContext{masterIP, graphId, hdfsEndpoint, workerID, partitions,
+                               workerIterator->second, shardDirectory, &result,
+                               &exportResultMutex};
+        exportThreads.emplace_back(exportWorkerPartitions, std::move(exportContext));
     }
 
     for (auto &thread : exportThreads) {
@@ -2451,25 +2460,35 @@ static int insertNewKgGraph(SQLiteDBInterface *sqlite, const std::string &hdfsFi
     return newGraphId;
 }
 
-static bool resolveKgGraphId(int connectionFd, SQLiteDBInterface *sqlite, const std::string &hdfsFilePath,
-                             const std::string &path, const std::string &uploadStartTime, double_t totalFileSize,
-                             int &newGraphID, bool &graphExists, bool *loop_exit_p) {
-    std::string checkQuery = "SELECT idgraph FROM graph WHERE upload_path = \"" + path + "\";";
-    auto queryResults = sqlite->runSelect(checkQuery);
+struct KGGraphResolveContext {
+    int connectionFd = -1;
+    SQLiteDBInterface *sqlite = nullptr;
+    std::string hdfsFilePath;
+    std::string path;
+    std::string uploadStartTime;
+    double_t totalFileSize = 0;
+    bool *loop_exit_p = nullptr;
+};
+
+static bool resolveKgGraphId(const KGGraphResolveContext &context, int &newGraphID, bool &graphExists) {
+    std::string checkQuery = "SELECT idgraph FROM graph WHERE upload_path = \"" + context.path + "\";";
+    auto queryResults = context.sqlite->runSelect(checkQuery);
 
     if (!queryResults.empty() && !queryResults[0].empty()) {
         int existingId = std::stoi(queryResults[0][0].second);
         frontend_logger.info("Graph already exists with ID: " + std::to_string(existingId));
 
         std::string resumeResponse;
-        if (!promptAndReadInput(connectionFd, "There exists a graph with the file path, would you like to resume?",
-                                resumeResponse, loop_exit_p)) {
+        if (!promptAndReadInput(context.connectionFd,
+                                "There exists a graph with the file path, would you like to resume?",
+                                resumeResponse, context.loop_exit_p)) {
             return false;
         }
 
         if (resumeResponse == "y") {
             std::string resumeGraphId;
-            if (!promptAndReadInput(connectionFd, "Graph Id to resume?", resumeGraphId, loop_exit_p)) {
+            if (!promptAndReadInput(context.connectionFd, "Graph Id to resume?", resumeGraphId,
+                                    context.loop_exit_p)) {
                 return false;
             }
 
@@ -2480,7 +2499,8 @@ static bool resolveKgGraphId(int connectionFd, SQLiteDBInterface *sqlite, const 
         }
     }
 
-    newGraphID = insertNewKgGraph(sqlite, hdfsFilePath, path, uploadStartTime, totalFileSize);
+    newGraphID = insertNewKgGraph(context.sqlite, context.hdfsFilePath, context.path, context.uploadStartTime,
+                                  context.totalFileSize);
     graphExists = false;
     return true;
 }
@@ -2544,8 +2564,9 @@ bool JasmineGraphFrontEnd::constructKGStreamHDFSCommand(const std::string &maste
 
     int newGraphID = -1;
     bool graphExists = false;
-    if (!resolveKgGraphId(connectionFd, sqlite, hdfsFilePath, path, uploadStartTime, totalFileSize, newGraphID, graphExists,
-                          loop_exit_p)) {
+    KGGraphResolveContext resolveContext{connectionFd, sqlite, hdfsFilePath, path, uploadStartTime,
+                                         totalFileSize, loop_exit_p};
+    if (!resolveKgGraphId(resolveContext, newGraphID, graphExists)) {
         return false;
     }
 
