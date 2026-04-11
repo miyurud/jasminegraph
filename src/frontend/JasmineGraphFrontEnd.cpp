@@ -2249,15 +2249,16 @@ struct KGStreamingTaskContext {
 
 static void runKGStreamingTask(KGStreamingTaskContext context) {
     frontend_logger.info("Starting streaming thread for GraphID: " + std::to_string(context.graphId));
-    kgConstructionRates[context.graphId] = std::make_shared<KGConstructionRate>();
-    kgConstructionRates[context.graphId]->bytesPerSecond = 0.0;
-    kgConstructionRates[context.graphId]->triplesPerSecond = 0.0;
+    JasmineGraphFrontEnd::kgConstructionRates[context.graphId] = std::make_shared<KGConstructionRate>();
+    JasmineGraphFrontEnd::kgConstructionRates[context.graphId]->bytesPerSecond = 0.0;
+    JasmineGraphFrontEnd::kgConstructionRates[context.graphId]->triplesPerSecond = 0.0;
 
     bool success = Pipeline::streamGraphToDesignatedWorker(
         context.designatedWorker.hostname, context.designatedWorker.port, context.masterIP,
         std::to_string(context.graphId), context.numberOfPartitions, context.hdfsServerIp, context.hdfsPort,
         context.hostnamePort, context.llmInferenceEngine, context.llm, context.chunkSize, context.hdfsFilePath,
-        context.graphExists, context.sqlite, context.stopFlag, kgConstructionRates[context.graphId]);
+        context.graphExists, context.sqlite, context.stopFlag,
+                JasmineGraphFrontEnd::kgConstructionRates[context.graphId]);
 
     if (!success) {
         frontend_logger.error("Streaming to worker failed for GraphID: " + std::to_string(context.graphId));
