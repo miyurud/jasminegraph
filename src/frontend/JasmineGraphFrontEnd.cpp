@@ -1669,8 +1669,8 @@ static bool requestGraphIdAndValidate(int connectionFd, SQLiteDBInterface *sqlit
     frontend_logger.info("Graph ID received: " + graphId);
 
     std::string graphQuery = "SELECT idgraph, name FROM graph WHERE idgraph = '" + graphId + "'";
-    std::vector<std::vector<std::pair<std::string, std::string>>> graphResults = sqlite->runSelect(graphQuery);
-    if (graphResults.empty()) {
+    if (std::vector<std::vector<std::pair<std::string, std::string>>> graphResults = sqlite->runSelect(graphQuery);
+        graphResults.empty()) {
         return sendClientErrorAndExit(connectionFd, "Graph not found: " + graphId, "Graph not found", loop_exit_p);
     }
 
@@ -1796,9 +1796,11 @@ static bool prepareHdfsDestination(HDFSConnector &hdfsConnector, const std::stri
     return true;
 }
 
+using HdfsEndpoint = std::pair<std::string, std::string>;
+
 static bool exportPartitionShard(const std::string &masterIP, const std::string &graphId, const std::string &workerID,
                                  const std::string &partitionId, const Utils::worker &currentWorker,
-                                 const std::string &hdfsServerIp, const std::string &hdfsPort,
+                                 const HdfsEndpoint &hdfsEndpoint,
                                  const std::string &shardPath) {
     std::string host = currentWorker.hostname;
     if (host.find('@') != std::string::npos) {
@@ -1847,10 +1849,10 @@ static bool exportPartitionShard(const std::string &masterIP, const std::string 
                                              partitionId,
                                              JasmineGraphInstanceProtocol::OK) &&
                    Utils::sendExpectResponse(sockfd, data, INSTANCE_LONG_DATA_LENGTH,
-                                             hdfsServerIp,
+                                             hdfsEndpoint.first,
                                              JasmineGraphInstanceProtocol::OK) &&
                    Utils::sendExpectResponse(sockfd, data, INSTANCE_LONG_DATA_LENGTH,
-                                             hdfsPort,
+                                             hdfsEndpoint.second,
                                              JasmineGraphInstanceProtocol::OK);
 
     if (success) {
@@ -1882,6 +1884,7 @@ static HdfsShardExportResult exportWorkerShards(
     const std::map<std::string, Utils::worker, std::less<>> &workerMap) {
     HdfsShardExportResult result;
     std::mutex exportResultMutex;
+    const HdfsEndpoint hdfsEndpoint{hdfsServerIp, hdfsPort};
 
     auto buildShardPath = [&shardDirectory, &graphId](const std::string &workerID, const std::string &partitionID) {
         std::string basePath = shardDirectory;
@@ -1904,7 +1907,7 @@ static HdfsShardExportResult exportWorkerShards(
         }
 
         const Utils::worker currentWorker = workerIterator->second;
-        exportThreads.emplace_back([&exportResultMutex, &result, &masterIP, &graphId, &hdfsServerIp, &hdfsPort,
+        exportThreads.emplace_back([&exportResultMutex, &result, &masterIP, &graphId, &hdfsEndpoint,
                                     &buildShardPath, workerID, partitions, currentWorker]() {
             for (const std::string &partitionId : partitions) {
                 {
@@ -1915,10 +1918,8 @@ static HdfsShardExportResult exportWorkerShards(
                 }
 
                 std::string shardPath = buildShardPath(workerID, partitionId);
-                bool success = exportPartitionShard(masterIP, graphId, workerID, partitionId, currentWorker,
-                                                    hdfsServerIp, hdfsPort, shardPath);
-
-                if (!success) {
+                if (bool success = exportPartitionShard(masterIP, graphId, workerID, partitionId, currentWorker,
+                                                    hdfsEndpoint, shardPath); !success) {
                     frontend_logger.error("Worker " + workerID + " failed to write partition " + partitionId +
                                           " to HDFS path " + shardPath);
                     std::lock_guard lock(exportResultMutex);
