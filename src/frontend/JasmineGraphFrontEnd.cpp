@@ -2400,8 +2400,8 @@ static bool validateKgModelAvailability(int connectionFd, const std::string &hos
         }
 
         // TLS settings — set immediately after init for static analysis visibility
-        curl_easy_setopt(curl, CURLOPT_SSLVERSION, CURL_SSLVERSION_TLSv1_3);
-        curl_easy_setopt(curl, CURLOPT_PROXY_SSLVERSION, CURL_SSLVERSION_TLSv1_3);
+        curl_easy_setopt(curl, CURLOPT_SSLVERSION, CURL_SSLVERSION_TLSv1_2);
+        curl_easy_setopt(curl, CURLOPT_PROXY_SSLVERSION, CURL_SSLVERSION_TLSv1_2);
         curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 1L);
         curl_easy_setopt(curl, CURLOPT_SSL_VERIFYHOST, 2L);
 
@@ -2530,7 +2530,7 @@ static void launchKgStreamingThread(KGStreamingTaskContext taskContext) {
     streamingThread.detach();
 }
 
-bool JasmineGraphFrontEnd::constructKGStreamHDFSCommand(const std::string &masterIP, int connectionFd, 
+bool JasmineGraphFrontEnd::constructKGStreamHDFSCommand(const std::string &masterIP, int connectionFd,
                                     int numberOfPartitions, SQLiteDBInterface *sqlite, bool *loop_exit_p) {
     std::string hdfsPort;
     std::string hdfsServerIp;
