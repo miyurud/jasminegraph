@@ -2302,7 +2302,8 @@ static bool promptAndReadInput(int connectionFd, const std::string &prompt, std:
     return true;
 }
 
-static bool requestKgHdfsEndpoint(int connectionFd, std::string &hdfsServerIp, std::string &hdfsPort, bool *loop_exit_p) {
+static bool requestKgHdfsEndpoint(int connectionFd, std::string &hdfsServerIp, std::string &hdfsPort,
+                                    bool *loop_exit_p) {
     std::string userRes;
     if (!promptAndReadInput(connectionFd, "Do you want to use the default HDFS server(y/n)?", userRes, loop_exit_p)) {
         return false;
@@ -2398,13 +2399,17 @@ static bool validateKgModelAvailability(int connectionFd, const std::string &hos
             return false;
         }
 
+        // TLS settings — set immediately after init for static analysis visibility
+        curl_easy_setopt(curl, CURLOPT_SSLVERSION, CURL_SSLVERSION_TLSv1_3);
+        curl_easy_setopt(curl, CURLOPT_PROXY_SSLVERSION, CURL_SSLVERSION_TLSv1_3);
+        curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 1L);
+        curl_easy_setopt(curl, CURLOPT_SSL_VERIFYHOST, 2L);
+
         std::string response;
         curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
         curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, WriteCallback);
         curl_easy_setopt(curl, CURLOPT_WRITEDATA, &response);
         curl_easy_setopt(curl, CURLOPT_TIMEOUT, 5L);
-        curl_easy_setopt(curl, CURLOPT_SSLVERSION, CURL_SSLVERSION_TLSv1_3);
-        curl_easy_setopt(curl, CURLOPT_PROXY_SSLVERSION, CURL_SSLVERSION_TLSv1_3);
 
         CURLcode res = curl_easy_perform(curl);
         curl_easy_cleanup(curl);
@@ -2525,8 +2530,8 @@ static void launchKgStreamingThread(KGStreamingTaskContext taskContext) {
     streamingThread.detach();
 }
 
-bool JasmineGraphFrontEnd::constructKGStreamHDFSCommand(const std::string &masterIP, int connectionFd, int numberOfPartitions,
-                                                        SQLiteDBInterface *sqlite, bool *loop_exit_p) {
+bool JasmineGraphFrontEnd::constructKGStreamHDFSCommand(const std::string &masterIP, int connectionFd, 
+                                    int numberOfPartitions, SQLiteDBInterface *sqlite, bool *loop_exit_p) {
     std::string hdfsPort;
     std::string hdfsServerIp;
     if (!requestKgHdfsEndpoint(connectionFd, hdfsServerIp, hdfsPort, loop_exit_p)) {
