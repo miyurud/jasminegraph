@@ -1690,11 +1690,11 @@ static bool requestHdfsServerConfig(int connectionFd, std::string &hdfsServerIp,
         hdfsServerIp = Utils::getJasmineGraphProperty("org.jasminegraph.server.streaming.hdfs.host");
         hdfsPort = Utils::getJasmineGraphProperty("org.jasminegraph.server.streaming.hdfs.port");
     } else {
-        std::string configMsg =
-            "Send the file path to the HDFS configuration file."
-            " This file needs to be in some directory location"
-            " that is accessible for JasmineGraph master";
-        if (!writeSocketLine(connectionFd, configMsg, loop_exit_p)) {
+        if (std::string configMsg =
+                "Send the file path to the HDFS configuration file."
+                " This file needs to be in some directory location"
+                " that is accessible for JasmineGraph master";
+            !writeSocketLine(connectionFd, configMsg, loop_exit_p)) {
             return false;
         }
 
@@ -1818,8 +1818,9 @@ static bool exportPartitionShard(const std::string &masterIP, const std::string 
     struct hostent *server = nullptr;
     int hostErrno = 0;
     char hostBuffer[8192];
-    int hostLookupResult = gethostbyname_r(host.c_str(), &hostEntry, hostBuffer, sizeof(hostBuffer), &server, &hostErrno);
-    if (hostLookupResult != 0 || server == nullptr) {
+    if (int hostLookupResult = gethostbyname_r(host.c_str(), &hostEntry, hostBuffer, sizeof(hostBuffer), &server,
+                                               &hostErrno);
+        hostLookupResult != 0 || server == nullptr) {
         frontend_logger.error("No host named " + host);
         close(sockfd);
         return false;
@@ -2229,6 +2230,51 @@ void addStreamHDFSCommand(std::string masterIP, int connFd, std::string &hdfsSer
     }
 }
 
+struct KGStreamingTaskContext {
+    JasmineGraphServer::worker designatedWorker;
+    std::string masterIP;
+    int graphId = 0;
+    int numberOfPartitions = 0;
+    std::string hdfsServerIp;
+    std::string hdfsPort;
+    std::string hostnamePort;
+    std::string llmInferenceEngine;
+    std::string llm;
+    std::string chunkSize;
+    std::string hdfsFilePath;
+    bool graphExists = false;
+    SQLiteDBInterface *sqlite = nullptr;
+    std::shared_ptr<std::atomic<bool>> stopFlag;
+};
+
+static void runKGStreamingTask(KGStreamingTaskContext context) {
+    frontend_logger.info("Starting streaming thread for GraphID: " + std::to_string(context.graphId));
+    kgConstructionRates[context.graphId] = std::make_shared<KGConstructionRate>();
+    kgConstructionRates[context.graphId]->bytesPerSecond = 0.0;
+    kgConstructionRates[context.graphId]->triplesPerSecond = 0.0;
+
+    bool success = Pipeline::streamGraphToDesignatedWorker(
+        context.designatedWorker.hostname, context.designatedWorker.port, context.masterIP,
+        std::to_string(context.graphId), context.numberOfPartitions, context.hdfsServerIp, context.hdfsPort,
+        context.hostnamePort, context.llmInferenceEngine, context.llm, context.chunkSize, context.hdfsFilePath,
+        context.graphExists, context.sqlite, context.stopFlag, kgConstructionRates[context.graphId]);
+
+    if (!success) {
+        frontend_logger.error("Streaming to worker failed for GraphID: " + std::to_string(context.graphId));
+    }
+
+    std::time_t endTime = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
+    std::string uploadEndTimeBuffer(26, '\0');
+    std::string uploadEndTime = ctime_r(&endTime, uploadEndTimeBuffer.data());
+
+    std::string sqlStatementUpdateEndTime =
+        "UPDATE graph SET upload_end_time = \"" + uploadEndTime + "\" WHERE idgraph = " +
+        std::to_string(context.graphId);
+    context.sqlite->runInsert(sqlStatementUpdateEndTime);
+
+    frontend_logger.info("Async streaming finished for GraphID: " + std::to_string(context.graphId));
+}
+
 bool JasmineGraphFrontEnd::constructKGStreamHDFSCommand(const std::string &masterIP, int connFd, int numberOfPartitions,
                                                         SQLiteDBInterface *sqlite, bool *loop_exit_p) {
     std::string hdfsPort;
@@ -2596,32 +2642,11 @@ bool JasmineGraphFrontEnd::constructKGStreamHDFSCommand(const std::string &maste
     }
 
     // Launch streaming thread
-    std::thread streamingThread([=]() mutable {
-        frontend_logger.info("Starting streaming thread for GraphID: " + std::to_string(newGraphID));
-        kgConstructionRates[newGraphID] = std::make_shared<KGConstructionRate>();
-        kgConstructionRates[newGraphID]->bytesPerSecond = 0.0;
-        kgConstructionRates[newGraphID]->triplesPerSecond = 0.0;
-
-        std::make_shared<std::atomic<bool>>(false);
-        bool success = Pipeline::streamGraphToDesignatedWorker(
-            designatedWorker.hostname, designatedWorker.port, masterIP, std::to_string(newGraphID), numberOfPartitions,
-            hdfsServerIp, hdfsPort, hostnamePortS, llmInferenceEngineS, llm, chunkSizeS, hdfsFilePathS, graphExits,
-            sqlite, stopFlag, kgConstructionRates[newGraphID]);
-
-        if (!success) {
-            frontend_logger.error("Streaming to worker failed for GraphID: " + std::to_string(newGraphID));
-        }
-
-        std::time_t endTime = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
-        std::string uploadEndTimeBuffer(26, '\0');
-        std::string uploadEndTime = ctime_r(&endTime, uploadEndTimeBuffer.data());
-
-        std::string sqlStatementUpdateEndTime = "UPDATE graph SET upload_end_time = \"" + uploadEndTime +
-                                                "\" WHERE idgraph = " + std::to_string(newGraphID);
-        sqlite->runInsert(sqlStatementUpdateEndTime);
-
-        frontend_logger.info("Async streaming finished for GraphID: " + std::to_string(newGraphID));
-    });
+    KGStreamingTaskContext taskContext{designatedWorker, masterIP,      newGraphID,   numberOfPartitions,
+                                       hdfsServerIp,     hdfsPort,      hostnamePortS, llmInferenceEngineS,
+                                       llm,              chunkSizeS,     hdfsFilePathS, graphExits,
+                                       sqlite,           stopFlag};
+    std::thread streamingThread(runKGStreamingTask, taskContext);
 
     // store its id
     {
