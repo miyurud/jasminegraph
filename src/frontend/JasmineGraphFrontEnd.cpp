@@ -97,6 +97,7 @@ static void add_rdf_command(std::string masterIP, int connFd, SQLiteDBInterface*
 static void add_graph_command(std::string masterIP, int connFd, SQLiteDBInterface* sqlite, bool* loop_exit_p);
 static void add_graph_cust_command(std::string masterIP, int connFd, SQLiteDBInterface* sqlite, bool* loop_exit_p);
 static void remove_graph_command(std::string masterIP, int connFd, SQLiteDBInterface* sqlite, bool* loop_exit_p);
+static void remove_all_graphs_command(std::string masterIP, int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_p);
 static void add_model_command(int connFd, SQLiteDBInterface* sqlite, bool* loop_exit_p);
 static void add_stream_kafka_command(int connFd, std::string& kafka_server_IP, cppkafka::Configuration& configs,
                                      KafkaConnector*& kstream, thread& input_stream_handler_thread,
@@ -250,6 +251,8 @@ void* frontendservicesesion(void* dummyPt) {
             stop_stream_kafka_command(connFd, kstream, &loop_exit);
         } else if (line.compare(RMGR) == 0) {
             remove_graph_command(masterIP, connFd, sqlite, &loop_exit);
+        } else if (line.compare(TRUNCATE) == 0) {
+            remove_all_graphs_command(masterIP, connFd, sqlite, &loop_exit);
         } else if (line.compare(PROCESS_DATASET) == 0) {
             process_dataset_command(connFd, &loop_exit);
         } else if (line.compare(TRIANGLES) == 0) {
@@ -1342,6 +1345,72 @@ static void remove_graph_command(std::string masterIP, int connFd, SQLiteDBInter
             frontend_logger.error("Error writing to socket");
             *loop_exit_p = true;
         }
+    }
+}
+
+static void remove_all_graphs_command(std::string masterIP, int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_p) {
+    frontend_logger.info("Removing all graphs");
+
+    // Get all graph IDs
+    string sqlStatement = "SELECT idgraph FROM graph";
+    std::vector<vector<pair<string, string>>> graphIdResults = sqlite->runSelect(sqlStatement);
+
+    if (graphIdResults.empty()) {
+        frontend_logger.info("No graphs to remove");
+        int result_wr = write(connFd, DONE.c_str(), DONE.size());
+        if (result_wr < 0) {
+            frontend_logger.error("Error writing to socket");
+            *loop_exit_p = true;
+            return;
+        }
+        result_wr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
+        if (result_wr < 0) {
+            frontend_logger.error("Error writing to socket");
+            *loop_exit_p = true;
+        }
+        return;
+    }
+
+    int removedCount = 0;
+    int totalCount = graphIdResults.size();
+
+    // Remove each graph
+    for (const auto& row : graphIdResults) {
+        try {
+            std::string graphID = row.at(0).second;
+            frontend_logger.info("Removing graph with ID: " + graphID);
+
+            if (JasmineGraphFrontEndCommon::graphExistsByID(graphID, sqlite)) {
+                JasmineGraphFrontEndCommon::removeGraph(graphID, sqlite, masterIP);
+                removedCount++;
+            } else {
+                frontend_logger.warn("Graph with ID " + graphID + " does not exist or cannot be removed");
+            }
+        } catch (const std::out_of_range& e) {
+            frontend_logger.error("Invalid row structure: " + std::string(e.what()) + "\n");
+        }
+    }
+
+    // Differentiate between complete success and partial failure
+    if (removedCount == totalCount) {
+        frontend_logger.info("Successfully removed all " + to_string(totalCount) + " graphs");
+    } else if (removedCount > 0) {
+        frontend_logger.error("Partial failure: Removed only " + to_string(removedCount) + " out of " +
+                              to_string(totalCount) + " graphs");
+    } else {
+        frontend_logger.error("Failed to remove any graphs (0 out of " + to_string(totalCount) + ")");
+    }
+
+    int result_wr = write(connFd, DONE.c_str(), DONE.size());
+    if (result_wr < 0) {
+        frontend_logger.error("Error writing to socket");
+        *loop_exit_p = true;
+        return;
+    }
+    result_wr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
+    if (result_wr < 0) {
+        frontend_logger.error("Error writing to socket");
+        *loop_exit_p = true;
     }
 }
 
