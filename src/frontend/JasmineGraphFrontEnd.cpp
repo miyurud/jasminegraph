@@ -2285,17 +2285,17 @@ static void runKGStreamingTask(KGStreamingTaskContext context) {
     frontend_logger.info("Async streaming finished for GraphID: " + std::to_string(context.graphId));
 }
 
-static bool promptAndReadInput(int connFd, const std::string &prompt, std::string &response, bool *loop_exit_p) {
-    if (!writeSocketLine(connFd, prompt, loop_exit_p)) {
+static bool promptAndReadInput(int connectionFd, const std::string &prompt, std::string &response, bool *loop_exit_p) {
+    if (!writeSocketLine(connectionFd, prompt, loop_exit_p)) {
         return false;
     }
-    response = readTrimmedSocketInput(connFd);
+    response = readTrimmedSocketInput(connectionFd);
     return true;
 }
 
-static bool requestKgHdfsEndpoint(int connFd, std::string &hdfsServerIp, std::string &hdfsPort, bool *loop_exit_p) {
+static bool requestKgHdfsEndpoint(int connectionFd, std::string &hdfsServerIp, std::string &hdfsPort, bool *loop_exit_p) {
     std::string userRes;
-    if (!promptAndReadInput(connFd, "Do you want to use the default HDFS server(y/n)?", userRes, loop_exit_p)) {
+    if (!promptAndReadInput(connectionFd, "Do you want to use the default HDFS server(y/n)?", userRes, loop_exit_p)) {
         return false;
     }
 
@@ -2304,10 +2304,10 @@ static bool requestKgHdfsEndpoint(int connFd, std::string &hdfsServerIp, std::st
         hdfsServerIp = Utils::getJasmineGraphProperty("org.jasminegraph.server.streaming.hdfs.host");
         hdfsPort = Utils::getJasmineGraphProperty("org.jasminegraph.server.streaming.hdfs.port");
     } else {
-        if (!promptAndReadInput(connFd, "HDFS Server IP:", hdfsServerIp, loop_exit_p)) {
+        if (!promptAndReadInput(connectionFd, "HDFS Server IP:", hdfsServerIp, loop_exit_p)) {
             return false;
         }
-        if (!promptAndReadInput(connFd, "HDFS Server Port:", hdfsPort, loop_exit_p)) {
+        if (!promptAndReadInput(connectionFd, "HDFS Server Port:", hdfsPort, loop_exit_p)) {
             return false;
         }
     }
@@ -2323,17 +2323,17 @@ static bool requestKgHdfsEndpoint(int connFd, std::string &hdfsServerIp, std::st
     return true;
 }
 
-static bool requestKgHdfsPathAndValidate(int connFd, const std::string &hdfsServerIp, const std::string &hdfsPort,
+static bool requestKgHdfsPathAndValidate(int connectionFd, const std::string &hdfsServerIp, const std::string &hdfsPort,
                                          std::string &hdfsFilePath, std::unique_ptr<HDFSConnector> &hdfsConnector,
                                          bool *loop_exit_p) {
-    if (!promptAndReadInput(connFd, "HDFS file path: ", hdfsFilePath, loop_exit_p)) {
+    if (!promptAndReadInput(connectionFd, "HDFS file path: ", hdfsFilePath, loop_exit_p)) {
         return false;
     }
 
     hdfsConnector = std::make_unique<HDFSConnector>(hdfsServerIp, hdfsPort);
     if (!hdfsConnector->isPathValid(hdfsFilePath)) {
         frontend_logger.error("Invalid HDFS file path: " + hdfsFilePath);
-        writeSocketLine(connFd, "The provided HDFS path is invalid.", loop_exit_p);
+        writeSocketLine(connectionFd, "The provided HDFS path is invalid.", loop_exit_p);
         *loop_exit_p = true;
         return false;
     }
@@ -2341,26 +2341,26 @@ static bool requestKgHdfsPathAndValidate(int connFd, const std::string &hdfsServ
     return true;
 }
 
-static bool requestKgLlmConfiguration(int connFd, std::string &hostnamePort, std::string &llmInferenceEngine,
+static bool requestKgLlmConfiguration(int connectionFd, std::string &hostnamePort, std::string &llmInferenceEngine,
                                       std::string &llm, bool *loop_exit_p) {
-    if (!promptAndReadInput(connFd, "LLM runner hostname:port: ", hostnamePort, loop_exit_p)) {
+    if (!promptAndReadInput(connectionFd, "LLM runner hostname:port: ", hostnamePort, loop_exit_p)) {
         return false;
     }
     frontend_logger.info("Recieved LLM runnners: " + hostnamePort);
 
-    if (!promptAndReadInput(connFd, "LLM inference engine? ollama/vllm? ", llmInferenceEngine, loop_exit_p)) {
+    if (!promptAndReadInput(connectionFd, "LLM inference engine? ollama/vllm? ", llmInferenceEngine, loop_exit_p)) {
         return false;
     }
     frontend_logger.info("received Inference Engine: " + llmInferenceEngine);
 
-    if (!promptAndReadInput(connFd, "What is the LLM you want to use?:", llm, loop_exit_p)) {
+    if (!promptAndReadInput(connectionFd, "What is the LLM you want to use?:", llm, loop_exit_p)) {
         return false;
     }
     frontend_logger.info("Received LLM " + llm);
     return true;
 }
 
-static bool validateKgModelAvailability(int connFd, const std::string &hostnamePort,
+static bool validateKgModelAvailability(int connectionFd, const std::string &hostnamePort,
                                         const std::string &llmInferenceEngine, const std::string &llm,
                                         bool *loop_exit_p) {
     vector<std::string> llmServers = Utils::getUniqueLLMRunners(hostnamePort);
@@ -2373,7 +2373,7 @@ static bool validateKgModelAvailability(int connFd, const std::string &hostnameP
             endpointPath = "/v1/models";
         } else {
             frontend_logger.error("Unknown inference engine: " + llmInferenceEngine);
-            writeSocketLine(connFd, "Unknown inference engine '" + llmInferenceEngine + "'", loop_exit_p);
+            writeSocketLine(connectionFd, "Unknown inference engine '" + llmInferenceEngine + "'", loop_exit_p);
             *loop_exit_p = true;
             return false;
         }
@@ -2384,7 +2384,7 @@ static bool validateKgModelAvailability(int connFd, const std::string &hostnameP
         CURL *curl = curl_easy_init();
         if (curl == nullptr) {
             frontend_logger.error("Failed to initialize CURL for " + llmServer);
-            writeSocketLine(connFd, "Could not initialize HTTP client for model check.", loop_exit_p);
+            writeSocketLine(connectionFd, "Could not initialize HTTP client for model check.", loop_exit_p);
             *loop_exit_p = true;
             return false;
         }
@@ -2400,7 +2400,7 @@ static bool validateKgModelAvailability(int connFd, const std::string &hostnameP
 
         if (res != CURLE_OK) {
             frontend_logger.error("Failed to reach " + llmInferenceEngine + " server at " + llmServer);
-            writeSocketLine(connFd, "Could not connect to " + llmInferenceEngine + " server.", loop_exit_p);
+            writeSocketLine(connectionFd, "Could not connect to " + llmInferenceEngine + " server.", loop_exit_p);
             *loop_exit_p = true;
             return false;
         }
@@ -2415,7 +2415,7 @@ static bool validateKgModelAvailability(int connFd, const std::string &hostnameP
 
         if (!modelFound) {
             frontend_logger.error("Model '" + llm + "' not found on " + llmInferenceEngine + " server.");
-            writeSocketLine(connFd, "Model '" + llm + "' not available on " + llmInferenceEngine + " server.",
+            writeSocketLine(connectionFd, "Model '" + llm + "' not available on " + llmInferenceEngine + " server.",
                             loop_exit_p);
             *loop_exit_p = true;
             return false;
@@ -2427,8 +2427,8 @@ static bool validateKgModelAvailability(int connFd, const std::string &hostnameP
     return true;
 }
 
-static bool requestKgChunkSize(int connFd, std::string &chunkSize, bool *loop_exit_p) {
-    if (!promptAndReadInput(connFd, "chunk size (Bytes):", chunkSize, loop_exit_p)) {
+static bool requestKgChunkSize(int connectionFd, std::string &chunkSize, bool *loop_exit_p) {
+    if (!promptAndReadInput(connectionFd, "chunk size (Bytes):", chunkSize, loop_exit_p)) {
         return false;
     }
     frontend_logger.info("Received engine chunk size: " + chunkSize);
@@ -2451,7 +2451,7 @@ static int insertNewKgGraph(SQLiteDBInterface *sqlite, const std::string &hdfsFi
     return newGraphId;
 }
 
-static bool resolveKgGraphId(int connFd, SQLiteDBInterface *sqlite, const std::string &hdfsFilePath,
+static bool resolveKgGraphId(int connectionFd, SQLiteDBInterface *sqlite, const std::string &hdfsFilePath,
                              const std::string &path, const std::string &uploadStartTime, double_t totalFileSize,
                              int &newGraphID, bool &graphExists, bool *loop_exit_p) {
     std::string checkQuery = "SELECT idgraph FROM graph WHERE upload_path = \"" + path + "\";";
@@ -2462,14 +2462,14 @@ static bool resolveKgGraphId(int connFd, SQLiteDBInterface *sqlite, const std::s
         frontend_logger.info("Graph already exists with ID: " + std::to_string(existingId));
 
         std::string resumeResponse;
-        if (!promptAndReadInput(connFd, "There exists a graph with the file path, would you like to resume?",
+        if (!promptAndReadInput(connectionFd, "There exists a graph with the file path, would you like to resume?",
                                 resumeResponse, loop_exit_p)) {
             return false;
         }
 
         if (resumeResponse == "y") {
             std::string resumeGraphId;
-            if (!promptAndReadInput(connFd, "Graph Id to resume?", resumeGraphId, loop_exit_p)) {
+            if (!promptAndReadInput(connectionFd, "Graph Id to resume?", resumeGraphId, loop_exit_p)) {
                 return false;
             }
 
@@ -2511,33 +2511,33 @@ static void launchKgStreamingThread(const std::string &masterIP, int newGraphID,
     streamingThread.detach();
 }
 
-bool JasmineGraphFrontEnd::constructKGStreamHDFSCommand(const std::string &masterIP, int connFd, int numberOfPartitions,
+bool JasmineGraphFrontEnd::constructKGStreamHDFSCommand(const std::string &masterIP, int connectionFd, int numberOfPartitions,
                                                         SQLiteDBInterface *sqlite, bool *loop_exit_p) {
     std::string hdfsPort;
     std::string hdfsServerIp;
-    if (!requestKgHdfsEndpoint(connFd, hdfsServerIp, hdfsPort, loop_exit_p)) {
+    if (!requestKgHdfsEndpoint(connectionFd, hdfsServerIp, hdfsPort, loop_exit_p)) {
         return false;
     }
 
     std::string hdfsFilePath;
     std::unique_ptr<HDFSConnector> hdfsConnector;
-    if (!requestKgHdfsPathAndValidate(connFd, hdfsServerIp, hdfsPort, hdfsFilePath, hdfsConnector, loop_exit_p)) {
+    if (!requestKgHdfsPathAndValidate(connectionFd, hdfsServerIp, hdfsPort, hdfsFilePath, hdfsConnector, loop_exit_p)) {
         return false;
     }
 
     std::string hostnamePort;
     std::string llmInferenceEngine;
     std::string llm;
-    if (!requestKgLlmConfiguration(connFd, hostnamePort, llmInferenceEngine, llm, loop_exit_p)) {
+    if (!requestKgLlmConfiguration(connectionFd, hostnamePort, llmInferenceEngine, llm, loop_exit_p)) {
         return false;
     }
 
-    if (!validateKgModelAvailability(connFd, hostnamePort, llmInferenceEngine, llm, loop_exit_p)) {
+    if (!validateKgModelAvailability(connectionFd, hostnamePort, llmInferenceEngine, llm, loop_exit_p)) {
         return false;
     }
 
     std::string chunkSize;
-    if (!requestKgChunkSize(connFd, chunkSize, loop_exit_p)) {
+    if (!requestKgChunkSize(connectionFd, chunkSize, loop_exit_p)) {
         return false;
     }
 
@@ -2549,7 +2549,7 @@ bool JasmineGraphFrontEnd::constructKGStreamHDFSCommand(const std::string &maste
 
     int newGraphID = -1;
     bool graphExists = false;
-    if (!resolveKgGraphId(connFd, sqlite, hdfsFilePath, path, uploadStartTime, totalFileSize, newGraphID, graphExists,
+    if (!resolveKgGraphId(connectionFd, sqlite, hdfsFilePath, path, uploadStartTime, totalFileSize, newGraphID, graphExists,
                           loop_exit_p)) {
         return false;
     }
@@ -2557,7 +2557,7 @@ bool JasmineGraphFrontEnd::constructKGStreamHDFSCommand(const std::string &maste
     launchKgStreamingThread(masterIP, newGraphID, numberOfPartitions, hdfsServerIp, hdfsPort, hostnamePort,
                             llmInferenceEngine, llm, chunkSize, hdfsFilePath, graphExists, sqlite);
 
-    return writeSocketLine(connFd, "Graph Id: " + std::to_string(newGraphID), loop_exit_p);
+    return writeSocketLine(connectionFd, "Graph Id: " + std::to_string(newGraphID), loop_exit_p);
 }
 
 static void stop_stream_kafka_command(int connFd, KafkaConnector *kstream, bool *loop_exit_p) {

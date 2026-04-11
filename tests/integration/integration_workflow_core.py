@@ -121,10 +121,12 @@ def run_core_workflow(sock):
     print()
     common.logging.info('Testing lst after rmgr')
     common.send_and_expect_response(sock, 'lst after rmgr', common.LIST, POWERGRID_ROW)
-    
+
     print()
     common.logging.info('Testing sdhdfs')
-    common.send_and_expect_response(sock, 'sdhdfs', common.SDHDFS, b'Graph ID:', exit_on_failure=True)
+    common.send_and_expect_response(
+        sock, 'sdhdfs', common.SDHDFS, b'Graph ID:', exit_on_failure=True
+    )
     common.send_and_expect_response(sock, 'sdhdfs', b'1',
                                 b'Do you want to use the default HDFS server(y/n)?',
                                 exit_on_failure=True)
