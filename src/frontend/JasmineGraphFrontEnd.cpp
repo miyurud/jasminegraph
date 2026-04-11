@@ -2399,16 +2399,12 @@ static bool validateKgModelAvailability(int connectionFd, const std::string &hos
         }
 
         std::string response;
-        long sslVersion = CURL_SSLVERSION_TLSv1_2;
-    #ifdef CURL_SSLVERSION_MAX_TLSv1_3
-        sslVersion |= CURL_SSLVERSION_MAX_TLSv1_3;
-    #endif
         curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
         curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, WriteCallback);
         curl_easy_setopt(curl, CURLOPT_WRITEDATA, &response);
         curl_easy_setopt(curl, CURLOPT_TIMEOUT, 5L);
-        curl_easy_setopt(curl, CURLOPT_SSLVERSION, sslVersion);
-        curl_easy_setopt(curl, CURLOPT_PROXY_SSLVERSION, sslVersion);
+        curl_easy_setopt(curl, CURLOPT_SSLVERSION, CURL_SSLVERSION_TLSv1_2);
+        curl_easy_setopt(curl, CURLOPT_PROXY_SSLVERSION, CURL_SSLVERSION_TLSv1_2);
 
         CURLcode res = curl_easy_perform(curl);
         curl_easy_cleanup(curl);
