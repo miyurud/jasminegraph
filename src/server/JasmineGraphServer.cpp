@@ -1265,17 +1265,8 @@ void JasmineGraphServer::removeGraph(vector<pair<string, string>> hostHasPartiti
  *  @param graphID ID of graph fragments to be deleted
  *  @param masterIP IP of master node
  */
-static bool removeFragmentThroughService(string host, int port, string graphID, string masterIP) {
-    server_logger.info("Host:" + host + " Port:" + to_string(port));
-    int sockfd;
-    char data[FED_DATA_LENGTH + 1];
-    bool loop = false;
-    socklen_t len;
-    struct sockaddr_in serv_addr;
-    struct hostent *server;
-
+static bool initWorkerSession(string host, int port, const string &masterIP, int &sockfd, char *data) {
     sockfd = socket(AF_INET, SOCK_STREAM, 0);
-
     if (sockfd < 0) {
         server_logger.error("Cannot create socket");
         return false;
@@ -1285,23 +1276,38 @@ static bool removeFragmentThroughService(string host, int port, string graphID, 
         host = Utils::split(host, '@')[1];
     }
 
-    server = gethostbyname(host.c_str());
+    struct hostent *server = gethostbyname(host.c_str());
     if (server == NULL) {
         server_logger.error("ERROR, no host named " + host);
+        close(sockfd);
         return false;
     }
 
+    struct sockaddr_in serv_addr;
     memset((char *)&serv_addr, 0, sizeof(serv_addr));
     serv_addr.sin_family = AF_INET;
     memcpy(&serv_addr.sin_addr.s_addr, server->h_addr, server->h_length);
     serv_addr.sin_port = htons(port);
     if (Utils::connect_wrapper(sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
+        close(sockfd);
         return false;
     }
 
     if (!Utils::performHandshake(sockfd, data, FED_DATA_LENGTH, masterIP)) {
         Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::CLOSE);
         close(sockfd);
+        return false;
+    }
+
+    return true;
+}
+
+static bool removeFragmentThroughService(string host, int port, string graphID, string masterIP) {
+    server_logger.info("Host:" + host + " Port:" + to_string(port));
+    int sockfd;
+    char data[FED_DATA_LENGTH + 1];
+
+    if (!initWorkerSession(host, port, masterIP, sockfd, data)) {
         return false;
     }
 
@@ -1326,39 +1332,8 @@ static bool removePartitionThroughService(string host, int port, string graphID,
     server_logger.info("Host:" + host + " Port:" + to_string(port));
     int sockfd;
     char data[FED_DATA_LENGTH + 1];
-    bool loop = false;
-    socklen_t len;
-    struct sockaddr_in serv_addr;
-    struct hostent *server;
 
-    sockfd = socket(AF_INET, SOCK_STREAM, 0);
-
-    if (sockfd < 0) {
-        server_logger.error("Cannot create socket");
-        return false;
-    }
-
-    if (host.find('@') != std::string::npos) {
-        host = Utils::split(host, '@')[1];
-    }
-
-    server = gethostbyname(host.c_str());
-    if (server == NULL) {
-        server_logger.error("ERROR, no host named " + host);
-        return false;
-    }
-
-    memset((char *)&serv_addr, 0, sizeof(serv_addr));
-    serv_addr.sin_family = AF_INET;
-    memcpy(&serv_addr.sin_addr.s_addr, server->h_addr, server->h_length);
-    serv_addr.sin_port = htons(port);
-    if (Utils::connect_wrapper(sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
-        return false;
-    }
-
-    if (!Utils::performHandshake(sockfd, data, FED_DATA_LENGTH, masterIP)) {
-        Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::CLOSE);
-        close(sockfd);
+    if (!initWorkerSession(host, port, masterIP, sockfd, data)) {
         return false;
     }
 
