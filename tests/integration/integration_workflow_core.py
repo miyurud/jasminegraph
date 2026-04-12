@@ -135,7 +135,7 @@ def run_core_workflow(sock):
                                 b' This file needs to be in some directory location '
                                 b'that is accessible for JasmineGraph master',
                                 exit_on_failure=True)
-    common.send_and_expect_response(sock, 'sdhdfs', b'/var/tmp/config/hdfs_config.txt',
+    common.send_and_expect_response(sock, 'sdhdfs', b'/var/tmp/config/hdfs_config.txt',  # NOSONAR
                                 b'HDFS destination file path:',
                                 exit_on_failure=True)
     common.send_and_expect_response(sock, 'sdhdfs', b'/home/powergrid.dl', common.DONE,
