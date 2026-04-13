@@ -201,7 +201,7 @@ class Utils {
     static double exponentialWeightedMovingAverage(const std::deque<double>& vals, double alpha = 0.3);
     static  double  computeSlope(const std::deque<double>& vals);
     static bool uploadFileToWorker(const std::string &host, int port, int dataPort, int graphID,
-        const std::string &filePath, std::string masterIP, std::string uploadType);
+        const std::string &filePath, const std::string &masterIP, const std::string &uploadType);
 
     static bool sendFileThroughService(std::string host, int dataPort, std::string fileName, std::string filePath);
 
@@ -211,8 +211,8 @@ class Utils {
     static bool sendQueryPlanToWorker(const std::string& host, int port, const std::string& masterIP,
                                       int graphID, int PartitionId, const std::string& message,
                                       SharedBuffer &sharedBuffer, const std::string& masterTraceContext = "");
-    static std::optional<std::tuple<std::string, int, int>> getWorker(string partitionID, const std::string &host,
-        int port);
+    static std::optional<std::tuple<std::string, int, int>> getWorker(const std::string &partitionID,
+                                                                      const std::string &host, int port);
     static bool sendDataFromWorkerToWorker(string masterIP, int graphID, string partitionId, std::string message,
                                            SharedBuffer &sharedBuffer);
     bool sendPartitionMetadata(int sockfd, int partitionId, int graphId, int localVertexCount, int centralVertexCount,
@@ -225,7 +225,8 @@ class Utils {
                                       int value, std::string expectMsg);
 
     static bool sendFileChunkToWorker(const std::string &host, int port, int dataPort, const std::string &filePath,
-                                      const std::string &masterIP, std::string uploadType, bool isEmbedGraph);
+                                      const std::string &masterIP, const std::string &uploadType,
+                                      bool isEmbedGraph);
 
     static void assignPartitionToWorker(int graphId, int partitionIndex, string  hostname, int port);
 

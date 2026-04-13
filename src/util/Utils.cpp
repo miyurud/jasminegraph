@@ -1143,7 +1143,7 @@ std::fstream *Utils::openFile(const string &path, std::ios_base::openmode mode) 
 }
 
 bool Utils::uploadFileToWorker(const std::string &host, int port, int dataPort, int graphID,
-        const std::string &filePath, std::string masterIP, std::string uploadType) {
+    const std::string &filePath, const std::string &masterIP, const std::string &uploadType) {
     util_logger.info("Host:" + host + " Port:" + to_string(port) + " DPort:" + to_string(dataPort));
     bool result = true;
     int sockfd;
@@ -1238,7 +1238,7 @@ bool Utils::uploadFileToWorker(const std::string &host, int port, int dataPort, 
 }
 
 bool Utils::sendFileChunkToWorker(const std::string &host, int port, int dataPort, const std::string &filePath,
-            const std::string &masterIP, std::string uploadType , bool isEmbedGraph) {
+            const std::string &masterIP, const std::string &uploadType, bool isEmbedGraph) {
     util_logger.info("Host:" + host + " Port:" + to_string(port) + " DPort:" + to_string(dataPort));
     bool result = true;
     int sockfd;
@@ -1693,8 +1693,8 @@ bool Utils::sendQueryPlanToWorker(const std::string& host, int port, const std::
     return true;
 }
 
-std::optional<std::tuple<std::string, int, int>> Utils::getWorker(string partitionId, const std::string &host,
-            int port) {
+std::optional<std::tuple<std::string, int, int>> Utils::getWorker(const std::string &partitionId,
+            const std::string &host, int port) {
     util_logger.info("Host:" + host + " Port:" + to_string(port));
     bool result = true;
     int sockfd;
@@ -1788,8 +1788,8 @@ string Utils::getPartitionAlgorithm(const std::string &graphID, const std::strin
         actualHost = Utils::split(actualHost, '@')[1];
     }
 
-    int hostError = 0;
-    if (gethostbyname_r(actualHost.c_str(), &hostEntry, hostBuffer.data(), hostBuffer.size(), &server, &hostError) != 0
+    if (int hostError = 0;
+        gethostbyname_r(actualHost.c_str(), &hostEntry, hostBuffer.data(), hostBuffer.size(), &server, &hostError) != 0
             || server == nullptr) {
         util_logger.error("ERROR, no host named " + actualHost);
         return "";
