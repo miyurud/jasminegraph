@@ -231,6 +231,21 @@ class Utils {
     static string getFrontendInput(int connFd);
     static string getPartitionAlgorithm(string graphID, std::string host);
     static string getGraphDirection(string graphID, std::string host);
+
+    /**
+     * Helper function to create a socket and connect to a worker
+     * Handles hostname extraction (removes user@ prefix if present) and performs handshake
+     * 
+     * @param host hostname or user@hostname format
+     * @param port port number to connect to
+     * @param masterIP master IP to use for handshake
+     * @param data buffer for communication (must be at least FED_DATA_LENGTH + 1)
+     * @param dataLength size of the data buffer
+     * @param performHS whether to perform handshake after connection (default true)
+     * @return socket file descriptor on success, -1 on failure
+     */
+    static int createAndConnectToWorker(const std::string& host, int port, const std::string& masterIP,
+                                       char* data, size_t dataLength, bool performHS = true);
 };
 
 #endif  // JASMINEGRAPH_UTILS_H
