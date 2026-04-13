@@ -12,6 +12,7 @@ limitations under the License.
  */
 
 #include "../../../src/k8s/K8sInterface.h"
+#include "../../../src/util/Utils.h"
 
 #include "gtest/gtest.h"
 #include <iostream>
@@ -58,8 +59,8 @@ class K8sInterfaceTest : public ::testing::Test {
 
 const int HTTP_OK = 200;
 const int HTTP_CREATED = 201;
-constexpr const char *WORKER_NODE_IP = "10.43.0.2";
-constexpr const char *MASTER_NODE_IP = "10.43.0.1";
+const std::string WORKER_NODE_IP = Utils::getJasmineGraphProperty("org.jasminegraph.k8s.worker.host");
+const std::string MASTER_NODE_IP = Utils::getJasmineGraphProperty("org.jasminegraph.k8s.master.host");
 
 TEST_F(K8sInterfaceTest, TestConstructor) {
     ASSERT_NE(interface->apiClient, nullptr);
