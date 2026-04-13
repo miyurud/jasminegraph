@@ -59,8 +59,14 @@ class K8sInterfaceTest : public ::testing::Test {
 
 const int HTTP_OK = 200;
 const int HTTP_CREATED = 201;
-const std::string WORKER_NODE_IP = Utils::getJasmineGraphProperty("org.jasminegraph.k8s.worker.host");
-const std::string MASTER_NODE_IP = Utils::getJasmineGraphProperty("org.jasminegraph.k8s.master.host");
+
+std::string getWorkerNodeIp() {
+    return Utils::getJasmineGraphProperty("org.jasminegraph.k8s.worker.host");
+}
+
+std::string getMasterNodeIp() {
+    return Utils::getJasmineGraphProperty("org.jasminegraph.k8s.master.host");
+}
 
 TEST_F(K8sInterfaceTest, TestConstructor) {
     ASSERT_NE(interface->apiClient, nullptr);
@@ -82,7 +88,7 @@ TEST_F(K8sInterfaceTest, TestGetServiceList) {
 }
 
 TEST_F(K8sInterfaceTest, TestCreateJasmineGraphWorkerDeployment) {
-    v1_deployment_t *deployment = interface->createJasmineGraphWorkerDeployment(1, WORKER_NODE_IP, MASTER_NODE_IP);
+    v1_deployment_t *deployment = interface->createJasmineGraphWorkerDeployment(1, getWorkerNodeIp(), getMasterNodeIp());
     ASSERT_STREQ(deployment->metadata->name, "jasminegraph-worker1-deployment");
     ASSERT_EQ(interface->apiClient->response_code, HTTP_CREATED);
 }
@@ -96,7 +102,7 @@ TEST_F(K8sInterfaceTest, TestCreateJasmineGraphWorkerService) {
 
 TEST_F(K8sInterfaceTest, TestGetDeploymentListAfterDeployment) {
     // Create a worker-1 deployment so we have something to find
-    interface->createJasmineGraphWorkerDeployment(1, WORKER_NODE_IP, MASTER_NODE_IP);
+    interface->createJasmineGraphWorkerDeployment(1, getWorkerNodeIp(), getMasterNodeIp());
     v1_deployment_list_t *deployment_list = interface->getDeploymentList(strdup("deployment=jasminegraph-worker"));
     ASSERT_GE(deployment_list->items->count, 1);
 }
@@ -110,7 +116,7 @@ TEST_F(K8sInterfaceTest, TestGetServiceListAfterServiceCreation) {
 
 TEST_F(K8sInterfaceTest, TestDeleteJasmineGraphWorkerDeployment) {
     // Create a worker-1 deployment first, then delete it
-    interface->createJasmineGraphWorkerDeployment(1, WORKER_NODE_IP, MASTER_NODE_IP);
+    interface->createJasmineGraphWorkerDeployment(1, getWorkerNodeIp(), getMasterNodeIp());
     v1_status_t *status = interface->deleteJasmineGraphWorkerDeployment(1);
     ASSERT_EQ(interface->apiClient->response_code, HTTP_OK);
 }
