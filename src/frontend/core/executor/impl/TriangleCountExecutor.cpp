@@ -45,12 +45,12 @@ static int updateTriangleTreeAndGetTriangleCount(
     std::mutex *triangleTreeMutex_p);
 
 static void insertProcessInfo(const ProcessInfo &processInformation) {
-    const std::lock_guard<std::mutex> lock(processStatusMutex);
+    const std::scoped_lock lock(processStatusMutex);
     processData.insert(processInformation);
 }
 
 static void removeProcessInfoById(int uniqueId) {
-    const std::lock_guard<std::mutex> lock(processStatusMutex);
+    const std::scoped_lock lock(processStatusMutex);
     for (auto processCompleteIterator = processData.begin(); processCompleteIterator != processData.end();
          ++processCompleteIterator) {
         if (processCompleteIterator->id == uniqueId) {

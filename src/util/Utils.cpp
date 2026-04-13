@@ -1142,8 +1142,8 @@ std::fstream *Utils::openFile(const string &path, std::ios_base::openmode mode) 
     return new std::fstream(path, mode | std::ios::binary);
 }
 
-bool Utils::uploadFileToWorker(const std::string &host, int port, int dataPort, int graphID, const std::string &filePath,
-                               std::string masterIP, std::string uploadType) {
+bool Utils::uploadFileToWorker(const std::string &host, int port, int dataPort, int graphID,
+        const std::string &filePath, std::string masterIP, std::string uploadType) {
     util_logger.info("Host:" + host + " Port:" + to_string(port) + " DPort:" + to_string(dataPort));
     bool result = true;
     int sockfd;
@@ -1693,7 +1693,8 @@ bool Utils::sendQueryPlanToWorker(const std::string& host, int port, const std::
     return true;
 }
 
-std::optional<std::tuple<std::string, int, int>> Utils::getWorker(string partitionId, const std::string &host, int port) {
+std::optional<std::tuple<std::string, int, int>> Utils::getWorker(string partitionId, const std::string &host,
+            int port) {
     util_logger.info("Host:" + host + " Port:" + to_string(port));
     bool result = true;
     int sockfd;
@@ -1789,7 +1790,7 @@ string Utils::getPartitionAlgorithm(const std::string &graphID, const std::strin
 
     int hostError = 0;
     if (gethostbyname_r(actualHost.c_str(), &hostEntry, hostBuffer.data(), hostBuffer.size(), &server, &hostError) != 0
-            || server == NULL) {
+            || server == nullptr) {
         util_logger.error("ERROR, no host named " + actualHost);
         return "";
     }
