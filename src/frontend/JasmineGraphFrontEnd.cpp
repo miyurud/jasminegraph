@@ -108,7 +108,7 @@ std::map<int, std::thread::id> activeStreamThreads;           // map graphID →
 std::map<int, std::shared_ptr<std::atomic<bool>>> stopFlags;  // map graphID → stop flag
 
 std::mutex threadMapMutex;
-static void writeSocketResultOrEmpty(int connFd, const std::string &result, bool *loop_exit_p);
+static void writeSocketResultOrEmpty(int connectionFd, const std::string &result, bool *loop_exit_p);
 static void list_command(int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_p);
 static void cypherCommand(std::string masterIP, int connFd, vector<DataPublisher *> &workerClients,
                           int numberOfPartitions, bool *loop_exit, SQLiteDBInterface *sqlite,
@@ -445,22 +445,23 @@ bool JasmineGraphFrontEnd::areRunningJobsForSameGraph() {
     return true;
 }
 
-static void writeSocketResultOrEmpty(int connFd, const std::string &result, bool *loop_exit_p) {
+static void writeSocketResultOrEmpty(int connectionFd, const std::string &result, bool *loop_exit_p) {
     if (result.size() == 0) {
-        int result_wr = write(connFd, EMPTY.c_str(), EMPTY.length());
+        int result_wr = write(connectionFd, EMPTY.c_str(), EMPTY.length());
         if (result_wr < 0) {
             frontend_logger.error("Error writing to socket");
             *loop_exit_p = true;
             return;
         }
 
-        result_wr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
+        result_wr =
+            write(connectionFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
         if (result_wr < 0) {
             frontend_logger.error("Error writing to socket");
             *loop_exit_p = true;
         }
     } else {
-        int result_wr = write(connFd, result.c_str(), result.length());
+        int result_wr = write(connectionFd, result.c_str(), result.length());
         if (result_wr < 0) {
             frontend_logger.error("Error writing to socket");
             *loop_exit_p = true;
