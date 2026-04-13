@@ -14,7 +14,7 @@ limitations under the License.
 #include <chrono>
 #include "JobRequest.h"
 
-std::string JobRequest::getJobId() { return jobId; }
+std::string JobRequest::getJobId() const { return jobId; }
 
 void JobRequest::setJobId(std::string inputJobId) { jobId = inputJobId; }
 
