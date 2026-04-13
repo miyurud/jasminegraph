@@ -230,7 +230,7 @@ class Utils {
 
     static string getFrontendInput(int connFd);
     static string getPartitionAlgorithm(string graphID, const std::string &host);
-    static string getGraphDirection(string graphID, const std::string &host);
+    static string getGraphDirection(const std::string &graphID, const std::string &host);
 
     /**
      * Helper function to create a socket and connect to a worker

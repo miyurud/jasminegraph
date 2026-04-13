@@ -634,9 +634,9 @@ int Utils::createAndConnectToWorker(const std::string& host, int port, const std
         actualHost = Utils::split(actualHost, '@')[1];
     }
 
-    int hostError = 0;
-    if (gethostbyname_r(actualHost.c_str(), &hostEntry, hostBuffer.data(), hostBuffer.size(), &server, &hostError) != 0
-            || server == NULL) {
+    if (int hostError = 0;
+        gethostbyname_r(actualHost.c_str(), &hostEntry, hostBuffer.data(), hostBuffer.size(), &server, &hostError) != 0
+            || server == nullptr) {
         util_logger.error("ERROR, no host named " + host);
         close(sockfd);
         return -1;
@@ -1142,7 +1142,7 @@ std::fstream *Utils::openFile(const string &path, std::ios_base::openmode mode) 
     return new std::fstream(path, mode | std::ios::binary);
 }
 
-bool Utils::uploadFileToWorker(std::string host, int port, int dataPort, int graphID, const std::string &filePath,
+bool Utils::uploadFileToWorker(const std::string &host, int port, int dataPort, int graphID, const std::string &filePath,
                                std::string masterIP, std::string uploadType) {
     util_logger.info("Host:" + host + " Port:" + to_string(port) + " DPort:" + to_string(dataPort));
     bool result = true;
@@ -1237,8 +1237,8 @@ bool Utils::uploadFileToWorker(std::string host, int port, int dataPort, int gra
     return true;
 }
 
-bool Utils::sendFileChunkToWorker(std::string host, int port, int dataPort, std::string filePath, const std::string &masterIP,
-                                  std::string uploadType , bool isEmbedGraph) {
+bool Utils::sendFileChunkToWorker(const std::string &host, int port, int dataPort, const std::string &filePath,
+            const std::string &masterIP, std::string uploadType , bool isEmbedGraph) {
     util_logger.info("Host:" + host + " Port:" + to_string(port) + " DPort:" + to_string(dataPort));
     bool result = true;
     int sockfd;
@@ -1693,7 +1693,7 @@ bool Utils::sendQueryPlanToWorker(const std::string& host, int port, const std::
     return true;
 }
 
-std::optional<std::tuple<std::string, int, int>> Utils::getWorker(string partitionId, std::string host, int port) {
+std::optional<std::tuple<std::string, int, int>> Utils::getWorker(string partitionId, const std::string &host, int port) {
     util_logger.info("Host:" + host + " Port:" + to_string(port));
     bool result = true;
     int sockfd;
@@ -1764,14 +1764,16 @@ std::optional<std::tuple<std::string, int, int>> Utils::getWorker(string partiti
     return make_tuple(ip, stoi(portNumber), stoi(dataPort));
 }
 
-string Utils::getPartitionAlgorithm(std::string graphID, const std::string &host) {
+string Utils::getPartitionAlgorithm(const std::string &graphID, const std::string &host) {
     util_logger.info("Host:" + host + " Port:" + to_string(Conts::JASMINEGRAPH_BACKEND_PORT));
     bool result = true;
     int sockfd;
     char data[FED_DATA_LENGTH + 1];
     static const int ACK_MESSAGE_SIZE = 1024;
     struct sockaddr_in serv_addr;
-    struct hostent *server;
+    struct hostent hostEntry;
+    struct hostent *server = nullptr;
+    std::vector<char> hostBuffer(4096);
     std::string actualHost = host;
 
     sockfd = socket(AF_INET, SOCK_STREAM, 0);
@@ -1785,8 +1787,9 @@ string Utils::getPartitionAlgorithm(std::string graphID, const std::string &host
         actualHost = Utils::split(actualHost, '@')[1];
     }
 
-    server = gethostbyname(actualHost.c_str());
-    if (server == NULL) {
+    int hostError = 0;
+    if (gethostbyname_r(actualHost.c_str(), &hostEntry, hostBuffer.data(), hostBuffer.size(), &server, &hostError) != 0
+            || server == NULL) {
         util_logger.error("ERROR, no host named " + actualHost);
         return "";
     }
@@ -1849,7 +1852,7 @@ string Utils::getPartitionAlgorithm(std::string graphID, const std::string &host
 }
 
 
-string Utils::getGraphDirection(std::string graphID, const std::string &host) {
+string Utils::getGraphDirection(const std::string &graphID, const std::string &host) {
     util_logger.info("Host:" + host + " Port:" + to_string(Conts::JASMINEGRAPH_BACKEND_PORT));
     bool result = true;
     int sockfd;
