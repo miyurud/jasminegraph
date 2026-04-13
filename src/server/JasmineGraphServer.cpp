@@ -57,8 +57,9 @@ static bool batchUploadCentralAttributeFile(std::string host, int port, int data
                                             std::string masterIP);
 static bool batchUploadCompositeCentralstoreFile(std::string host, int port, int dataPort, int graphID,
                                                  std::string filePath, std::string masterIP);
-static bool removeFragmentThroughService(string host, int port, string graphID, string masterIP);
-static bool removePartitionThroughService(string host, int port, string graphID, string partitionID, string masterIP);
+static bool removeFragmentThroughService(string host, int port, string graphID, const string &masterIP);
+static bool removePartitionThroughService(string host, int port, string graphID, string partitionID,
+                                          const string &masterIP);
 static bool initiateCommon(std::string host, int port, std::string trainingArgs, int iteration, std::string masterIP,
                            std::string initType);
 static bool initiateTrain(std::string host, int port, std::string trainingArgs, int iteration, std::string masterIP);
@@ -1276,8 +1277,12 @@ static bool initWorkerSession(string host, int port, const string &masterIP, int
         host = Utils::split(host, '@')[1];
     }
 
-    struct hostent *server = gethostbyname(host.c_str());
-    if (server == NULL) {
+    struct hostent hostEntry;
+    struct hostent *server = nullptr;
+    std::vector<char> hostBuffer(4096);
+    if (int hostError = 0;
+        gethostbyname_r(host.c_str(), &hostEntry, hostBuffer.data(), hostBuffer.size(), &server, &hostError) != 0 ||
+        server == nullptr) {
         server_logger.error("ERROR, no host named " + host);
         close(sockfd);
         return false;
@@ -1302,7 +1307,7 @@ static bool initWorkerSession(string host, int port, const string &masterIP, int
     return true;
 }
 
-static bool removeFragmentThroughService(string host, int port, string graphID, string masterIP) {
+static bool removeFragmentThroughService(string host, int port, string graphID, const string &masterIP) {
     server_logger.info("Host:" + host + " Port:" + to_string(port));
     int sockfd;
     char data[FED_DATA_LENGTH + 1];
@@ -1328,7 +1333,8 @@ static bool removeFragmentThroughService(string host, int port, string graphID, 
     return true;
 }
 
-static bool removePartitionThroughService(string host, int port, string graphID, string partitionID, string masterIP) {
+static bool removePartitionThroughService(string host, int port, string graphID, string partitionID,
+                                          const string &masterIP) {
     server_logger.info("Host:" + host + " Port:" + to_string(port));
     int sockfd;
     char data[FED_DATA_LENGTH + 1];
