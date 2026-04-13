@@ -57,9 +57,10 @@ static bool batchUploadCentralAttributeFile(std::string host, int port, int data
                                             std::string masterIP);
 static bool batchUploadCompositeCentralstoreFile(std::string host, int port, int dataPort, int graphID,
                                                  std::string filePath, std::string masterIP);
-static bool removeFragmentThroughService(string host, int port, string graphID, const string &masterIP);
-static bool removePartitionThroughService(string host, int port, string graphID, string partitionID,
-                                          const string &masterIP);
+static bool removeFragmentThroughService(const string &host, int port, const string &graphID,
+                                         const string &masterIP);
+static bool removePartitionThroughService(const string &host, int port, const string &graphID,
+                                          const string &partitionID, const string &masterIP);
 static bool initiateCommon(std::string host, int port, std::string trainingArgs, int iteration, std::string masterIP,
                            std::string initType);
 static bool initiateTrain(std::string host, int port, std::string trainingArgs, int iteration, std::string masterIP);
@@ -1307,7 +1308,8 @@ static bool initWorkerSession(string host, int port, const string &masterIP, int
     return true;
 }
 
-static bool removeFragmentThroughService(string host, int port, string graphID, const string &masterIP) {
+static bool removeFragmentThroughService(const string &host, int port, const string &graphID,
+                                         const string &masterIP) {
     server_logger.info("Host:" + host + " Port:" + to_string(port));
     int sockfd;
     char data[FED_DATA_LENGTH + 1];
@@ -1333,8 +1335,8 @@ static bool removeFragmentThroughService(string host, int port, string graphID, 
     return true;
 }
 
-static bool removePartitionThroughService(string host, int port, string graphID, string partitionID,
-                                          const string &masterIP) {
+static bool removePartitionThroughService(const string &host, int port, const string &graphID,
+                                          const string &partitionID, const string &masterIP) {
     server_logger.info("Host:" + host + " Port:" + to_string(port));
     int sockfd;
     char data[FED_DATA_LENGTH + 1];
