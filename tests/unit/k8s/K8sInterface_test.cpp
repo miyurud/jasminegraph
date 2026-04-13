@@ -88,7 +88,8 @@ TEST_F(K8sInterfaceTest, TestGetServiceList) {
 }
 
 TEST_F(K8sInterfaceTest, TestCreateJasmineGraphWorkerDeployment) {
-    v1_deployment_t *deployment = interface->createJasmineGraphWorkerDeployment(1, getWorkerNodeIp(), getMasterNodeIp());
+    v1_deployment_t *deployment = interface->createJasmineGraphWorkerDeployment(1, getWorkerNodeIp(),
+                getMasterNodeIp());
     ASSERT_STREQ(deployment->metadata->name, "jasminegraph-worker1-deployment");
     ASSERT_EQ(interface->apiClient->response_code, HTTP_CREATED);
 }

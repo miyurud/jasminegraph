@@ -44,6 +44,30 @@ static int updateTriangleTreeAndGetTriangleCount(
     std::unordered_map<long, std::unordered_map<long, std::unordered_set<long>>> *triangleTree_p,
     std::mutex *triangleTreeMutex_p);
 
+static void insertProcessInfo(const ProcessInfo &processInformation) {
+    const std::lock_guard<std::mutex> lock(processStatusMutex);
+    processData.insert(processInformation);
+}
+
+static void removeProcessInfoById(int uniqueId) {
+    const std::lock_guard<std::mutex> lock(processStatusMutex);
+    for (auto processCompleteIterator = processData.begin(); processCompleteIterator != processData.end();
+         ++processCompleteIterator) {
+        if (processCompleteIterator->id == uniqueId) {
+            processData.erase(processCompleteIterator);
+            break;
+        }
+    }
+}
+
+static void joinAllThreads(std::vector<std::thread> &threads) {
+    for (auto &thread : threads) {
+        if (thread.joinable()) {
+            thread.join();
+        }
+    }
+}
+
 TriangleCountExecutor::TriangleCountExecutor() {}
 
 TriangleCountExecutor::TriangleCountExecutor(SQLiteDBInterface *db, PerformanceSQLiteDBInterface *perfDb,
@@ -453,8 +477,6 @@ void TriangleCountExecutor::execute() {
     }
 
     // Below code is used to update the process details
-    processStatusMutex.lock();
-    bool processInfoExists = false;
     std::chrono::milliseconds startTime = duration_cast<milliseconds>(system_clock::now().time_since_epoch());
 
     struct ProcessInfo processInformation;
@@ -467,12 +489,10 @@ void TriangleCountExecutor::execute() {
     if (!queueTime.empty()) {
         long sleepTime = atol(queueTime.c_str());
         processInformation.sleepTime = sleepTime;
-        processData.insert(processInformation);
-        processStatusMutex.unlock();
+        insertProcessInfo(processInformation);
         std::this_thread::sleep_for(std::chrono::milliseconds(sleepTime));
     } else {
-        processData.insert(processInformation);
-        processStatusMutex.unlock();
+        insertProcessInfo(processInformation);
     }
 
     triangleCount_logger.log(
@@ -735,23 +755,8 @@ void TriangleCountExecutor::execute() {
         isStatCollect = false;
     }
 
-    processStatusMutex.lock();
-    for (auto processCompleteIterator = processData.begin(); processCompleteIterator != processData.end();
-         ++processCompleteIterator) {
-        ProcessInfo processInformation = *processCompleteIterator;
-
-        if (processInformation.id == uniqueId) {
-            processData.erase(processInformation);
-            break;
-        }
-    }
-    processStatusMutex.unlock();
-
-    for (auto &thread : statThreads) {
-        if (thread.joinable()) {
-            thread.join();
-        }
-    }
+    removeProcessInfoById(uniqueId);
+    joinAllThreads(statThreads);
 }
 
 long TriangleCountExecutor::getTriangleCount(
