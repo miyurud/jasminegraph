@@ -200,7 +200,7 @@ class Utils {
 
     static double exponentialWeightedMovingAverage(const std::deque<double>& vals, double alpha = 0.3);
     static  double  computeSlope(const std::deque<double>& vals);
-    static bool uploadFileToWorker(std::string host, int port, int dataPort, int graphID, std::string filePath,
+    static bool uploadFileToWorker(std::string host, int port, int dataPort, int graphID, const std::string &filePath,
                                    std::string masterIP, std::string uploadType);
 
     static bool sendFileThroughService(std::string host, int dataPort, std::string fileName, std::string filePath);
@@ -224,13 +224,13 @@ class Utils {
                                       int value, std::string expectMsg);
 
     static bool sendFileChunkToWorker(std::string host, int port, int dataPort, std::string filePath,
-                                      std::string masterIP, std::string uploadType, bool isEmbedGraph);
+                                      const std::string &masterIP, std::string uploadType, bool isEmbedGraph);
 
     static void assignPartitionToWorker(int graphId, int partitionIndex, string  hostname, int port);
 
     static string getFrontendInput(int connFd);
-    static string getPartitionAlgorithm(string graphID, std::string host);
-    static string getGraphDirection(string graphID, std::string host);
+    static string getPartitionAlgorithm(string graphID, const std::string &host);
+    static string getGraphDirection(string graphID, const std::string &host);
 
     /**
      * Helper function to create a socket and connect to a worker

@@ -618,7 +618,9 @@ int Utils::createAndConnectToWorker(const std::string& host, int port, const std
                                     char* data, size_t dataLength, bool performHS) {
     int sockfd;
     struct sockaddr_in serv_addr;
-    struct hostent *server;
+    struct hostent hostEntry;
+    struct hostent *server = nullptr;
+    std::vector<char> hostBuffer(4096);
 
     sockfd = socket(AF_INET, SOCK_STREAM, 0);
     if (sockfd < 0) {
@@ -632,8 +634,9 @@ int Utils::createAndConnectToWorker(const std::string& host, int port, const std
         actualHost = Utils::split(actualHost, '@')[1];
     }
 
-    server = gethostbyname(actualHost.c_str());
-    if (server == NULL) {
+    int hostError = 0;
+    if (gethostbyname_r(actualHost.c_str(), &hostEntry, hostBuffer.data(), hostBuffer.size(), &server, &hostError) != 0
+            || server == NULL) {
         util_logger.error("ERROR, no host named " + host);
         close(sockfd);
         return -1;
@@ -1139,7 +1142,7 @@ std::fstream *Utils::openFile(const string &path, std::ios_base::openmode mode) 
     return new std::fstream(path, mode | std::ios::binary);
 }
 
-bool Utils::uploadFileToWorker(std::string host, int port, int dataPort, int graphID, std::string filePath,
+bool Utils::uploadFileToWorker(std::string host, int port, int dataPort, int graphID, const std::string &filePath,
                                std::string masterIP, std::string uploadType) {
     util_logger.info("Host:" + host + " Port:" + to_string(port) + " DPort:" + to_string(dataPort));
     bool result = true;
@@ -1234,7 +1237,7 @@ bool Utils::uploadFileToWorker(std::string host, int port, int dataPort, int gra
     return true;
 }
 
-bool Utils::sendFileChunkToWorker(std::string host, int port, int dataPort, std::string filePath, std::string masterIP,
+bool Utils::sendFileChunkToWorker(std::string host, int port, int dataPort, std::string filePath, const std::string &masterIP,
                                   std::string uploadType , bool isEmbedGraph) {
     util_logger.info("Host:" + host + " Port:" + to_string(port) + " DPort:" + to_string(dataPort));
     bool result = true;
@@ -1761,7 +1764,7 @@ std::optional<std::tuple<std::string, int, int>> Utils::getWorker(string partiti
     return make_tuple(ip, stoi(portNumber), stoi(dataPort));
 }
 
-string Utils::getPartitionAlgorithm(std::string graphID, std::string host) {
+string Utils::getPartitionAlgorithm(std::string graphID, const std::string &host) {
     util_logger.info("Host:" + host + " Port:" + to_string(Conts::JASMINEGRAPH_BACKEND_PORT));
     bool result = true;
     int sockfd;
@@ -1769,6 +1772,7 @@ string Utils::getPartitionAlgorithm(std::string graphID, std::string host) {
     static const int ACK_MESSAGE_SIZE = 1024;
     struct sockaddr_in serv_addr;
     struct hostent *server;
+    std::string actualHost = host;
 
     sockfd = socket(AF_INET, SOCK_STREAM, 0);
 
@@ -1777,13 +1781,13 @@ string Utils::getPartitionAlgorithm(std::string graphID, std::string host) {
         return "";
     }
 
-    if (host.find('@') != std::string::npos) {
-        host = Utils::split(host, '@')[1];
+    if (actualHost.find('@') != std::string::npos) {
+        actualHost = Utils::split(actualHost, '@')[1];
     }
 
-    server = gethostbyname(host.c_str());
+    server = gethostbyname(actualHost.c_str());
     if (server == NULL) {
-        util_logger.error("ERROR, no host named " + host);
+        util_logger.error("ERROR, no host named " + actualHost);
         return "";
     }
 
@@ -1845,7 +1849,7 @@ string Utils::getPartitionAlgorithm(std::string graphID, std::string host) {
 }
 
 
-string Utils::getGraphDirection(std::string graphID, std::string host) {
+string Utils::getGraphDirection(std::string graphID, const std::string &host) {
     util_logger.info("Host:" + host + " Port:" + to_string(Conts::JASMINEGRAPH_BACKEND_PORT));
     bool result = true;
     int sockfd;
