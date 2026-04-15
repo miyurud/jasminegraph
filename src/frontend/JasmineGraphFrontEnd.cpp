@@ -18,6 +18,7 @@ limitations under the License.
 
 #include <algorithm>
 #include <cctype>
+#include <cstdio>
 #include <chrono>
 #include <ctime>
 #include <fstream>
@@ -169,6 +170,169 @@ static std::string getTemporalSnapshotDir() {
 
     return Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder") +
            "/temporal_snapshots";
+}
+
+struct TemporalSnapshotSummary {
+    uint64_t totalEdges;
+    uint64_t timestamp;
+};
+
+static std::string shellQuote(const std::string& value) {
+    std::string quoted = "'";
+    for (char ch : value) {
+        if (ch == '\'') {
+            quoted += "'\\''";
+        } else {
+            quoted += ch;
+        }
+    }
+    quoted += "'";
+    return quoted;
+}
+
+static std::string sanitizeForFileName(const std::string& value) {
+    std::string result = value;
+    for (char& ch : result) {
+        if (!(std::isalnum(static_cast<unsigned char>(ch)) || ch == '_' || ch == '-' || ch == '.')) {
+            ch = '_';
+        }
+    }
+    return result;
+}
+
+static std::string captureCommandOutput(const std::string& command) {
+    std::string output;
+    FILE* pipe = popen(command.c_str(), "r");
+    if (pipe == nullptr) {
+        return output;
+    }
+
+    char buffer[4096];
+    while (fgets(buffer, sizeof(buffer), pipe) != nullptr) {
+        output.append(buffer);
+    }
+
+    pclose(pipe);
+    return output;
+}
+
+static bool copyCommandOutputToFile(const std::string& command, const std::string& destinationPath) {
+    FILE* pipe = popen(command.c_str(), "r");
+    if (pipe == nullptr) {
+        return false;
+    }
+
+    std::ofstream out(destinationPath, std::ios::binary | std::ios::trunc);
+    if (!out.is_open()) {
+        pclose(pipe);
+        return false;
+    }
+
+    char buffer[8192];
+    size_t bytesRead = 0;
+    while ((bytesRead = fread(buffer, 1, sizeof(buffer), pipe)) > 0) {
+        out.write(buffer, static_cast<std::streamsize>(bytesRead));
+        if (!out.good()) {
+            break;
+        }
+    }
+
+    int status = pclose(pipe);
+    out.close();
+    return out.good() && status == 0;
+}
+
+static std::string buildWorkerTarget(const Utils::worker& worker) {
+    if (!worker.username.empty()) {
+        return worker.username + "@" + worker.hostname;
+    }
+    return worker.hostname;
+}
+
+static void collectTemporalSnapshotMetadataFromDirectory(
+    const std::string& snapshotDir, int graphId,
+    std::map<uint32_t, TemporalSnapshotSummary>& snapMap) {
+    std::vector<std::string> files = Utils::getListOfFilesInDirectory(snapshotDir);
+    std::string graphPrefix = "graph" + std::to_string(graphId) + "_part";
+
+    for (const auto& file : files) {
+        if (file.find(graphPrefix) == std::string::npos) continue;
+        if (file.find("_snapmeta.bin") == std::string::npos) continue;
+
+        std::string metaPath = snapshotDir + "/" + file;
+        auto records = TemporalStorePersistence::readAllSnapmeta(metaPath);
+        for (const auto& rec : records) {
+            if (snapMap.find(rec.snapshotId) == snapMap.end()) {
+                snapMap[rec.snapshotId] = {rec.totalEdges, rec.timestamp};
+            }
+        }
+    }
+}
+
+static void collectTemporalSnapshotMetadataFromRemoteHost(
+    const Utils::worker& worker, int graphId, const std::string& snapshotDir,
+    std::map<uint32_t, TemporalSnapshotSummary>& snapMap) {
+    std::string hostTarget = buildWorkerTarget(worker);
+    if (hostTarget.empty() || hostTarget == "localhost" || hostTarget == "127.0.0.1") {
+        return;
+    }
+
+    std::string graphPrefix = "graph" + std::to_string(graphId) + "_part";
+    std::string findCommand = "ssh -o BatchMode=yes -o ConnectTimeout=5 " + shellQuote(hostTarget) +
+                              " find " + shellQuote(snapshotDir) +
+                              " -maxdepth 1 -type f -name " + shellQuote(graphPrefix + "*_snapmeta.bin") +
+                              " 2>/dev/null";
+
+    std::string remoteFiles = captureCommandOutput(findCommand);
+    std::stringstream filesStream(remoteFiles);
+    std::string remoteFile;
+    while (std::getline(filesStream, remoteFile)) {
+        remoteFile = Utils::trim_copy(remoteFile);
+        if (remoteFile.empty()) {
+            continue;
+        }
+
+        std::string tempFile = "/tmp/jg_tmpsn_" + sanitizeForFileName(hostTarget) + "_" +
+                               sanitizeForFileName(Utils::getFileName(remoteFile));
+        std::string catCommand = "ssh -o BatchMode=yes -o ConnectTimeout=5 " + shellQuote(hostTarget) +
+                                 " cat " + shellQuote(remoteFile);
+
+        if (!copyCommandOutputToFile(catCommand, tempFile)) {
+            frontend_logger.error("Failed to fetch snapshot metadata from host " + hostTarget + ": " + remoteFile);
+            continue;
+        }
+
+        auto records = TemporalStorePersistence::readAllSnapmeta(tempFile);
+        for (const auto& rec : records) {
+            if (snapMap.find(rec.snapshotId) == snapMap.end()) {
+                snapMap[rec.snapshotId] = {rec.totalEdges, rec.timestamp};
+            }
+        }
+
+        remove(tempFile.c_str());
+    }
+}
+
+static std::map<uint32_t, TemporalSnapshotSummary> loadTemporalSnapshotSummariesForGraph(SQLiteDBInterface* sqlite,
+                                                                                         int graphId) {
+    std::map<uint32_t, TemporalSnapshotSummary> snapMap;
+    std::string snapshotDir = getTemporalSnapshotDir();
+
+    collectTemporalSnapshotMetadataFromDirectory(snapshotDir, graphId, snapMap);
+
+    const std::vector<Utils::worker>& workerList = Utils::getWorkerList(sqlite);
+    std::set<std::string> visitedHosts;
+    for (const auto& worker : workerList) {
+        std::string hostTarget = buildWorkerTarget(worker);
+        if (hostTarget.empty()) {
+            continue;
+        }
+        if (visitedHosts.insert(hostTarget).second) {
+            collectTemporalSnapshotMetadataFromRemoteHost(worker, graphId, snapshotDir, snapMap);
+        }
+    }
+
+    return snapMap;
 }
 
 void *frontendservicesesion(void *dummyPt) {
@@ -3450,32 +3614,9 @@ static void temporal_snapshot_command(int connFd, SQLiteDBInterface *sqlite, boo
     int graphId = std::stoi(graphIdStr);
 
     try {
-        std::string snapshotDir = getTemporalSnapshotDir();
-        std::vector<std::string> files = Utils::getListOfFilesInDirectory(snapshotDir);
-
         std::stringstream response;
         response << "Temporal Snapshots for Graph " << graphId << ":\n";
-
-        // Read from _snapmeta.bin files (one per partition per graph).
-        // Collect unique snapshotId → (totalEdges, timestamp) from all partitions.
-        // We keep the FIRST occurrence of each snapshotId (they are globally
-        // synchronised, so all partitions share the same IDs).
-        std::string graphPrefix = "graph" + std::to_string(graphId) + "_part";
-        struct SnapInfo { uint64_t totalEdges; uint64_t timestamp; };
-        std::map<uint32_t, SnapInfo> snapMap;  // snapshotId → info
-
-        for (const auto& file : files) {
-            if (file.find(graphPrefix) == std::string::npos) continue;
-            if (file.find("_snapmeta.bin") == std::string::npos) continue;
-
-            std::string metaPath = snapshotDir + "/" + file;
-            auto records = TemporalStorePersistence::readAllSnapmeta(metaPath);
-            for (const auto& rec : records) {
-                if (snapMap.find(rec.snapshotId) == snapMap.end()) {
-                    snapMap[rec.snapshotId] = {rec.totalEdges, rec.timestamp};
-                }
-            }
-        }
+        auto snapMap = loadTemporalSnapshotSummariesForGraph(sqlite, graphId);
 
         if (snapMap.empty()) {
             response << "No snapshots found\n";

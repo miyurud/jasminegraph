@@ -15,7 +15,7 @@ services:
     networks:
       jasminenet:
         ipv4_address: 172.28.5.7
-    command: --MODE 1 --MASTERIP 10.8.100.247 --WORKERS 2 --WORKERIP root@10.8.100.245, root@10.8.100.248
+    command: --MODE 1 --MASTERIP 10.8.100.247 --WORKERS 2 --WORKERIP root@10.8.100.245 --ENABLE_NMON false
     depends_on:
       - kafka
 
