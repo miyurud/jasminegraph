@@ -177,6 +177,62 @@ struct TemporalSnapshotSummary {
     uint64_t timestamp;
 };
 
+using SnapshotPartitionTotals = std::map<uint32_t, std::map<uint32_t, uint64_t>>;
+
+static bool tryParsePartitionIdFromSnapmetaFileName(const std::string& fileName, int graphId,
+                                                    uint32_t& partitionId) {
+    std::string prefix = "graph" + std::to_string(graphId) + "_part";
+    std::string suffix = "_snapmeta.bin";
+
+    if (fileName.rfind(prefix, 0) != 0) {
+        return false;
+    }
+    if (fileName.size() <= prefix.size() + suffix.size()) {
+        return false;
+    }
+    if (fileName.compare(fileName.size() - suffix.size(), suffix.size(), suffix) != 0) {
+        return false;
+    }
+
+    std::string partitionText =
+        fileName.substr(prefix.size(), fileName.size() - prefix.size() - suffix.size());
+    if (partitionText.empty()) {
+        return false;
+    }
+    if (!std::all_of(partitionText.begin(), partitionText.end(),
+                     [](unsigned char ch) { return std::isdigit(ch); })) {
+        return false;
+    }
+
+    partitionId = static_cast<uint32_t>(std::stoul(partitionText));
+    return true;
+}
+
+static void mergeSnapshotMetaRecord(const TemporalStorePersistence::SnapshotMetaRecord& rec,
+                                    uint32_t partitionId,
+                                    std::map<uint32_t, TemporalSnapshotSummary>& snapMap,
+                                    SnapshotPartitionTotals& partitionTotals) {
+    auto& summary = snapMap[rec.snapshotId];
+    if (summary.timestamp < rec.timestamp) {
+        summary.timestamp = rec.timestamp;
+    }
+
+    auto& perPartition = partitionTotals[rec.snapshotId];
+    auto existing = perPartition.find(partitionId);
+    if (existing == perPartition.end()) {
+        perPartition[partitionId] = rec.totalEdges;
+        summary.totalEdges += rec.totalEdges;
+        return;
+    }
+
+    // If duplicate metadata appears for the same partition (e.g. mirrored files on
+    // multiple worker hosts), keep the highest total and update aggregate sum.
+    if (rec.totalEdges > existing->second) {
+        summary.totalEdges += (rec.totalEdges - existing->second);
+        existing->second = rec.totalEdges;
+    }
+}
+
 static std::string shellQuote(const std::string& value) {
     std::string quoted = "'";
     for (char ch : value) {
@@ -251,7 +307,8 @@ static std::string buildWorkerTarget(const Utils::worker& worker) {
 
 static void collectTemporalSnapshotMetadataFromDirectory(
     const std::string& snapshotDir, int graphId,
-    std::map<uint32_t, TemporalSnapshotSummary>& snapMap) {
+    std::map<uint32_t, TemporalSnapshotSummary>& snapMap,
+    SnapshotPartitionTotals& partitionTotals) {
     std::vector<std::string> files = Utils::getListOfFilesInDirectory(snapshotDir);
     std::string graphPrefix = "graph" + std::to_string(graphId) + "_part";
 
@@ -259,19 +316,23 @@ static void collectTemporalSnapshotMetadataFromDirectory(
         if (file.find(graphPrefix) == std::string::npos) continue;
         if (file.find("_snapmeta.bin") == std::string::npos) continue;
 
+        uint32_t partitionId = 0;
+        if (!tryParsePartitionIdFromSnapmetaFileName(file, graphId, partitionId)) {
+            continue;
+        }
+
         std::string metaPath = snapshotDir + "/" + file;
         auto records = TemporalStorePersistence::readAllSnapmeta(metaPath);
         for (const auto& rec : records) {
-            if (snapMap.find(rec.snapshotId) == snapMap.end()) {
-                snapMap[rec.snapshotId] = {rec.totalEdges, rec.timestamp};
-            }
+            mergeSnapshotMetaRecord(rec, partitionId, snapMap, partitionTotals);
         }
     }
 }
 
 static void collectTemporalSnapshotMetadataFromRemoteHost(
     const Utils::worker& worker, int graphId, const std::string& snapshotDir,
-    std::map<uint32_t, TemporalSnapshotSummary>& snapMap) {
+    std::map<uint32_t, TemporalSnapshotSummary>& snapMap,
+    SnapshotPartitionTotals& partitionTotals) {
     std::string hostTarget = buildWorkerTarget(worker);
     if (hostTarget.empty() || hostTarget == "localhost" || hostTarget == "127.0.0.1") {
         return;
@@ -302,11 +363,16 @@ static void collectTemporalSnapshotMetadataFromRemoteHost(
             continue;
         }
 
+        uint32_t partitionId = 0;
+        std::string baseFileName = Utils::getFileName(remoteFile);
+        if (!tryParsePartitionIdFromSnapmetaFileName(baseFileName, graphId, partitionId)) {
+            remove(tempFile.c_str());
+            continue;
+        }
+
         auto records = TemporalStorePersistence::readAllSnapmeta(tempFile);
         for (const auto& rec : records) {
-            if (snapMap.find(rec.snapshotId) == snapMap.end()) {
-                snapMap[rec.snapshotId] = {rec.totalEdges, rec.timestamp};
-            }
+            mergeSnapshotMetaRecord(rec, partitionId, snapMap, partitionTotals);
         }
 
         remove(tempFile.c_str());
@@ -316,9 +382,10 @@ static void collectTemporalSnapshotMetadataFromRemoteHost(
 static std::map<uint32_t, TemporalSnapshotSummary> loadTemporalSnapshotSummariesForGraph(SQLiteDBInterface* sqlite,
                                                                                          int graphId) {
     std::map<uint32_t, TemporalSnapshotSummary> snapMap;
+    SnapshotPartitionTotals partitionTotals;
     std::string snapshotDir = getTemporalSnapshotDir();
 
-    collectTemporalSnapshotMetadataFromDirectory(snapshotDir, graphId, snapMap);
+    collectTemporalSnapshotMetadataFromDirectory(snapshotDir, graphId, snapMap, partitionTotals);
 
     const std::vector<Utils::worker>& workerList = Utils::getWorkerList(sqlite);
     std::set<std::string> visitedHosts;
@@ -328,7 +395,7 @@ static std::map<uint32_t, TemporalSnapshotSummary> loadTemporalSnapshotSummaries
             continue;
         }
         if (visitedHosts.insert(hostTarget).second) {
-            collectTemporalSnapshotMetadataFromRemoteHost(worker, graphId, snapshotDir, snapMap);
+            collectTemporalSnapshotMetadataFromRemoteHost(worker, graphId, snapshotDir, snapMap, partitionTotals);
         }
     }
 
