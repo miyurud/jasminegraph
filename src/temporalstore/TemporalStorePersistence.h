@@ -115,14 +115,6 @@ class TemporalStorePersistence {
         char     reserved[12];
     };  // 32 bytes
 
-    struct SnapshotMetaRecord {
-        uint32_t snapshotId;
-        uint32_t _pad;
-        uint64_t totalEdges;  // total edges in bitmap index after this snapshot
-        uint64_t newEdges;  // edges newly added in this snapshot
-        uint64_t timestamp;  // close time (ns since epoch)
-    };  // 32 bytes
-
     /**
      * Write string to file with length prefix
      */
@@ -182,6 +174,14 @@ class TemporalStorePersistence {
     }
 
  public:
+    struct SnapshotMetaRecord {
+        uint32_t snapshotId;
+        uint32_t _pad;
+        uint64_t totalEdges;  // total edges in bitmap index after this snapshot
+        uint64_t newEdges;  // edges newly added in this snapshot
+        uint64_t timestamp;  // close time (ns since epoch)
+    };  // 32 bytes
+
     /**
      * Save snapshot to file
      */
