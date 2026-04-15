@@ -535,6 +535,22 @@ void WorkerKafkaConsumer::consumerThreadFunc(
         std::atomic<uint64_t>& totalCentral,
     std::atomic<bool>&     endSignalReceived,
     std::atomic<bool>&     eosSeenAnyThread) {
+    auto closeConsumer = [consumer, threadId]() {
+        if (!consumer) {
+            return;
+        }
+        try {
+            consumer->unsubscribe();
+        } catch (const std::exception& e) {
+            workerKafkaLogger().warn("Worker thread " + std::to_string(threadId) +
+                                     " unsubscribe failed: " + e.what());
+        } catch (...) {
+            workerKafkaLogger().warn("Worker thread " + std::to_string(threadId) +
+                                     " unsubscribe failed with unknown error");
+        }
+
+    };
+
     try {
     consumer->subscribe({cfg.topic});
     workerKafkaLogger().info("Worker consumer thread " + std::to_string(threadId) +
@@ -740,13 +756,16 @@ void WorkerKafkaConsumer::consumerThreadFunc(
 
     workerKafkaLogger().info("Worker consumer thread " + std::to_string(threadId) +
                              " finished. Messages processed: " + std::to_string(threadMsgs));
+    closeConsumer();
     } catch (const std::exception& e) {
         workerKafkaLogger().error("[CRASH] consumerThreadFunc thread " + std::to_string(threadId) +
                                   " caught exception: " + e.what());
+        closeConsumer();
         endSignalReceived = true;
     } catch (...) {
         workerKafkaLogger().error("[CRASH] consumerThreadFunc thread " + std::to_string(threadId) +
                                   " caught unknown exception");
+        closeConsumer();
         endSignalReceived = true;
     }
 }

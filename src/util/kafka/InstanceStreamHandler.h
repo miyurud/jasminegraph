@@ -19,6 +19,7 @@
 #include <condition_variable>
 #include <queue>
 #include <map>
+#include <set>
 #include <string>
 #include <atomic>
 #include <vector>
@@ -57,6 +58,7 @@ class InstanceStreamHandler {
     std::map<std::string, std::condition_variable> cond_vars;
     std::map<std::string, std::mutex> queue_mutexes;
     std::atomic<bool> terminateThreads{false};
+   std::set<std::string> ownedStoreKeys_;
 
     // Protects all map structures from concurrent modification.
     // Held briefly for lookup/insert; per-partition locks handle store operations.
