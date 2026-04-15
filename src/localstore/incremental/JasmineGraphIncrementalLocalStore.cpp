@@ -55,11 +55,7 @@ JasmineGraphIncrementalLocalStore::JasmineGraphIncrementalLocalStore(
 
 JasmineGraphIncrementalLocalStore::~JasmineGraphIncrementalLocalStore() {
   if (nm) {
-    // NOTE: Do NOT call nm->close() here! The worker thread (which owns the thread-local
-    // fstream pointers) already called close() before exiting. If we call close() from the
-    // main thread destructor, it will try to access/delete thread-local storage from the 
-    // wrong thread context, causing undefined behavior and leaks.
-    // Just delete the NodeManager object itself; the thread-local fstreams are already cleaned.
+    nm->close();
     delete nm;
     nm = nullptr;
   }

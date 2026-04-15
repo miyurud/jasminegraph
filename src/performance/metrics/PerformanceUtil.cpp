@@ -13,8 +13,6 @@ limitations under the License.
 
 #include "PerformanceUtil.h"
 
-#include <cstdlib>
-
 #include "../../server/JasmineGraphServer.h"
 
 using namespace std::chrono;
@@ -24,30 +22,8 @@ static size_t write_callback(void *contents, size_t size, size_t nmemb, std::str
 static size_t write_file_callback(void* contents, size_t size, size_t nmemb, void* userp);
 
 Logger scheduler_logger;
-SQLiteDBInterface *sqlLiteDB = nullptr;
-PerformanceSQLiteDBInterface *perfDb = nullptr;
-
-namespace {
-void cleanupPerformanceDatabases() {
-    if (sqlLiteDB != nullptr) {
-        sqlLiteDB->finalize();
-        delete sqlLiteDB;
-        sqlLiteDB = nullptr;
-    }
-
-    if (perfDb != nullptr) {
-        perfDb->finalize();
-        delete perfDb;
-        perfDb = nullptr;
-    }
-}
-
-struct PerformanceDatabaseCleanupRegistrar {
-    PerformanceDatabaseCleanupRegistrar() { std::atexit(cleanupPerformanceDatabases); }
-};
-
-PerformanceDatabaseCleanupRegistrar performanceDatabaseCleanupRegistrar;
-}  // namespace
+SQLiteDBInterface *sqlLiteDB;
+PerformanceSQLiteDBInterface *perfDb;
 
 void PerformanceUtil::init() {
     if (sqlLiteDB == nullptr) {

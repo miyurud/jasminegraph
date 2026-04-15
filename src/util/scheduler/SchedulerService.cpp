@@ -13,21 +13,11 @@ limitations under the License.
 
 #include "SchedulerService.h"
 
-#include <atomic>
-
 #include "Scheduler.h"
 
 using namespace Bosma;
 
 Logger schedulerservice_logger;
-
-namespace {
-std::atomic<bool> schedulerShutdownRequested{false};
-}
-
-void SchedulerService::requestShutdown() {
-    schedulerShutdownRequested.store(true);
-}
 
 void SchedulerService::startScheduler() {
     std::string schedulerEnabled = Utils::getJasmineGraphProperty("org.jasminegraph.scheduler.enabled");
@@ -53,7 +43,5 @@ void SchedulerService::startPerformanceScheduler() {
 
     scheduler.every(std::chrono::seconds(atoi(performanceSchedulerTiming.c_str())), util.collectPerformanceStatistics);
 
-    while (!schedulerShutdownRequested.load()) {
-        std::this_thread::sleep_for(std::chrono::seconds(1));
-    }
+    std::this_thread::sleep_for(std::chrono::minutes(1440));
 }

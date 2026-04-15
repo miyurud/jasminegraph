@@ -78,12 +78,6 @@ int main(int argc, char *argv[]) {
 
     StatisticsCollector::init();
     thread schedulerThread(SchedulerService::startScheduler);
-    auto stopSchedulerThread = [&]() {
-        SchedulerService::requestShutdown();
-        if (schedulerThread.joinable()) {
-            schedulerThread.join();
-        }
-    };
 
     if (mode == Conts::JASMINEGRAPH_RUNTIME_PROFILE_MASTER) {
         // Initialize OpenTelemetry for master process
@@ -104,7 +98,7 @@ int main(int argc, char *argv[]) {
         }
         server->run(masterIp, numberOfWorkers, workerIps, enableNmon);
 
-        stopSchedulerThread();
+        schedulerThread.join();
         delete server;
     } else if (mode == Conts::JASMINEGRAPH_RUNTIME_PROFILE_WORKER) {
         main_logger.info(to_string(argc));
@@ -116,10 +110,6 @@ int main(int argc, char *argv[]) {
             main_logger.info(
                 "Need 7 arguments. Use <mode> 2 <hostName> <masterIP> <serverPort> <serverDataPort> <enable-nmon> to "
                 "start as worker");
-            SchedulerService::requestShutdown();
-            if (schedulerThread.joinable()) {
-                schedulerThread.join();
-            }
             return -1;
         }
 
@@ -136,7 +126,6 @@ int main(int argc, char *argv[]) {
         instance = new JasmineGraphInstance();
         instance->start_running(hostName, masterHost, serverPort, serverDataPort, enableNmon);
 
-        stopSchedulerThread();
         delete instance;
     }
 

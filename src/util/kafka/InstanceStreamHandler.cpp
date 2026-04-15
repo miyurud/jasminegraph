@@ -21,29 +21,7 @@ InstanceStreamHandler::InstanceStreamHandler(std::map<std::string,
                                              JasmineGraphIncrementalLocalStore*>& incrementalLocalStoreMap)
         : incrementalLocalStoreMap(incrementalLocalStoreMap) { }
 
-InstanceStreamHandler::~InstanceStreamHandler() {
-    terminateThreads = true;
-
-    for (auto& cv : cond_vars) {
-        cv.second.notify_all();
-    }
-
-    for (auto& thread : threads) {
-        if (thread.second.joinable()) {
-            thread.second.join();
-        }
-    }
-
-    // Note: At this point, all worker threads have exited and already cleaned up
-    // their thread-local fstream pointers via close() before thread exit.
-    // Just delete the store objects themselves; DO NOT call nm->close() again
-    // from the main thread, as that would attempt to access/delete thread-local
-    // storage from the wrong thread context.
-    for (auto& entry : incrementalLocalStoreMap) {
-        delete entry.second;
-    }
-    incrementalLocalStoreMap.clear();
-}
+InstanceStreamHandler::~InstanceStreamHandler() { }
 
 void InstanceStreamHandler::handleRequest(const std::string& nodeString) {
     if (nodeString == "-1") {
@@ -132,15 +110,6 @@ void InstanceStreamHandler::threadFunction(const std::string& graphIdentifier) {
                 instance_stream_logger.info("[PROC THREAD " + graphIdentifier + "] "
                                             + std::to_string(edgesProcessed) + " edges written to store");
             }
-        }
-    }
-    // CRITICAL: Clean up this thread's thread-local fstream pointers BEFORE exiting the thread.
-    // Otherwise, when the main thread destructor tries to delete them, it will access
-    // another thread's thread-local storage, which causes leaks.
-    if (incrementalLocalStoreMap.find(graphIdentifier) != incrementalLocalStoreMap.end()) {
-        JasmineGraphIncrementalLocalStore* store = incrementalLocalStoreMap[graphIdentifier];
-        if (store && store->nm) {
-            store->nm->close();  // Closes THIS thread's thread-local fstream pointers
         }
     }
     instance_stream_logger.info("[PROC THREAD " + graphIdentifier + "] Terminated after "
