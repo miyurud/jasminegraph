@@ -2,46 +2,23 @@ services:
   jasminegraph:
     image: jasminegraph:latest
     ports:
-      - '7777:7777'
-      - '7778:7778'
+      - '8777:8777'
+      - '8778:8778'
     volumes:
-      - '/var/run/docker.sock:/var/run/docker.sock:rw'
-      - './env/databases/metadb:/home/ubuntu/software/jasminegraph/metadb'
-      - './env/databases/performancedb:/home/ubuntu/software/jasminegraph/performancedb'
-      - './env/data:/home/ubuntu/software/jasminegraph/env/data'
-      - '/var/tmp/jasminegraph-localstore:/var/tmp/jasminegraph-localstore'
-      - '/tmp/jasminegraph:/tmp/jasminegraph'
-      - '/var/tmp/jasminegraph:/var/tmp/jasminegraph'
-      - './conf:/home/ubuntu/software/jasminegraph/conf'
+      - "/var/run/docker.sock:/var/run/docker.sock:rw"
+      - "/root/.ssh:/root/.ssh"
+      - "/tmp:/tmp"
+      - "/var/tmp/jasminegraph-localstore-tmp:/var/tmp/jasminegraph-localstore-tmp"
+      - "/var/tmp/jasminegraph-aggregate:/var/tmp/jasminegraph-aggregate"
+      - "/home/user/Documents/jasminegraph/metadb:/home/ubuntu/software/jasminegraph/metadb"
+      - "/home/user/Documents/MSc/jasminegraph/performancedb:/home/ubuntu/software/jasminegraph/performancedb"
     networks:
       jasminenet:
         ipv4_address: 172.28.5.7
-    command: --MODE 1 --MASTERIP 172.28.5.1 --WORKERS 2 --WORKERIP 172.28.5.1 --ENABLE_NMON false
+    command: --MODE 1 --MASTERIP 10.8.100.247 --WORKERS 2 --WORKERIP root@10.8.100.245, root@10.8.100.248
     depends_on:
-      - prometheus
       - kafka
-      - alloy
-      - grafana
-      - tempo
-  prometheus:
-    image: prom/prometheus:latest
-    ports:
-      - 9090:9090
-    volumes:
-      - './conf/prometheus.yaml:/etc/prometheus/prometheus.yml'
-      - './prometheus_data:/prometheus' 
-    networks:
-      jasminenet:
-        ipv4_address: 172.28.5.2
-    depends_on:
-      - pushgateway
-  pushgateway:
-    image: prom/pushgateway
-    ports:
-      - 9091:9091
-    networks:
-      jasminenet:
-        ipv4_address: 172.28.5.3
+
   kafka:
     image: apache/kafka:3.9.0
     ports:
@@ -49,7 +26,7 @@ services:
     environment:
       KAFKA_NODE_ID: 1
       KAFKA_PROCESS_ROLES: broker,controller
-      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092,CONTROLLER://172.28.5.8:9093
+      KAFKA_LISTENERS: PLAINTEXT://172.28.5.8:9092,CONTROLLER://172.28.5.8:9093
       KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://172.28.5.8:9092
       KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
@@ -58,64 +35,11 @@ services:
       KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
       KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
       KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
-      KAFKA_NUM_PARTITIONS: 3
+      KAFKA_NUM_PARTITIONS: 8
       CLUSTER_ID: ciWo7IWazngRchmPES6q5A==
     networks:
       jasminenet:
         ipv4_address: 172.28.5.8
-  alloy:
-    image: grafana/alloy:latest
-    ports:
-      - 12345:12345
-    volumes:
-      - ./config.alloy:/etc/alloy/config.alloy
-      - /var/run/docker.sock:/var/run/docker.sock
-    command: run --server.http.listen-addr=0.0.0.0:12345 --storage.path=/var/lib/alloy/data /etc/alloy/config.alloy
-    depends_on:
-      - loki
-    networks:
-      jasminenet:
-        ipv4_address: 172.28.5.4
-  loki:
-    image: grafana/loki:latest
-    ports:
-      - "3100:3100"
-    volumes:
-      - ./loki-config.yaml:/etc/loki/local-config.yaml
-    command: -config.file=/etc/loki/local-config.yaml
-    networks:
-      jasminenet:
-        ipv4_address: 172.28.5.5
-  grafana:
-    build:
-      context: .
-      dockerfile: Dockerfile.grafana
-    environment:
-      - GF_FEATURE_TOGGLES_ENABLE=grafanaManagedRecordingRules
-      - GF_AUTH_ANONYMOUS_ORG_ROLE=Admin
-      - GF_AUTH_ANONYMOUS_ENABLED=true
-      - GF_AUTH_BASIC_ENABLED=false
-      - GF_SECURITY_ALLOW_EMBEDDING=true
-      - GF_SECURITY_X_FRAME_OPTIONS=ALLOWALL
-    ports:
-      - 3001:3000
-    networks:
-      jasminenet:
-        ipv4_address: 172.28.5.6
-  
-  tempo:
-    image: grafana/tempo:latest
-    ports:
-      - "3200:3200"
-      - "4317:4317"
-      - "4318:4318"
-      - "14268:14268"
-    volumes:
-      - ./tempo-config.yaml:/etc/tempo.yaml
-    command: -config.file=/etc/tempo.yaml
-    networks:
-      jasminenet:
-        ipv4_address: 172.28.5.9
 
 networks:
   jasminenet:
