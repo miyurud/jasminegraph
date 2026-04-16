@@ -190,7 +190,7 @@ void AgentPlanExecutor::execute() {
         }
     }
 
-    Utils::send_str_wrapper(sockfd, "ok");
+    Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::OK);
     close(sockfd);
 
     workerResponded = true;
