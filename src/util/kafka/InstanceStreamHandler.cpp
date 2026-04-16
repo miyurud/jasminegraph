@@ -19,12 +19,34 @@
 Logger instance_stream_logger;
 InstanceStreamHandler::InstanceStreamHandler(std::map<std::string,
                                              JasmineGraphIncrementalLocalStore*>& incrementalLocalStoreMap)
-        : incrementalLocalStoreMap(incrementalLocalStoreMap) { }
+        : incrementalLocalStoreMap(incrementalLocalStoreMap) {
+    // Per-partition in-memory queue cap to prevent unbounded RAM growth under ingest spikes.
+    // If not set/invalid, keep a conservative default.
+    std::string capProp = Utils::getJasmineGraphProperty(
+        "org.jasminegraph.server.streaming.localstore.queue.max");
+    if (!capProp.empty()) {
+        try {
+            size_t parsed = static_cast<size_t>(std::stoull(capProp));
+            if (parsed > 0) {
+                maxQueueSizePerPartition = parsed;
+            }
+        } catch (const std::exception&) {
+            instance_stream_logger.warn("Invalid org.jasminegraph.server.streaming.localstore.queue.max='" +
+                                       capProp + "'. Using default " +
+                                       std::to_string(maxQueueSizePerPartition));
+        }
+    }
+    instance_stream_logger.info("InstanceStreamHandler queue cap per partition = " +
+                                std::to_string(maxQueueSizePerPartition));
+ }
 
 InstanceStreamHandler::~InstanceStreamHandler() {
     terminateThreads = true;
 
     for (auto& cv : cond_vars) {
+        cv.second.notify_all();
+    }
+    for (auto& cv : producer_cond_vars) {
         cv.second.notify_all();
     }
 
@@ -50,6 +72,9 @@ void InstanceStreamHandler::handleRequest(const std::string& nodeString) {
         terminateThreads = true;
 
         for (auto& cv : cond_vars) {
+            cv.second.notify_all();
+        }
+        for (auto& cv : producer_cond_vars) {
             cv.second.notify_all();
         }
 
@@ -88,6 +113,16 @@ void InstanceStreamHandler::handleRequest(nlohmann::json obj,
             &InstanceStreamHandler::threadFunction, this, graphIdentifier);
         queues[graphIdentifier] = std::queue<nlohmann::json>();
     }
+
+    // Backpressure: block producers when per-partition queue reaches cap.
+    // This slows ingestion instead of allowing unbounded RAM growth and OOM.
+    producer_cond_vars[graphIdentifier].wait(lock, [&] {
+        return terminateThreads || queues[graphIdentifier].size() < maxQueueSizePerPartition;
+    });
+    if (terminateThreads) {
+        return;
+    }
+
     queues[graphIdentifier].push(std::move(obj));
     cond_vars[graphIdentifier].notify_one();
     instance_stream_logger.debug("Pushed into the Queue");
@@ -123,6 +158,8 @@ void InstanceStreamHandler::threadFunction(const std::string& graphIdentifier) {
             });
             if (terminateThreads) break;
             std::swap(localBatch, queues[graphIdentifier]);
+            // Queue is now empty (or smaller) after swap; wake blocked producers.
+            producer_cond_vars[graphIdentifier].notify_all();
         }
         while (!localBatch.empty()) {
             // Exit the batch early on shutdown — the temporal store (updated on
@@ -181,6 +218,7 @@ void InstanceStreamHandler::preInitPartitions(int graphId, const std::vector<int
         queue_mutexes[graphIdent];
         queues[graphIdent] = std::queue<nlohmann::json>();
         cond_vars[graphIdent];
+        producer_cond_vars[graphIdent];
         instance_stream_logger.info("Pre-initialized mutex/queue for partition " + graphIdent);
     }
 }

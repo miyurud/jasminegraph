@@ -147,6 +147,11 @@ WorkerKafkaConsumer::WorkerKafkaConsumer(
       localStoreMap(incrementalLocalStoreMap),
       streamHandler(incrementalLocalStoreMap),
       globalSnapshotId(config.initialSnapshotId) {
+    std::string temporalOnlyProp =
+        Utils::getJasmineGraphProperty("org.jasminegraph.server.streaming.temporal.only");
+    temporalOnlyMode_ = (temporalOnlyProp == "true" || temporalOnlyProp == "1" ||
+                         temporalOnlyProp == "yes" || temporalOnlyProp == "y");
+
     for (int p : config.ownedPartitions) {
         ownedPartitionSet.insert(p);
     }
@@ -161,14 +166,17 @@ WorkerKafkaConsumer::WorkerKafkaConsumer(
 
     initTemporalStores();
 
-    // Pre-initialize InstanceStreamHandler stores for all owned partitions
-    // BEFORE consumer threads start — eliminates data races on map insertions
-    streamHandler.preInitPartitions(cfg.graphId, cfg.ownedPartitions);
+    // Pre-initialize native-store writer queues only when native ingestion is enabled.
+    if (!temporalOnlyMode_) {
+        // BEFORE consumer threads start — eliminates data races on map insertions
+        streamHandler.preInitPartitions(cfg.graphId, cfg.ownedPartitions);
+    }
 
     workerKafkaLogger().info(
         "WorkerKafkaConsumer ready: graph=" + std::to_string(cfg.graphId) +
         " worker=" + std::to_string(cfg.workerIndex) +
         " centralPartitionId=" + std::to_string(centralPartitionId) +
+        " temporalOnly=" + std::string(temporalOnlyMode_ ? "true" : "false") +
         " ownedPartitions=[" + [&] {
             std::string s;
             for (int p : cfg.ownedPartitions) s += std::to_string(p) + ",";
@@ -709,38 +717,41 @@ void WorkerKafkaConsumer::consumerThreadFunc(
                 }
             }
 
-            // ── 5. WRITE TO INCREMENTAL LOCAL STORE ───────────────────────
-            // Use handleRequest() which queues the edge and delegates to a
-            // dedicated per-partition processing thread.  This is critical
-            // because NodeManager uses static thread_local fstream pointers –
-            // the store MUST be created and used on the same thread.
-            if (part_s == part_d) {
-                // Local edge — both endpoints live in the same owned partition
-                obj["EdgeType"] = "Local";
-                obj["PID"]      = part_s;
-                streamHandler.handleRequest(std::move(obj),
-                                            graphIdStr + "_" + std::to_string(part_s));
-            } else {
-                // Central edge — may need to write to src's partition, dst's partition, or both
-                obj["EdgeType"] = "Central";
-
-                if (srcOwned && dstOwned) {
-                    // Both partitions owned: copy for src, move into dst
-                    json objSrc = obj;
-                    objSrc["PID"] = part_s;
-                    obj["PID"]    = part_d;
-                    streamHandler.handleRequest(std::move(objSrc),
-                                                graphIdStr + "_" + std::to_string(part_s));
-                    streamHandler.handleRequest(std::move(obj),
-                                                graphIdStr + "_" + std::to_string(part_d));
-                } else if (srcOwned) {
-                    obj["PID"] = part_s;
+            // ── 5. WRITE TO INCREMENTAL LOCAL STORE (optional) ─────────────
+            // Temporal-only mode skips native-store writes entirely to minimize RAM usage.
+            if (!temporalOnlyMode_) {
+                // Use handleRequest() which queues the edge and delegates to a
+                // dedicated per-partition processing thread.  This is critical
+                // because NodeManager uses static thread_local fstream pointers –
+                // the store MUST be created and used on the same thread.
+                if (part_s == part_d) {
+                    // Local edge — both endpoints live in the same owned partition
+                    obj["EdgeType"] = "Local";
+                    obj["PID"]      = part_s;
                     streamHandler.handleRequest(std::move(obj),
                                                 graphIdStr + "_" + std::to_string(part_s));
                 } else {
-                    obj["PID"] = part_d;
-                    streamHandler.handleRequest(std::move(obj),
-                                                graphIdStr + "_" + std::to_string(part_d));
+                    // Central edge — may need to write to src's partition, dst's partition, or both
+                    obj["EdgeType"] = "Central";
+
+                    if (srcOwned && dstOwned) {
+                        // Both partitions owned: copy for src, move into dst
+                        json objSrc = obj;
+                        objSrc["PID"] = part_s;
+                        obj["PID"]    = part_d;
+                        streamHandler.handleRequest(std::move(objSrc),
+                                                    graphIdStr + "_" + std::to_string(part_s));
+                        streamHandler.handleRequest(std::move(obj),
+                                                    graphIdStr + "_" + std::to_string(part_d));
+                    } else if (srcOwned) {
+                        obj["PID"] = part_s;
+                        streamHandler.handleRequest(std::move(obj),
+                                                    graphIdStr + "_" + std::to_string(part_s));
+                    } else {
+                        obj["PID"] = part_d;
+                        streamHandler.handleRequest(std::move(obj),
+                                                    graphIdStr + "_" + std::to_string(part_d));
+                    }
                 }
             }
 
@@ -847,10 +858,12 @@ WorkerKafkaStats WorkerKafkaConsumer::run() {
     // load.  Snapshot creation must not wait for that drain.
     finalizeAllSnapshots();
 
-    // Terminate the InstanceStreamHandler per-partition processing threads.
-    // handleRequest("-1") sets terminateThreads=true, notifies condition
-    // variables, and joins all processing threads before returning.
-    streamHandler.handleRequest("-1");
+    // Terminate native-store writer threads only when they were used.
+    if (!temporalOnlyMode_) {
+        // handleRequest("-1") sets terminateThreads=true, notifies condition
+        // variables, and joins all processing threads before returning.
+        streamHandler.handleRequest("-1");
+    }
 
     WorkerKafkaStats stats{totalMessages.load(), totalLocal.load(), totalCentral.load()};
     workerKafkaLogger().info(

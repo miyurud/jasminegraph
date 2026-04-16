@@ -104,6 +104,7 @@ class WorkerKafkaConsumer {
     WorkerKafkaConfig   cfg;
     std::map<std::string, JasmineGraphIncrementalLocalStore*>& localStoreMap;
     InstanceStreamHandler streamHandler;  // wraps localStoreMap for edge writes
+     bool temporalOnlyMode_ = false;  // if true, skip native-store writes
 
     // Temporal stores: per owned-partition + one shared central store
     std::map<int, std::unique_ptr<TemporalStore>> localTemporalStores;
