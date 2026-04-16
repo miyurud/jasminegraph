@@ -72,10 +72,9 @@ json Responder::generateResponse(const std::string& query, const json& execution
             break;
 
         responder_logger.info("Retrying LLM response generation in " +
-                              std::to_string(Conts::LLM_RETRY_SLEEP_TIME_S * (attempt + 1)) + " seconds...");
+                              std::to_string(Conts::LLM_RETRY_SLEEP_TIME_S * (++attempt)) + " seconds...");
 
-        std::this_thread::sleep_for(std::chrono::seconds(Conts::LLM_RETRY_SLEEP_TIME_S * (attempt + 1)));
-        attempt++;
+        std::this_thread::sleep_for(std::chrono::seconds(Conts::LLM_RETRY_SLEEP_TIME_S * (attempt)));
     }
 
     if (llmResponse.empty()) {
