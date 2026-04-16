@@ -233,6 +233,9 @@ void WorkerKafkaConsumer::initTemporalStores() {
         workerKafkaLogger().info("[TEMPORAL INIT] snapshotDir accessible: " + snapshotDir);
     }
 
+    uint32_t maxRestoredSnapshotId = 0;
+    bool foundAnySnapshot = false;
+
     for (int p : cfg.ownedPartitions) {
         localTemporalStores[p] = std::make_unique<TemporalStore>(
             cfg.graphId, p,
@@ -254,6 +257,10 @@ void WorkerKafkaConsumer::initTemporalStores() {
             snapshotDir, cfg.graphId, p);
         uint32_t maxId = TemporalStorePersistence::readLatestSnapshotId(metaPath);
         if (maxId != UINT32_MAX) {
+            foundAnySnapshot = true;
+            if (maxId > maxRestoredSnapshotId) {
+                maxRestoredSnapshotId = maxId;
+            }
             std::string bitmapPath = TemporalStorePersistence::generateBitmapFilePath(
                 snapshotDir, cfg.graphId, p);
             if (localTemporalStores[p]->loadBitmapIndexFromDisk(bitmapPath)) {
@@ -272,6 +279,10 @@ void WorkerKafkaConsumer::initTemporalStores() {
             snapshotDir, cfg.graphId, centralPartitionId);
         uint32_t maxCentral = TemporalStorePersistence::readLatestSnapshotId(metaPath);
         if (maxCentral != UINT32_MAX) {
+            foundAnySnapshot = true;
+            if (maxCentral > maxRestoredSnapshotId) {
+                maxRestoredSnapshotId = maxCentral;
+            }
             std::string bitmapPath = TemporalStorePersistence::generateBitmapFilePath(
                 snapshotDir, cfg.graphId, centralPartitionId);
             workerKafkaLogger().info("[TEMPORAL INIT] Restoring central bitmap index: " + bitmapPath);
@@ -287,6 +298,13 @@ void WorkerKafkaConsumer::initTemporalStores() {
             workerKafkaLogger().info("[TEMPORAL INIT] No existing central bitmap index for graph=" +
                                      std::to_string(cfg.graphId) + " — starting fresh");
         }
+    }
+
+    if (foundAnySnapshot) {
+        globalSnapshotId.store(maxRestoredSnapshotId + 1, std::memory_order_relaxed);
+        workerKafkaLogger().info("[TEMPORAL INIT] Restored global snapshot counter to " +
+                                 std::to_string(globalSnapshotId.load()) +
+                                 " for graph=" + std::to_string(cfg.graphId));
     }
 }
 

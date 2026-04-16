@@ -165,6 +165,129 @@ static std::string getTemporalSnapshotDir() {
            "/temporal_snapshots";
 }
 
+static std::string shellQuote(const std::string& value) {
+    std::string quoted = "'";
+    for (char c : value) {
+        if (c == '\'') {
+            quoted += "'\\''";
+        } else {
+            quoted += c;
+        }
+    }
+    quoted += "'";
+    return quoted;
+}
+
+static std::string captureCommandOutput(const std::string& command) {
+    std::string output;
+    FILE* pipe = popen(command.c_str(), "r");
+    if (pipe == nullptr) {
+        return output;
+    }
+
+    char buffer[4096];
+    while (true) {
+        size_t bytesRead = fread(buffer, 1, sizeof(buffer), pipe);
+        if (bytesRead == 0) {
+            break;
+        }
+        output.append(buffer, bytesRead);
+    }
+    pclose(pipe);
+    return output;
+}
+
+static bool copyCommandOutputToFile(const std::string& command, const std::string& filePath) {
+    FILE* pipe = popen(command.c_str(), "r");
+    if (pipe == nullptr) {
+        return false;
+    }
+
+    std::ofstream out(filePath, std::ios::binary);
+    if (!out.is_open()) {
+        pclose(pipe);
+        return false;
+    }
+
+    char buffer[4096];
+    while (true) {
+        size_t bytesRead = fread(buffer, 1, sizeof(buffer), pipe);
+        if (bytesRead == 0) {
+            break;
+        }
+        out.write(buffer, bytesRead);
+    }
+
+    out.close();
+    pclose(pipe);
+    return true;
+}
+
+static std::string sanitizeForFileName(const std::string& input) {
+    std::string output;
+    output.reserve(input.size());
+    for (char c : input) {
+        if (std::isalnum(static_cast<unsigned char>(c)) || c == '.' || c == '-' || c == '_') {
+            output.push_back(c);
+        } else {
+            output.push_back('_');
+        }
+    }
+    return output;
+}
+
+static uint32_t discoverLatestSnapshotIdOnWorker(const JasmineGraphServer::worker& worker, int graphId,
+                                                 const std::string& snapshotDir) {
+    std::string hostTarget = worker.hostname;
+    if (hostTarget.empty() || hostTarget == "localhost" || hostTarget == "127.0.0.1") {
+        return UINT32_MAX;
+    }
+
+    std::string graphPrefix = "graph" + std::to_string(graphId) + "_part";
+    std::string findCommand = "ssh -o BatchMode=yes -o ConnectTimeout=5 " + shellQuote(hostTarget) +
+                              " find " + shellQuote(snapshotDir) +
+                              " -maxdepth 1 -type f -name " + shellQuote(graphPrefix + "*_snapmeta.bin") +
+                              " 2>/dev/null";
+
+    std::string remoteFiles = captureCommandOutput(findCommand);
+    std::stringstream filesStream(remoteFiles);
+    std::string remoteFile;
+    uint32_t maxSnapshotId = UINT32_MAX;
+    bool foundAny = false;
+    size_t fileIndex = 0;
+
+    while (std::getline(filesStream, remoteFile)) {
+        remoteFile = Utils::trim_copy(remoteFile);
+        if (remoteFile.empty()) {
+            continue;
+        }
+
+        std::string tempFile = "/tmp/jg_tmpsn_" + std::to_string(getpid()) + "_" +
+                               sanitizeForFileName(hostTarget) + "_" +
+                               std::to_string(graphId) + "_" + std::to_string(fileIndex++);
+        std::string catCommand = "ssh -o BatchMode=yes -o ConnectTimeout=5 " + shellQuote(hostTarget) +
+                                 " cat " + shellQuote(remoteFile);
+
+        if (!copyCommandOutputToFile(catCommand, tempFile)) {
+            streamHandlerLogger().warn("Failed to fetch snapshot metadata from host " + hostTarget +
+                                       ": " + remoteFile);
+            continue;
+        }
+
+        uint32_t latestId = TemporalStorePersistence::readLatestSnapshotId(tempFile);
+        remove(tempFile.c_str());
+        if (latestId == UINT32_MAX) {
+            continue;
+        }
+
+        if (!foundAny || latestId > maxSnapshotId) {
+            maxSnapshotId = latestId;
+            foundAny = true;
+        }
+    }
+
+    return foundAny ? maxSnapshotId : UINT32_MAX;
+}
 StreamHandler::StreamHandler(KafkaConnector *kstream, int numberOfPartitions,
                              vector<DataPublisher *> &workerClients, SQLiteDBInterface* sqlite,
                              int graphId, bool isDirected, spt::Algorithms algorithms,
@@ -295,6 +418,18 @@ StreamHandler::StreamHandler(KafkaConnector *kstream, int numberOfPartitions,
                     } else {
                         streamHandlerLogger().error(
                             "Failed to load central bitmap index for graph " + std::to_string(graphId));
+                    }
+                }
+            }
+
+            std::vector<JasmineGraphServer::worker> workers = JasmineGraphServer::getInstance()->workers(
+                workerClients.size());
+            for (const auto& worker : workers) {
+                uint32_t remoteSnapshotId = discoverLatestSnapshotIdOnWorker(worker, graphId, snapshotDir);
+                if (remoteSnapshotId != UINT32_MAX) {
+                    foundAnySnapshot = true;
+                    if (remoteSnapshotId > maxGlobalSnapshotId) {
+                        maxGlobalSnapshotId = remoteSnapshotId;
                     }
                 }
             }
