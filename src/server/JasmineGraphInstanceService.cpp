@@ -5054,8 +5054,7 @@ static void query_start_command(int connFd, InstanceHandler& instanceHandler,
     }
     masterIP = masterIp;
 
-
-     content_length = 0;
+    content_length = 0;
     instance_logger.info("Waiting for content length");
      return_status = recv(connFd, &content_length, sizeof(int), 0);
     if (return_status > 0) {
@@ -5464,7 +5463,7 @@ static void graphrag_command(int connFd, InstanceHandler& instanceHandler,
     agentRequestCtx.graphId = graphId;
 
     std::string planStr = AgentProtocol::getPlan(agentRequestCtx);
-    instance_logger.info("Executing Agent Plan" + planStr);
+    instance_logger.info("Executing Agent Plan: " + planStr);
 
     json jsonPlan = json::parse(planStr);
     DecodedPlan decodedPlan = PlanDecoder::decode(jsonPlan);
@@ -5545,13 +5544,13 @@ static void graphrag_command(int connFd, InstanceHandler& instanceHandler,
             }
 
             for (auto& t : workerThreads)
-                if (t.joinable())
+                if (t.joinable()) {
                     t.join();
-
+                }
             for (auto& t : readThreads)
-                if (t.joinable())
+                if (t.joinable()) {
                     t.join();
-
+                }
             std::sort(results.begin(), results.end(),
                       [](const json& a, const json& b) { return a["score"] > b["score"]; });
 
