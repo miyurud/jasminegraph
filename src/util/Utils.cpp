@@ -1187,7 +1187,7 @@ bool Utils::uploadFileToWorker(std::string host, int port, int dataPort, int gra
         return false;
     }
 
-    util_logger.debug("Going to send file" + filePath + "/" + fileName + "through file transfer service to worker");
+    util_logger.debug("Going to send file" + filePath + "/" + fileName + " through file transfer service to worker");
     Utils::sendFileThroughService(host, dataPort, fileName, filePath);
 
     string response;
@@ -1892,7 +1892,7 @@ bool Utils::sendSbsQueryPlanToWorker(std::string host, int port, std::string mas
   util_logger.debug("Received ACK after partitionId");
 
   // --- Step 4: Send query ---
-  util_logger.debug("semantic beam searcg" + query);
+  util_logger.debug("semantic beam search: " + query);
   length = htonl(query.size());
   util_logger.debug("Sending query length: " +
                                              std::to_string(ntohl(length)));
@@ -1911,23 +1911,7 @@ bool Utils::sendSbsQueryPlanToWorker(std::string host, int port, std::string mas
     close(sockfd);
     return false;
   }
-
-  // int counter = 0;
-  // string workers = "";
-  // // --- Step 4: Send workers ---
-  // for (JasmineGraphServer::worker worker :
-  //      JasmineGraphServer::getWorkers(noOfPartitions)) {
-  //   counter++;
-  //   util_logger.debug("count " +
-  //                                             std::to_string(counter));
-  //   workers += worker.hostname + ":" + std::to_string(worker.port) + ":" +
-  //              std::to_string(worker.dataPort);
-  //   // append , only if not last
-  //   if (counter < noOfPartitions) {
-  //     workers += ",";
-  //   }
-  // }
-
+    
   util_logger.debug("semantic beam search" + workerListString);
   length = htonl(workerListString.size());
   util_logger.debug("Sending workers length: " +
@@ -1971,10 +1955,6 @@ bool Utils::sendSbsQueryPlanToWorker(std::string host, int port, std::string mas
           "Error while receiving start command: " + start2_msg);
       break;
     }
-
-
-
-
 
     send(sockfd, JasmineGraphInstanceProtocol::QUERY_DATA_ACK.c_str(),
          JasmineGraphInstanceProtocol::QUERY_DATA_ACK.length(), 0);
@@ -2432,7 +2412,7 @@ bool Utils::sendDataFromWorkerToWorker(string masterIP, int graphID, string part
     }
     auto now = std::chrono::high_resolution_clock::now();
     auto elapsed = std::chrono::duration_cast<std::chrono::seconds>(now - startTime);
-    util_logger.debug(" Time Taken: " + std::to_string(elapsed.count()) + " seconds");
+    util_logger.debug("Time Taken: " + std::to_string(elapsed.count()) + " seconds");
     return true;
 }
 
@@ -2515,7 +2495,7 @@ std::vector<std::string> Utils::getUniqueLLMRunners(const std::string& hostnameP
             // Make sure this colon is AFTER the scheme (not the one in https://)
             if (lastColon != std::string::npos && lastColon > token.find("://") + 2) {
                 token = token.substr(0, lastColon);
-                util_logger.info("HTTPS rule applied, stripped to: " + token);
+                util_logger.debug("HTTPS rule applied, stripped to: " + token);
             }
         } else {
             // ===== Count colons ignoring the scheme =====
@@ -2527,7 +2507,7 @@ std::vector<std::string> Utils::getUniqueLLMRunners(const std::string& hostnameP
                 if (token[i] == ':')
                     ++colonCount;
             }
-            util_logger.info("ColonCount: " + std::to_string(colonCount));
+            util_logger.debug("ColonCount: " + std::to_string(colonCount));
             // ===== Apply your rules =====
             if (colonCount == 2) {
                 // Remove rightmost colon and part after it
@@ -2535,7 +2515,6 @@ std::vector<std::string> Utils::getUniqueLLMRunners(const std::string& hostnameP
                 if (lastColon != std::string::npos) {
                     token = token.substr(0, lastColon);
                 }
-                util_logger.info("ColonCount 3");
             }
         }
         util_logger.info("Token: " + token);
