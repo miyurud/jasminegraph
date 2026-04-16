@@ -13,12 +13,13 @@ limitations under the License.
 
 #include "NodeBlock.h"
 
+#include <boost/exception/exception.hpp>
 #include <sstream>
 #include <vector>
 
 #include "../util/logger/Logger.h"
-#include "RelationBlock.h"
 #include "MetaPropertyLink.h"
+#include "RelationBlock.h"
 
 Logger node_block_logger;
 pthread_mutex_t lockSaveNode;
@@ -44,12 +45,20 @@ bool NodeBlock::isInUse() { return this->usage == '\1'; }
 std::string NodeBlock::getLabel() { return std::string(this->label); }
 
 void NodeBlock::setLabel(const char *_label) {
-    strcpy(this->label, _label);
-}
+    node_block_logger.debug("Setting Node Label");
+std::strncpy(this->label, _label, NodeBlock::LABEL_SIZE - 1);
+        this->label[NodeBlock::LABEL_SIZE - 1] = '\0';
+    node_block_logger.debug("Done Setting Node label");
+    }
 
 void NodeBlock::addLabel(char *label) {
     if (this->label == this->id && strlen(label) != 0) {
-        std::strcpy(this->label, label);
+        node_block_logger.debug(this->label);
+        node_block_logger.debug("nodeID: " + std::to_string(this->nodeId));
+        node_block_logger.debug("edgeRef: " + std::to_string(this->edgeRef));
+        node_block_logger.debug(std::to_string(this->addr));
+        std::strncpy(this->label, label, NodeBlock::LABEL_SIZE - 1);
+        this->label[NodeBlock::LABEL_SIZE - 1] = '\0';
         NodeBlock::nodesDB->seekp(this->addr + sizeof(this->usage) + sizeof(this->nodeId) + sizeof(this->edgeRef) +
                                   sizeof(this->centralEdgeRef) + sizeof(this->edgeRefPID) + sizeof(this->propRef) +
                                   sizeof(this->metaPropRef));
@@ -60,13 +69,21 @@ void NodeBlock::addLabel(char *label) {
 
 void NodeBlock::save() {
     //    pthread_mutex_lock(&lockSaveNode);
-    char _label[PropertyLink::MAX_VALUE_SIZE] = {0};
-    std::strcpy(_label, id.c_str());
+    node_block_logger.debug("Saving Node Block");
+char _label[PropertyLink::MAX_VALUE_SIZE] = {0};
+if (!id.empty()) {
+    std::strncpy(_label, id.c_str(), PropertyLink::MAX_VALUE_SIZE - 1);
+    _label[PropertyLink::MAX_VALUE_SIZE - 1] = '\0';
+}
 
-    bool isSmallLabel = id.length() <= sizeof(label) * 2;
-        if (isSmallLabel) {
-            std::strcpy(this->label, this->id.c_str());
-        }
+    node_block_logger.debug("Copied label to buffer:");
+
+bool isSmallLabel = id.length() < sizeof(this->label);
+if (isSmallLabel) {
+    std::strncpy(this->label, this->id.c_str(), sizeof(this->label) - 1);
+    this->label[sizeof(this->label) - 1] = '\0';
+}
+
     NodeBlock::nodesDB->seekp(this->addr);
     NodeBlock::nodesDB->put(this->usage);                                                                       // 1
     NodeBlock::nodesDB->write(reinterpret_cast<char*>(&(this->nodeId)), sizeof(this->nodeId));                  // 4
@@ -82,6 +99,7 @@ void NodeBlock::save() {
         if (!isSmallLabel) {
             this->addProperty("label", _label);
         }
+    node_block_logger.debug("Persisted Node Block");
 }
 
 void NodeBlock::addProperty(std::string name, const char* value) {
@@ -93,9 +111,8 @@ void NodeBlock::addProperty(std::string name, const char* value) {
         if (newLink) {
             this->propRef = newLink->blockAddress;
             node_block_logger.debug("Created new PropertyLink at address: " + std::to_string(newLink->blockAddress));
-            // If it was an empty prop link before inserting, Then update the property reference of this node
-            // block
-            //            node_block_logger.info("propRef = " + std::to_string(this->propRef));
+
+
             NodeBlock::nodesDB->seekp(this->addr +sizeof(this->usage) +sizeof(this->nodeId) + sizeof(this->edgeRef) +
                                       sizeof(this->centralEdgeRef) + sizeof(this->edgeRefPID));
             NodeBlock::nodesDB->write(reinterpret_cast<char*>(&(this->propRef)), sizeof(this->propRef));
@@ -145,8 +162,10 @@ bool NodeBlock::updateLocalRelation(RelationBlock* newRelation, bool relocateHea
     unsigned int edgeReferenceAddress = newRelation->addr;
     unsigned int thisAddress = this->addr;
     RelationBlock* currentHead = this->getLocalRelationHead();
+
     if (relocateHead) {  // Insert new relation link to the head of the link list
         if (currentHead) {
+            node_block_logger.debug("Relocating local relation head at address: " + std::to_string(thisAddress));
             if (thisAddress == currentHead->source.address) {
                 currentHead->setLocalPreviousSource(newRelation->addr);
             } else if (thisAddress == currentHead->destination.address) {
@@ -164,6 +183,7 @@ bool NodeBlock::updateLocalRelation(RelationBlock* newRelation, bool relocateHea
                     " new relation does not contain current node in its source or destination");
             }
         }
+        node_block_logger.debug("Updated local relation at address: " + std::to_string(thisAddress));
         return this->setLocalRelationHead(*newRelation);
     }
     RelationBlock* currentRelation = currentHead;
@@ -256,16 +276,45 @@ RelationBlock* NodeBlock::getCentralRelationHead() {
 };
 
 bool NodeBlock::setLocalRelationHead(RelationBlock newRelation) {
-    unsigned int edgeReferenceAddress = newRelation.addr;
-    int edgeReferenceOffset = sizeof(this->usage) + sizeof(this->nodeId);
-    NodeBlock::nodesDB->seekp(this->addr + edgeReferenceOffset);
-    if (!NodeBlock::nodesDB->write(reinterpret_cast<char*>(&(edgeReferenceAddress)), sizeof(unsigned int))) {
-        node_block_logger.error("ERROR: Error while updating edge reference address of " +
-                                std::to_string(edgeReferenceAddress) + " for node " + std::to_string(this->addr));
+    try {
+        // NodeBlock::nodesDB->clear();  // clear old errors
+
+        unsigned int edgeReferenceAddress = newRelation.addr;
+        int edgeReferenceOffset = sizeof(this->usage) + sizeof(this->nodeId);
+        NodeBlock::nodesDB->seekp(this->addr + edgeReferenceOffset);
+        if (!NodeBlock::nodesDB->good()) {
+            node_block_logger.error("ERROR: Error while updating edge reference address of " +
+                                    std::to_string(edgeReferenceAddress) + " for node " + std::to_string(this->addr));
+            return false;
+        }
+        if (!NodeBlock::nodesDB->write(reinterpret_cast<char*>(&(edgeReferenceAddress)), sizeof(unsigned int))) {
+            node_block_logger.error("ERROR: Error while updating edge reference address of " +
+                                    std::to_string(edgeReferenceAddress) + " for node " + std::to_string(this->addr));
+            return false;
+        }
+
+        if (!NodeBlock::nodesDB->good()) {
+            node_block_logger.error("write failed for node addr " +
+                                    std::to_string(this->addr));
+            return false;
+        }
+
+        node_block_logger.debug("Setting the Head for node reference: " + std::to_string(this->addr) + " for: " +
+            std::to_string(nodeId) + " usage: " + std::to_string(usage));
+        node_block_logger.debug("Setting the Head for edge reference: " + std::to_string(newRelation.addr) + " at: " +
+            std::to_string(edgeReferenceOffset));
+        this->edgeRef = edgeReferenceAddress;
+        NodeBlock::nodesDB->flush();  // Sync the file with in-memory stream
+        if (!NodeBlock::nodesDB->good()) {
+            node_block_logger.error("Flush failed for node addr " +
+                                    std::to_string(this->addr));
+            return false;
+        }
+    } catch (std::exception& e) {
+        node_block_logger.error("Error while setting the Head for node " + std::to_string(this->addr) +
+            ": " + e.what());
         return false;
     }
-    NodeBlock::nodesDB->flush();  // Sync the file with in-memory stream
-    this->edgeRef = edgeReferenceAddress;
     return true;
 }
 

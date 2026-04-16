@@ -22,7 +22,8 @@
 
 #include "../../util/logger/Logger.h"
 #include "../../util/Conts.h"
-
+#include <nlohmann/json.hpp>
+using namespace nlohmann;
 Logger streaming_partitioner_logger;
 
 partitionedEdge Partitioner::addEdge(std::pair<std::string, std::string> edge) {
@@ -73,7 +74,7 @@ partitionedEdge Partitioner::ldgPartitioning(std::pair<std::string, std::string>
 
         if (firstVertextNeighbors.size() != 0) {
             if (firstVertextNeighbors.find(edge.second) != firstVertextNeighbors.end())
-                return {{edge.first, id}, {edge.second, id}};  // Nothing to do, edge already exisit
+                return {{edge.first, id}, {edge.second, id}};  // Nothing to do, edge already exist
         }
 
         partitionScoresFirst[id] = firstVertextInterCost * weightedGreedy;
@@ -81,7 +82,7 @@ partitionedEdge Partitioner::ldgPartitioning(std::pair<std::string, std::string>
         if (secondVertextNeighbors.size() != 0) {
             if (secondVertextNeighbors.find(edge.second) != secondVertextNeighbors.end())
                 return {{edge.first, id},
-                        {edge.second, id}};  // Nothing to do, edge already exisit, Because of the symmetrical nature of
+                        {edge.second, id}};  // Nothing to do, edge already exist, Because of the symmetrical nature of
                                              // undirected edgelist implementation this is already checked when finding
                                              // neighbors of the first edge above
         }
@@ -202,6 +203,12 @@ partitionedEdge Partitioner::fennelPartitioning(std::pair<std::string, std::stri
             if (firstVertextNeighbors.find(edge.second) != firstVertextNeighbors.end())
                 return {{edge.first, id}, {edge.second, id}};  // Nothing to do, edge already exisit
         }
+        if (secondVertextNeighbors.size() != 0) {
+            if (secondVertextNeighbors.find(edge.first) != secondVertextNeighbors.end())
+                return {{edge.first, id},
+                        {edge.second, id}};  // Nothing to do, edge already exisit, Because of the symmetrical nature of
+        }
+
 
         partitionScoresFirst[id] = firstVertextInterCost - firstVertextIntraCost;
         partitionScoresSecond[id] = secondVertextInterCost - secondVertextIntraCost;
@@ -213,14 +220,9 @@ partitionedEdge Partitioner::fennelPartitioning(std::pair<std::string, std::stri
     int firstIndex =
         distance(partitionScoresFirst.begin(), max_element(partitionScoresFirst.begin(), partitionScoresFirst.end()));
 
-    int secondIndex = distance(partitionScoresSecond.begin(),
-                               max_element(partitionScoresSecond.begin(), partitionScoresSecond.end()));
-    if (firstIndex == secondIndex) {
+    int secondIndex = firstIndex;  // minimize edge cuts
         partitions[firstIndex].addEdge(edge);
-    } else {
-        partitions[firstIndex].addToEdgeCuts(edge.first, edge.second, secondIndex);
-        partitions[secondIndex].addToEdgeCuts(edge.second, edge.first, firstIndex);
-    }
+
     this->totalEdges += 1;
     return {{edge.first, firstIndex}, {edge.second, secondIndex}};
 }

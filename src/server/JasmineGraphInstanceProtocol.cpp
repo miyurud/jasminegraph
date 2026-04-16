@@ -13,6 +13,8 @@ limitations under the License.
 
 #include "JasmineGraphInstanceProtocol.h"
 
+#include <vector>
+
 const string JasmineGraphInstanceProtocol::HANDSHAKE = "hske";
 const string JasmineGraphInstanceProtocol::HANDSHAKE_OK = "hske-ok";
 const string JasmineGraphInstanceProtocol::HOST_OK = "hst-ok";
@@ -53,7 +55,7 @@ const string JasmineGraphInstanceProtocol::WORKER_OUT_DEGREE_DISTRIBUTION = "odd
 const string JasmineGraphInstanceProtocol::IN_DEGREE_DISTRIBUTION = "idd";
 const string JasmineGraphInstanceProtocol::WORKER_IN_DEGREE_DISTRIBUTION = "idd-worker";
 const string JasmineGraphInstanceProtocol::WORKER_PAGE_RANK_DISTRIBUTION = "pgrn-worker";
-const string JasmineGraphInstanceProtocol::EGONET = "egont";
+const string JasmineGraphInstanceProtocol::EGO_NET = "egont";
 const string JasmineGraphInstanceProtocol::WORKER_EGO_NET = "egont-worker";
 const string JasmineGraphInstanceProtocol::DP_CENTRALSTORE = "dp-central";
 const string JasmineGraphInstanceProtocol::SEND_CENTRALSTORE_TO_AGGREGATOR = "aggre-copy";
@@ -99,11 +101,15 @@ const string JasmineGraphInstanceProtocol::INITIATE_STREAMING_SERVER = "initiate
 const string JasmineGraphInstanceProtocol::INITIATE_STREAMING_CLIENT = "initiate-streaming-client";
 const string JasmineGraphInstanceProtocol::INITIATE_STREAMING_TRIAN = "initiate-streaming-trian";
 const string JasmineGraphInstanceProtocol::INITIATE_STREAMING_KG_CONSTRUCTION = "initiate-streaming-kg-construction";
+const string JasmineGraphInstanceProtocol::INITIATE_LOCAL_STREAMING_KG_CONSTRUCTION =
+    "initiate-local-streaming-kg-construction";
+
 const string JasmineGraphInstanceProtocol::INITIATE_STREAMING_TUPLE_CONSTRUCTION =
     "initiate-streaming-tuple-extraction";
 const string JasmineGraphInstanceProtocol::SEMANTIC_BEAM_SEARCH = "initiate-semantic-beam-search";
 const string  JasmineGraphInstanceProtocol::CHUNK_STREAM_END = "chunk-stream-end";
 const string  JasmineGraphInstanceProtocol::EXPAND_NODE_BATCH = "semantic_beam_search_expand";
+const string JasmineGraphInstanceProtocol::AGENT_PLAN = "initiate-agent-plan";
 
 
 
@@ -127,3 +133,9 @@ const string JasmineGraphInstanceProtocol::HDFS_STREAM_FILE_NAME_LENGTH_ACK = "h
 const string JasmineGraphInstanceProtocol::HDFS_STREAM_FILE_SIZE_ACK = "hdfs-file-size-ack";
 const string JasmineGraphInstanceProtocol::HDFS_FILE_CHUNK_END_CHK = "hdfs-file-chunk-end-chk";
 const string JasmineGraphInstanceProtocol::HDFS_FILE_CHUNK_END_ACK = "hdfs-file-chunk-end-ack";
+
+
+const vector<string> JasmineGraphInstanceProtocol::MULT_THREADED_CMDS = {JasmineGraphInstanceProtocol::
+    HDFS_LOCAL_STREAM_START, JasmineGraphInstanceProtocol::SEMANTIC_BEAM_SEARCH,
+    JasmineGraphInstanceProtocol::QUERY_START
+};

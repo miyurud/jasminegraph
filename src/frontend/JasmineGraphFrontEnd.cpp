@@ -83,74 +83,77 @@ std::map<int, std::thread::id> activeStreamThreads;           // map graphID →
 std::map<int, std::shared_ptr<std::atomic<bool>>> stopFlags;  // map graphID → stop flag
 
 std::mutex threadMapMutex;
-static void list_command(int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_p);
-static void cypherCommand(std::string masterIP, int connFd, vector<DataPublisher *> &workerClients,
-                          int numberOfPartitions, bool *loop_exit, SQLiteDBInterface *sqlite,
-                          PerformanceSQLiteDBInterface *perfSqlite, JobScheduler *jobScheduler);
-static void semanticBeamSearch(std::string masterIP, int connFd, vector<DataPublisher *> &workerClients,
-                               int numberOfPartitions, bool *loop_exit, SQLiteDBInterface *sqlite,
-                               PerformanceSQLiteDBInterface *perfSqlite, JobScheduler *jobScheduler);
-static void add_rdf_command(std::string masterIP, int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_p);
-static void add_graph_command(std::string masterIP, int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_p);
-static void add_graph_cust_command(std::string masterIP, int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_p);
-static void remove_graph_command(std::string masterIP, int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_p);
+static void list_command(int connFd, SQLiteDBInterface* sqlite, bool* loop_exit_p);
+static void cypherCommand(std::string masterIP, int connFd, vector<DataPublisher*>& workerClients,
+                          int numberOfPartitions, bool* loop_exit, SQLiteDBInterface* sqlite,
+                          PerformanceSQLiteDBInterface* perfSqlite, JobScheduler* jobScheduler);
+static void semanticBeamSearch(std::string masterIP, int connFd, vector<DataPublisher*>& workerClients,
+                               int numberOfPartitions, bool* loop_exit, SQLiteDBInterface* sqlite,
+                               PerformanceSQLiteDBInterface* perfSqlite, JobScheduler* jobScheduler);
+static void agent_plan_command(std::string masterIP, int connFd, vector<DataPublisher*>& workerClients,
+                               int numberOfPartitions, bool* loop_exit, SQLiteDBInterface* sqlite,
+                               PerformanceSQLiteDBInterface* perfSqlite, JobScheduler* jobScheduler);
+static void add_rdf_command(std::string masterIP, int connFd, SQLiteDBInterface* sqlite, bool* loop_exit_p);
+static void add_graph_command(std::string masterIP, int connFd, SQLiteDBInterface* sqlite, bool* loop_exit_p);
+static void add_graph_cust_command(std::string masterIP, int connFd, SQLiteDBInterface* sqlite, bool* loop_exit_p);
+static void remove_graph_command(std::string masterIP, int connFd, SQLiteDBInterface* sqlite, bool* loop_exit_p);
 static void remove_all_graphs_command(std::string masterIP, int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_p);
-static void add_model_command(int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_p);
-static void add_stream_kafka_command(int connFd, std::string &kafka_server_IP, cppkafka::Configuration &configs,
-                                     KafkaConnector *&kstream, thread &input_stream_handler_thread,
-                                     vector<DataPublisher *> &workerClients, int numberOfPartitions,
-                                     SQLiteDBInterface *sqlite, bool *loop_exit_p);
-static void addStreamHDFSCommand(std::string masterIP, int connFd, std::string &hdfsServerIp,
-                                 std::thread &inputStreamHandlerThread, int numberOfPartitions,
-                                 SQLiteDBInterface *sqlite, bool *loop_exit_p);
-static void stop_stream_kafka_command(int connFd, KafkaConnector *kstream, bool *loop_exit_p);
-static void process_dataset_command(int connFd, bool *loop_exit_p);
-static void triangles_command(std::string masterIP, int connFd, SQLiteDBInterface *sqlite,
-                              PerformanceSQLiteDBInterface *perfSqlite, JobScheduler *jobScheduler, bool *loop_exit_p);
-static void streaming_triangles_command(std::string masterIP, int connFd, JobScheduler *jobScheduler, bool *loop_exit_p,
-                                        int numberOfPartitions, bool *strian_exit);
-static void stop_strian_command(int connFd, bool *strian_exit);
-static void vertex_count_command(int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_p);
-static void edge_count_command(int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_p);
-static void merge_command(int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_p);
-static void train_command(int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_p);
-static void in_degree_command(int connFd, bool *loop_exit_p);
-static void out_degree_command(int connFd, bool *loop_exit_p);
-static void page_rank_command(std::string masterIP, int connFd, SQLiteDBInterface *sqlite,
-                              PerformanceSQLiteDBInterface *perfSqlite, JobScheduler *jobScheduler, bool *loop_exit_p);
-static void egonet_command(int connFd, bool *loop_exit_p);
-static void duplicate_centralstore_command(int connFd, bool *loop_exit_p);
-static void predict_command(std::string masterIP, int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_p);
-static void start_remote_worker_command(int connFd, bool *loop_exit_p);
-static void sla_command(int connFd, SQLiteDBInterface *sqlite, PerformanceSQLiteDBInterface *perfSqlite,
-                        bool *loop_exit_p);
+static void add_model_command(int connFd, SQLiteDBInterface* sqlite, bool* loop_exit_p);
+static void add_stream_kafka_command(int connFd, std::string& kafka_server_IP, cppkafka::Configuration& configs,
+                                     KafkaConnector*& kstream, thread& input_stream_handler_thread,
+                                     vector<DataPublisher*>& workerClients, int numberOfPartitions,
+                                     SQLiteDBInterface* sqlite, bool* loop_exit_p);
+static void addStreamHDFSCommand(std::string masterIP, int connFd, std::string& hdfsServerIp,
+                                 std::thread& inputStreamHandlerThread, int numberOfPartitions,
+                                 SQLiteDBInterface* sqlite, bool* loop_exit_p);
+static void stop_stream_kafka_command(int connFd, KafkaConnector* kstream, bool* loop_exit_p);
+static void process_dataset_command(int connFd, bool* loop_exit_p);
+static void triangles_command(std::string masterIP, int connFd, SQLiteDBInterface* sqlite,
+                              PerformanceSQLiteDBInterface* perfSqlite, JobScheduler* jobScheduler, bool* loop_exit_p);
+static void streaming_triangles_command(std::string masterIP, int connFd, JobScheduler* jobScheduler, bool* loop_exit_p,
+                                        int numberOfPartitions, bool* strian_exit);
+static void stop_strian_command(int connFd, bool* strian_exit);
+static void vertex_count_command(int connFd, SQLiteDBInterface* sqlite, bool* loop_exit_p);
+static void edge_count_command(int connFd, SQLiteDBInterface* sqlite, bool* loop_exit_p);
+static void merge_command(int connFd, SQLiteDBInterface* sqlite, bool* loop_exit_p);
+static void train_command(int connFd, SQLiteDBInterface* sqlite, bool* loop_exit_p);
+static void in_degree_command(int connFd, bool* loop_exit_p);
+static void out_degree_command(int connFd, bool* loop_exit_p);
+static void page_rank_command(std::string masterIP, int connFd, SQLiteDBInterface* sqlite,
+                              PerformanceSQLiteDBInterface* perfSqlite, JobScheduler* jobScheduler, bool* loop_exit_p);
+static void egonet_command(int connFd, bool* loop_exit_p);
+static void duplicate_centralstore_command(int connFd, bool* loop_exit_p);
+static void predict_command(std::string masterIP, int connFd, SQLiteDBInterface* sqlite, bool* loop_exit_p);
+static void start_remote_worker_command(int connFd, bool* loop_exit_p);
+static void sla_command(int connFd, SQLiteDBInterface* sqlite, PerformanceSQLiteDBInterface* perfSqlite,
+                        bool* loop_exit_p);
 std::map<int, std::shared_ptr<::KGConstructionRate>> JasmineGraphFrontEnd::kgConstructionRates = {};
-static vector<DataPublisher *> getWorkerClients(SQLiteDBInterface *sqlite) {
-    const vector<Utils::worker> &workerList = Utils::getWorkerList(sqlite);
-    vector<DataPublisher *> workerClients;
+static vector<DataPublisher*> getWorkerClients(SQLiteDBInterface* sqlite) {
+    const vector<Utils::worker>& workerList = Utils::getWorkerList(sqlite);
+    vector<DataPublisher*> workerClients;
     for (int i = 0; i < workerList.size(); i++) {
         Utils::worker currentWorker = workerList.at(i);
         string workerHost = currentWorker.hostname;
         int workerDataPort = std::stoi(currentWorker.dataPort);
         int workerPort = atoi(string(currentWorker.port).c_str());
-        DataPublisher *workerClient = new DataPublisher(workerPort, workerHost, workerDataPort);
+        DataPublisher* workerClient = new DataPublisher(workerPort, workerHost, workerDataPort);
         workerClients.push_back(workerClient);
     }
     return workerClients;
 }
-static size_t WriteCallback(void *contents, size_t size, size_t nmemb, std::string *output) {
+static size_t WriteCallback(void* contents, size_t size, size_t nmemb, std::string* output) {
     size_t totalSize = size * nmemb;
-    output->append((char *)contents, totalSize);
+    output->append((char*)contents, totalSize);
     return totalSize;
 }
 
-void *frontendservicesesion(void *dummyPt) {
-    frontendservicesessionargs *sessionargs = (frontendservicesessionargs *)dummyPt;
+void* frontendservicesesion(void* dummyPt) {
+    frontendservicesessionargs* sessionargs = (frontendservicesessionargs*)dummyPt;
     std::string masterIP = sessionargs->masterIP;
     int connFd = sessionargs->connFd;
-    SQLiteDBInterface *sqlite = sessionargs->sqlite;
-    PerformanceSQLiteDBInterface *perfSqlite = sessionargs->perfSqlite;
-    JobScheduler *jobScheduler = sessionargs->jobScheduler;
+    SQLiteDBInterface* sqlite = sessionargs->sqlite;
+    PerformanceSQLiteDBInterface* perfSqlite = sessionargs->perfSqlite;
+    JobScheduler* jobScheduler = sessionargs->jobScheduler;
     delete sessionargs;
 
     if (JasmineGraphFrontEndCommon::checkServerBusy(&currentFESession, connFd)) {
@@ -166,13 +169,13 @@ void *frontendservicesesion(void *dummyPt) {
     int numberOfPartitions = std::stoi(partitionCount);
     std::string kafka_server_IP;
     cppkafka::Configuration configs;
-    KafkaConnector *kstream;
+    KafkaConnector* kstream;
 
     // Initiate HDFS parameters
     std::string hdfsServerIp;
     hdfsFS fileSystem;
 
-    vector<DataPublisher *> workerClients;
+    vector<DataPublisher*> workerClients;
 
     bool workerClientsInitialized = false;
 
@@ -209,6 +212,11 @@ void *frontendservicesesion(void *dummyPt) {
             workerClientsInitialized = true;
             semanticBeamSearch(masterIP, connFd, workerClients, numberOfPartitions, &loop_exit, sqlite, perfSqlite,
                                jobScheduler);
+        } else if (line.compare(AGENT_PLAN) == 0) {
+            workerClients = getWorkerClients(sqlite);
+            workerClientsInitialized = true;
+            agent_plan_command(masterIP, connFd, workerClients, numberOfPartitions, &loop_exit, sqlite, perfSqlite,
+                               jobScheduler);
         } else if (line.compare(SHTDN) == 0) {
             JasmineGraphServer::shutdown_workers();
             close(connFd);
@@ -234,8 +242,11 @@ void *frontendservicesesion(void *dummyPt) {
         } else if (line.compare(CONSTRUCT_KG) == 0) {
             JasmineGraphFrontEnd::constructKGStreamHDFSCommand(masterIP, connFd, numberOfPartitions, sqlite,
                                                                &loop_exit);
+        } else if (line.compare(CONSTRUCT_KG_LOCAL) == 0) {
+            JasmineGraphFrontEnd::constructKGStreamLocalTXTCommand(masterIP, connFd, numberOfPartitions, sqlite,
+                                                               &loop_exit);
         } else if (line.compare(STOP_CONSTRUCT_KG) == 0) {
-            JasmineGraphFrontEnd::stop_graph_streaming(connFd, &loop_exit);
+            JasmineGraphFrontEnd::stop_graph_streaming(connFd, sqlite, &loop_exit);
         } else if (line.compare(STOP_STREAM_KAFKA) == 0) {
             stop_stream_kafka_command(connFd, kstream, &loop_exit);
         } else if (line.compare(RMGR) == 0) {
@@ -265,7 +276,7 @@ void *frontendservicesesion(void *dummyPt) {
             out_degree_command(connFd, &loop_exit);
         } else if (line.compare(PAGE_RANK) == 0) {
             page_rank_command(masterIP, connFd, sqlite, perfSqlite, jobScheduler, &loop_exit);
-        } else if (line.compare(EGONET) == 0) {
+        } else if (line.compare(EGO_NET) == 0) {
             egonet_command(connFd, &loop_exit);
         } else if (line.compare(DPCNTRL) == 0) {
             duplicate_centralstore_command(connFd, &loop_exit);
@@ -293,8 +304,8 @@ void *frontendservicesesion(void *dummyPt) {
     return NULL;
 }
 
-JasmineGraphFrontEnd::JasmineGraphFrontEnd(SQLiteDBInterface *db, PerformanceSQLiteDBInterface *perfDb,
-                                           std::string masterIP, JobScheduler *jobScheduler) {
+JasmineGraphFrontEnd::JasmineGraphFrontEnd(SQLiteDBInterface* db, PerformanceSQLiteDBInterface* perfDb,
+                                           std::string masterIP, JobScheduler* jobScheduler) {
     this->sqlite = db;
     this->masterIP = masterIP;
     this->perfSqlite = perfDb;
@@ -318,7 +329,7 @@ int JasmineGraphFrontEnd::run() {
         return 0;
     }
 
-    bzero((char *)&svrAdd, sizeof(svrAdd));
+    bzero((char*)&svrAdd, sizeof(svrAdd));
 
     svrAdd.sin_family = AF_INET;
     svrAdd.sin_addr.s_addr = INADDR_ANY;
@@ -331,7 +342,7 @@ int JasmineGraphFrontEnd::run() {
     }
 
     // bind socket
-    if (bind(listenFd, (struct sockaddr *)&svrAdd, sizeof(svrAdd)) < 0) {
+    if (bind(listenFd, (struct sockaddr*)&svrAdd, sizeof(svrAdd)) < 0) {
         frontend_logger.error("Cannot bind on port " + portNo);
         return 0;
     }
@@ -347,7 +358,7 @@ int JasmineGraphFrontEnd::run() {
         frontend_logger.info("Frontend Listening");
 
         // this is where client connects. svr will hang in this mode until client conn
-        connFd = accept(listenFd, (struct sockaddr *)&clntAdd, &len);
+        connFd = accept(listenFd, (struct sockaddr*)&clntAdd, &len);
 
         if (connFd < 0) {
             frontend_logger.error("Cannot accept connection");
@@ -355,7 +366,7 @@ int JasmineGraphFrontEnd::run() {
         }
         frontend_logger.info("Connection successful from " + std::string(inet_ntoa(clntAdd.sin_addr)));
 
-        frontendservicesessionargs *sessionargs = new frontendservicesessionargs;
+        frontendservicesessionargs* sessionargs = new frontendservicesessionargs;
         sessionargs->masterIP = masterIP;
         sessionargs->connFd = connFd;
         sessionargs->sqlite = this->sqlite;
@@ -415,7 +426,7 @@ bool JasmineGraphFrontEnd::areRunningJobsForSameGraph() {
     return true;
 }
 
-static void list_command(int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_p) {
+static void list_command(int connFd, SQLiteDBInterface* sqlite, bool* loop_exit_p) {
     std::stringstream ss;
 
     std::vector<vector<pair<string, string>>> graphData = JasmineGraphFrontEndCommon::getGraphData(sqlite);
@@ -464,13 +475,12 @@ static void list_command(int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_
     }
 }
 
-void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface *sqlite,
-                            PerformanceSQLiteDBInterface *perfSqlite, JobScheduler *jobScheduler) {
-}
+void* frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface* sqlite,
+                            PerformanceSQLiteDBInterface* perfSqlite, JobScheduler* jobScheduler) {}
 
-static void cypherCommand(std::string masterIP, int connFd, vector<DataPublisher *> &workerClients,
-                          int numberOfPartitions, bool *loop_exit, SQLiteDBInterface *sqlite,
-                          PerformanceSQLiteDBInterface *perfSqlite, JobScheduler *jobScheduler) {
+static void cypherCommand(std::string masterIP, int connFd, vector<DataPublisher*>& workerClients,
+                          int numberOfPartitions, bool* loop_exit, SQLiteDBInterface* sqlite,
+                          PerformanceSQLiteDBInterface* perfSqlite, JobScheduler* jobScheduler) {
     string graphId = "Graph ID:";
     int result_wr = write(connFd, graphId.c_str(), graphId.length());
     if (result_wr < 0) {
@@ -594,9 +604,9 @@ static void cypherCommand(std::string masterIP, int connFd, vector<DataPublisher
         *loop_exit = true;
     }
 }
-static void semanticBeamSearch(std::string masterIP, int connFd, vector<DataPublisher *> &workerClients,
-                               int numberOfPartitions, bool *loop_exit, SQLiteDBInterface *sqlite,
-                               PerformanceSQLiteDBInterface *perfSqlite, JobScheduler *jobScheduler) {
+static void semanticBeamSearch(std::string masterIP, int connFd, vector<DataPublisher*>& workerClients,
+                               int numberOfPartitions, bool* loop_exit, SQLiteDBInterface* sqlite,
+                               PerformanceSQLiteDBInterface* perfSqlite, JobScheduler* jobScheduler) {
     frontend_logger.info("Requesting Graph ID from client");
     string graphId = "Graph ID:";
     int result_wr = write(connFd, graphId.c_str(), graphId.length());
@@ -612,7 +622,7 @@ static void semanticBeamSearch(std::string masterIP, int connFd, vector<DataPubl
         return;
     }
     char graphIdResponse[FRONTEND_DATA_LENGTH + 1];
-    memset(graphIdResponse, 0,  FRONTEND_DATA_LENGTH + 1);
+    memset(graphIdResponse, 0, FRONTEND_DATA_LENGTH + 1);
     read(connFd, graphIdResponse, FRONTEND_DATA_LENGTH);
     string user_res_1(graphIdResponse);
     frontend_logger.info("Graph ID received: " + user_res_1);
@@ -634,7 +644,7 @@ static void semanticBeamSearch(std::string masterIP, int connFd, vector<DataPubl
 
     // Get user response.
     char query[FRONTEND_DATA_LENGTH + 1];
-    memset(query, 0,  FRONTEND_DATA_LENGTH + 1);
+    memset(query, 0, FRONTEND_DATA_LENGTH + 1);
     read(connFd, query, FRONTEND_DATA_LENGTH);
     string queryString(query);
     frontend_logger.info("Query received: " + queryString);
@@ -724,7 +734,201 @@ static void semanticBeamSearch(std::string masterIP, int connFd, vector<DataPubl
         *loop_exit = true;
     }
 }
-static void add_rdf_command(std::string masterIP, int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_p) {
+
+static void agent_plan_command(std::string masterIP, int connFd, vector<DataPublisher*>& workerClients,
+                               int numberOfPartitions, bool* loop_exit, SQLiteDBInterface* sqlite,
+                               PerformanceSQLiteDBInterface* perfSqlite, JobScheduler* jobScheduler) {
+    string graphIdPrompt = "Graph ID:";
+    if (write(connFd, graphIdPrompt.c_str(), graphIdPrompt.length()) < 0) {
+        frontend_logger.error("Error writing Graph ID prompt");
+        *loop_exit = true;
+        return;
+    }
+
+    write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
+
+    char graphIdResponse[FRONTEND_DATA_LENGTH + 1];
+    memset(graphIdResponse, 0, FRONTEND_DATA_LENGTH + 1);
+    read(connFd, graphIdResponse, FRONTEND_DATA_LENGTH);
+
+    frontend_logger.debug("Graph Id received" + string(graphIdResponse));
+
+    string queryPrompt = "Input natural language query:";
+    if (write(connFd, queryPrompt.c_str(), queryPrompt.length()) < 0) {
+        frontend_logger.error("Error writing query prompt");
+        *loop_exit = true;
+        return;
+    }
+    write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
+
+    char query[FRONTEND_DATA_LENGTH + 1];
+    memset(query, 0, FRONTEND_DATA_LENGTH + 1);
+    read(connFd, query, FRONTEND_DATA_LENGTH);
+
+    string queryString(query);
+    frontend_logger.debug("Agent query received: " + queryString);
+
+    // -------------LLM Runner-------------
+    std::string llmRunnerMSG = "LLM runner hostname:port:";
+    write(connFd, llmRunnerMSG.c_str(), llmRunnerMSG.length());
+    write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
+
+    char llmRunnerBuf[FRONTEND_DATA_LENGTH + 1];
+    memset(llmRunnerBuf, 0, sizeof(llmRunnerBuf));
+    read(connFd, llmRunnerBuf, FRONTEND_DATA_LENGTH);
+    std::string llmRunner = Utils::trim_copy(llmRunnerBuf);
+
+    frontend_logger.debug("LLM runner(s): " + llmRunner);
+
+    // --------------Inference Engine---------------
+    std::string inferenceMsg = "LLM inference engine? ollama/vllm?";
+    write(connFd, inferenceMsg.c_str(), inferenceMsg.length());
+    write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
+
+    char engineBuf[FRONTEND_DATA_LENGTH + 1];
+    memset(engineBuf, 0, sizeof(engineBuf));
+    read(connFd, engineBuf, FRONTEND_DATA_LENGTH);
+    std::string inferenceEngine = Utils::trim_copy(engineBuf);
+
+    frontend_logger.debug("Inference engine: " + inferenceEngine);
+
+    // ---------------LLM Model---------------
+    std::string modelMsg = "What is the LLM you want to use?:";
+    write(connFd, modelMsg.c_str(), modelMsg.length());
+    write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
+
+    char modelBuf[FRONTEND_DATA_LENGTH + 1];
+    memset(modelBuf, 0, sizeof(modelBuf));
+    read(connFd, modelBuf, FRONTEND_DATA_LENGTH);
+    std::string llmModel = Utils::trim_copy(modelBuf);
+
+    frontend_logger.debug("LLM model: " + llmModel);
+
+    // ---------------Verify Model------------
+    vector<std::string> llmServers = Utils::getUniqueLLMRunners(llmRunner);
+
+    for (auto llmServer : llmServers) {
+        std::string url;
+        bool modelFound = false;
+        std::string endpointPath;
+        if (inferenceEngine == "ollama") {
+            endpointPath = "api/tags";
+        } else if (inferenceEngine == "vllm") {
+            endpointPath = "/v1/models";
+        } else {
+            frontend_logger.error("Unknown inference engine: " + inferenceEngine);
+            std::string msg = "Unknown inference engine '" + inferenceEngine + "'";
+            write(connFd, msg.c_str(), msg.length());
+            write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
+            *loop_exit = true;
+            return;
+        }
+
+        url = Utils::normalizeURL(llmServer, endpointPath);
+        frontend_logger.debug("Final LLM endpoint: " + url);
+
+        CURL* curl = curl_easy_init();
+        if (curl) {
+            std::string response;
+            curl_easy_setopt(curl, CURLOPT_SSLVERSION, CURL_SSLVERSION_DEFAULT);
+            curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 1L);
+            curl_easy_setopt(curl, CURLOPT_SSL_VERIFYHOST, 2L);
+            curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
+            curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, WriteCallback);
+            curl_easy_setopt(curl, CURLOPT_WRITEDATA, &response);
+            curl_easy_setopt(curl, CURLOPT_TIMEOUT, 5L);
+
+            CURLcode res = curl_easy_perform(curl);
+            curl_easy_cleanup(curl);
+
+            if (res != CURLE_OK) {
+                frontend_logger.error("Failed to reach " + inferenceEngine + " server at " + llmServer);
+                std::string msg = "Could not connect to " + inferenceEngine + " server.";
+                write(connFd, msg.c_str(), msg.length());
+                write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
+                *loop_exit = true;
+                return;
+            }
+
+            // --- Check model existence ---
+            if (inferenceEngine == "ollama") {
+                // Ollama returns {"models":[{"name":"llama2"}]}
+                if (response.find("\"name\":\"" + llmModel + "\"") != std::string::npos) {
+                    modelFound = true;
+                }
+            } else if (inferenceEngine == "vllm") {
+                // vLLM returns {"data":[{"id":"mistral"}]}
+                frontend_logger.debug(response);
+                if (response.find("\"id\":\"" + llmModel + "\"") != std::string::npos) {
+                    modelFound = true;
+                }
+            }
+
+            if (!modelFound) {
+                frontend_logger.error("Model '" + llmModel + "' not found on " + inferenceEngine + " server.");
+                std::string msg = "Model '" + llmModel + "' not available on " + inferenceEngine + " server.";
+                write(connFd, msg.c_str(), msg.length());
+                write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
+                *loop_exit = true;
+                return;
+            } else {
+                frontend_logger.info("Verified model '" + llmModel + "' exists on " + inferenceEngine + " server.");
+            }
+        }
+    }
+
+    auto begin = chrono::high_resolution_clock::now();
+
+    JobRequest jobDetails;
+    int uid = JasmineGraphFrontEndCommon::getUid();
+
+    jobDetails.setJobId(std::to_string(uid));
+    jobDetails.setJobType(AGENT_PLAN);
+    jobDetails.setMasterIP(masterIP);
+    jobDetails.setPriority(Conts::HIGH_PRIORITY_DEFAULT_VALUE);
+
+    jobDetails.addParameter("query", queryString);
+    jobDetails.addParameter(Conts::PARAM_KEYS::GRAPH_ID, graphIdResponse);
+    jobDetails.addParameter("llm_runner", llmRunner);
+    jobDetails.addParameter("llm_engine", inferenceEngine);
+    jobDetails.addParameter("llm_model", llmModel);
+    jobDetails.addParameter(Conts::PARAM_KEYS::CATEGORY, Conts::SLA_CATEGORY::LATENCY);
+    jobDetails.addParameter(Conts::PARAM_KEYS::NO_OF_PARTITIONS, std::to_string(numberOfPartitions));
+    jobDetails.addParameter(Conts::PARAM_KEYS::CONN_FILE_DESCRIPTOR, std::to_string(connFd));
+    jobDetails.addParameter(Conts::PARAM_KEYS::LOOP_EXIT_POINTER,
+                            std::to_string(reinterpret_cast<std::uintptr_t>(loop_exit)));
+
+    long graphSLA = JasmineGraphFrontEndCommon::getSLAForGraphId(sqlite, perfSqlite, graphIdResponse, AGENT_PLAN,
+                                                                 Conts::SLA_CATEGORY::LATENCY);
+
+    jobDetails.addParameter(Conts::PARAM_KEYS::GRAPH_SLA, std::to_string(graphSLA));
+
+    if (graphSLA == 0 && JasmineGraphFrontEnd::areRunningJobsForSameGraph()) {
+        jobDetails.addParameter(Conts::PARAM_KEYS::AUTO_CALIBRATION, canCalibrate ? "false" : "true");
+    }
+    jobDetails.addParameter(Conts::PARAM_KEYS::CAN_CALIBRATE, canCalibrate ? "true" : "false");
+
+    jobScheduler->pushJob(jobDetails);
+
+    JobResponse jobResponse = jobScheduler->getResult(jobDetails);
+    std::string errorMessage = jobResponse.getParameter(Conts::PARAM_KEYS::ERROR_MESSAGE);
+
+    if (!errorMessage.empty()) {
+        *loop_exit = true;
+        write(connFd, errorMessage.c_str(), errorMessage.length());
+        write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
+        return;
+    }
+
+    auto end = chrono::high_resolution_clock::now();
+    auto duration = chrono::duration_cast<chrono::milliseconds>(end - begin).count();
+    frontend_logger.info("Agent plan execution time: " + std::to_string(duration) + " ms");
+
+    write(connFd, DONE.c_str(), FRONTEND_COMMAND_LENGTH);
+    write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
+}
+
+static void add_rdf_command(std::string masterIP, int connFd, SQLiteDBInterface* sqlite, bool* loop_exit_p) {
     // add RDF graph
     int result_wr = write(connFd, SEND.c_str(), FRONTEND_COMMAND_LENGTH);
     if (result_wr < 0) {
@@ -800,7 +1004,7 @@ static void add_rdf_command(std::string masterIP, int connFd, SQLiteDBInterface 
 
         metisPartitioner.constructMetisFormat(Conts::GRAPH_TYPE_RDF);
         fullFileList = metisPartitioner.partitioneWithGPMetis("");
-        JasmineGraphServer *server = JasmineGraphServer::getInstance();
+        JasmineGraphServer* server = JasmineGraphServer::getInstance();
         server->uploadGraphLocally(newGraphID, Conts::GRAPH_WITH_ATTRIBUTES, fullFileList, masterIP);
         Utils::deleteDirectory(Utils::getHomeDir() + "/.jasminegraph/tmp/" + to_string(newGraphID));
         Utils::deleteDirectory("/tmp/" + std::to_string(newGraphID));
@@ -821,7 +1025,7 @@ static void add_rdf_command(std::string masterIP, int connFd, SQLiteDBInterface 
     }
 }
 
-static void add_graph_command(std::string masterIP, int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_p) {
+static void add_graph_command(std::string masterIP, int connFd, SQLiteDBInterface* sqlite, bool* loop_exit_p) {
     int result_wr = write(connFd, SEND.c_str(), FRONTEND_COMMAND_LENGTH);
     if (result_wr < 0) {
         frontend_logger.error("Error writing to socket");
@@ -894,7 +1098,7 @@ static void add_graph_command(std::string masterIP, int connFd, SQLiteDBInterfac
             fullFileList = partitioner.partitioneWithGPMetis(partitionCount);
         }
         frontend_logger.info("Upload done");
-        JasmineGraphServer *server = JasmineGraphServer::getInstance();
+        JasmineGraphServer* server = JasmineGraphServer::getInstance();
         server->uploadGraphLocally(newGraphID, Conts::GRAPH_TYPE_NORMAL, fullFileList, masterIP);
         Utils::deleteDirectory(Utils::getHomeDir() + "/.jasminegraph/tmp/" + to_string(newGraphID));
         JasmineGraphFrontEndCommon::getAndUpdateUploadTime(to_string(newGraphID), sqlite);
@@ -914,7 +1118,7 @@ static void add_graph_command(std::string masterIP, int connFd, SQLiteDBInterfac
     }
 }
 
-static void add_graph_cust_command(std::string masterIP, int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_p) {
+static void add_graph_cust_command(std::string masterIP, int connFd, SQLiteDBInterface* sqlite, bool* loop_exit_p) {
     string message = "Select a custom graph upload option\r\n";
     int result_wr = write(connFd, message.c_str(), message.size());
     if (result_wr < 0) {
@@ -1064,7 +1268,7 @@ static void add_graph_cust_command(std::string masterIP, int connFd, SQLiteDBInt
 
         // Graph type should be changed to identify graphs with attributes
         // because this graph type has additional attribute files to be uploaded
-        JasmineGraphServer *server = JasmineGraphServer::getInstance();
+        JasmineGraphServer* server = JasmineGraphServer::getInstance();
         server->uploadGraphLocally(newGraphID, Conts::GRAPH_WITH_ATTRIBUTES, fullFileList, masterIP);
         Utils::deleteDirectory(Utils::getHomeDir() + "/.jasminegraph/tmp/" + to_string(newGraphID));
         Utils::deleteDirectory("/tmp/" + std::to_string(newGraphID));
@@ -1086,7 +1290,7 @@ static void add_graph_cust_command(std::string masterIP, int connFd, SQLiteDBInt
     }
 }
 
-static void remove_graph_command(std::string masterIP, int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_p) {
+static void remove_graph_command(std::string masterIP, int connFd, SQLiteDBInterface* sqlite, bool* loop_exit_p) {
     int result_wr = write(connFd, SEND.c_str(), FRONTEND_COMMAND_LENGTH);
     if (result_wr < 0) {
         frontend_logger.error("Error writing to socket");
@@ -1210,7 +1414,7 @@ static void remove_all_graphs_command(std::string masterIP, int connFd, SQLiteDB
     }
 }
 
-static void add_model_command(int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_p) {
+static void add_model_command(int connFd, SQLiteDBInterface* sqlite, bool* loop_exit_p) {
     // TODO add error handling
     int result_wr = write(connFd, SEND.c_str(), FRONTEND_COMMAND_LENGTH);
     if (result_wr < 0) {
@@ -1286,10 +1490,10 @@ static void add_model_command(int connFd, SQLiteDBInterface *sqlite, bool *loop_
     }
 }
 
-static void add_stream_kafka_command(int connFd, std::string &kafka_server_IP, cppkafka::Configuration &configs,
-                                     KafkaConnector *&kstream, thread &input_stream_handler_thread,
-                                     vector<DataPublisher *> &workerClients, int numberOfPartitions,
-                                     SQLiteDBInterface *sqlite, bool *loop_exit_p) {
+static void add_stream_kafka_command(int connFd, std::string& kafka_server_IP, cppkafka::Configuration& configs,
+                                     KafkaConnector*& kstream, thread& input_stream_handler_thread,
+                                     vector<DataPublisher*>& workerClients, int numberOfPartitions,
+                                     SQLiteDBInterface* sqlite, bool* loop_exit_p) {
     string exist = "Do you want to stream into existing graph(y/n) ? ";
     int result_wr = write(connFd, exist.c_str(), exist.length());
     if (result_wr < 0) {
@@ -1480,7 +1684,7 @@ static void add_stream_kafka_command(int connFd, std::string &kafka_server_IP, c
     // Get user response.
     string default_kafka = Utils::getFrontendInput(connFd);
     //          use default kafka consumer details
-    string group_id =  Conts::KAFKA_GROUP_ID;  // TODO(sakeerthan): MOVE TO CONSTANT LATER
+    string group_id = Conts::KAFKA_GROUP_ID;
     if (default_kafka == "y") {
         kafka_server_IP = Utils::getJasmineGraphProperty("org.jasminegraph.server.streaming.kafka.host");
         configs = {
@@ -1571,7 +1775,7 @@ static void add_stream_kafka_command(int connFd, std::string &kafka_server_IP, c
     // Subscribe to the Kafka topic.
     kstream->Subscribe(topic_name_s);
     // Create the StreamHandler object.
-    StreamHandler *stream_handler = new StreamHandler(kstream, numberOfPartitions, workerClients, sqlite, stoi(graphId),
+    StreamHandler* stream_handler = new StreamHandler(kstream, numberOfPartitions, workerClients, sqlite, stoi(graphId),
                                                       direction == Conts::DIRECTED, spt::getPartitioner(partitionAlgo));
 
     if (existingGraph != "y") {
@@ -1595,9 +1799,9 @@ static void add_stream_kafka_command(int connFd, std::string &kafka_server_IP, c
     input_stream_handler_thread = thread(&StreamHandler::listen_to_kafka_topic, stream_handler);
 }
 
-void addStreamHDFSCommand(std::string masterIP, int connFd, std::string &hdfsServerIp,
-                          std::thread &inputStreamHandlerThread, int numberOfPartitions, SQLiteDBInterface *sqlite,
-                          bool *loop_exit_p) {
+void addStreamHDFSCommand(std::string masterIP, int connFd, std::string& hdfsServerIp,
+                          std::thread& inputStreamHandlerThread, int numberOfPartitions, SQLiteDBInterface* sqlite,
+                          bool* loop_exit_p) {
     std::string hdfsPort;
     std::string message1 = "Do you want to use the default HDFS server(y/n)?";
     int resultWr = write(connFd, message1.c_str(), message1.length());
@@ -1618,7 +1822,7 @@ void addStreamHDFSCommand(std::string masterIP, int connFd, std::string &hdfsSer
     read(connFd, userRes, FRONTEND_DATA_LENGTH);
     std::string userResS(userRes);
     userResS = Utils::trim_copy(userResS);
-    for (char &c : userResS) {
+    for (char& c : userResS) {
         c = tolower(c);
     }
 
@@ -1651,7 +1855,7 @@ void addStreamHDFSCommand(std::string masterIP, int connFd, std::string &hdfsSer
         frontend_logger.info("Reading HDFS configuration file: " + filePathS);
 
         std::vector<std::string> vec = Utils::getFileContent(filePathS);
-        for (const auto &item : vec) {
+        for (const auto& item : vec) {
             if (item.length() > 0 && !(item.rfind("#", 0) == 0)) {
                 std::vector<std::string> vec2 = Utils::split(item, '=');
                 if (vec2.size() == 2) {
@@ -1694,7 +1898,7 @@ void addStreamHDFSCommand(std::string masterIP, int connFd, std::string &hdfsSer
     std::string hdfsFilePathS(hdfsFilePath);
     hdfsFilePathS = Utils::trim_copy(hdfsFilePathS);
 
-    HDFSConnector *hdfsConnector = new HDFSConnector(hdfsServerIp, hdfsPort);
+    HDFSConnector* hdfsConnector = new HDFSConnector(hdfsServerIp, hdfsPort);
 
     if (!hdfsConnector->isPathValid(hdfsFilePathS)) {
         frontend_logger.error("Invalid HDFS file path: " + hdfsFilePathS);
@@ -1772,7 +1976,7 @@ void addStreamHDFSCommand(std::string masterIP, int connFd, std::string &hdfsSer
 
     int newGraphID = sqlite->runInsert(sqlStatement);
     frontend_logger.info("Created graph ID: " + std::to_string(newGraphID));
-    HDFSStreamHandler *streamHandler =
+    HDFSStreamHandler* streamHandler =
         new HDFSStreamHandler(hdfsConnector->getFileSystem(), hdfsFilePathS, numberOfPartitions, newGraphID, sqlite,
                               masterIP, directed, isEdgeListType);
     frontend_logger.info("Started listening to " + hdfsFilePathS);
@@ -1804,7 +2008,7 @@ void addStreamHDFSCommand(std::string masterIP, int connFd, std::string &hdfsSer
 }
 
 bool JasmineGraphFrontEnd::constructKGStreamHDFSCommand(std::string masterIP, int connFd, int numberOfPartitions,
-                                                        SQLiteDBInterface *sqlite, bool *loop_exit_p) {
+                                                        SQLiteDBInterface* sqlite, bool* loop_exit_p) {
     std::string hdfsPort;
     std::string hdfsServerIp;
     std::string message1 = "Do you want to use the default HDFS server(y/n)?";
@@ -1826,7 +2030,7 @@ bool JasmineGraphFrontEnd::constructKGStreamHDFSCommand(std::string masterIP, in
     read(connFd, userRes, FRONTEND_DATA_LENGTH);
     std::string userResS(userRes);
     userResS = Utils::trim_copy(userResS);
-    for (char &c : userResS) {
+    for (char& c : userResS) {
         c = tolower(c);
     }
 
@@ -1905,7 +2109,46 @@ bool JasmineGraphFrontEnd::constructKGStreamHDFSCommand(std::string masterIP, in
     std::string hdfsFilePathS(hdfsFilePath);
     hdfsFilePathS = Utils::trim_copy(hdfsFilePathS);
 
-    HDFSConnector *hdfsConnector = new HDFSConnector(hdfsServerIp, hdfsPort);
+    CURL* curl = curl_easy_init();
+    if (!curl) {
+        frontend_logger.error("Failed to initialize CURL");
+        *loop_exit_p = true;
+        return false;
+    }
+
+    std::string url =
+        "https://" + hdfsServerIp + ":9870/webhdfs/v1/?op=GETHOMEDIRECTORY";
+
+    long http_code = 0;
+
+    curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
+    curl_easy_setopt(curl, CURLOPT_NOBODY, 1L);          // no body
+    curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT, 10L);   // wait up to 10s to connect
+    curl_easy_setopt(curl, CURLOPT_TIMEOUT, 30L);        // max 30s for whole request
+    curl_easy_setopt(curl, CURLOPT_FAILONERROR, 1L);    // HTTP 4xx/5xx => error
+    curl_easy_setopt(curl, CURLOPT_NOSIGNAL, 1L);       // avoid DNS delays
+
+    CURLcode res = curl_easy_perform(curl);
+    curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &http_code);
+    curl_easy_cleanup(curl);
+
+    // Immediate failure
+    if (res != CURLE_OK || http_code == 0) {
+        frontend_logger.error(
+            "HDFS file System Not reachable at: " +
+            hdfsServerIp + " port: " + hdfsPort);
+        frontend_logger.error("CURL response code: " +
+                                               std::to_string(res));
+        std::string error_message = "HDFS file System Not reachable.";
+        write(connFd, error_message.c_str(), error_message.length());
+        write(connFd,
+              Conts::CARRIAGE_RETURN_NEW_LINE.c_str(),
+              Conts::CARRIAGE_RETURN_NEW_LINE.size());
+
+        *loop_exit_p = true;
+        return false;
+    }
+    HDFSConnector* hdfsConnector = new HDFSConnector(hdfsServerIp, hdfsPort);
 
     if (!hdfsConnector->isPathValid(hdfsFilePathS)) {
         frontend_logger.error("Invalid HDFS file path: " + hdfsFilePathS);
@@ -1919,11 +2162,15 @@ bool JasmineGraphFrontEnd::constructKGStreamHDFSCommand(std::string masterIP, in
 
     std::string path = "hdfs:" + hdfsFilePathS;
     double_t total_file_size = hdfsGetPathInfo(hdfsConnector->getFileSystem(), hdfsFilePathS.c_str())->mSize;
-    std::time_t time = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
-    std::string uploadStartTime = ctime(&time);
+    std::time_t now = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
+    struct tm localTime;
+    localtime_r(&now, &localTime);  // thread-safe version of localtime()
+    char buffer[100];
+    strftime(buffer, sizeof(buffer), "%Y-%m-%d %H:%M:%S", &localTime);
+    std::string uploadStartTime(buffer);
+
 
     // 2. Prepare new graph insertion
-    std::time_t now = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
     uploadStartTime.erase(uploadStartTime.find_last_not_of(Conts::CARRIAGE_RETURN_NEW_LINE) + 1);  // remove newline
 
     std::string llmRunnerMSG = "LLM runner hostname:port: ";
@@ -1946,7 +2193,13 @@ bool JasmineGraphFrontEnd::constructKGStreamHDFSCommand(std::string masterIP, in
     std::string hostnamePortS(hostnamePort);
     hostnamePortS = Utils::trim_copy(hostnamePortS);
 
-    frontend_logger.info("Recieved LLM runnners: " + hostnamePortS);
+    if (hostnamePortS.find("exit") != std::string::npos) {
+        *loop_exit_p = true;
+        return false;
+    }
+
+
+    frontend_logger.info("Received LLM runners: " + hostnamePortS);
 
     std::string llmInferenceMSG = "LLM inference engine? ollama/vllm? ";
     resultWr = write(connFd, llmInferenceMSG.c_str(), llmInferenceMSG.length());
@@ -1970,6 +2223,49 @@ bool JasmineGraphFrontEnd::constructKGStreamHDFSCommand(std::string masterIP, in
 
     frontend_logger.info("received Inference Engine: " + llmInferenceEngineS);
 
+    vector<std::string> llmServers = Utils::getUniqueLLMRunners(hostnamePortS);
+
+    for (auto llmServer : llmServers) {
+        std::string url;
+        bool modelFound = false;
+        std::string endpointPath;
+        if (llmInferenceEngineS == "ollama") {
+            endpointPath = "api/tags";
+        } else if (llmInferenceEngineS == "vllm") {
+            endpointPath = "/v1/models";
+        } else {
+            std::string msg = "Unknown inference engine '" + llmInferenceEngineS + "'";
+            frontend_logger.error(msg);
+            write(connFd, msg.c_str(), msg.length());
+            write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
+            *loop_exit_p = true;
+            return false;
+        }
+
+        url = Utils::normalizeURL(llmServer, endpointPath);
+        frontend_logger.info("Final LLM endpoint: " + url);
+
+        CURL* curl = curl_easy_init();
+        if (curl) {
+            std::string response;
+            curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
+            curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, WriteCallback);
+            curl_easy_setopt(curl, CURLOPT_WRITEDATA, &response);
+            curl_easy_setopt(curl, CURLOPT_TIMEOUT, 5L);
+
+            CURLcode res = curl_easy_perform(curl);
+            curl_easy_cleanup(curl);
+
+            if (res != CURLE_OK) {
+                frontend_logger.error("Failed to reach " + llmInferenceEngineS + " server at " + llmServer);
+                std::string msg = "Could not connect to " + llmInferenceEngineS + " server.";
+                write(connFd, msg.c_str(), msg.length());
+                write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
+                *loop_exit_p = true;
+                return false;
+            }
+        }
+    }
     std::string LLM_MSG = "What is the LLM you want to use?:";
     resultWr = write(connFd, LLM_MSG.c_str(), LLM_MSG.length());
     if (resultWr < 0) {
@@ -1990,9 +2286,10 @@ bool JasmineGraphFrontEnd::constructKGStreamHDFSCommand(std::string masterIP, in
     std::string llmS(llm);
     llmS = Utils::trim_copy(llmS);
     frontend_logger.info("Received LLM " + llmS);
-
-    vector<std::string> llmServers = Utils::getUniqueLLMRunners(hostnamePortS);
-
+    if (llmS.find("exit") != std::string::npos) {
+        *loop_exit_p = true;
+        return false;
+    }
     for (auto llmServer : llmServers) {
         std::string url;
         bool modelFound = false;
@@ -2013,7 +2310,7 @@ bool JasmineGraphFrontEnd::constructKGStreamHDFSCommand(std::string masterIP, in
         url = Utils::normalizeURL(llmServer, endpointPath);
         frontend_logger.info("Final LLM endpoint: " + url);
 
-        CURL *curl = curl_easy_init();
+        CURL* curl = curl_easy_init();
         if (curl) {
             std::string response;
             curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
@@ -2140,10 +2437,19 @@ bool JasmineGraphFrontEnd::constructKGStreamHDFSCommand(std::string masterIP, in
                 "INSERT INTO graph (name, upload_path, upload_start_time, "
                 "upload_end_time, graph_status_idgraph_status, "
                 "vertexcount, centralpartitioncount, edgecount, is_directed , "
-                "file_size_bytes ) VALUES(\"" +
+                "file_size_bytes, llm_runner_string, inference_engine, model, chunk_size_bytes, "
+                "kg_construction_status, hdfs_host, hdfs_port ) VALUES(\"" +
                 hdfsFilePathS + "\", \"" + path + "\", \"" + uploadStartTime + "\", \"\", \"" +
                 std::to_string(Conts::GRAPH_STATUS::NONOPERATIONAL) + "\", \"\", \"\", \"\", \"TRUE\", \"" +
-                to_string(total_file_size) + "\");";
+                    to_string(total_file_size)  + "\", \"" +
+        hostnamePortS + "\", \"" +
+        llmInferenceEngineS + "\", \"" +
+        llmS + "\", \"" +
+        chunkSizeS + "\", "
+        "\"running\", \"" +
+        hdfsServerIp + "\", \"" +
+        hdfsPort +
+        "\")";
             frontend_logger.info("Constructing new Knowledge Graph with new GraphID: " + to_string(newGraphID));
 
             newGraphID = sqlite->runInsert(insertQuery);
@@ -2154,10 +2460,20 @@ bool JasmineGraphFrontEnd::constructKGStreamHDFSCommand(std::string masterIP, in
             "INSERT INTO graph (name, upload_path, upload_start_time, "
             "upload_end_time, graph_status_idgraph_status, "
             "vertexcount, centralpartitioncount, edgecount, is_directed , "
-            "file_size_bytes ) VALUES(\"" +
+            "file_size_bytes, llm_runner_string, inference_engine, model, chunk_size_bytes, kg_construction_status, "
+            "hdfs_host, hdfs_port)"
+            " VALUES(\"" +
             hdfsFilePathS + "\", \"" + path + "\", \"" + uploadStartTime + "\", \"\", \"" +
             std::to_string(Conts::GRAPH_STATUS::NONOPERATIONAL) + "\", \"\", \"\", \"\", \"TRUE\", \"" +
-            to_string(total_file_size) + "\");";
+                to_string(total_file_size)  + "\", \"" +
+    hostnamePortS + "\", \"" +
+    llmInferenceEngineS + "\", \"" +
+    llmS + "\", \"" +
+    chunkSizeS + "\", "
+    "\"running\", \"" +
+    hdfsServerIp + "\", \"" +
+    hdfsPort +
+    "\")";
             frontend_logger.info("Constructing new Knowledge Graph with new GraphID: " + to_string(newGraphID));
 
         newGraphID = sqlite->runInsert(insertQuery);
@@ -2187,7 +2503,11 @@ bool JasmineGraphFrontEnd::constructKGStreamHDFSCommand(std::string masterIP, in
         }
 
         std::time_t time = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
-        std::string uploadEndTime = ctime(&time);
+        struct tm localTime;
+        localtime_r(&time, &localTime);
+        char buffer[100];
+        strftime(buffer, sizeof(buffer), "%Y-%m-%d %H:%M:%S", &localTime);
+        std::string uploadEndTime(buffer);
 
         std::string sqlStatementUpdateEndTime = "UPDATE graph SET upload_end_time = \"" + uploadEndTime +
                                                 "\" WHERE idgraph = " + std::to_string(newGraphID);
@@ -2218,8 +2538,186 @@ bool JasmineGraphFrontEnd::constructKGStreamHDFSCommand(std::string masterIP, in
     }
     return true;
 }
+bool JasmineGraphFrontEnd::constructKGStreamLocalTXTCommand(
+        std::string masterIP,
+        int connFd,
+        int numberOfPartitions,
+        SQLiteDBInterface *sqlite,
+        bool *loop_exit_p) {
+    /* =========================
+     * 1. Ask for local file path
+     * ========================= */
+    std::string msg = "Local TXT file absolute path/downloadable URI:";
+    if (write(connFd, msg.c_str(), msg.length()) < 0) return  false;
+    write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(),
+          Conts::CARRIAGE_RETURN_NEW_LINE.size());
 
-static void stop_stream_kafka_command(int connFd, KafkaConnector *kstream, bool *loop_exit_p) {
+    char filePathBuf[FRONTEND_DATA_LENGTH + 1];
+    memset(filePathBuf, 0, sizeof(filePathBuf));
+    read(connFd, filePathBuf, FRONTEND_DATA_LENGTH);
+
+    std::string localFilePath = Utils::trim_copy(std::string(filePathBuf));
+    frontend_logger.info("Received local file path: " + localFilePath);
+
+
+    static const std::regex urlRegex(
+        R"(^(https?|ftp)://[^\s/$.?#].[^\s]*$)",
+        std::regex::icase);
+    if (std::regex_match(localFilePath, urlRegex)) {
+        std::string instanceFolder = Utils::getJasmineGraphProperty("org.jasminegraph.server.instance");
+
+       string savedFilePath = Utils::downloadFile(localFilePath, instanceFolder+"/"+
+           Utils::getFileName(localFilePath));
+        localFilePath =  instanceFolder+"/"+ Utils::getFileName(localFilePath);
+
+        if (!savedFilePath.empty()) {
+            frontend_logger.info("File downloaded and saved as "+ savedFilePath);
+        } else {
+            frontend_logger.info("Failed to download the file.");
+        }
+    }
+    /* =========================
+     * 2. Validate local file
+     * ========================= */
+    struct stat st {};
+    if (stat(localFilePath.c_str(), &st) != 0 || !S_ISREG(st.st_mode)) {
+        std::string err = "Invalid local file path.";
+        write(connFd, err.c_str(), err.length());
+        write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(),
+              Conts::CARRIAGE_RETURN_NEW_LINE.size());
+        *loop_exit_p = true;
+        return false;
+    }
+
+    double_t total_file_size = st.st_size;
+    std::string uploadPath = "file:" + localFilePath;
+
+    /* =========================
+     * 3. Upload start time
+     * ========================= */
+    std::time_t now = std::chrono::system_clock::to_time_t(
+            std::chrono::system_clock::now());
+    std::string uploadStartTime = ctime(&now);
+    uploadStartTime.erase(uploadStartTime.find_last_not_of(
+            Conts::CARRIAGE_RETURN_NEW_LINE) + 1);
+
+    /* =========================
+     * 4. LLM runner + engine
+     * ========================= */
+    std::string llmRunnerMSG = "LLM runner hostname:port:";
+    write(connFd, llmRunnerMSG.c_str(), llmRunnerMSG.length());
+    write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(),
+          Conts::CARRIAGE_RETURN_NEW_LINE.size());
+
+    char hostnamePort[FRONTEND_DATA_LENGTH + 1];
+    memset(hostnamePort, 0, sizeof(hostnamePort));
+    read(connFd, hostnamePort, FRONTEND_DATA_LENGTH);
+    std::string hostnamePortS = Utils::trim_copy(hostnamePort);
+
+    std::string llmEngineMSG = "LLM inference engine? ollama/vllm?";
+    write(connFd, llmEngineMSG.c_str(), llmEngineMSG.length());
+    write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(),
+          Conts::CARRIAGE_RETURN_NEW_LINE.size());
+
+    char llmEngine[FRONTEND_DATA_LENGTH + 1];
+    memset(llmEngine, 0, sizeof(llmEngine));
+    read(connFd, llmEngine, FRONTEND_DATA_LENGTH);
+    std::string llmEngineS = Utils::trim_copy(llmEngine);
+
+    std::string llmMSG = "LLM model name:";
+    write(connFd, llmMSG.c_str(), llmMSG.length());
+    write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(),
+          Conts::CARRIAGE_RETURN_NEW_LINE.size());
+
+    char llm[FRONTEND_DATA_LENGTH + 1];
+    memset(llm, 0, sizeof(llm));
+    read(connFd, llm, FRONTEND_DATA_LENGTH);
+    std::string llmS = Utils::trim_copy(llm);
+
+    /* =========================
+     * 5. Chunk size
+     * ========================= */
+    std::string chunkMSG = "Chunk size (Bytes):";
+    write(connFd, chunkMSG.c_str(), chunkMSG.length());
+    write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(),
+          Conts::CARRIAGE_RETURN_NEW_LINE.size());
+
+    char chunkSize[FRONTEND_DATA_LENGTH + 1];
+    memset(chunkSize, 0, sizeof(chunkSize));
+    read(connFd, chunkSize, FRONTEND_DATA_LENGTH);
+    std::string chunkSizeS = Utils::trim_copy(chunkSize);
+
+    /* =========================
+     * 6. DB: create or resume graph
+     * ========================= */
+    int newGraphID;
+    bool graphExists = false;
+
+    std::string checkQuery =
+        "SELECT idgraph FROM graph WHERE upload_path = \"" + uploadPath + "\";";
+    auto result = sqlite->runSelect(checkQuery);
+
+    if (!result.empty()) {
+        newGraphID = stoi(result[0][0].second);
+        graphExists = true;
+        frontend_logger.info("Resuming existing graph ID: " +
+                             std::to_string(newGraphID));
+    } else {
+        std::string insertQuery =
+            "INSERT INTO graph (name, upload_path, upload_start_time, "
+            "upload_end_time, graph_status_idgraph_status, "
+            "vertexcount, centralpartitioncount, edgecount, is_directed , "
+            "file_size_bytes ) VALUES(\"" +
+            localFilePath + "\", \"" + uploadPath + "\", \"" + uploadStartTime + "\", \"\", \"" +
+            std::to_string(Conts::GRAPH_STATUS::NONOPERATIONAL) + "\", \"\", \"\", \"\", \"TRUE\", \"" +
+            to_string(total_file_size) + "\");";
+        frontend_logger.info("Constructing new Knowledge Graph with new GraphID: " + to_string(newGraphID));
+
+
+        newGraphID = sqlite->runInsert(insertQuery);
+        frontend_logger.info("Created new graph ID: " +
+                             std::to_string(newGraphID));
+    }
+
+    /* =========================
+     * 7. Launch async streaming
+     * ========================= */
+    JasmineGraphServer::worker worker =
+        JasmineGraphServer::getDesignatedWorker();
+
+    auto stopFlag = std::make_shared<std::atomic<bool>>(false);
+    {
+        std::lock_guard<std::mutex> lock(threadMapMutex);
+        stopFlags[newGraphID] = stopFlag;
+    }
+    std::thread streamingThread([=]() mutable {
+        kgConstructionRates[newGraphID] = std::make_shared<KGConstructionRate>();
+kgConstructionRates[newGraphID]->bytesPerSecond = 0.0;
+kgConstructionRates[newGraphID]->triplesPerSecond = 0.0;
+        Pipeline::streamLocalGraphToDesignatedWorker(worker.hostname, worker.port, worker.dataPort, masterIP,
+                                             std::to_string(newGraphID), numberOfPartitions, hostnamePortS, llmEngineS,
+                                             llmS, chunkSizeS, localFilePath, graphExists, sqlite, stopFlag,
+                                             kgConstructionRates[newGraphID]);
+    });
+
+    streamingThread.detach();
+
+    std::string finalMsg = "Graph Id: " + std::to_string(newGraphID);
+    write(connFd, finalMsg.c_str(), finalMsg.length());
+    write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(),
+          Conts::CARRIAGE_RETURN_NEW_LINE.size());
+
+    return true;
+
+socket_error:
+    frontend_logger.error("Socket write failed");
+    *loop_exit_p = true;
+    return false;
+}
+
+
+
+static void stop_stream_kafka_command(int connFd, KafkaConnector* kstream, bool* loop_exit_p) {
     frontend_logger.info("Started serving `" + STOP_STREAM_KAFKA + "` command");
     //          Unsubscribe the kafka consumer.
     kstream->Unsubscribe();
@@ -2238,7 +2736,7 @@ static void stop_stream_kafka_command(int connFd, KafkaConnector *kstream, bool 
     }
 }
 
-static void process_dataset_command(int connFd, bool *loop_exit_p) {
+static void process_dataset_command(int connFd, bool* loop_exit_p) {
     int result_wr = write(connFd, SEND.c_str(), FRONTEND_COMMAND_LENGTH);
     if (result_wr < 0) {
         frontend_logger.error("Error writing to socket");
@@ -2283,8 +2781,8 @@ static void process_dataset_command(int connFd, bool *loop_exit_p) {
     frontend_logger.info("Reformatted files created on /home/.jasminegraph/tmp/JSONParser/output");
 }
 
-static void triangles_command(std::string masterIP, int connFd, SQLiteDBInterface *sqlite,
-                              PerformanceSQLiteDBInterface *perfSqlite, JobScheduler *jobScheduler, bool *loop_exit_p) {
+static void triangles_command(std::string masterIP, int connFd, SQLiteDBInterface* sqlite,
+                              PerformanceSQLiteDBInterface* perfSqlite, JobScheduler* jobScheduler, bool* loop_exit_p) {
     // add RDF graph
     int uniqueId = JasmineGraphFrontEndCommon::getUid();
     int result_wr = write(connFd, GRAPHID_SEND.c_str(), GRAPHID_SEND.size());
@@ -2454,8 +2952,8 @@ static void triangles_command(std::string masterIP, int connFd, SQLiteDBInterfac
     }
 }
 
-void JasmineGraphFrontEnd::scheduleStrianJobs(JobRequest &jobDetails, std::priority_queue<JobRequest> &jobQueue,
-                                              JobScheduler *jobScheduler, bool *strian_exit) {
+void JasmineGraphFrontEnd::scheduleStrianJobs(JobRequest& jobDetails, std::priority_queue<JobRequest>& jobQueue,
+                                              JobScheduler* jobScheduler, bool* strian_exit) {
     while (!(*strian_exit)) {
         auto begin = chrono::high_resolution_clock::now();
         jobDetails.setBeginTime(begin);
@@ -2467,8 +2965,8 @@ void JasmineGraphFrontEnd::scheduleStrianJobs(JobRequest &jobDetails, std::prior
     }
 }
 
-static void streaming_triangles_command(std::string masterIP, int connFd, JobScheduler *jobScheduler, bool *loop_exit_p,
-                                        int numberOfPartitions, bool *strian_exit) {
+static void streaming_triangles_command(std::string masterIP, int connFd, JobScheduler* jobScheduler, bool* loop_exit_p,
+                                        int numberOfPartitions, bool* strian_exit) {
     int result_wr = write(connFd, GRAPHID_SEND.c_str(), FRONTEND_COMMAND_LENGTH);
     if (result_wr < 0) {
         frontend_logger.error("Error writing to socket");
@@ -2582,9 +3080,9 @@ static void streaming_triangles_command(std::string masterIP, int connFd, JobSch
     schedulerThread.join();  // Wait for the scheduler thread to finish
 }
 
-static void stop_strian_command(int connFd, bool *strian_exit) { *strian_exit = true; }
+static void stop_strian_command(int connFd, bool* strian_exit) { *strian_exit = true; }
 
-static void vertex_count_command(int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_p) {
+static void vertex_count_command(int connFd, SQLiteDBInterface* sqlite, bool* loop_exit_p) {
     int result_wr = write(connFd, GRAPHID_SEND.c_str(), GRAPHID_SEND.size());
     if (result_wr < 0) {
         frontend_logger.error("Error writing to socket");
@@ -2643,7 +3141,7 @@ static void vertex_count_command(int connFd, SQLiteDBInterface *sqlite, bool *lo
     }
 }
 
-static void edge_count_command(int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_p) {
+static void edge_count_command(int connFd, SQLiteDBInterface* sqlite, bool* loop_exit_p) {
     int result_wr = write(connFd, GRAPHID_SEND.c_str(), GRAPHID_SEND.size());
     if (result_wr < 0) {
         frontend_logger.error("Error writing to socket");
@@ -2702,7 +3200,7 @@ static void edge_count_command(int connFd, SQLiteDBInterface *sqlite, bool *loop
     }
 }
 
-static void merge_command(int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_p) {
+static void merge_command(int connFd, SQLiteDBInterface* sqlite, bool* loop_exit_p) {
     string message = "Available main flags:\r\n";
     int result_wr = write(connFd, message.c_str(), message.size());
     if (result_wr < 0) {
@@ -2768,7 +3266,7 @@ static void merge_command(int connFd, SQLiteDBInterface *sqlite, bool *loop_exit
         return;
     }
 
-    JasmineGraphServer *jasmineServer = JasmineGraphServer::getInstance();
+    JasmineGraphServer* jasmineServer = JasmineGraphServer::getInstance();
     jasmineServer->initiateFiles(graphID, trainData);
     jasmineServer->initiateMerge(graphID, trainData, sqlite);
     result_wr = write(connFd, DONE.c_str(), FRONTEND_COMMAND_LENGTH);
@@ -2784,7 +3282,7 @@ static void merge_command(int connFd, SQLiteDBInterface *sqlite, bool *loop_exit
     }
 }
 
-static void train_command(int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_p) {
+static void train_command(int connFd, SQLiteDBInterface* sqlite, bool* loop_exit_p) {
     string message = "Available main flags:\r\n";
     int result_wr = write(connFd, message.c_str(), message.size());
     if (result_wr < 0) {
@@ -2865,7 +3363,7 @@ static void train_command(int connFd, SQLiteDBInterface *sqlite, bool *loop_exit
         }
         return;
     }
-    auto *server = JasmineGraphServer::getInstance();
+    auto* server = JasmineGraphServer::getInstance();
     if (Utils::getJasmineGraphProperty("org.jasminegraph.fl.org.training") == "true") {
         frontend_logger.info("Initiate org communication");
         JasmineGraphServer::initiateOrgCommunication(graphID, trainData, sqlite, server->masterHost);
@@ -2888,7 +3386,7 @@ static void train_command(int connFd, SQLiteDBInterface *sqlite, bool *loop_exit
     }
 }
 
-static void in_degree_command(int connFd, bool *loop_exit_p) {
+static void in_degree_command(int connFd, bool* loop_exit_p) {
     frontend_logger.info("Calculating In Degree Distribution");
 
     int result_wr = write(connFd, SEND.c_str(), FRONTEND_COMMAND_LENGTH);
@@ -2929,7 +3427,7 @@ static void in_degree_command(int connFd, bool *loop_exit_p) {
     }
 }
 
-static void out_degree_command(int connFd, bool *loop_exit_p) {
+static void out_degree_command(int connFd, bool* loop_exit_p) {
     frontend_logger.info("Calculating Out Degree Distribution");
 
     int result_wr = write(connFd, SEND.c_str(), FRONTEND_COMMAND_LENGTH);
@@ -2970,8 +3468,8 @@ static void out_degree_command(int connFd, bool *loop_exit_p) {
     }
 }
 
-static void page_rank_command(std::string masterIP, int connFd, SQLiteDBInterface *sqlite,
-                              PerformanceSQLiteDBInterface *perfSqlite, JobScheduler *jobScheduler, bool *loop_exit_p) {
+static void page_rank_command(std::string masterIP, int connFd, SQLiteDBInterface* sqlite,
+                              PerformanceSQLiteDBInterface* perfSqlite, JobScheduler* jobScheduler, bool* loop_exit_p) {
     frontend_logger.info("Calculating Page Rank");
 
     int result_wr = write(connFd, GRAPHID_SEND.c_str(), FRONTEND_COMMAND_LENGTH);
@@ -3153,7 +3651,7 @@ static void page_rank_command(std::string masterIP, int connFd, SQLiteDBInterfac
     }
 }
 
-static void egonet_command(int connFd, bool *loop_exit_p) {
+static void egonet_command(int connFd, bool* loop_exit_p) {
     frontend_logger.info("Calculating EgoNet");
 
     int result_wr = write(connFd, SEND.c_str(), FRONTEND_COMMAND_LENGTH);
@@ -3194,7 +3692,7 @@ static void egonet_command(int connFd, bool *loop_exit_p) {
     }
 }
 
-static void duplicate_centralstore_command(int connFd, bool *loop_exit_p) {
+static void duplicate_centralstore_command(int connFd, bool* loop_exit_p) {
     frontend_logger.info("Duplicate Centralstore");
 
     int result_wr = write(connFd, SEND.c_str(), FRONTEND_COMMAND_LENGTH);
@@ -3235,7 +3733,7 @@ static void duplicate_centralstore_command(int connFd, bool *loop_exit_p) {
     }
 }
 
-static void predict_command(std::string masterIP, int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_p) {
+static void predict_command(std::string masterIP, int connFd, SQLiteDBInterface* sqlite, bool* loop_exit_p) {
     if (Utils::getJasmineGraphProperty("org.jasminegraph.federated.enabled") == "true") {
         // check if the model is available
         // then pass the information to the jasminegraph worker
@@ -3332,7 +3830,7 @@ static void predict_command(std::string masterIP, int connFd, SQLiteDBInterface 
     }
 }
 
-static void start_remote_worker_command(int connFd, bool *loop_exit_p) {
+static void start_remote_worker_command(int connFd, bool* loop_exit_p) {
     int result_wr = write(connFd, REMOTE_WORKER_ARGS.c_str(), REMOTE_WORKER_ARGS.size());
     if (result_wr < 0) {
         frontend_logger.error("Error writing to socket");
@@ -3380,8 +3878,8 @@ static void start_remote_worker_command(int connFd, bool *loop_exit_p) {
     JasmineGraphServer::spawnNewWorker(host, port, dataPort, masterHost, enableNmon);
 }
 
-static void sla_command(int connFd, SQLiteDBInterface *sqlite, PerformanceSQLiteDBInterface *perfSqlite,
-                        bool *loop_exit_p) {
+static void sla_command(int connFd, SQLiteDBInterface* sqlite, PerformanceSQLiteDBInterface* perfSqlite,
+                        bool* loop_exit_p) {
     int result_wr = write(connFd, COMMAND.c_str(), COMMAND.size());
     if (result_wr < 0) {
         frontend_logger.error("Error writing to socket");
@@ -3469,7 +3967,7 @@ static void sla_command(int connFd, SQLiteDBInterface *sqlite, PerformanceSQLite
     }
 }
 
-void JasmineGraphFrontEnd::stop_graph_streaming(int connFd, bool *loop_exit_p) {
+void JasmineGraphFrontEnd::stop_graph_streaming(int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_p) {
     std::string message1 = "Graph ID?";
     int resultWr = write(connFd, message1.c_str(), message1.length());
     if (resultWr < 0) {
@@ -3507,7 +4005,10 @@ void JasmineGraphFrontEnd::stop_graph_streaming(int connFd, bool *loop_exit_p) {
             int resultWr = write(connFd, message3.c_str(), message3.length());
         }
         int result_wr = write(connFd, DONE.c_str(), FRONTEND_COMMAND_LENGTH);
+             std::string sqlStatement =
+                 "UPDATE graph SET kg_construction_status = 'paused'  WHERE idgraph = " + userResS;
 
+        sqlite->runUpdate(sqlStatement);
     } else {
         std::string message2 = "Graph Id not Found";
         int resultWr = write(connFd, message2.c_str(), message2.length());

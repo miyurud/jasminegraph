@@ -59,6 +59,14 @@ class Conts {
     std::string JASMINEGRAPH_SERVER_PROPS_FILE = "conf/acacia-server.properties";
     std::string JASMINEGRAPH_SERVER_PUBLIC_HOSTS_FILE = "machines_public.txt";
     std::string JASMINEGRAPH_SERVER_PRIVATE_HOSTS_FILE = "machines.txt";
+    static const int SEMANTIC_LOWER_THRESHOLD;
+    static const int TIME_ELAPSED_LOWER_BOUND_SECONDS;
+    static const int TOP_RELEVANT_INFORMATION_COUNT;
+    static const int TIME_PERIOD_OF_META_DATA_UPDATE_TO_MASTER_SECS;
+    static const int TUPLE_SIZE_WITH_WHEN_AND_WHERE_FIELD;
+    static const int TUPLE_SIZE_WITH_ONLY_WHEN_FIELD;
+    static const int LLM_MAX_TRY;
+    static const int LLM_RETRY_SLEEP_TIME_S;
     static std::string JASMINEGRAPH_EXECUTABLE;
     static std::string JASMINEGRAPH_HOME;
     static std::string GRAPH_TYPE_RDF;

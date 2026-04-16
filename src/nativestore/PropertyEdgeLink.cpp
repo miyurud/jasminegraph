@@ -29,7 +29,7 @@ pthread_mutex_t lockGetPropertyEdgeLink;
 
 PropertyEdgeLink::PropertyEdgeLink(unsigned int propertyBlockAddress) : blockAddress(propertyBlockAddress) {
     pthread_mutex_lock(&lockPropertyEdgeLink);
-    if (propertyBlockAddress > 0) {
+    if (propertyBlockAddress >= 0) {
         this->edgePropertiesDB->seekg(propertyBlockAddress);
         char rawName[PropertyEdgeLink::MAX_NAME_SIZE] = {0};
         //        property_edge_link_logger.info("Traverse state  = " +
@@ -62,6 +62,7 @@ PropertyEdgeLink::PropertyEdgeLink(unsigned int blockAddress, std::string name, 
     // Can't use just string copyer here because of binary data formats
     for (size_t i = 0; i < PropertyEdgeLink::MAX_VALUE_SIZE; i++) {
         this->value[i] = rvalue[i];
+        // property_edge_link_logger.debug("test 66"+ std::to_string(rvalue[i]));
     }
 };
 
@@ -90,17 +91,15 @@ PropertyEdgeLink::PropertyEdgeLink(unsigned int blockAddress, std::string name, 
 unsigned int PropertyEdgeLink::insert(std::string name, char* value) {
     char dataName[PropertyEdgeLink::MAX_NAME_SIZE] = {0};
     char dataValue[PropertyEdgeLink::MAX_VALUE_SIZE] = {0};
-    std::strcpy(dataName, name.c_str());
-    std::memcpy(
-        dataValue, value,
-        PropertyEdgeLink::MAX_VALUE_SIZE);  // strcpy or strncpy get terminated at null-character hence using memcpy
+    std::strncpy(dataName, name.c_str(), PropertyEdgeLink::MAX_NAME_SIZE - 1);
+    dataName[PropertyEdgeLink::MAX_NAME_SIZE - 1] = '\0';
+    size_t len = std::min(strlen(value), (size_t)PropertyEdgeLink::MAX_VALUE_SIZE - 1);
+    std::memcpy(dataValue, value, len);
+    dataValue[len] = '\0';
 
-    //    property_edge_link_logger.debug("Received name = " + name);
-    //    property_edge_link_logger.debug("Received value = " + std::string(value));
+    property_edge_link_logger.debug("Received name = " + name);
+    property_edge_link_logger.debug("Received value = " + std::string(value));
     unsigned int nextAddress = 0;
-
-    //    property_edge_link_logger.info("current property name  = " + (this->name));
-    //    property_edge_link_logger.info("new property name  = " + (name));
 
     if (this->name == name) {
         // TODO[tmkasun]: update existing property value
@@ -133,8 +132,8 @@ unsigned int PropertyEdgeLink::insert(std::string name, char* value) {
             return -1;
         }
         this->edgePropertiesDB->flush();
-        //        property_edge_link_logger.info("nextPropertyIndex = " +
-        //        std::to_string(PropertyEdgeLink::nextPropertyIndex));
+        property_edge_link_logger.debug("nextPropertyIndex = " +
+        std::to_string(PropertyEdgeLink::nextPropertyIndex));
         PropertyEdgeLink::nextPropertyIndex++;  // Increment the shared property index value
         pthread_mutex_unlock(&lockInsertPropertyEdgeLink);
         return this->blockAddress;
@@ -149,7 +148,7 @@ PropertyEdgeLink* PropertyEdgeLink::create(std::string name, char value[]) {
     pthread_mutex_lock(&lockCreatePropertyEdgeLink);
     unsigned int nextAddress = 0;
     char dataName[PropertyEdgeLink::MAX_NAME_SIZE] = {0};
-    strcpy(dataName, name.c_str());
+    std::strncpy(dataName, name.c_str(), PropertyEdgeLink::MAX_NAME_SIZE - 1);
     unsigned int newAddress = PropertyEdgeLink::nextPropertyIndex * PropertyEdgeLink::PROPERTY_BLOCK_SIZE;
     PropertyEdgeLink::edgePropertiesDB->seekp(newAddress);
     PropertyEdgeLink::edgePropertiesDB->write(dataName, PropertyEdgeLink::MAX_NAME_SIZE);
@@ -180,10 +179,11 @@ PropertyEdgeLink* PropertyEdgeLink::next() {
 bool PropertyEdgeLink::isEmpty() { return !(this->blockAddress); }
 
 PropertyEdgeLink* PropertyEdgeLink::get(unsigned int propertyBlockAddress) {
+    property_edge_link_logger.debug("Entering PropertyEdgeLink::get()"+ std::to_string(propertyBlockAddress));
     PropertyEdgeLink* pl = NULL;
 
     pthread_mutex_lock(&lockGetPropertyEdgeLink);
-    if (propertyBlockAddress > 0) {
+    if (propertyBlockAddress >= 0) {
         char propertyName[PropertyEdgeLink::MAX_NAME_SIZE] = {0};
         char propertyValue[PropertyEdgeLink::MAX_VALUE_SIZE] = {0};
         unsigned int nextAddress;
