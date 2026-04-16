@@ -121,7 +121,7 @@ void AgentPlanExecutor::execute() {
     for (size_t i = 0; i < workerCount; i++) {
         workerListStr +=
             workers[i].hostname + ":" + std::to_string(workers[i].port) + ":" + std::to_string(workers[i].dataPort);
-        if (i + 1 < workers.size()) {
+        if (i + 1 < workerCount) {
             workerListStr += ",";
         }
     }
