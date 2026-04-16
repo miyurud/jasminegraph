@@ -456,6 +456,52 @@ int deleteStreamingGraphPartition(std::string graphID, std::string partitionID) 
     return status;
 }
 
+/** Remove all temporal snapshot files for a graph from this worker.
+ *
+ * Deletes all files with prefix graph{graphID}_ from the configured temporal
+ * snapshot directory (or the default datafolder/temporal_snapshots).
+ */
+static int deleteTemporalSnapshotFilesForGraph(const std::string& graphID) {
+    std::string snapshotDataFolder =
+        Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.temporalsnapshotfolder");
+    if (snapshotDataFolder.empty()) {
+        snapshotDataFolder = Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder") +
+                             "/temporal_snapshots";
+    }
+
+    DIR* dir = opendir(snapshotDataFolder.c_str());
+    if (dir == nullptr) {
+        instance_logger.warn("Temporal snapshot directory not found or not accessible: " + snapshotDataFolder);
+        return -1;
+    }
+
+    const std::string graphPrefix = "graph" + graphID + "_";
+    struct dirent* entry;
+    int removedCount = 0;
+    int status = 0;
+
+    while ((entry = readdir(dir)) != nullptr) {
+        std::string fileName(entry->d_name);
+        if (fileName.find(graphPrefix) != 0) {
+            continue;
+        }
+
+        std::string fullPath = snapshotDataFolder + "/" + fileName;
+        if (remove(fullPath.c_str()) == 0) {
+            removedCount++;
+        } else {
+            instance_logger.error("Failed to remove temporal snapshot file: " + fullPath);
+            status = -1;
+        }
+    }
+
+    closedir(dir);
+    instance_logger.info("Removed " + std::to_string(removedCount) +
+                         " temporal snapshot files for graph " + graphID +
+                         " in " + snapshotDataFolder);
+    return status;
+}
+
 /** Method for deleting all graph fragments given a graph ID
  *
  * @param graphID ID of graph fragments to be deleted in the instance
@@ -2238,6 +2284,7 @@ static void delete_graph_command(int connFd, bool *loop_exit_p) {
     instance_logger.info("Received partition ID: " + partitionID);
     deleteGraphPartition(graphID, partitionID);
     deleteStreamingGraphPartition(graphID, partitionID);
+    deleteTemporalSnapshotFilesForGraph(graphID);
     // pthread_mutex_lock(&file_lock);
     // TODO :: Update catalog file
     // pthread_mutex_unlock(&file_lock);
@@ -2262,6 +2309,7 @@ static void delete_graph_fragment_command(int connFd, bool *loop_exit_p) {
     instance_logger.info("Received Graph ID: " + graphID);
     // Method call for graph fragment deletion
     removeGraphFragments(graphID);
+    deleteTemporalSnapshotFilesForGraph(graphID);
     // pthread_mutex_lock(&file_lock);
     // TODO :: Update catalog file
     // pthread_mutex_unlock(&file_lock);
