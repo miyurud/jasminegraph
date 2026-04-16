@@ -3680,6 +3680,14 @@ static void temporal_snapshot_command(int connFd, SQLiteDBInterface *sqlite, boo
     std::string graphIdStr = read_frontend_socket_value(connFd);
     int graphId = std::stoi(graphIdStr);
 
+    if (!JasmineGraphFrontEndCommon::graphExistsByID(graphIdStr, sqlite)) {
+        std::string response = "Error: Graph " + graphIdStr + " does not exist";
+        resultWr = write(connFd, response.c_str(), response.length());
+        resultWr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
+        frontend_logger.warn("Temporal snapshot requested for non-existent graph " + graphIdStr);
+        return;
+    }
+
     try {
         std::stringstream response;
         response << "Temporal Snapshots for Graph " << graphId << ":\n";

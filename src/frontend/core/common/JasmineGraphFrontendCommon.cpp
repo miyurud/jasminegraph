@@ -16,7 +16,9 @@ limitations under the License.
 #include "../../../server/JasmineGraphServer.h"
 #include "../../../util/logger/Logger.h"
 #include "../../../util/Utils.h"
+#include <cstdlib>
 #include <dirent.h>
+#include <set>
 #include <sys/stat.h>
 
 Logger common_logger;
@@ -30,6 +32,62 @@ static std::string getTemporalSnapshotDir() {
 
     return Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder") +
            "/temporal_snapshots";
+}
+
+static std::string shellQuote(const std::string& value) {
+    std::string quoted = "'";
+    for (char c : value) {
+        if (c == '\'') {
+            quoted += "'\\''";
+        } else {
+            quoted += c;
+        }
+    }
+    quoted += "'";
+    return quoted;
+}
+
+static std::string buildWorkerTarget(const Utils::worker& worker) {
+    if (!worker.username.empty()) {
+        return worker.username + "@" + worker.hostname;
+    }
+    return worker.hostname;
+}
+
+static void deleteTemporalSnapshotsOnRemoteWorkers(SQLiteDBInterface *sqlite,
+                                                   const std::string& graphID,
+                                                   const std::string& snapshotDir) {
+    const std::vector<Utils::worker> workers = Utils::getWorkerList(sqlite);
+    std::set<std::string> visitedHosts;
+    std::string pattern = "graph" + graphID + "_*";
+
+    for (const auto& worker : workers) {
+        std::string hostTarget = buildWorkerTarget(worker);
+        if (hostTarget.empty()) {
+            continue;
+        }
+
+        if (!visitedHosts.insert(hostTarget).second) {
+            continue;
+        }
+
+        if (hostTarget == "localhost" || hostTarget == "127.0.0.1") {
+            continue;
+        }
+
+        std::string remoteCommand = "find " + shellQuote(snapshotDir) +
+                                    " -maxdepth 1 -type f -name " + shellQuote(pattern) +
+                                    " -delete 2>/dev/null";
+        std::string sshCommand = "ssh -o BatchMode=yes -o ConnectTimeout=5 " +
+                                 shellQuote(hostTarget) + " " + shellQuote(remoteCommand);
+
+        int status = std::system(sshCommand.c_str());
+        if (status != 0) {
+            common_logger.warn("Failed remote temporal cleanup on host " + hostTarget +
+                               " for graph " + graphID +
+                               ". Snapshot files may remain on that worker.");
+        }
+    }
 }
 
 /**
@@ -122,6 +180,10 @@ void JasmineGraphFrontEndCommon::removeGraph(std::string graphID, SQLiteDBInterf
                                " temporal files for graph " + graphID);
         }
     }
+
+    // Enforce cleanup on all workers as a fallback in case instance-level delete
+    // path misses stale files in distributed snapshot folders.
+    deleteTemporalSnapshotsOnRemoteWorkers(sqlite, graphID, snapshotDir);
 
     sqlite->runUpdate("DELETE FROM worker_has_partition WHERE partition_graph_idgraph = " + graphID);
     sqlite->runUpdate("DELETE FROM partition WHERE graph_idgraph = " + graphID);
