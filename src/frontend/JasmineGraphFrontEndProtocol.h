@@ -57,6 +57,7 @@ extern const string HISTORY_TRIANGLE;
 extern const string HISTORY_TRIANGLE_TIMESTAMP;
 extern const string HISTORY_PAGERANK;
 extern const string HISTORY_PAGERANK_TIMESTAMP;
+extern const string HISTORY_BFS;
 extern const string K_CORE;
 extern const string K_VALUE;
 extern const string K_NN;

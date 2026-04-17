@@ -46,6 +46,7 @@ set(HEADERS globals.h
         src/performance/metrics/StatisticsCollector.h
         src/performancedb/PerformanceSQLiteDBInterface.h
         src/query/algorithms/linkprediction/JasminGraphLinkPredictor.h
+        src/query/algorithms/bfs/HistoryBFS.h
         src/query/algorithms/triangles/Triangles.h
         src/query/algorithms/triangles/StreamingTriangles.h
         src/query/processor/cypher/astbuilder/ASTBuilder.h
@@ -149,6 +150,7 @@ set(SOURCES src/backend/JasmineGraphBackend.cpp
         src/performance/metrics/StatisticsCollector.cpp
         src/performancedb/PerformanceSQLiteDBInterface.cpp
         src/query/algorithms/linkprediction/JasminGraphLinkPredictor.cpp
+        src/query/algorithms/bfs/HistoryBFS.cpp
         src/query/algorithms/triangles/Triangles.cpp
         src/query/algorithms/triangles/StreamingTriangles.cpp
         src/query/algorithms/triangles/HistoryTriangles.cpp

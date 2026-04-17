@@ -55,6 +55,7 @@ limitations under the License.
 #include "../server/JasmineGraphServer.h"
 #include "../query/algorithms/triangles/HistoryTriangles.h"
 #include "../query/algorithms/pagerank/HistoryPageRank.h"
+#include "../query/algorithms/bfs/HistoryBFS.h"
 #include "../temporalstore/TemporalQueryExecutor.h"
 #include "../temporalstore/TemporalStorePersistence.h"
 #include "../util/Conts.h"
@@ -124,6 +125,7 @@ static void history_triangle_command(int connFd, SQLiteDBInterface *sqlite, bool
 static void history_triangle_timestamp_command(int connFd, SQLiteDBInterface *, bool *);
 static void history_pagerank_command(int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_p);
 static void history_pagerank_timestamp_command(int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_p);
+static void history_bfs_command(int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_p);
 static void stop_strian_command(int connFd, bool *strian_exit);
 static void vertex_count_command(int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_p);
 static void edge_count_command(int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_p);
@@ -644,6 +646,8 @@ void *frontendservicesesion(void *dummyPt) {
             history_pagerank_command(connFd, sqlite, &loop_exit);
         } else if (line.compare(HISTORY_PAGERANK_TIMESTAMP) == 0) {
             history_pagerank_timestamp_command(connFd, sqlite, &loop_exit);
+        } else if (line.compare(HISTORY_BFS) == 0) {
+            history_bfs_command(connFd, sqlite, &loop_exit);
         } else if (line.compare(STOP_STRIAN) == 0) {
             stop_strian_command(connFd, &JasmineGraphFrontEnd::strian_exit);
         } else if (line.compare(VCOUNT) == 0) {
@@ -4392,5 +4396,150 @@ static void history_pagerank_timestamp_command(int connFd, SQLiteDBInterface *sq
         resultWr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(),
                          Conts::CARRIAGE_RETURN_NEW_LINE.size());
         frontend_logger.error("History PageRank timestamp error: " + std::string(e.what()));
+    }
+}
+
+// History BFS by Snapshot ID Command
+static void history_bfs_command(int connFd, SQLiteDBInterface *sqlite, bool *) {
+    frontend_logger.info("History BFS command received");
+
+    std::string message = "Graph ID?";
+    int resultWr = write(connFd, message.c_str(), message.length());
+    resultWr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
+
+    std::string graphIdStr = read_frontend_socket_value(connFd);
+    int graphId = std::stoi(graphIdStr);
+
+    message = "Snapshot ID?";
+    resultWr = write(connFd, message.c_str(), message.length());
+    resultWr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
+
+    std::string snapshotStr = read_frontend_socket_value(connFd);
+    uint32_t snapshotId = std::stoul(snapshotStr);
+
+    message = "Source Node?";
+    resultWr = write(connFd, message.c_str(), message.length());
+    resultWr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
+
+    std::string sourceNode = read_frontend_socket_value(connFd);
+
+    message = "Max Depth (0 for full traversal)?";
+    resultWr = write(connFd, message.c_str(), message.length());
+    resultWr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
+
+    std::string depthStr = read_frontend_socket_value(connFd);
+    int maxDepth = depthStr.empty() ? 0 : std::stoi(depthStr);
+
+    std::string stagedSnapshotDir;
+
+    try {
+        if (sourceNode.empty()) {
+            std::string error = "Error: Source node cannot be empty";
+            resultWr = write(connFd, error.c_str(), error.length());
+            resultWr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
+            return;
+        }
+
+        if (!JasmineGraphFrontEndCommon::graphExistsByID(graphIdStr, sqlite)) {
+            std::string response = "Error: Graph " + graphIdStr + " does not exist";
+            resultWr = write(connFd, response.c_str(), response.length());
+            resultWr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
+            frontend_logger.warn("History BFS requested for non-existent graph " + graphIdStr);
+            return;
+        }
+
+        std::string snapshotDir = getTemporalSnapshotDir();
+        auto snapMap = loadTemporalSnapshotSummariesForGraph(sqlite, graphId);
+        if (snapMap.empty()) {
+            std::string error = "Error: No snapshots found for graph " + std::to_string(graphId);
+            resultWr = write(connFd, error.c_str(), error.length());
+            resultWr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
+            return;
+        }
+        if (snapMap.find(snapshotId) == snapMap.end()) {
+            uint32_t minSnapshot = snapMap.begin()->first;
+            uint32_t maxSnapshot = snapMap.rbegin()->first;
+            std::stringstream error;
+            error << "Error: Snapshot " << snapshotId << " not found for graph " << graphId
+                  << ". Available range: [" << minSnapshot << ", " << maxSnapshot << "]";
+            std::string errorText = error.str();
+            resultWr = write(connFd, errorText.c_str(), errorText.length());
+            resultWr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
+            return;
+        }
+
+        stagedSnapshotDir = stageTemporalBitmapIndexesForGraph(sqlite, graphId, snapshotDir);
+        if (stagedSnapshotDir.empty()) {
+            std::string error = "Error: No temporal bitmap index files found for graph " + std::to_string(graphId);
+            resultWr = write(connFd, error.c_str(), error.length());
+            resultWr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
+            frontend_logger.error(error);
+            return;
+        }
+
+        HistoryBFSResult result = HistoryBFS::runBFSAtSnapshot(
+            graphId, snapshotId, sourceNode, maxDepth, stagedSnapshotDir);
+
+        cleanupStagedTemporalBitmapIndexes(stagedSnapshotDir);
+
+        if (result.partitionsProcessed == 0) {
+            std::string error = "Error: No snapshot files found for graph " +
+                                std::to_string(graphId) + " at snapshot " +
+                                std::to_string(snapshotId);
+            resultWr = write(connFd, error.c_str(), error.length());
+            resultWr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
+            return;
+        }
+
+        auto nowEpoch = std::chrono::duration_cast<std::chrono::milliseconds>(
+            std::chrono::system_clock::now().time_since_epoch()).count();
+        std::string outputPath = "/tmp/jg_hisbfs_graph" + std::to_string(graphId) +
+                                 "_snapshot" + std::to_string(snapshotId) +
+                                 "_" + std::to_string(nowEpoch) + ".txt";
+
+        std::ofstream outFile(outputPath, std::ios::trunc);
+        if (!outFile.is_open()) {
+            std::string error = "Error: Failed to create output file at " + outputPath;
+            resultWr = write(connFd, error.c_str(), error.length());
+            resultWr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
+            return;
+        }
+
+        outFile << "graph_id=" << graphId << "\n";
+        outFile << "snapshot_id=" << snapshotId << "\n";
+        outFile << "source_node=" << sourceNode << "\n";
+        outFile << "max_depth=" << maxDepth << "\n";
+        outFile << "visited_nodes=" << result.traversalOrder.size() << "\n";
+        outFile << "total_nodes=" << result.totalNodes << "\n";
+        outFile << "total_edges=" << result.totalEdges << "\n";
+        outFile << "duration_ms=" << result.durationMs << "\n";
+        outFile << "\nindex\tdepth\tnode\n";
+
+        size_t idx = 0;
+        for (const auto& [node, depth] : result.traversalOrder) {
+            outFile << idx++ << "\t" << depth << "\t" << node << "\n";
+        }
+        outFile.close();
+
+        std::stringstream response;
+        response << "BFS result saved to: " << outputPath << "\n";
+        response << "Visited nodes: " << result.traversalOrder.size() << "\n";
+        response << "Nodes: " << result.totalNodes
+                 << "  Edges: " << result.totalEdges
+                 << "  Time: " << result.durationMs << "ms\n";
+
+        std::string responseStr = response.str();
+        resultWr = write(connFd, responseStr.c_str(), responseStr.length());
+        resultWr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
+
+        frontend_logger.info("History BFS completed: graph " + std::to_string(graphId) +
+                             " snapshot " + std::to_string(snapshotId) +
+                             " output " + outputPath);
+    } catch (const std::exception& e) {
+        cleanupStagedTemporalBitmapIndexes(stagedSnapshotDir);
+        std::string error = "Error: " + std::string(e.what());
+        resultWr = write(connFd, error.c_str(), error.length());
+        resultWr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
+        frontend_logger.error("History BFS error: " + std::string(e.what()));
     }
 }

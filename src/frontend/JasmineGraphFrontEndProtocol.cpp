@@ -40,6 +40,7 @@ const string HISTORY_TRIANGLE = "histrian";
 const string HISTORY_TRIANGLE_TIMESTAMP = "histriat";
 const string HISTORY_PAGERANK = "histpgr";
 const string HISTORY_PAGERANK_TIMESTAMP = "histpgrt";
+const string HISTORY_BFS = "hisbfs";
 const string GRAPHID_SEND = "graphid-send";
 const string SEND_MODE = "mode-send";
 const string VCOUNT = "vcnt";
