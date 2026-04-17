@@ -153,9 +153,20 @@ TemporalTriangleResult HistoryTriangles::countTrianglesAtSnapshot(
             uniqueEdgeSet.insert({u, v});
         }
         size_t uniqueEdgeCount = uniqueEdgeSet.size();
+        result.uniqueEdges = uniqueEdgeCount;
         history_triangle_logger.info("Raw cumulative edges [0.." + std::to_string(snapshotId) +
                          "]: " + std::to_string(allEdges.size()) +
                          " Unique undirected edges: " + std::to_string(uniqueEdgeCount));
+    }
+
+    if (result.uniqueEdges == 0) {
+        std::set<std::pair<std::string, std::string>> uniqueEdgeSet;
+        for (const auto& edge : allEdges) {
+            std::string u = edge.sourceId, v = edge.destId;
+            if (u > v) std::swap(u, v);
+            uniqueEdgeSet.insert({u, v});
+        }
+        result.uniqueEdges = uniqueEdgeSet.size();
     }
 
     if (partitionsProcessed == 0) {

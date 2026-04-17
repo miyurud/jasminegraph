@@ -3990,11 +3990,9 @@ static void history_triangle_command(int connFd, SQLiteDBInterface *sqlite, bool
             frontend_logger.error(error);
         } else {
             std::stringstream response;
-            response << "Triangle count using cumulative edges from snapshots [0, " << snapshotId
-                     << "]: " << result.triangleCount << "\n";
-            response << "Edges in cumulative range [0, " << snapshotId << "]: " << result.totalEdges << "\n";
+            response << "Triangle count is " << result.triangleCount << "\n";
+            response << "Edges are " << result.uniqueEdges << "\n";
             response << "Unique nodes: " << result.uniqueNodes << "\n";
-            response << "Partitions processed: " << result.partitionsProcessed << "\n";
             response << "Time taken: " << result.durationMs << "ms\n";
 
             std::string responseStr = response.str();
@@ -4248,10 +4246,9 @@ static void history_pagerank_command(int connFd, SQLiteDBInterface *sqlite, bool
             frontend_logger.error(error);
         } else {
             std::stringstream response;
-            response << "PageRank at snapshot " << snapshotId << ":\n";
+            response << "PageRank using cumulative edges from snapshots [0, " << snapshotId << "]:\n";
             response << "Nodes: " << result.totalNodes
                      << "  Edges: " << result.totalEdges
-                     << "  Partitions: " << result.partitionsProcessed
                      << "  Iterations: " << result.iterations
                      << "  Time: " << result.durationMs << "ms\n";
             response << "Rank  Node                           Score\n";
@@ -4267,9 +4264,9 @@ static void history_pagerank_command(int connFd, SQLiteDBInterface *sqlite, bool
                              Conts::CARRIAGE_RETURN_NEW_LINE.size());
 
             frontend_logger.info("History PageRank completed: top " +
-                                  std::to_string(result.rankedNodes.size()) +
-                                  " nodes from " + std::to_string(result.totalNodes) +
-                                  " total nodes, " + std::to_string(result.totalEdges) + " edges");
+                                 std::to_string(result.rankedNodes.size()) +
+                                 " nodes from " + std::to_string(result.totalNodes) +
+                                 " total nodes, " + std::to_string(result.totalEdges) + " cumulative edges");
         }
     } catch (const std::exception& e) {
         cleanupStagedTemporalBitmapIndexes(stagedSnapshotDir);
@@ -4354,7 +4351,7 @@ static void history_pagerank_timestamp_command(int connFd, SQLiteDBInterface *sq
             return;
         }
 
-        HistoryPageRankResult result = HistoryPageRank::computePageRankAtSnapshot(
+            HistoryPageRankResult result = HistoryPageRank::computePageRankAtSnapshot(
             graphId, closestSnapshotId, stagedSnapshotDir, topK,
             maxIterations, PAGE_RANK_ALPHA);
 
@@ -4370,9 +4367,9 @@ static void history_pagerank_timestamp_command(int connFd, SQLiteDBInterface *sq
 
             std::stringstream response;
             response << "Closest snapshot: " << closestSnapshotId << " (created: " << timeStr << ")\n";
+            response << "PageRank using cumulative edges from snapshots [0, " << closestSnapshotId << "]:\n";
             response << "Nodes: " << result.totalNodes
                      << "  Edges: " << result.totalEdges
-                     << "  Partitions: " << result.partitionsProcessed
                      << "  Iterations: " << result.iterations
                      << "  Time: " << result.durationMs << "ms\n";
             response << "Rank  Node                           Score\n";

@@ -29,6 +29,7 @@ limitations under the License.
 struct TemporalTriangleResult {
     uint64_t triangleCount;
     size_t totalEdges;
+    size_t uniqueEdges;
     size_t localEdges;
     size_t centralEdges;
     uint32_t uniqueNodes;

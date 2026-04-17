@@ -18,6 +18,22 @@ limitations under the License.
 #include <numeric>
 #include <sstream>
 
+namespace {
+
+std::vector<TemporalStore::EdgeKey> collectCumulativeEdgesUpToSnapshot(TemporalStore& store,
+                                                                       uint32_t snapshotId) {
+    std::unordered_set<TemporalStore::EdgeKey, TemporalStore::EdgeKey::Hash> cumulativeEdgeSet;
+
+    for (uint32_t sid = 0; sid <= snapshotId; sid++) {
+        auto edgesAtSnapshot = store.getEdgesAtSnapshot(sid);
+        cumulativeEdgeSet.insert(edgesAtSnapshot.begin(), edgesAtSnapshot.end());
+    }
+
+    return std::vector<TemporalStore::EdgeKey>(cumulativeEdgeSet.begin(), cumulativeEdgeSet.end());
+}
+
+}  // namespace
+
 Logger history_pagerank_logger;
 
 HistoryPageRankResult HistoryPageRank::computePageRankAtSnapshot(
@@ -57,11 +73,11 @@ HistoryPageRankResult HistoryPageRank::computePageRankAtSnapshot(
             partitionsProcessed++;
             if (partitionId > maxPartitionFound) maxPartitionFound = partitionId;
 
-            auto edgesAtSnapshot = localStore.getEdgesAtSnapshot(snapshotId);
-            allEdges.insert(allEdges.end(), edgesAtSnapshot.begin(), edgesAtSnapshot.end());
+            auto cumulativeEdges = collectCumulativeEdgesUpToSnapshot(localStore, snapshotId);
+            allEdges.insert(allEdges.end(), cumulativeEdges.begin(), cumulativeEdges.end());
 
             history_pagerank_logger.info("Loaded local partition " + std::to_string(partitionId) +
-                                         ": " + std::to_string(edgesAtSnapshot.size()) + " edges");
+                                         ": " + std::to_string(cumulativeEdges.size()) + " cumulative edges");
         } else if (partitionsProcessed > 0 && partitionId > maxPartitionFound + 5) {
             break;
         }
@@ -86,18 +102,24 @@ HistoryPageRankResult HistoryPageRank::computePageRankAtSnapshot(
                                    SnapshotManager::SnapshotMode::HYBRID);
 
         if (centralStore.loadBitmapIndexFromDisk(filePath)) {
-            auto edgesAtSnapshot = centralStore.getEdgesAtSnapshot(snapshotId);
-            allEdges.insert(allEdges.end(), edgesAtSnapshot.begin(), edgesAtSnapshot.end());
-            centralEdgesLoaded += edgesAtSnapshot.size();
+            auto cumulativeEdges = collectCumulativeEdgesUpToSnapshot(centralStore, snapshotId);
+            allEdges.insert(allEdges.end(), cumulativeEdges.begin(), cumulativeEdges.end());
+            centralEdgesLoaded += cumulativeEdges.size();
 
             history_pagerank_logger.info("Loaded central store (partition " +
                                          std::to_string(centralId) + "): " +
-                                         std::to_string(edgesAtSnapshot.size()) + " edges");
+                                         std::to_string(cumulativeEdges.size()) + " cumulative edges");
         }
     }
 
     result.centralEdges = centralEdgesLoaded;
-    result.totalEdges = allEdges.size();
+    {
+        std::unordered_set<std::pair<std::string, std::string>> uniqueEdges;
+        for (const auto& edge : allEdges) {
+            uniqueEdges.insert({edge.sourceId, edge.destId});
+        }
+        result.totalEdges = uniqueEdges.size();
+    }
 
     if (partitionsProcessed == 0) {
         history_pagerank_logger.error("No snapshot files found for graph " +
@@ -110,9 +132,9 @@ HistoryPageRankResult HistoryPageRank::computePageRankAtSnapshot(
     // Phase 3: Compute PageRank on merged graph
     // -----------------------------------------------------------------------
     history_pagerank_logger.info("Computing PageRank on merged graph with " +
-                                  std::to_string(allEdges.size()) + " edges, " +
-                                  std::to_string(iterations) + " iterations, " +
-                                  "d=" + std::to_string(dampingFactor));
+                                 std::to_string(result.totalEdges) + " cumulative edges, " +
+                                 std::to_string(iterations) + " iterations, " +
+                                 "d=" + std::to_string(dampingFactor));
 
     result.rankedNodes = computePageRankOnMergedGraph(allEdges, topK, iterations, dampingFactor,
                                                         &result.iterations);
