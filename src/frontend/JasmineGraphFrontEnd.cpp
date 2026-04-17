@@ -4511,7 +4511,7 @@ static void history_bfs_command(int connFd, SQLiteDBInterface *sqlite, bool *) {
         outFile << "max_depth=" << maxDepth << "\n";
         outFile << "visited_nodes=" << result.traversalOrder.size() << "\n";
         outFile << "total_nodes=" << result.totalNodes << "\n";
-        outFile << "total_edges=" << result.totalEdges << "\n";
+        outFile << "raw_edges=" << result.rawEdges << "\n";
         outFile << "duration_ms=" << result.durationMs << "\n";
         outFile << "\nindex\tdepth\tnode\n";
 

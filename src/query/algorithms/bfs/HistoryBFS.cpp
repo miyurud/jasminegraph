@@ -128,6 +128,15 @@ HistoryBFSResult HistoryBFS::runBFSAtSnapshot(
         return result;
     }
 
+    {
+        std::set<std::pair<std::string, std::string>> uniqueRawDirectedEdges;
+        for (const auto& edge : allEdges) {
+            uniqueRawDirectedEdges.insert({edge.sourceId, edge.destId});
+        }
+        result.rawEdges = uniqueRawDirectedEdges.size();
+
+    }
+
     std::unordered_map<std::string, uint32_t> nodeToIndex;
     std::vector<std::string> indexToNode;
     auto getOrAdd = [&](const std::string& node) {

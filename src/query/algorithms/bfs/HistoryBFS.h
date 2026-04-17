@@ -24,6 +24,7 @@ limitations under the License.
 
 struct HistoryBFSResult {
     std::vector<std::pair<std::string, int>> traversalOrder;
+    size_t rawEdges;
     size_t totalEdges;
     uint32_t totalNodes;
     int partitionsProcessed;
