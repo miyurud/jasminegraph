@@ -18,6 +18,7 @@ limitations under the License.
 
 #include <algorithm>
 #include <cctype>
+#include <cstdlib>
 #include <cstdio>
 #include <chrono>
 #include <ctime>
@@ -400,6 +401,127 @@ static std::map<uint32_t, TemporalSnapshotSummary> loadTemporalSnapshotSummaries
     }
 
     return snapMap;
+}
+
+static bool copyLocalFileBinary(const std::string& sourcePath, const std::string& destinationPath) {
+    std::ifstream in(sourcePath, std::ios::binary);
+    if (!in.is_open()) {
+        return false;
+    }
+
+    std::ofstream out(destinationPath, std::ios::binary | std::ios::trunc);
+    if (!out.is_open()) {
+        return false;
+    }
+
+    out << in.rdbuf();
+    return !in.bad() && out.good();
+}
+
+static int collectTemporalBitmapIndexesFromDirectory(const std::string& snapshotDir,
+                                                     int graphId,
+                                                     const std::string& destinationDir) {
+    std::vector<std::string> files = Utils::getListOfFilesInDirectory(snapshotDir);
+    std::string graphPrefix = "graph" + std::to_string(graphId) + "_part";
+    int copied = 0;
+
+    for (const auto& file : files) {
+        if (file.find(graphPrefix) == std::string::npos) continue;
+        if (file.find("_bitmaps.ebm") == std::string::npos) continue;
+
+        std::string sourcePath = snapshotDir + "/" + file;
+        std::string destinationPath = destinationDir + "/" + file;
+        if (copyLocalFileBinary(sourcePath, destinationPath)) {
+            copied++;
+        }
+    }
+
+    return copied;
+}
+
+static int collectTemporalBitmapIndexesFromRemoteHost(const Utils::worker& worker,
+                                                      int graphId,
+                                                      const std::string& snapshotDir,
+                                                      const std::string& destinationDir) {
+    std::string hostTarget = buildWorkerTarget(worker);
+    if (hostTarget.empty() || hostTarget == "localhost" || hostTarget == "127.0.0.1") {
+        return 0;
+    }
+
+    std::string graphPrefix = "graph" + std::to_string(graphId) + "_part";
+    std::string findCommand = "ssh -o BatchMode=yes -o ConnectTimeout=5 " + shellQuote(hostTarget) +
+                              " find " + shellQuote(snapshotDir) +
+                              " -maxdepth 1 -type f -name " + shellQuote(graphPrefix + "*_bitmaps.ebm") +
+                              " 2>/dev/null";
+
+    int copied = 0;
+    std::string remoteFiles = captureCommandOutput(findCommand);
+    std::stringstream filesStream(remoteFiles);
+    std::string remoteFile;
+    while (std::getline(filesStream, remoteFile)) {
+        remoteFile = Utils::trim_copy(remoteFile);
+        if (remoteFile.empty()) {
+            continue;
+        }
+
+        std::string destinationPath = destinationDir + "/" + Utils::getFileName(remoteFile);
+        std::string catCommand = "ssh -o BatchMode=yes -o ConnectTimeout=5 " + shellQuote(hostTarget) +
+                                 " cat " + shellQuote(remoteFile);
+
+        if (copyCommandOutputToFile(catCommand, destinationPath)) {
+            copied++;
+        } else {
+            frontend_logger.error("Failed to fetch bitmap index from host " + hostTarget + ": " + remoteFile);
+        }
+    }
+
+    return copied;
+}
+
+static std::string stageTemporalBitmapIndexesForGraph(SQLiteDBInterface* sqlite,
+                                                      int graphId,
+                                                      const std::string& snapshotDir) {
+    char tempDirTemplate[] = "/tmp/jg_histrian_XXXXXX";
+    char* createdDir = mkdtemp(tempDirTemplate);
+    if (createdDir == nullptr) {
+        return "";
+    }
+
+    std::string stagingDir(createdDir);
+    int copied = 0;
+    copied += collectTemporalBitmapIndexesFromDirectory(snapshotDir, graphId, stagingDir);
+
+    const std::vector<Utils::worker>& workerList = Utils::getWorkerList(sqlite);
+    std::set<std::string> visitedHosts;
+    for (const auto& worker : workerList) {
+        std::string hostTarget = buildWorkerTarget(worker);
+        if (hostTarget.empty()) {
+            continue;
+        }
+        if (visitedHosts.insert(hostTarget).second) {
+            copied += collectTemporalBitmapIndexesFromRemoteHost(worker, graphId, snapshotDir, stagingDir);
+        }
+    }
+
+    if (copied == 0) {
+        rmdir(stagingDir.c_str());
+        return "";
+    }
+
+    return stagingDir;
+}
+
+static void cleanupStagedTemporalBitmapIndexes(const std::string& stagingDir) {
+    if (stagingDir.empty()) {
+        return;
+    }
+
+    std::vector<std::string> files = Utils::getListOfFilesInDirectory(stagingDir);
+    for (const auto& file : files) {
+        std::string fullPath = stagingDir + "/" + file;
+        remove(fullPath.c_str());
+    }
+    rmdir(stagingDir.c_str());
 }
 
 void *frontendservicesesion(void *dummyPt) {
@@ -3810,15 +3932,55 @@ static void history_triangle_command(int connFd, SQLiteDBInterface *sqlite, bool
     std::string snapshotStr = read_frontend_socket_value(connFd);
     uint32_t snapshotId = std::stoul(snapshotStr);
 
+    std::string stagedSnapshotDir;
+
     try {
+        if (!JasmineGraphFrontEndCommon::graphExistsByID(graphIdStr, sqlite)) {
+            std::string response = "Error: Graph " + graphIdStr + " does not exist";
+            resultWr = write(connFd, response.c_str(), response.length());
+            resultWr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
+            frontend_logger.warn("History triangle requested for non-existent graph " + graphIdStr);
+            return;
+        }
+
         std::string snapshotDir = getTemporalSnapshotDir();
+
+        auto snapMap = loadTemporalSnapshotSummariesForGraph(sqlite, graphId);
+        if (snapMap.empty()) {
+            std::string error = "Error: No snapshots found for graph " + std::to_string(graphId);
+            resultWr = write(connFd, error.c_str(), error.length());
+            resultWr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
+            return;
+        }
+        if (snapMap.find(snapshotId) == snapMap.end()) {
+            uint32_t minSnapshot = snapMap.begin()->first;
+            uint32_t maxSnapshot = snapMap.rbegin()->first;
+            std::stringstream error;
+            error << "Error: Snapshot " << snapshotId << " not found for graph " << graphId
+                  << ". Available range: [" << minSnapshot << ", " << maxSnapshot << "]";
+            std::string errorText = error.str();
+            resultWr = write(connFd, errorText.c_str(), errorText.length());
+            resultWr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
+            return;
+        }
+
+        stagedSnapshotDir = stageTemporalBitmapIndexesForGraph(sqlite, graphId, snapshotDir);
+        if (stagedSnapshotDir.empty()) {
+            std::string error = "Error: No temporal bitmap index files found for graph " + std::to_string(graphId);
+            resultWr = write(connFd, error.c_str(), error.length());
+            resultWr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
+            frontend_logger.error(error);
+            return;
+        }
 
         uint64_t timeThreshold = 60;
         uint64_t edgeThreshold = 10000;
 
-        // Use HistoryTriangles class to count triangles at snapshot
+        // Count triangles using cumulative edges over snapshots [0..snapshotId].
         TemporalTriangleResult result = HistoryTriangles::countTrianglesAtSnapshot(
-            graphId, snapshotId, snapshotDir, timeThreshold, edgeThreshold);
+            graphId, snapshotId, stagedSnapshotDir, timeThreshold, edgeThreshold);
+
+        cleanupStagedTemporalBitmapIndexes(stagedSnapshotDir);
 
         if (result.partitionsProcessed == 0) {
             std::string error = "Error: No snapshot files found for graph " +
@@ -3828,8 +3990,9 @@ static void history_triangle_command(int connFd, SQLiteDBInterface *sqlite, bool
             frontend_logger.error(error);
         } else {
             std::stringstream response;
-            response << "Triangle count at snapshot " << snapshotId << ": " << result.triangleCount << "\n";
-            response << "Edges: " << result.totalEdges << "\n";
+            response << "Triangle count using cumulative edges from snapshots [0, " << snapshotId
+                     << "]: " << result.triangleCount << "\n";
+            response << "Edges in cumulative range [0, " << snapshotId << "]: " << result.totalEdges << "\n";
             response << "Unique nodes: " << result.uniqueNodes << "\n";
             response << "Partitions processed: " << result.partitionsProcessed << "\n";
             response << "Time taken: " << result.durationMs << "ms\n";
@@ -3843,6 +4006,7 @@ static void history_triangle_command(int connFd, SQLiteDBInterface *sqlite, bool
                                " edges across " + std::to_string(result.partitionsProcessed) + " partitions");
         }
     } catch (const std::exception& e) {
+        cleanupStagedTemporalBitmapIndexes(stagedSnapshotDir);
         std::string error = "Error: " + std::string(e.what());
         resultWr = write(connFd, error.c_str(), error.length());
         resultWr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
@@ -3867,21 +4031,12 @@ static bool parseTemporalTargetTimestamp(const std::string& timestampStr, uint64
     return true;
 }
 
-static std::map<uint32_t, uint64_t> loadSnapshotTimestampsForGraph(const std::string& snapshotDir, int graphId) {
-    std::vector<std::string> files = Utils::getListOfFilesInDirectory(snapshotDir);
-    std::string graphPrefix = "graph" + std::to_string(graphId) + "_part";
+static std::map<uint32_t, uint64_t> loadSnapshotTimestampsForGraph(SQLiteDBInterface* sqlite, int graphId) {
+    auto snapMap = loadTemporalSnapshotSummariesForGraph(sqlite, graphId);
     std::map<uint32_t, uint64_t> snapshotTimestamps;
 
-    for (const auto& file : files) {
-        if (file.find(graphPrefix) == std::string::npos || file.find("_snapmeta.bin") == std::string::npos) {
-            continue;
-        }
-
-        std::string metaPath = snapshotDir + "/" + file;
-        auto records = TemporalStorePersistence::readAllSnapmeta(metaPath);
-        for (const auto& rec : records) {
-            snapshotTimestamps.emplace(rec.snapshotId, rec.timestamp);
-        }
+    for (const auto& [snapshotId, info] : snapMap) {
+        snapshotTimestamps[snapshotId] = info.timestamp;
     }
 
     return snapshotTimestamps;
@@ -3910,7 +4065,7 @@ static std::string formatSnapshotTimestamp(uint64_t timestampNs) {
     return format_local_timestamp(snapshotTime);
 }
 
-static void history_triangle_timestamp_command(int connFd, SQLiteDBInterface *, bool *) {
+static void history_triangle_timestamp_command(int connFd, SQLiteDBInterface *sqlite, bool *) {
     frontend_logger.info("History triangle count by timestamp command received");
 
     std::string message = "Graph ID?";
@@ -3926,6 +4081,8 @@ static void history_triangle_timestamp_command(int connFd, SQLiteDBInterface *, 
 
     std::string timestampStr = read_frontend_socket_value(connFd);
 
+    std::string stagedSnapshotDir;
+
     try {
         uint64_t targetTimestamp = 0;
         if (!parseTemporalTargetTimestamp(timestampStr, targetTimestamp)) {
@@ -3935,8 +4092,16 @@ static void history_triangle_timestamp_command(int connFd, SQLiteDBInterface *, 
             return;
         }
 
+        if (!JasmineGraphFrontEndCommon::graphExistsByID(graphIdStr, sqlite)) {
+            std::string response = "Error: Graph " + graphIdStr + " does not exist";
+            resultWr = write(connFd, response.c_str(), response.length());
+            resultWr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
+            frontend_logger.warn("History triangle timestamp requested for non-existent graph " + graphIdStr);
+            return;
+        }
+
         std::string snapshotDir = getTemporalSnapshotDir();
-        std::map<uint32_t, uint64_t> snapshotTimestamps = loadSnapshotTimestampsForGraph(snapshotDir, graphId);
+        std::map<uint32_t, uint64_t> snapshotTimestamps = loadSnapshotTimestampsForGraph(sqlite, graphId);
 
         if (snapshotTimestamps.empty()) {
             std::string error = "Error: No snapshots found for graph " + std::to_string(graphId);
@@ -3947,11 +4112,22 @@ static void history_triangle_timestamp_command(int connFd, SQLiteDBInterface *, 
 
         uint32_t closestSnapshotId = findClosestSnapshotId(snapshotTimestamps, targetTimestamp);
 
+        stagedSnapshotDir = stageTemporalBitmapIndexesForGraph(sqlite, graphId, snapshotDir);
+        if (stagedSnapshotDir.empty()) {
+            std::string error = "Error: No temporal bitmap index files found for graph " + std::to_string(graphId);
+            resultWr = write(connFd, error.c_str(), error.length());
+            resultWr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
+            frontend_logger.error(error);
+            return;
+        }
+
         uint64_t timeThreshold = 60;
         uint64_t edgeThreshold = 10000;
 
         TemporalTriangleResult result = HistoryTriangles::countTrianglesAtSnapshot(
-            graphId, closestSnapshotId, snapshotDir, timeThreshold, edgeThreshold);
+            graphId, closestSnapshotId, stagedSnapshotDir, timeThreshold, edgeThreshold);
+
+        cleanupStagedTemporalBitmapIndexes(stagedSnapshotDir);
 
         if (result.partitionsProcessed == 0) {
             std::string error = "Error: Failed to process snapshot " + std::to_string(closestSnapshotId);
@@ -3963,8 +4139,9 @@ static void history_triangle_timestamp_command(int connFd, SQLiteDBInterface *, 
         std::string timeStr = formatSnapshotTimestamp(snapshotTimestamps.at(closestSnapshotId));
         std::stringstream response;
         response << "Closest snapshot: " << closestSnapshotId << " (created: " << timeStr << ")\n";
-        response << "Triangle count: " << result.triangleCount << "\n";
-        response << "Edges: " << result.totalEdges << "\n";
+        response << "Triangle count using cumulative edges from snapshots [0, " << closestSnapshotId
+             << "]: " << result.triangleCount << "\n";
+        response << "Edges in cumulative range [0, " << closestSnapshotId << "]: " << result.totalEdges << "\n";
         response << "Unique nodes: " << result.uniqueNodes << "\n";
         response << "Partitions processed: " << result.partitionsProcessed << "\n";
         response << "Time taken: " << result.durationMs << "ms\n";
@@ -3975,6 +4152,7 @@ static void history_triangle_timestamp_command(int connFd, SQLiteDBInterface *, 
 
         frontend_logger.info("History triangle count by timestamp completed");
     } catch (const std::exception& e) {
+        cleanupStagedTemporalBitmapIndexes(stagedSnapshotDir);
         std::string error = "Error: " + std::string(e.what());
         resultWr = write(connFd, error.c_str(), error.length());
         resultWr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
@@ -4014,12 +4192,51 @@ static void history_pagerank_command(int connFd, SQLiteDBInterface *sqlite, bool
     std::string iterStr = read_frontend_socket_value(connFd);
     int maxIterations = iterStr.empty() ? 100 : std::stoi(iterStr);
 
+    std::string stagedSnapshotDir;
+
     try {
+        if (!JasmineGraphFrontEndCommon::graphExistsByID(graphIdStr, sqlite)) {
+            std::string response = "Error: Graph " + graphIdStr + " does not exist";
+            resultWr = write(connFd, response.c_str(), response.length());
+            resultWr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
+            frontend_logger.warn("History PageRank requested for non-existent graph " + graphIdStr);
+            return;
+        }
+
         std::string snapshotDir = getTemporalSnapshotDir();
+        auto snapMap = loadTemporalSnapshotSummariesForGraph(sqlite, graphId);
+        if (snapMap.empty()) {
+            std::string error = "Error: No snapshots found for graph " + std::to_string(graphId);
+            resultWr = write(connFd, error.c_str(), error.length());
+            resultWr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
+            return;
+        }
+        if (snapMap.find(snapshotId) == snapMap.end()) {
+            uint32_t minSnapshot = snapMap.begin()->first;
+            uint32_t maxSnapshot = snapMap.rbegin()->first;
+            std::stringstream error;
+            error << "Error: Snapshot " << snapshotId << " not found for graph " << graphId
+                  << ". Available range: [" << minSnapshot << ", " << maxSnapshot << "]";
+            std::string errorText = error.str();
+            resultWr = write(connFd, errorText.c_str(), errorText.length());
+            resultWr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
+            return;
+        }
+
+        stagedSnapshotDir = stageTemporalBitmapIndexesForGraph(sqlite, graphId, snapshotDir);
+        if (stagedSnapshotDir.empty()) {
+            std::string error = "Error: No temporal bitmap index files found for graph " + std::to_string(graphId);
+            resultWr = write(connFd, error.c_str(), error.length());
+            resultWr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
+            frontend_logger.error(error);
+            return;
+        }
 
         HistoryPageRankResult result = HistoryPageRank::computePageRankAtSnapshot(
-            graphId, snapshotId, snapshotDir, topK,
+            graphId, snapshotId, stagedSnapshotDir, topK,
             maxIterations, PAGE_RANK_ALPHA);
+
+        cleanupStagedTemporalBitmapIndexes(stagedSnapshotDir);
 
         if (result.partitionsProcessed == 0) {
             std::string error = "Error: No snapshot files found for graph " +
@@ -4055,6 +4272,7 @@ static void history_pagerank_command(int connFd, SQLiteDBInterface *sqlite, bool
                                   " total nodes, " + std::to_string(result.totalEdges) + " edges");
         }
     } catch (const std::exception& e) {
+        cleanupStagedTemporalBitmapIndexes(stagedSnapshotDir);
         std::string error = "Error: " + std::string(e.what());
         resultWr = write(connFd, error.c_str(), error.length());
         resultWr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(),
@@ -4094,46 +4312,28 @@ static void history_pagerank_timestamp_command(int connFd, SQLiteDBInterface *sq
     std::string iterStr = read_frontend_socket_value(connFd);
     int maxIterations = iterStr.empty() ? 100 : std::stoi(iterStr);
 
+    std::string stagedSnapshotDir;
+
     try {
-        // Parse timestamp
-        uint64_t targetTimestamp;
-        if (timestampStr.find("-") != std::string::npos || timestampStr.find(":") != std::string::npos) {
-            struct tm tm = {};
-            if (strptime(timestampStr.c_str(), "%Y-%m-%d %H:%M:%S", &tm) != nullptr) {
-                targetTimestamp = static_cast<uint64_t>(std::mktime(&tm)) * 1000000000ULL;
-            } else {
-                std::string error = "Error: Invalid timestamp format. Use YYYY-MM-DD HH:MM:SS or Unix epoch.";
-                resultWr = write(connFd, error.c_str(), error.length());
-                resultWr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(),
-                                 Conts::CARRIAGE_RETURN_NEW_LINE.size());
-                return;
-            }
-        } else {
-            targetTimestamp = std::stoull(timestampStr);
-            // If given as seconds (not nanoseconds), convert
-            if (targetTimestamp < 1000000000000ULL) {
-                targetTimestamp *= 1000000000ULL;
-            }
+        uint64_t targetTimestamp = 0;
+        if (!parseTemporalTargetTimestamp(timestampStr, targetTimestamp)) {
+            std::string error = "Error: Invalid timestamp format. Use YYYY-MM-DD HH:MM:SS or Unix epoch.";
+            resultWr = write(connFd, error.c_str(), error.length());
+            resultWr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(),
+                             Conts::CARRIAGE_RETURN_NEW_LINE.size());
+            return;
+        }
+
+        if (!JasmineGraphFrontEndCommon::graphExistsByID(graphIdStr, sqlite)) {
+            std::string response = "Error: Graph " + graphIdStr + " does not exist";
+            resultWr = write(connFd, response.c_str(), response.length());
+            resultWr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
+            frontend_logger.warn("History PageRank timestamp requested for non-existent graph " + graphIdStr);
+            return;
         }
 
         std::string snapshotDir = getTemporalSnapshotDir();
-        std::vector<std::string> files = Utils::getListOfFilesInDirectory(snapshotDir);
-
-        std::string graphPrefix = "graph" + std::to_string(graphId) + "_part";
-        std::map<uint32_t, uint64_t> snapshotTimestamps;
-
-        // Collect all snapshot IDs and their timestamps from _snapmeta.bin files
-        for (const auto& file : files) {
-            if (file.find(graphPrefix) == std::string::npos) continue;
-            if (file.find("_snapmeta.bin") == std::string::npos) continue;
-            std::string metaPath = snapshotDir + "/" + file;
-            auto records = TemporalStorePersistence::readAllSnapmeta(metaPath);
-            for (const auto& rec : records) {
-                if (snapshotTimestamps.find(rec.snapshotId) == snapshotTimestamps.end()) {
-                    snapshotTimestamps[rec.snapshotId] = rec.timestamp;
-                }
-            }
-        }
+        std::map<uint32_t, uint64_t> snapshotTimestamps = loadSnapshotTimestampsForGraph(sqlite, graphId);
 
         if (snapshotTimestamps.empty()) {
             std::string error = "Error: No snapshots found for graph " + std::to_string(graphId);
@@ -4143,22 +4343,22 @@ static void history_pagerank_timestamp_command(int connFd, SQLiteDBInterface *sq
             return;
         }
 
-        // Find the snapshot closest to the requested timestamp
-        uint32_t closestSnapshotId = 0;
-        uint64_t minDiff = UINT64_MAX;
-        for (const auto& [snapshotId, timestamp] : snapshotTimestamps) {
-            uint64_t diff = (timestamp <= targetTimestamp) ?
-                            (targetTimestamp - timestamp) :
-                            (timestamp - targetTimestamp);
-            if (diff < minDiff) {
-                minDiff = diff;
-                closestSnapshotId = snapshotId;
-            }
+        uint32_t closestSnapshotId = findClosestSnapshotId(snapshotTimestamps, targetTimestamp);
+
+        stagedSnapshotDir = stageTemporalBitmapIndexesForGraph(sqlite, graphId, snapshotDir);
+        if (stagedSnapshotDir.empty()) {
+            std::string error = "Error: No temporal bitmap index files found for graph " + std::to_string(graphId);
+            resultWr = write(connFd, error.c_str(), error.length());
+            resultWr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
+            frontend_logger.error(error);
+            return;
         }
 
         HistoryPageRankResult result = HistoryPageRank::computePageRankAtSnapshot(
-            graphId, closestSnapshotId, snapshotDir, topK,
+            graphId, closestSnapshotId, stagedSnapshotDir, topK,
             maxIterations, PAGE_RANK_ALPHA);
+
+        cleanupStagedTemporalBitmapIndexes(stagedSnapshotDir);
 
         if (result.partitionsProcessed == 0) {
             std::string error = "Error: Failed to process snapshot " + std::to_string(closestSnapshotId);
@@ -4166,8 +4366,7 @@ static void history_pagerank_timestamp_command(int connFd, SQLiteDBInterface *sq
             resultWr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(),
                              Conts::CARRIAGE_RETURN_NEW_LINE.size());
         } else {
-            std::time_t snapshotTime = snapshotTimestamps[closestSnapshotId] / 1000000000;
-            std::string timeStr = format_local_timestamp(snapshotTime);
+            std::string timeStr = formatSnapshotTimestamp(snapshotTimestamps[closestSnapshotId]);
 
             std::stringstream response;
             response << "Closest snapshot: " << closestSnapshotId << " (created: " << timeStr << ")\n";
@@ -4192,6 +4391,7 @@ static void history_pagerank_timestamp_command(int connFd, SQLiteDBInterface *sq
                                   std::to_string(closestSnapshotId) + " (" + timeStr + ")");
         }
     } catch (const std::exception& e) {
+        cleanupStagedTemporalBitmapIndexes(stagedSnapshotDir);
         std::string error = "Error: " + std::string(e.what());
         resultWr = write(connFd, error.c_str(), error.length());
         resultWr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(),
