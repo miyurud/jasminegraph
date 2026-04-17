@@ -4246,7 +4246,6 @@ static void history_pagerank_command(int connFd, SQLiteDBInterface *sqlite, bool
             frontend_logger.error(error);
         } else {
             std::stringstream response;
-            response << "PageRank using cumulative edges from snapshots [0, " << snapshotId << "]:\n";
             response << "Nodes: " << result.totalNodes
                      << "  Edges: " << result.totalEdges
                      << "  Iterations: " << result.iterations
@@ -4367,7 +4366,6 @@ static void history_pagerank_timestamp_command(int connFd, SQLiteDBInterface *sq
 
             std::stringstream response;
             response << "Closest snapshot: " << closestSnapshotId << " (created: " << timeStr << ")\n";
-            response << "PageRank using cumulative edges from snapshots [0, " << closestSnapshotId << "]:\n";
             response << "Nodes: " << result.totalNodes
                      << "  Edges: " << result.totalEdges
                      << "  Iterations: " << result.iterations
