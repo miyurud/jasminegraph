@@ -17,6 +17,7 @@ limitations under the License.
 #include <unordered_set>
 #include <numeric>
 #include <sstream>
+#include <set>
 
 namespace {
 
@@ -114,7 +115,7 @@ HistoryPageRankResult HistoryPageRank::computePageRankAtSnapshot(
 
     result.centralEdges = centralEdgesLoaded;
     {
-        std::unordered_set<std::pair<std::string, std::string>> uniqueEdges;
+        std::set<std::pair<std::string, std::string>> uniqueEdges;
         for (const auto& edge : allEdges) {
             uniqueEdges.insert({edge.sourceId, edge.destId});
         }
