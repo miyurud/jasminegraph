@@ -94,7 +94,7 @@ create table partitioning_algorithm
 INSERT INTO graph_status (idgraph_status, description) VALUES (1, 'LOADING');
 INSERT INTO graph_status (idgraph_status, description) VALUES (2, 'OPERATIONAL');
 INSERT INTO graph_status (idgraph_status, description) VALUES (3, 'DELETED');
-INSERT INTO graph_status (idgraph_status, description) VALUES (4, 'NONOPERATIONAL');
+INSERT INTO graph_status (idgraph_status, description) VALUES (4, 'NON_OPERATIONAL');
 
 INSERT INTO partitioning_algorithm (id_algorithm, algorithm_name) VALUES (1, 'HASH');
 INSERT INTO partitioning_algorithm (id_algorithm, algorithm_name) VALUES (2, 'FENNEL');

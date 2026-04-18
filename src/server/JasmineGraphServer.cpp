@@ -729,7 +729,7 @@ void JasmineGraphServer::resolveOperationalGraphs() {
 
     for (std::set<int>::iterator itr = graphIDsFromWorkersSet.begin(); itr != graphIDsFromWorkersSet.end(); itr++) {
         if (graphIDsFromMetDBSet.find(*itr) == graphIDsFromMetDBSet.end()) {
-            deleteNonOperationalGraphFragment(*itr);
+            deleteNON_OPERATIONALGraphFragment(*itr);
         }
     }
 }
@@ -738,7 +738,7 @@ void JasmineGraphServer::resolveOperationalGraphs() {
  *
  * @param graphID ID of graph fragments to be deleted
  */
-void JasmineGraphServer::deleteNonOperationalGraphFragment(int graphID) {
+void JasmineGraphServer::deleteNON_OPERATIONALGraphFragment(int graphID) {
     server_logger.info("Deleting non-operational fragment " + to_string(graphID));
     int count = 0;
     // Define threads for each host
@@ -1405,7 +1405,7 @@ void JasmineGraphServer::updateOperationalGraphList() {
         "UPDATE graph SET graph_status_idgraph_status = ("
         "CASE WHEN idgraph IN (" +
         graphIDs + ") THEN '" + to_string(Conts::GRAPH_STATUS::OPERATIONAL) +
-        "' ELSE '" + to_string(Conts::GRAPH_STATUS::NONOPERATIONAL) + "' END )";
+        "' ELSE '" + to_string(Conts::GRAPH_STATUS::NON_OPERATIONAL) + "' END )";
     this->sqlite->runUpdate(sqlStatement2);
 }
 

@@ -482,7 +482,7 @@ static void list_command(int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_
                     ss << "loading|";
                 } else if (std::stoi(j->second) == Conts::GRAPH_STATUS::DELETING) {
                     ss << "deleting|";
-                } else if (std::stoi(j->second) == Conts::GRAPH_STATUS::NONOPERATIONAL) {
+                } else if (std::stoi(j->second) == Conts::GRAPH_STATUS::NON_OPERATIONAL) {
                     ss << "nop|";
                 } else if (std::stoi(j->second) == Conts::GRAPH_STATUS::OPERATIONAL) {
                     ss << "op|";
@@ -2218,7 +2218,7 @@ void addStreamHDFSCommand(std::string masterIP, int connFd, std::string &hdfsSer
         "INSERT INTO graph (name, upload_path, upload_start_time, upload_end_time, graph_status_idgraph_status, "
         "vertexcount, centralpartitioncount, edgecount, is_directed) VALUES(\"" +
         hdfsFilePathS + "\", \"" + path + "\", \"" + uploadStartTime + "\", \"\", \"" +
-        std::to_string(Conts::GRAPH_STATUS::NONOPERATIONAL) + "\", \"\", \"\", \"\", \"" +
+        std::to_string(Conts::GRAPH_STATUS::NON_OPERATIONAL) + "\", \"\", \"\", \"\", \"" +
         (directed ? "TRUE" : "FALSE") + "\")";
 
     int newGraphID = sqlite->runInsert(sqlStatement);
@@ -2482,7 +2482,7 @@ static int insertNewKgGraph(SQLiteDBInterface *sqlite, const std::string &hdfsFi
         "vertexcount, centralpartitioncount, edgecount, is_directed , "
         "file_size_bytes ) VALUES(\"" +
         hdfsFilePath + R"(", ")" + path + R"(", ")" + uploadStartTime + R"(", "", ")" +
-        std::to_string(Conts::GRAPH_STATUS::NONOPERATIONAL) + R"(", "", "", "", "TRUE", ")" +
+        std::to_string(Conts::GRAPH_STATUS::NON_OPERATIONAL) + R"(", "", "", "", "TRUE", ")" +
         to_string(totalFileSize) + R"(");)";
 
     int newGraphId = sqlite->runInsert(insertQuery);
