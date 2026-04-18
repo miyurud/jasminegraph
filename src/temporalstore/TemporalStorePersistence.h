@@ -22,7 +22,9 @@ limitations under the License.
 #include <chrono>
 #include <cerrno>
 #include <cstdlib>
+#include <cstdio>
 #include <limits>
+#include <unordered_set>
 #include <dirent.h>
 #include "EdgeLifespanBitmap.h"
 #include "PropertyIntervalDictionary.h"
@@ -486,7 +488,215 @@ class TemporalStorePersistence {
         }
 
         file.close();
-        return file.good() || true;  // flush errors caught by close
+        return file.good();
+    }
+
+    /**
+     * Merge current window bitmaps into existing on-disk bitmap index using
+     * a streaming pass over the existing file.
+     *
+     * Memory characteristics:
+     * - Does NOT load the full on-disk index into RAM.
+     * - Keeps only one existing edge record + the in-memory window map.
+     *
+     * Correctness:
+     * - For keys in both existing index and window, union bitmaps.
+     * - Existing-only keys are preserved as-is.
+     * - Window-only keys are appended.
+     */
+    template<typename EdgeBitmapMap>
+    static bool mergeBitmapIndexWithWindow(
+        const std::string& filePath,
+        uint32_t graphId,
+        uint32_t partitionId,
+        uint32_t latestSnapshotId,
+        const EdgeBitmapMap& windowBitmaps,
+        uint64_t* mergedEdgeCount = nullptr) {
+        using EdgeKey = typename EdgeBitmapMap::key_type;
+
+        // Fast-path for first write: nothing to merge.
+        {
+            std::ifstream existing(filePath, std::ios::binary);
+            if (!existing.is_open()) {
+                bool saved = saveBitmapIndex(
+                    filePath, graphId, partitionId, latestSnapshotId, windowBitmaps);
+                if (saved && mergedEdgeCount != nullptr) {
+                    *mergedEdgeCount = static_cast<uint64_t>(windowBitmaps.size());
+                }
+                return saved;
+            }
+        }
+
+        std::ifstream in(filePath, std::ios::binary);
+        if (!in.is_open()) {
+            return false;
+        }
+
+        std::vector<char> readBuffer(4 * 1024 * 1024);
+        in.rdbuf()->pubsetbuf(readBuffer.data(), static_cast<std::streamsize>(readBuffer.size()));
+
+        BitmapFileHeader existingHeader;
+        in.read(reinterpret_cast<char*>(&existingHeader), sizeof(BitmapFileHeader));
+        if (!in.good()) {
+            return false;
+        }
+
+        if (std::memcmp(existingHeader.magic, "JGBINDEX", 8) != 0 || existingHeader.version != 1) {
+            // Invalid/legacy file content: rebuild index from the current window.
+            bool saved = saveBitmapIndex(
+                filePath, graphId, partitionId, latestSnapshotId, windowBitmaps);
+            if (saved && mergedEdgeCount != nullptr) {
+                *mergedEdgeCount = static_cast<uint64_t>(windowBitmaps.size());
+            }
+            return saved;
+        }
+
+        if (existingHeader.graphId != graphId || existingHeader.partitionId != partitionId) {
+            // File belongs to another store; rewrite with the current window only.
+            bool saved = saveBitmapIndex(
+                filePath, graphId, partitionId, latestSnapshotId, windowBitmaps);
+            if (saved && mergedEdgeCount != nullptr) {
+                *mergedEdgeCount = static_cast<uint64_t>(windowBitmaps.size());
+            }
+            return saved;
+        }
+
+        uint64_t existingEdgeCount = 0;
+        in.read(reinterpret_cast<char*>(&existingEdgeCount), sizeof(uint64_t));
+        if (!in.good()) {
+            return false;
+        }
+
+        std::string tempPath = filePath + ".tmp";
+        std::ofstream out(tempPath, std::ios::binary | std::ios::trunc);
+        if (!out.is_open()) {
+            return false;
+        }
+
+        std::vector<char> writeBuffer(8 * 1024 * 1024);
+        out.rdbuf()->pubsetbuf(writeBuffer.data(), static_cast<std::streamsize>(writeBuffer.size()));
+
+        BitmapFileHeader mergedHeader;
+        std::memcpy(mergedHeader.magic, "JGBINDEX", 8);
+        mergedHeader.version = 1;
+        mergedHeader.graphId = graphId;
+        mergedHeader.partitionId = partitionId;
+        mergedHeader.latestSnapshotId = latestSnapshotId;
+        mergedHeader.edgeCount = 0;
+        mergedHeader.timestamp = static_cast<uint64_t>(
+            std::chrono::system_clock::now().time_since_epoch().count());
+        mergedHeader.flags = 0;
+        std::memset(mergedHeader.reserved, 0, 20);
+
+        out.write(reinterpret_cast<const char*>(&mergedHeader), sizeof(BitmapFileHeader));
+        uint64_t mergedCount = 0;
+        out.write(reinterpret_cast<const char*>(&mergedCount), sizeof(uint64_t));
+
+        // Track window keys that were already merged with existing records.
+        std::unordered_set<EdgeKey, typename EdgeKey::Hash> consumedWindowKeys;
+        consumedWindowKeys.reserve(windowBitmaps.size());
+
+        for (uint64_t i = 0; i < existingEdgeCount; ++i) {
+            std::string sourceId = readString(in);
+            std::string destId = readString(in);
+            if (!in.good()) {
+                out.close();
+                std::remove(tempPath.c_str());
+                return false;
+            }
+
+            uint32_t dataSize = 0;
+            in.read(reinterpret_cast<char*>(&dataSize), sizeof(uint32_t));
+            if (!in.good()) {
+                out.close();
+                std::remove(tempPath.c_str());
+                return false;
+            }
+
+            std::string bitmapData(dataSize, '\0');
+            in.read(&bitmapData[0], dataSize);
+            if (!in.good()) {
+                out.close();
+                std::remove(tempPath.c_str());
+                return false;
+            }
+
+            EdgeKey key(sourceId, destId);
+            auto windowIt = windowBitmaps.find(key);
+
+            writeString(out, sourceId);
+            writeString(out, destId);
+
+            if (windowIt != windowBitmaps.end()) {
+                // Merge existing + current window for this edge.
+                EdgeLifespanBitmap existingBitmap = EdgeLifespanBitmap::deserialize(bitmapData);
+                EdgeLifespanBitmap mergedBitmap = existingBitmap.unionWith(windowIt->second);
+                std::string mergedData = mergedBitmap.serialize();
+                uint32_t mergedSize = static_cast<uint32_t>(mergedData.size());
+                out.write(reinterpret_cast<const char*>(&mergedSize), sizeof(uint32_t));
+                out.write(mergedData.data(), mergedSize);
+                consumedWindowKeys.insert(key);
+            } else {
+                out.write(reinterpret_cast<const char*>(&dataSize), sizeof(uint32_t));
+                out.write(bitmapData.data(), dataSize);
+            }
+
+            if (!out.good()) {
+                out.close();
+                std::remove(tempPath.c_str());
+                return false;
+            }
+
+            mergedCount++;
+        }
+
+        // Append window-only edges not present in the existing file.
+        for (const auto& pair : windowBitmaps) {
+            if (consumedWindowKeys.find(pair.first) != consumedWindowKeys.end()) {
+                continue;
+            }
+
+            writeString(out, pair.first.sourceId);
+            writeString(out, pair.first.destId);
+
+            std::string bitmapData = pair.second.serialize();
+            uint32_t dataSize = static_cast<uint32_t>(bitmapData.size());
+            out.write(reinterpret_cast<const char*>(&dataSize), sizeof(uint32_t));
+            out.write(bitmapData.data(), dataSize);
+
+            if (!out.good()) {
+                out.close();
+                std::remove(tempPath.c_str());
+                return false;
+            }
+
+            mergedCount++;
+        }
+
+        // Patch header + edge count with final merged count.
+        mergedHeader.edgeCount = mergedCount;
+        out.seekp(0, std::ios::beg);
+        out.write(reinterpret_cast<const char*>(&mergedHeader), sizeof(BitmapFileHeader));
+        out.write(reinterpret_cast<const char*>(&mergedCount), sizeof(uint64_t));
+
+        if (!out.good()) {
+            out.close();
+            std::remove(tempPath.c_str());
+            return false;
+        }
+
+        out.close();
+        in.close();
+
+        if (std::rename(tempPath.c_str(), filePath.c_str()) != 0) {
+            std::remove(tempPath.c_str());
+            return false;
+        }
+
+        if (mergedEdgeCount != nullptr) {
+            *mergedEdgeCount = mergedCount;
+        }
+        return true;
     }
 
     /**

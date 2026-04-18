@@ -487,9 +487,9 @@ class TemporalStore {
 
     /**
      * Rewrite graph{G}_part{P}_bitmaps.ebm with the current edgeBitmaps_ map.
-        * To keep memory usage bounded, incoming edges for the current window are
-        * swapped out from RAM and then merged into the existing on-disk bitmap
-        * index before rewrite.
+      * To keep memory usage bounded, incoming edges for the current window are
+      * swapped out from RAM and merged into existing on-disk data using a
+      * streaming merge (without loading the full index into memory).
      */
     bool saveBitmapIndexToDisk(const std::string& baseDir,
                                uint32_t closedSnapshotId,
@@ -506,34 +506,8 @@ class TemporalStore {
             totalEdgesTracked_ = 0;
         }
 
-        // Load previously persisted cumulative bitmap index (if present) and
-        // merge the current window into it so historical snapshots are retained.
-        decltype(edgeBitmaps_) cumulativeBitmaps;
-        uint32_t loadedGraphId = 0;
-        uint32_t loadedPartitionId = 0;
-        uint32_t loadedLatestSnapshotId = 0;
-        bool loaded = TemporalStorePersistence::loadBitmapIndex(
-            filePath, loadedGraphId, loadedPartitionId, loadedLatestSnapshotId, cumulativeBitmaps);
-
-        if (loaded && (loadedGraphId != graphId_ || loadedPartitionId != partitionId_)) {
-            // Mismatched file content; ignore it and rebuild index from the current window.
-            cumulativeBitmaps.clear();
-        }
-
-        for (const auto& pair : windowBitmaps) {
-            const auto& key = pair.first;
-            const auto& windowBitmap = pair.second;
-
-            auto existing = cumulativeBitmaps.find(key);
-            if (existing == cumulativeBitmaps.end()) {
-                cumulativeBitmaps.insert({key, windowBitmap});
-            } else {
-                existing->second = existing->second.unionWith(windowBitmap);
-            }
-        }
-
-        bool saved = TemporalStorePersistence::saveBitmapIndex(
-            filePath, graphId_, partitionId_, closedSnapshotId, cumulativeBitmaps);
+        bool saved = TemporalStorePersistence::mergeBitmapIndexWithWindow(
+            filePath, graphId_, partitionId_, closedSnapshotId, windowBitmaps, savedEdgeCount);
 
         if (!saved) {
             // Restore data on failure to avoid dropping the in-memory window.
@@ -541,10 +515,6 @@ class TemporalStore {
             edgeBitmaps_.insert(windowBitmaps.begin(), windowBitmaps.end());
             totalEdgesTracked_ = edgeBitmaps_.size();
             return false;
-        }
-
-        if (savedEdgeCount != nullptr) {
-            *savedEdgeCount = cumulativeBitmaps.size();
         }
         return true;
     }
