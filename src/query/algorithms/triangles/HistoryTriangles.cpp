@@ -15,6 +15,7 @@ limitations under the License.
 
 #include <algorithm>
 #include <set>
+#include <fstream>
 #include <sstream>
 #include <unordered_set>
 
@@ -81,6 +82,44 @@ std::vector<TemporalStore::EdgeKey> collectCumulativeEdgesUpToSnapshot(TemporalS
     return std::vector<TemporalStore::EdgeKey>(cumulativeEdgeSet.begin(), cumulativeEdgeSet.end());
 }
 
+uint64_t encodeUndirectedEdge(uint32_t sourceIndex, uint32_t destIndex) {
+    if (sourceIndex > destIndex) {
+        std::swap(sourceIndex, destIndex);
+    }
+    return (static_cast<uint64_t>(sourceIndex) << 32) | static_cast<uint64_t>(destIndex);
+}
+
+uint32_t decodeSourceIndex(uint64_t encoded) {
+    return static_cast<uint32_t>(encoded >> 32);
+}
+
+uint32_t decodeDestIndex(uint64_t encoded) {
+    return static_cast<uint32_t>(encoded & 0xffffffffULL);
+}
+
+size_t countCommonSortedValues(const std::vector<uint32_t>& left,
+                               const std::vector<uint32_t>& right) {
+    size_t count = 0;
+    size_t leftIndex = 0;
+    size_t rightIndex = 0;
+
+    while (leftIndex < left.size() && rightIndex < right.size()) {
+        uint32_t leftValue = left[leftIndex];
+        uint32_t rightValue = right[rightIndex];
+        if (leftValue == rightValue) {
+            ++count;
+            ++leftIndex;
+            ++rightIndex;
+        } else if (leftValue < rightValue) {
+            ++leftIndex;
+        } else {
+            ++rightIndex;
+        }
+    }
+
+    return count;
+}
+
 }  // namespace
 
 Logger history_triangle_logger;
@@ -92,14 +131,28 @@ TemporalTriangleResult HistoryTriangles::countTrianglesAtSnapshot(
     uint64_t timeThreshold,
     uint64_t edgeThreshold) {
 
+    (void)timeThreshold;
+    (void)edgeThreshold;
+
     auto start = std::chrono::high_resolution_clock::now();
 
     // Default initialize all fields to 0
     TemporalTriangleResult result{};
-
-    // Collect all edges from all stores
-    std::vector<TemporalStore::EdgeKey> allEdges;
     int partitionsProcessed = 0;
+    std::unordered_map<std::string, uint32_t> nodeToIndex;
+    std::vector<std::string> indexToNode;
+    std::unordered_set<uint64_t> uniqueUndirectedEdges;
+
+    auto getOrAddNode = [&](const std::string& node) -> uint32_t {
+        auto it = nodeToIndex.find(node);
+        if (it != nodeToIndex.end()) {
+            return it->second;
+        }
+        uint32_t idx = static_cast<uint32_t>(indexToNode.size());
+        nodeToIndex.emplace(node, idx);
+        indexToNode.push_back(node);
+        return idx;
+    };
 
     // Discover partitions from available bitmap files instead of scanning guessed IDs.
     // This supports sparse partition IDs and worker-distributed snapshot staging.
@@ -121,49 +174,34 @@ TemporalTriangleResult HistoryTriangles::countTrianglesAtSnapshot(
         std::string filePath = TemporalStorePersistence::generateBitmapFilePath(
             snapshotDir, graphId, partitionId);
 
-        TemporalStore localStore(graphId, partitionId, timeThreshold, edgeThreshold,
-                                SnapshotManager::SnapshotMode::HYBRID);
+        bool loaded = TemporalStorePersistence::forEachActiveBitmapEdgeAtSnapshot(
+            filePath, snapshotId,
+            [&](const std::string& sourceId, const std::string& destId) {
+                if (sourceId == destId) {
+                    return true;
+                }
 
-        if (localStore.loadBitmapIndexFromDisk(filePath)) {
+                uint32_t sourceIndex = getOrAddNode(sourceId);
+                uint32_t destIndex = getOrAddNode(destId);
+                uniqueUndirectedEdges.insert(encodeUndirectedEdge(sourceIndex, destIndex));
+                return true;
+            });
+
+        if (loaded) {
             partitionsProcessed++;
-
-            auto cumulativeEdges = collectCumulativeEdgesUpToSnapshot(localStore, snapshotId);
-            allEdges.insert(allEdges.end(), cumulativeEdges.begin(), cumulativeEdges.end());
-
             history_triangle_logger.info("Loaded partition " + std::to_string(partitionId) +
-                                         ": " + std::to_string(cumulativeEdges.size()) +
-                                         " cumulative edges");
+                                         ": streamed cumulative edges");
         } else {
             history_triangle_logger.warn("Failed to load partition bitmap file " + filePath);
         }
     }
 
-    result.localEdges = allEdges.size();
+    result.localEdges = uniqueUndirectedEdges.size();
     result.centralEdges = 0;
     result.partitionsProcessed = partitionsProcessed;
-    result.totalEdges = allEdges.size();  // raw directed edge count from all stores
-
-    // Log unique directed edge count for diagnostics (cross-store duplicates are
-    // collapsed, but opposite directions are counted separately).
-    {
-        std::set<std::pair<std::string, std::string>> uniqueEdgeSet;
-        for (const auto& edge : allEdges) {
-            uniqueEdgeSet.insert({edge.sourceId, edge.destId});
-        }
-        size_t uniqueEdgeCount = uniqueEdgeSet.size();
-        result.uniqueEdges = uniqueEdgeCount;
-        history_triangle_logger.info("Raw cumulative edges [0.." + std::to_string(snapshotId) +
-                         "]: " + std::to_string(allEdges.size()) +
-                         " Unique directed edges: " + std::to_string(uniqueEdgeCount));
-    }
-
-    if (result.uniqueEdges == 0) {
-        std::set<std::pair<std::string, std::string>> uniqueEdgeSet;
-        for (const auto& edge : allEdges) {
-            uniqueEdgeSet.insert({edge.sourceId, edge.destId});
-        }
-        result.uniqueEdges = uniqueEdgeSet.size();
-    }
+    result.totalEdges = uniqueUndirectedEdges.size();
+    result.uniqueEdges = uniqueUndirectedEdges.size();
+    result.uniqueNodes = static_cast<uint32_t>(indexToNode.size());
 
     if (partitionsProcessed == 0) {
         history_triangle_logger.error("No snapshot files found for graph " +
@@ -172,14 +210,58 @@ TemporalTriangleResult HistoryTriangles::countTrianglesAtSnapshot(
         return result;
     }
 
-    // Phase 3: Count triangles on merged graph
-    history_triangle_logger.info("Counting triangles on merged graph with " +
-                                std::to_string(allEdges.size()) + " edges");
+    if (uniqueUndirectedEdges.empty()) {
+        history_triangle_logger.info("No edges active at snapshot " + std::to_string(snapshotId));
+        return result;
+    }
 
-    auto [triangleCount, uniqueNodes] = countTrianglesOnMergedGraph(allEdges);
+    std::vector<uint32_t> degree(indexToNode.size(), 0);
+    for (uint64_t encoded : uniqueUndirectedEdges) {
+        uint32_t sourceIndex = decodeSourceIndex(encoded);
+        uint32_t destIndex = decodeDestIndex(encoded);
+        degree[sourceIndex]++;
+        degree[destIndex]++;
+    }
+
+    std::vector<std::vector<uint32_t>> forwardNeighbors(indexToNode.size());
+    for (uint64_t encoded : uniqueUndirectedEdges) {
+        uint32_t sourceIndex = decodeSourceIndex(encoded);
+        uint32_t destIndex = decodeDestIndex(encoded);
+
+        bool sourceBeforeDest = (degree[sourceIndex] < degree[destIndex]) ||
+                                (degree[sourceIndex] == degree[destIndex] &&
+                                 sourceIndex < destIndex);
+        if (sourceBeforeDest) {
+            forwardNeighbors[sourceIndex].push_back(destIndex);
+        } else {
+            forwardNeighbors[destIndex].push_back(sourceIndex);
+        }
+    }
+
+    for (auto& neighbors : forwardNeighbors) {
+        std::sort(neighbors.begin(), neighbors.end());
+    }
+
+    uniqueUndirectedEdges.clear();
+    uniqueUndirectedEdges.rehash(0);
+
+    history_triangle_logger.info("Counting triangles on degree-ordered forward graph with " +
+                                 std::to_string(result.uniqueEdges) + " edges");
+
+    uint64_t triangleCount = 0;
+    for (uint32_t sourceIndex = 0; sourceIndex < forwardNeighbors.size(); ++sourceIndex) {
+        const std::vector<uint32_t>& sourceNeighbors = forwardNeighbors[sourceIndex];
+        for (uint32_t middleIndex : sourceNeighbors) {
+            const std::vector<uint32_t>& middleNeighbors = forwardNeighbors[middleIndex];
+            if (sourceNeighbors.size() < middleNeighbors.size()) {
+                triangleCount += countCommonSortedValues(sourceNeighbors, middleNeighbors);
+            } else {
+                triangleCount += countCommonSortedValues(middleNeighbors, sourceNeighbors);
+            }
+        }
+    }
 
     result.triangleCount = triangleCount;
-    result.uniqueNodes = uniqueNodes;
 
     auto end = std::chrono::high_resolution_clock::now();
     result.durationMs = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
@@ -197,26 +279,78 @@ std::pair<uint64_t, uint32_t> HistoryTriangles::countTrianglesOnMergedGraph(
         return {0, 0};
     }
 
-    // Build node index
-    std::map<std::string, uint32_t> nodeToIndex;
+    std::unordered_map<std::string, uint32_t> nodeToIndex;
     std::vector<std::string> indexToNode;
-    uint32_t uniqueNodes = buildNodeIndex(allEdges, nodeToIndex, indexToNode);
+    std::unordered_set<uint64_t> uniqueUndirectedEdges;
 
-    // Build adjacency bitmaps
-    auto neighbors = buildAdjacencyBitmaps(allEdges, nodeToIndex);
+    auto getOrAddNode = [&](const std::string& node) -> uint32_t {
+        auto it = nodeToIndex.find(node);
+        if (it != nodeToIndex.end()) {
+            return it->second;
+        }
+        uint32_t idx = static_cast<uint32_t>(indexToNode.size());
+        nodeToIndex.emplace(node, idx);
+        indexToNode.push_back(node);
+        return idx;
+    };
 
-    // Count triangles using bitmap intersections
-    uint64_t triangleCountRaw = countTrianglesFromBitmaps(allEdges, nodeToIndex, neighbors);
-
-    // Cleanup bitmaps
-    for (auto& [idx, bitmap] : neighbors) {
-        roaring_bitmap_free(bitmap);
+    for (const auto& edge : allEdges) {
+        if (edge.sourceId == edge.destId) {
+            continue;
+        }
+        uint32_t sourceIndex = getOrAddNode(edge.sourceId);
+        uint32_t destIndex = getOrAddNode(edge.destId);
+        uniqueUndirectedEdges.insert(encodeUndirectedEdge(sourceIndex, destIndex));
     }
 
-    // Each triangle counted 3 times (once per edge), divide by 3
-    uint64_t triangleCount = triangleCountRaw / 3;
+    if (uniqueUndirectedEdges.empty()) {
+        return {0, static_cast<uint32_t>(indexToNode.size())};
+    }
 
-    return {triangleCount, uniqueNodes};
+    std::vector<uint32_t> degree(indexToNode.size(), 0);
+    for (uint64_t encoded : uniqueUndirectedEdges) {
+        uint32_t sourceIndex = decodeSourceIndex(encoded);
+        uint32_t destIndex = decodeDestIndex(encoded);
+        degree[sourceIndex]++;
+        degree[destIndex]++;
+    }
+
+    std::vector<std::vector<uint32_t>> forwardNeighbors(indexToNode.size());
+    for (uint64_t encoded : uniqueUndirectedEdges) {
+        uint32_t sourceIndex = decodeSourceIndex(encoded);
+        uint32_t destIndex = decodeDestIndex(encoded);
+
+        bool sourceBeforeDest = (degree[sourceIndex] < degree[destIndex]) ||
+                                (degree[sourceIndex] == degree[destIndex] &&
+                                 sourceIndex < destIndex);
+        if (sourceBeforeDest) {
+            forwardNeighbors[sourceIndex].push_back(destIndex);
+        } else {
+            forwardNeighbors[destIndex].push_back(sourceIndex);
+        }
+    }
+
+    for (auto& neighbors : forwardNeighbors) {
+        std::sort(neighbors.begin(), neighbors.end());
+    }
+
+    uniqueUndirectedEdges.clear();
+    uniqueUndirectedEdges.rehash(0);
+
+    uint64_t triangleCount = 0;
+    for (uint32_t sourceIndex = 0; sourceIndex < forwardNeighbors.size(); ++sourceIndex) {
+        const std::vector<uint32_t>& sourceNeighbors = forwardNeighbors[sourceIndex];
+        for (uint32_t middleIndex : sourceNeighbors) {
+            const std::vector<uint32_t>& middleNeighbors = forwardNeighbors[middleIndex];
+            if (sourceNeighbors.size() < middleNeighbors.size()) {
+                triangleCount += countCommonSortedValues(sourceNeighbors, middleNeighbors);
+            } else {
+                triangleCount += countCommonSortedValues(middleNeighbors, sourceNeighbors);
+            }
+        }
+    }
+
+    return {triangleCount, static_cast<uint32_t>(indexToNode.size())};
 }
 
 uint32_t HistoryTriangles::buildNodeIndex(

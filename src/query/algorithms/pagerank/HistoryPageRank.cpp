@@ -14,6 +14,8 @@ limitations under the License.
 #include "HistoryPageRank.h"
 
 #include <algorithm>
+#include <cmath>
+#include <cstdint>
 #include <unordered_set>
 #include <numeric>
 #include <sstream>
@@ -33,6 +35,18 @@ std::vector<TemporalStore::EdgeKey> collectCumulativeEdgesUpToSnapshot(TemporalS
     return std::vector<TemporalStore::EdgeKey>(cumulativeEdgeSet.begin(), cumulativeEdgeSet.end());
 }
 
+uint64_t encodeEdgeKey(uint32_t sourceIndex, uint32_t destIndex) {
+    return (static_cast<uint64_t>(sourceIndex) << 32) | static_cast<uint64_t>(destIndex);
+}
+
+uint32_t decodeSourceIndex(uint64_t encoded) {
+    return static_cast<uint32_t>(encoded >> 32);
+}
+
+uint32_t decodeDestIndex(uint64_t encoded) {
+    return static_cast<uint32_t>(encoded & 0xffffffffULL);
+}
+
 }  // namespace
 
 Logger history_pagerank_logger;
@@ -47,18 +61,35 @@ HistoryPageRankResult HistoryPageRank::computePageRankAtSnapshot(
     uint64_t timeThreshold,
     uint64_t edgeThreshold) {
 
+    (void)timeThreshold;
+    (void)edgeThreshold;
+
     auto start = std::chrono::high_resolution_clock::now();
 
     HistoryPageRankResult result{};
     result.iterations = 0;  // will be set to actual iterations used after convergence
-
-    std::vector<TemporalStore::EdgeKey> allEdges;
     int partitionsProcessed = 0;
+    std::unordered_map<std::string, uint32_t> nodeToIndex;
+    std::vector<std::string> indexToNode;
+    std::vector<uint32_t> outDegree;
+    std::unordered_set<uint64_t> uniqueEdges;
+
+    auto getOrAddNode = [&](const std::string& node) -> uint32_t {
+        auto it = nodeToIndex.find(node);
+        if (it != nodeToIndex.end()) {
+            return it->second;
+        }
+        uint32_t idx = static_cast<uint32_t>(indexToNode.size());
+        nodeToIndex.emplace(node, idx);
+        indexToNode.push_back(node);
+        outDegree.push_back(0);
+        return idx;
+    };
 
     // -----------------------------------------------------------------------
-    // Phase 1: Load edges from LOCAL partition snapshots
+    // Phase 1: Stream active edges and build a deduplicated edge set.
     // -----------------------------------------------------------------------
-    history_pagerank_logger.info("Loading local partition snapshots for graph " +
+    history_pagerank_logger.info("Streaming snapshot edges for graph " +
                                  std::to_string(graphId) + " at snapshot " +
                                  std::to_string(snapshotId));
 
@@ -67,59 +98,46 @@ HistoryPageRankResult HistoryPageRank::computePageRankAtSnapshot(
         std::string filePath = TemporalStorePersistence::generateBitmapFilePath(
             snapshotDir, graphId, partitionId);
 
-        TemporalStore localStore(graphId, partitionId, timeThreshold, edgeThreshold,
-                                 SnapshotManager::SnapshotMode::HYBRID);
+        bool loaded = TemporalStorePersistence::forEachActiveBitmapEdgeAtSnapshot(
+            filePath, snapshotId,
+            [&](const std::string& sourceId, const std::string& destId) {
+                if (sourceId == destId) {
+                    return true;
+                }
 
-        if (localStore.loadBitmapIndexFromDisk(filePath)) {
+                uint32_t sourceIndex = getOrAddNode(sourceId);
+                uint32_t destIndex = getOrAddNode(destId);
+                uint64_t encoded = encodeEdgeKey(sourceIndex, destIndex);
+                if (uniqueEdges.insert(encoded).second) {
+                    outDegree[sourceIndex]++;
+                }
+                return true;
+            });
+
+        if (loaded) {
             partitionsProcessed++;
             if (partitionId > maxPartitionFound) maxPartitionFound = partitionId;
-
-            auto cumulativeEdges = collectCumulativeEdgesUpToSnapshot(localStore, snapshotId);
-            allEdges.insert(allEdges.end(), cumulativeEdges.begin(), cumulativeEdges.end());
-
-            history_pagerank_logger.info("Loaded local partition " + std::to_string(partitionId) +
-                                         ": " + std::to_string(cumulativeEdges.size()) + " cumulative edges");
         } else if (partitionsProcessed > 0 && partitionId > maxPartitionFound + 5) {
             break;
         }
     }
 
-    result.localEdges = allEdges.size();
+    result.localEdges = uniqueEdges.size();
     result.partitionsProcessed = partitionsProcessed;
 
     // -----------------------------------------------------------------------
-    // Phase 2: Load edges from CENTRAL store snapshot(s)
+    // Phase 2: no separate central-store pass is needed; the bitmap index files
+    // already contain cumulative edges for the snapshot.
     // -----------------------------------------------------------------------
-    history_pagerank_logger.info("Loading central store snapshot(s) for graph " +
-                                 std::to_string(graphId));
+    result.centralEdges = 0;
+    result.totalEdges = uniqueEdges.size();
+    result.totalNodes = static_cast<uint32_t>(indexToNode.size());
 
-    int centralStart = (partitionsProcessed > 0) ? partitionsProcessed : 1;
-    size_t centralEdgesLoaded = 0;
-    for (int centralId = centralStart; centralId < centralStart + 20; centralId++) {
-        std::string filePath = TemporalStorePersistence::generateBitmapFilePath(
-            snapshotDir, graphId, centralId);
-
-        TemporalStore centralStore(graphId, centralId, timeThreshold, edgeThreshold,
-                                   SnapshotManager::SnapshotMode::HYBRID);
-
-        if (centralStore.loadBitmapIndexFromDisk(filePath)) {
-            auto cumulativeEdges = collectCumulativeEdgesUpToSnapshot(centralStore, snapshotId);
-            allEdges.insert(allEdges.end(), cumulativeEdges.begin(), cumulativeEdges.end());
-            centralEdgesLoaded += cumulativeEdges.size();
-
-            history_pagerank_logger.info("Loaded central store (partition " +
-                                         std::to_string(centralId) + "): " +
-                                         std::to_string(cumulativeEdges.size()) + " cumulative edges");
-        }
-    }
-
-    result.centralEdges = centralEdgesLoaded;
-    {
-        std::set<std::pair<std::string, std::string>> uniqueEdges;
-        for (const auto& edge : allEdges) {
-            uniqueEdges.insert({edge.sourceId, edge.destId});
-        }
-        result.totalEdges = uniqueEdges.size();
+    if (result.totalNodes == 0) {
+        history_pagerank_logger.error("No active nodes found for graph " +
+                                      std::to_string(graphId) + " at snapshot " +
+                                      std::to_string(snapshotId));
+        return result;
     }
 
     if (partitionsProcessed == 0) {
@@ -129,26 +147,73 @@ HistoryPageRankResult HistoryPageRank::computePageRankAtSnapshot(
         return result;
     }
 
-    // -----------------------------------------------------------------------
-    // Phase 3: Compute PageRank on merged graph
-    // -----------------------------------------------------------------------
     history_pagerank_logger.info("Computing PageRank on merged graph with " +
-                                 std::to_string(result.totalEdges) + " cumulative edges, " +
+                                 std::to_string(result.totalEdges) + " unique edges, " +
                                  std::to_string(iterations) + " iterations, " +
                                  "d=" + std::to_string(dampingFactor));
 
-    result.rankedNodes = computePageRankOnMergedGraph(allEdges, topK, iterations, dampingFactor,
-                                                        &result.iterations);
+    // -----------------------------------------------------------------------
+    // Phase 3: Compute PageRank using pull-style iterations over the unique edge set.
+    // -----------------------------------------------------------------------
+    std::vector<double> pr(result.totalNodes, result.totalNodes > 0 ? 1.0 / result.totalNodes : 0.0);
+    std::vector<double> prNext(result.totalNodes, 0.0);
+    const double base = (result.totalNodes > 0) ? (1.0 - dampingFactor) / static_cast<double>(result.totalNodes) : 0.0;
+    const double invNodeCount = (result.totalNodes > 0) ? 1.0 / static_cast<double>(result.totalNodes) : 0.0;
+    const double tol = 1.0e-6;
 
-    // Count unique nodes across all edges
-    {
-        std::unordered_set<std::string> nodeSet;
-        for (const auto& e : allEdges) {
-            nodeSet.insert(e.sourceId);
-            nodeSet.insert(e.destId);
+    int actualIter = 0;
+    for (int iter = 0; iter < iterations; ++iter) {
+        actualIter = iter + 1;
+
+        double danglingMass = 0.0;
+        for (uint32_t nodeIndex = 0; nodeIndex < result.totalNodes; ++nodeIndex) {
+            if (outDegree[nodeIndex] == 0) {
+                danglingMass += pr[nodeIndex];
+            }
         }
-        result.totalNodes = static_cast<uint32_t>(nodeSet.size());
+
+        double danglingContribution = dampingFactor * danglingMass * invNodeCount;
+        std::fill(prNext.begin(), prNext.end(), base + danglingContribution);
+
+        for (uint64_t encoded : uniqueEdges) {
+            uint32_t sourceIndex = decodeSourceIndex(encoded);
+            uint32_t destIndex = decodeDestIndex(encoded);
+            if (outDegree[sourceIndex] == 0) {
+                continue;
+            }
+            prNext[destIndex] += dampingFactor * pr[sourceIndex] / static_cast<double>(outDegree[sourceIndex]);
+        }
+
+        double err = 0.0;
+        for (uint32_t nodeIndex = 0; nodeIndex < result.totalNodes; ++nodeIndex) {
+            err += std::abs(prNext[nodeIndex] - pr[nodeIndex]);
+        }
+
+        pr.swap(prNext);
+        if (err < static_cast<double>(result.totalNodes) * tol) {
+            break;
+        }
     }
+
+    result.iterations = actualIter;
+
+    std::vector<std::pair<std::string, double>> ranked;
+    ranked.reserve(result.totalNodes);
+    for (uint32_t nodeIndex = 0; nodeIndex < result.totalNodes; ++nodeIndex) {
+        ranked.emplace_back(indexToNode[nodeIndex], pr[nodeIndex]);
+    }
+
+    std::sort(ranked.begin(), ranked.end(),
+              [](const std::pair<std::string, double>& a,
+                 const std::pair<std::string, double>& b) {
+                  return a.second > b.second;
+              });
+
+    if (topK > 0 && static_cast<size_t>(topK) < ranked.size()) {
+        ranked.resize(static_cast<size_t>(topK));
+    }
+
+    result.rankedNodes = std::move(ranked);
 
     auto end = std::chrono::high_resolution_clock::now();
     result.durationMs = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
@@ -168,126 +233,97 @@ std::vector<std::pair<std::string, double>> HistoryPageRank::computePageRankOnMe
     int* actualIterationsOut) {
 
     if (allEdges.empty()) {
+        if (actualIterationsOut) {
+            *actualIterationsOut = 0;
+        }
         return {};
     }
 
-    // -----------------------------------------------------------------------
-    // Build node index and directed out-adjacency list
-    // -----------------------------------------------------------------------
-    // Collect all unique nodes
     std::unordered_map<std::string, uint32_t> nodeToIndex;
     std::vector<std::string> indexToNode;
+    std::vector<uint32_t> outDegree;
+    std::unordered_set<uint64_t> uniqueEdges;
 
-    auto getOrAdd = [&](const std::string& id) -> uint32_t {
-        auto it = nodeToIndex.find(id);
-        if (it == nodeToIndex.end()) {
-            uint32_t idx = static_cast<uint32_t>(indexToNode.size());
-            nodeToIndex[id] = idx;
-            indexToNode.push_back(id);
-            return idx;
+    auto getOrAddNode = [&](const std::string& node) -> uint32_t {
+        auto it = nodeToIndex.find(node);
+        if (it != nodeToIndex.end()) {
+            return it->second;
         }
-        return it->second;
+        uint32_t idx = static_cast<uint32_t>(indexToNode.size());
+        nodeToIndex.emplace(node, idx);
+        indexToNode.push_back(node);
+        outDegree.push_back(0);
+        return idx;
     };
 
-    // Collect unique nodes first (needed before getOrAdd can assign stable indices).
-    // Self-loops are skipped as they carry no structural PageRank information.
-    // Edges that cross partition boundaries are stored in multiple partition files,
-    // so we must deduplicate (u,v) pairs to match NetworkX DiGraph semantics.
-
-    // First pass: register all node IDs
-    for (const auto& e : allEdges) {
-        if (e.sourceId == e.destId) continue;
-        getOrAdd(e.sourceId);
-        getOrAdd(e.destId);
-    }
-
-    const uint32_t N = static_cast<uint32_t>(indexToNode.size());
-    if (N == 0) return {};
-
-    // Build out-adjacency list and out-degree — deduplicate via seen-set
-    std::vector<std::vector<uint32_t>> outAdj(N);
-    std::vector<uint32_t> outDegree(N, 0);
-
-    // Use a flat hash set of encoded 64-bit edge keys for deduplication
-    struct PairHash {
-        std::size_t operator()(std::pair<uint32_t, uint32_t> p) const noexcept {
-            return std::hash<uint64_t>{}((static_cast<uint64_t>(p.first) << 32) | p.second);
+    for (const auto& edge : allEdges) {
+        if (edge.sourceId == edge.destId) {
+            continue;
         }
-    };
-    std::unordered_set<std::pair<uint32_t, uint32_t>, PairHash> seenEdges;
-    seenEdges.reserve(allEdges.size());
-
-    for (const auto& e : allEdges) {
-        if (e.sourceId == e.destId) continue;
-        uint32_t u = nodeToIndex.at(e.sourceId);
-        uint32_t v = nodeToIndex.at(e.destId);
-        if (seenEdges.emplace(u, v).second) {   // only first occurrence
-            outAdj[u].push_back(v);
-            outDegree[u]++;
+        uint32_t sourceIndex = getOrAddNode(edge.sourceId);
+        uint32_t destIndex = getOrAddNode(edge.destId);
+        uint64_t encoded = encodeEdgeKey(sourceIndex, destIndex);
+        if (uniqueEdges.insert(encoded).second) {
+            outDegree[sourceIndex]++;
         }
     }
 
-    if (seenEdges.empty()) return {};
+    const uint32_t nodeCount = static_cast<uint32_t>(indexToNode.size());
+    if (nodeCount == 0 || uniqueEdges.empty()) {
+        if (actualIterationsOut) {
+            *actualIterationsOut = 0;
+        }
+        return {};
+    }
 
-    // -----------------------------------------------------------------------
-    // Iterative PageRank (matches NetworkX _pagerank_scipy formula exactly)
-    //   PR_new(v) = (1-d)/N + d * [ dangling_mass/N + sum_{u->v} PR(u)/out(u) ]
-    // Convergence: stop when L1 norm of change < N * tol  (same as NetworkX)
-    // -----------------------------------------------------------------------
-    const double base  = (1.0 - dampingFactor) / static_cast<double>(N);
-    const double inv_N = 1.0 / static_cast<double>(N);
-    const double tol   = 1.0e-6;   // same default tolerance as NetworkX
-
-    std::vector<double> pr(N, inv_N);   // initialise uniformly
-    std::vector<double> pr_new(N, 0.0);
+    std::vector<double> pr(nodeCount, 1.0 / static_cast<double>(nodeCount));
+    std::vector<double> prNext(nodeCount, 0.0);
+    const double base = (1.0 - dampingFactor) / static_cast<double>(nodeCount);
+    const double invNodeCount = 1.0 / static_cast<double>(nodeCount);
+    const double tol = 1.0e-6;
 
     int actualIter = 0;
-    for (int iter = 0; iter < iterations; iter++) {
+    for (int iter = 0; iter < iterations; ++iter) {
         actualIter = iter + 1;
 
-        // Accumulate dangling-node mass (nodes with no outgoing edges)
         double danglingMass = 0.0;
-        for (uint32_t u = 0; u < N; u++) {
-            if (outDegree[u] == 0) {
-                danglingMass += pr[u];
-            }
-        }
-        double danglingContrib = dampingFactor * danglingMass * inv_N;
-
-        // Reset pr_new
-        std::fill(pr_new.begin(), pr_new.end(), base + danglingContrib);
-
-        // Distribute PR from nodes with outgoing edges
-        for (uint32_t u = 0; u < N; u++) {
-            if (outDegree[u] == 0) continue;
-            double share = dampingFactor * pr[u] / static_cast<double>(outDegree[u]);
-            for (uint32_t v : outAdj[u]) {
-                pr_new[v] += share;
+        for (uint32_t nodeIndex = 0; nodeIndex < nodeCount; ++nodeIndex) {
+            if (outDegree[nodeIndex] == 0) {
+                danglingMass += pr[nodeIndex];
             }
         }
 
-        // Check L1-norm convergence (NetworkX criterion: err < N * tol)
+        double danglingContribution = dampingFactor * danglingMass * invNodeCount;
+        std::fill(prNext.begin(), prNext.end(), base + danglingContribution);
+
+        for (uint64_t encoded : uniqueEdges) {
+            uint32_t sourceIndex = decodeSourceIndex(encoded);
+            uint32_t destIndex = decodeDestIndex(encoded);
+            if (outDegree[sourceIndex] == 0) {
+                continue;
+            }
+            prNext[destIndex] += dampingFactor * pr[sourceIndex] / static_cast<double>(outDegree[sourceIndex]);
+        }
+
         double err = 0.0;
-        for (uint32_t i = 0; i < N; i++) {
-            err += std::abs(pr_new[i] - pr[i]);
+        for (uint32_t nodeIndex = 0; nodeIndex < nodeCount; ++nodeIndex) {
+            err += std::abs(prNext[nodeIndex] - pr[nodeIndex]);
         }
 
-        std::swap(pr, pr_new);
-
-        if (err < static_cast<double>(N) * tol) {
-            break;   // converged
+        pr.swap(prNext);
+        if (err < static_cast<double>(nodeCount) * tol) {
+            break;
         }
     }
 
-    if (actualIterationsOut) *actualIterationsOut = actualIter;
+    if (actualIterationsOut) {
+        *actualIterationsOut = actualIter;
+    }
 
-    // -----------------------------------------------------------------------
-    // Collect and sort results
-    // -----------------------------------------------------------------------
     std::vector<std::pair<std::string, double>> result;
-    result.reserve(N);
-    for (uint32_t i = 0; i < N; i++) {
-        result.emplace_back(indexToNode[i], pr[i]);
+    result.reserve(nodeCount);
+    for (uint32_t nodeIndex = 0; nodeIndex < nodeCount; ++nodeIndex) {
+        result.emplace_back(indexToNode[nodeIndex], pr[nodeIndex]);
     }
 
     std::sort(result.begin(), result.end(),

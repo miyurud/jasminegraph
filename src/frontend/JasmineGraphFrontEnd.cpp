@@ -4491,39 +4491,9 @@ static void history_bfs_command(int connFd, SQLiteDBInterface *sqlite, bool *) {
             return;
         }
 
-        auto nowEpoch = std::chrono::duration_cast<std::chrono::milliseconds>(
-            std::chrono::system_clock::now().time_since_epoch()).count();
-        std::string outputPath = "/tmp/jg_hisbfs_graph" + std::to_string(graphId) +
-                                 "_snapshot" + std::to_string(snapshotId) +
-                                 "_" + std::to_string(nowEpoch) + ".txt";
-
-        std::ofstream outFile(outputPath, std::ios::trunc);
-        if (!outFile.is_open()) {
-            std::string error = "Error: Failed to create output file at " + outputPath;
-            resultWr = write(connFd, error.c_str(), error.length());
-            resultWr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
-            return;
-        }
-
-        outFile << "graph_id=" << graphId << "\n";
-        outFile << "snapshot_id=" << snapshotId << "\n";
-        outFile << "source_node=" << sourceNode << "\n";
-        outFile << "max_depth=" << maxDepth << "\n";
-        outFile << "visited_nodes=" << result.traversalOrder.size() << "\n";
-        outFile << "total_nodes=" << result.totalNodes << "\n";
-        outFile << "raw_edges=" << result.rawEdges << "\n";
-        outFile << "duration_ms=" << result.durationMs << "\n";
-        outFile << "\nindex\tdepth\tnode\n";
-
-        size_t idx = 0;
-        for (const auto& [node, depth] : result.traversalOrder) {
-            outFile << idx++ << "\t" << depth << "\t" << node << "\n";
-        }
-        outFile.close();
-
         std::stringstream response;
-        response << "BFS result saved to: " << outputPath << "\n";
-        response << "Visited nodes: " << result.traversalOrder.size() << "\n";
+        response << "BFS result saved to: " << result.outputPath << "\n";
+        response << "Visited nodes: " << result.visitedNodes << "\n";
         response << "Nodes: " << result.totalNodes
                  << "  Edges: " << result.totalEdges
                  << "  Time: " << result.durationMs << "ms\n";
@@ -4534,7 +4504,7 @@ static void history_bfs_command(int connFd, SQLiteDBInterface *sqlite, bool *) {
 
         frontend_logger.info("History BFS completed: graph " + std::to_string(graphId) +
                              " snapshot " + std::to_string(snapshotId) +
-                             " output " + outputPath);
+                             " output " + result.outputPath);
     } catch (const std::exception& e) {
         cleanupStagedTemporalBitmapIndexes(stagedSnapshotDir);
         std::string error = "Error: " + std::string(e.what());

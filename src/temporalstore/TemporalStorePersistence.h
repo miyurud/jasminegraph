@@ -700,6 +700,67 @@ class TemporalStorePersistence {
     }
 
     /**
+     * Stream every edge that is active at the requested snapshot ID from a
+     * bitmap index file.
+     *
+     * The handler returns true to continue and false to stop early.
+     */
+    template<typename EdgeHandler>
+    static bool forEachActiveBitmapEdgeAtSnapshot(const std::string& filePath,
+                                                  uint32_t snapshotId,
+                                                  EdgeHandler&& handler) {
+        std::ifstream file(filePath, std::ios::binary);
+        if (!file.is_open()) {
+            return false;
+        }
+
+        std::vector<char> readBuffer(4 * 1024 * 1024);
+        file.rdbuf()->pubsetbuf(readBuffer.data(), static_cast<std::streamsize>(readBuffer.size()));
+
+        BitmapFileHeader header;
+        file.read(reinterpret_cast<char*>(&header), sizeof(BitmapFileHeader));
+        if (!file.good()) {
+            return false;
+        }
+
+        if (std::memcmp(header.magic, "JGBINDEX", 8) != 0 || header.version != 1) {
+            return false;
+        }
+
+        uint64_t edgeCount = 0;
+        file.read(reinterpret_cast<char*>(&edgeCount), sizeof(uint64_t));
+        if (!file.good()) {
+            return false;
+        }
+
+        for (uint64_t i = 0; i < edgeCount; ++i) {
+            std::string sourceId = readString(file);
+            std::string destId = readString(file);
+
+            uint32_t dataSize = 0;
+            file.read(reinterpret_cast<char*>(&dataSize), sizeof(uint32_t));
+            if (!file.good()) {
+                return false;
+            }
+
+            std::string bitmapData(dataSize, '\0');
+            file.read(&bitmapData[0], dataSize);
+            if (!file.good()) {
+                return false;
+            }
+
+            EdgeLifespanBitmap bitmap = EdgeLifespanBitmap::deserialize(bitmapData);
+            if (bitmap.getBit(snapshotId)) {
+                if (!handler(sourceId, destId)) {
+                    return true;
+                }
+            }
+        }
+
+        return true;
+    }
+
+    /**
      * Load the bitmap index from disk.
      * Populates edgeBitmaps and returns the latestSnapshotId stored in the header.
      */

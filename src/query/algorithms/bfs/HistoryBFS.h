@@ -23,8 +23,8 @@ limitations under the License.
 #include "../../../temporalstore/TemporalStore.h"
 
 struct HistoryBFSResult {
-    std::vector<std::pair<std::string, int>> traversalOrder;
-    size_t rawEdges;
+    std::string outputPath;
+    size_t visitedNodes;
     size_t totalEdges;
     uint32_t totalNodes;
     int partitionsProcessed;
