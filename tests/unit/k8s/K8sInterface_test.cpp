@@ -13,11 +13,13 @@ limitations under the License.
 
 #include "../../../src/k8s/K8sInterface.h"
 #include "../../../src/util/Utils.h"
+#include "../../../src/util/logger/Logger.h"
 
 #include "gtest/gtest.h"
-#include <iostream>
 #include <memory>
 #include <stdexcept>
+
+Logger k8s_interface_test_logger;
 
 class K8sInterfaceTest : public ::testing::Test {
  protected:
@@ -34,9 +36,9 @@ class K8sInterfaceTest : public ::testing::Test {
             interface->deleteJasmineGraphPersistentVolumeClaim(1);
             interface->deleteJasmineGraphPersistentVolume(1);
         } catch (const std::invalid_argument &e) {
-            std::cerr << "Cleanup: " << e.what() << std::endl;
+            k8s_interface_test_logger.error("Cleanup: " + std::string(e.what()));
         } catch (const std::out_of_range &e) {
-            std::cerr << "Cleanup: " << e.what() << std::endl;
+            k8s_interface_test_logger.error("Cleanup: " + std::string(e.what()));
         }
     }
 
@@ -50,9 +52,9 @@ class K8sInterfaceTest : public ::testing::Test {
             interface->deleteJasmineGraphPersistentVolumeClaim(1);
             interface->deleteJasmineGraphPersistentVolume(1);
         } catch (const std::invalid_argument &e) {
-            std::cerr << "Cleanup: " << e.what() << std::endl;
+            k8s_interface_test_logger.error("Cleanup: " + std::string(e.what()));
         } catch (const std::out_of_range &e) {
-            std::cerr << "Cleanup: " << e.what() << std::endl;
+            k8s_interface_test_logger.error("Cleanup: " + std::string(e.what()));
         }
     }
 };

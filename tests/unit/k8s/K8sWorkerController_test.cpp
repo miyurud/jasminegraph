@@ -12,6 +12,7 @@ limitations under the License.
  */
 
 #include "../../../src/k8s/K8sWorkerController.h"
+#include "../../../src/util/logger/Logger.h"
 
 #include <fstream>
 #include <iostream>
@@ -19,6 +20,8 @@ limitations under the License.
 #include <vector>
 
 #include "gtest/gtest.h"
+
+Logger k8s_worker_controller_logger;
 
 namespace {
 constexpr const char *kWorkerName = "jasminegraph-worker";
@@ -45,10 +48,10 @@ bool extractWorkerIdFromLabels(list_t *labels, int &workerId) {
             workerId = std::stoi(static_cast<char *>(pair->value));
             return true;
         } catch (const std::invalid_argument &e) {
-            std::cerr << "Cleanup: " << e.what() << std::endl;
+            k8s_worker_controller_logger.error("Cleanup: " + std::string(e.what()));
             return false;
         } catch (const std::out_of_range &e) {
-            std::cerr << "Cleanup: " << e.what() << std::endl;
+            k8s_worker_controller_logger.error("Cleanup: " + std::string(e.what()));
             return false;
         }
     }
