@@ -1823,7 +1823,7 @@ static bool exportPartitionShard(const std::string &masterIP, const std::string 
     struct hostent hostEntry;
     struct hostent *server = nullptr;
     int hostErrno = 0;
-    std::string hostBuffer(8192, '\0');
+    std::string hostBuffer(HOSTNAME_BUFFER_SIZE, '\0');
     if (int hostLookupResult = gethostbyname_r(host.c_str(), &hostEntry, hostBuffer.data(), hostBuffer.size(), &server,
                                                &hostErrno);
         hostLookupResult != 0 || server == nullptr) {
@@ -2215,11 +2215,11 @@ void addStreamHDFSCommand(std::string masterIP, int connFd, std::string &hdfsSer
     std::time_t time = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
     std::string uploadStartTime = ctime(&time);
     std::string sqlStatement =
-        "INSERT INTO graph (name, upload_path, upload_start_time, upload_end_time, graph_status_idgraph_status, "
-        "vertexcount, centralpartitioncount, edgecount, is_directed) VALUES(\"" +
-        hdfsFilePathS + "\", \"" + path + "\", \"" + uploadStartTime + "\", \"\", \"" +
-        std::to_string(Conts::GRAPH_STATUS::NON_OPERATIONAL) + "\", \"\", \"\", \"\", \"" +
-        (directed ? "TRUE" : "FALSE") + "\")";
+        R"(INSERT INTO graph (name, upload_path, upload_start_time, upload_end_time, graph_status_idgraph_status, )"
+        R"(vertexcount, centralpartitioncount, edgecount, is_directed) VALUES(")" +
+        hdfsFilePathS + R"(", ")" + path + R"(", ")" + uploadStartTime + R"(", "", ")" +
+        std::to_string(Conts::GRAPH_STATUS::NON_OPERATIONAL) + R"(", "", "", "", ")" +
+        (directed ? "TRUE" : "FALSE") + R"("))";
 
     int newGraphID = sqlite->runInsert(sqlStatement);
     frontend_logger.info("Created graph ID: " + std::to_string(newGraphID));
@@ -2289,7 +2289,7 @@ static void runKGStreamingTask(KGStreamingTaskContext context) {
     }
 
     std::time_t endTime = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
-    std::string uploadEndTimeBuffer(26, '\0');
+    std::string uploadEndTimeBuffer(CTIME_BUFFER_SIZE, '\0');
     std::string uploadEndTime = ctime_r(&endTime, uploadEndTimeBuffer.data());
 
     std::string sqlStatementUpdateEndTime =
@@ -2586,7 +2586,7 @@ bool JasmineGraphFrontEnd::constructKGStreamHDFSCommand(const std::string &maste
     std::string path = "hdfs:" + hdfsFilePath;
     double_t totalFileSize = hdfsGetPathInfo(hdfsConnector->getFileSystem(), hdfsFilePath.c_str())->mSize;
     std::time_t now = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
-    std::string uploadStartTimeBuffer(26, '\0');
+    std::string uploadStartTimeBuffer(CTIME_BUFFER_SIZE, '\0');
     std::string uploadStartTime = ctime_r(&now, uploadStartTimeBuffer.data());
     uploadStartTime.erase(uploadStartTime.find_last_not_of(Conts::CARRIAGE_RETURN_NEW_LINE) + 1);
 

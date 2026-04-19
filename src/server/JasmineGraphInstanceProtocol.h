@@ -154,6 +154,7 @@ const int FED_DATA_LENGTH = 300;
 const int INSTANCE_LONG_DATA_LENGTH = 5048;
 const int INSTANCE_FILE_BUFFER_LENGTH = 1024;
 const int MAX_STREAMING_DATA_LENGTH = 1024;
+const int HOSTNAME_BUFFER_SIZE = 4096;  // Required for gethostbyname_r() buffer
 
 const int TOP_K_PAGE_RANK = 100;
 

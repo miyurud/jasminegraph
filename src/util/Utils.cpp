@@ -620,7 +620,7 @@ int Utils::createAndConnectToWorker(const std::string& host, int port, const std
     struct sockaddr_in serv_addr;
     struct hostent hostEntry;
     struct hostent *server = nullptr;
-    std::vector<char> hostBuffer(4096);
+    std::vector<char> hostBuffer(HOSTNAME_BUFFER_SIZE);
 
     sockfd = socket(AF_INET, SOCK_STREAM, 0);
     if (sockfd < 0) {
@@ -1774,7 +1774,7 @@ string Utils::getPartitionAlgorithm(const std::string &graphID, const std::strin
     struct sockaddr_in serv_addr;
     struct hostent hostEntry;
     struct hostent *server = nullptr;
-    std::vector<char> hostBuffer(4096);
+    std::vector<char> hostBuffer(HOSTNAME_BUFFER_SIZE);
     std::string actualHost = host;
 
     sockfd = socket(AF_INET, SOCK_STREAM, 0);
