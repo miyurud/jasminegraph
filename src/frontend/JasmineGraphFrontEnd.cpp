@@ -3996,6 +3996,7 @@ static void history_triangle_command(int connFd, SQLiteDBInterface *sqlite, bool
             std::stringstream response;
             response << "Triangle count is " << result.triangleCount << "\n";
             response << "Edges are " << result.uniqueEdges << "\n";
+            response << "Raw edges: " << result.rawEdges << "\n";
             response << "Unique nodes: " << result.uniqueNodes << "\n";
             response << "Time taken: " << result.durationMs << "ms\n";
 
@@ -4252,6 +4253,7 @@ static void history_pagerank_command(int connFd, SQLiteDBInterface *sqlite, bool
             std::stringstream response;
             response << "Nodes: " << result.totalNodes
                      << "  Edges: " << result.totalEdges
+                     << "  Raw edges: " << result.rawEdges
                      << "  Iterations: " << result.iterations
                      << "  Time: " << result.durationMs << "ms\n";
             response << "Rank  Node                           Score\n";
@@ -4372,6 +4374,7 @@ static void history_pagerank_timestamp_command(int connFd, SQLiteDBInterface *sq
             response << "Closest snapshot: " << closestSnapshotId << " (created: " << timeStr << ")\n";
             response << "Nodes: " << result.totalNodes
                      << "  Edges: " << result.totalEdges
+                     << "  Raw edges: " << result.rawEdges
                      << "  Iterations: " << result.iterations
                      << "  Time: " << result.durationMs << "ms\n";
             response << "Rank  Node                           Score\n";

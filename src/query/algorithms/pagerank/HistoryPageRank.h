@@ -29,6 +29,7 @@ limitations under the License.
 struct HistoryPageRankResult {
     // Top-K nodes sorted by PageRank score (descending)
     std::vector<std::pair<std::string, double>> rankedNodes;
+    size_t rawEdges;
     size_t totalEdges;
     size_t localEdges;
     size_t centralEdges;

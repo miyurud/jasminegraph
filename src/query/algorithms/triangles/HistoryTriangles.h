@@ -28,6 +28,7 @@ limitations under the License.
 // Result structure for temporal triangle counting
 struct TemporalTriangleResult {
     uint64_t triangleCount;
+    size_t rawEdges;
     size_t totalEdges;
     size_t uniqueEdges;
     size_t localEdges;
