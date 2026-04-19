@@ -19,7 +19,7 @@ limitations under the License.
 #include <memory>
 #include <stdexcept>
 
-const Logger k8s_interface_test_logger;
+Logger k8s_interface_test_logger;
 
 class K8sInterfaceTest : public ::testing::Test {
  protected:

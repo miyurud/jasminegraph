@@ -21,7 +21,7 @@ limitations under the License.
 
 #include "gtest/gtest.h"
 
-const Logger k8s_worker_controller_logger;
+Logger k8s_worker_controller_logger;
 
 namespace {
 constexpr const char *kWorkerName = "jasminegraph-worker";
