@@ -106,7 +106,6 @@ class JasminGraphFrontEndProtocol {
 const int FRONTEND_COMMAND_LENGTH = 4;
 const int FRONTEND_DATA_LENGTH = 1096;
 const int FRONTEND_GRAPH_TYPE_LENGTH = 20;
-const int HOSTNAME_BUFFER_SIZE = 8192;
 const int CTIME_BUFFER_SIZE = 26;  // Required for ctime_r() output: "Www Mmm dd hh:mm:ss yyyy\n\0"
 
 const double PAGE_RANK_ALPHA = 0.85;
