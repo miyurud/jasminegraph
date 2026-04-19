@@ -750,7 +750,8 @@ class TemporalStorePersistence {
             }
 
             EdgeLifespanBitmap bitmap = EdgeLifespanBitmap::deserialize(bitmapData);
-            if (bitmap.getBit(snapshotId)) {
+            // For history commands: include edge if it was active at ANY snapshot from 0 to snapshotId (cumulative)
+            if (bitmap.intersectsRange(0, snapshotId)) {
                 if (!handler(sourceId, destId)) {
                     return true;
                 }
