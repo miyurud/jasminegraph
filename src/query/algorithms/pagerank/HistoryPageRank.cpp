@@ -154,7 +154,6 @@ HistoryPageRankResult HistoryPageRank::computePageRankAtSnapshot(
     HistoryPageRankResult result{};
     result.iterations = 0;  // will be set to actual iterations used after convergence
     int partitionsProcessed = 0;
-    size_t rawEdges = 0;
     std::unordered_map<std::string, uint32_t> nodeToIndex;
     std::vector<std::string> indexToNode;
     std::vector<uint32_t> outDegree;
@@ -187,7 +186,6 @@ HistoryPageRankResult HistoryPageRank::computePageRankAtSnapshot(
         bool loaded = TemporalStorePersistence::forEachActiveBitmapEdgeAtSnapshot(
             filePath, snapshotId,
             [&](const std::string& sourceId, const std::string& destId) {
-                ++rawEdges;
                 if (sourceId == destId) {
                     return true;
                 }
@@ -207,7 +205,6 @@ HistoryPageRankResult HistoryPageRank::computePageRankAtSnapshot(
     }
 
     result.localEdges = uniqueEdges.size();
-    result.rawEdges = rawEdges;
     result.partitionsProcessed = partitionsProcessed;
 
     // -----------------------------------------------------------------------

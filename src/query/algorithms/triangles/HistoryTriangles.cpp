@@ -175,7 +175,6 @@ TemporalTriangleResult HistoryTriangles::countTrianglesAtSnapshot(
     // Default initialize all fields to 0
     TemporalTriangleResult result{};
     int partitionsProcessed = 0;
-    size_t rawEdges = 0;
     std::unordered_map<std::string, uint32_t> nodeToIndex;
     std::vector<std::string> indexToNode;
     std::unordered_set<uint64_t> uniqueUndirectedEdges;
@@ -214,7 +213,6 @@ TemporalTriangleResult HistoryTriangles::countTrianglesAtSnapshot(
         bool loaded = TemporalStorePersistence::forEachActiveBitmapEdgeAtSnapshot(
             filePath, snapshotId,
             [&](const std::string& sourceId, const std::string& destId) {
-                ++rawEdges;
                 if (sourceId == destId) {
                     return true;
                 }
@@ -237,10 +235,8 @@ TemporalTriangleResult HistoryTriangles::countTrianglesAtSnapshot(
     result.localEdges = uniqueUndirectedEdges.size();
     result.centralEdges = 0;
     result.partitionsProcessed = partitionsProcessed;
-    result.rawEdges = rawEdges;
     result.totalEdges = uniqueUndirectedEdges.size();
     result.uniqueEdges = uniqueUndirectedEdges.size();
-    result.uniqueNodes = static_cast<uint32_t>(indexToNode.size());
 
     if (partitionsProcessed == 0) {
         history_triangle_logger.error("No snapshot files found for graph " +
