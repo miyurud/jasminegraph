@@ -491,19 +491,34 @@ static int collectTemporalBitmapIndexesFromRemoteTarget(const std::string& hostT
     }
 
     std::string graphPrefix = "graph" + std::to_string(graphId) + "_part";
-    std::string findCommand = "ssh -o BatchMode=yes -o ConnectTimeout=5 " + shellQuote(hostTarget) +
-                              " find " + shellQuote(snapshotDir) +
-                              " -maxdepth 1 -type f \\( -name " +
-                              shellQuote(graphPrefix + "*_bitmaps.ebm") +
-                              " -o -name " + shellQuote(graphPrefix + "*_snap*.delta") +
-                              " \\) 2>/dev/null";
+
+    auto buildFindCommand = [&](const std::string& rootDir) {
+        std::string bitmapCommand = "find " + shellQuote(rootDir) +
+                                    " -maxdepth 1 -type f -name " +
+                                    shellQuote(graphPrefix + "*_bitmaps.ebm");
+        std::string deltaCommand = "find " + shellQuote(rootDir) +
+                                   " -maxdepth 1 -type f -name " +
+                                   shellQuote(graphPrefix + "*_snap*.delta");
+        return "ssh -o BatchMode=yes -o ConnectTimeout=5 " + shellQuote(hostTarget) +
+               " sh -lc " + shellQuote(bitmapCommand + " ; " + deltaCommand + " 2>/dev/null");
+    };
 
     int copied = 0;
-    std::string remoteFiles = captureCommandOutput(findCommand);
+    std::string remoteFiles = captureCommandOutput(buildFindCommand(snapshotDir));
     if (remoteFiles.empty()) {
         frontend_logger.warn("No remote temporal bitmap files found for graph " +
                              std::to_string(graphId) + " on target " + hostTarget +
                              " in " + snapshotDir);
+        std::string fallbackDir = Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder") +
+                                  "/temporal_snapshots";
+        if (fallbackDir != snapshotDir) {
+            remoteFiles = captureCommandOutput(buildFindCommand(fallbackDir));
+            if (!remoteFiles.empty()) {
+                frontend_logger.info("Remote temporal bitmap files found for graph " +
+                                     std::to_string(graphId) + " on target " + hostTarget +
+                                     " in fallback dir " + fallbackDir);
+            }
+        }
     }
     std::stringstream filesStream(remoteFiles);
     std::string remoteFile;
@@ -543,6 +558,21 @@ static int collectTemporalBitmapIndexesFromRemoteHost(const Utils::worker& worke
             totalCopied += copied;
             break;
         }
+    }
+
+    if (totalCopied == 0 && !targets.empty()) {
+        frontend_logger.warn("No temporal bitmap files staged from any target for graph " +
+                             std::to_string(graphId) + "; checked targets: " +
+                             [&]() {
+                                 std::string joined;
+                                 for (const auto& target : targets) {
+                                     if (!joined.empty()) {
+                                         joined += ",";
+                                     }
+                                     joined += target;
+                                 }
+                                 return joined;
+                             }());
     }
 
     return totalCopied;
