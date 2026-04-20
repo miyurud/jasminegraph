@@ -322,6 +322,30 @@ static std::string buildWorkerTarget(const Utils::worker& worker) {
     return worker.hostname;
 }
 
+static std::vector<std::string> buildWorkerTargetCandidates(const Utils::worker& worker) {
+    std::vector<std::string> candidates;
+
+    auto pushUnique = [&](const std::string& value) {
+        if (value.empty()) {
+            return;
+        }
+        if (std::find(candidates.begin(), candidates.end(), value) == candidates.end()) {
+            candidates.push_back(value);
+        }
+    };
+
+    // Preferred canonical target first.
+    pushUnique(buildWorkerTarget(worker));
+
+    // Fallbacks for mixed worker table data (ip may already include user, etc.).
+    pushUnique(worker.hostname);
+    if (!worker.username.empty() && worker.hostname.find('@') == std::string::npos) {
+        pushUnique(worker.username + "@" + worker.hostname);
+    }
+
+    return candidates;
+}
+
 static void collectTemporalSnapshotMetadataFromDirectory(
     const std::string& snapshotDir, int graphId,
     std::map<uint32_t, TemporalSnapshotSummary>& snapMap,
@@ -458,11 +482,10 @@ static int collectTemporalBitmapIndexesFromDirectory(const std::string& snapshot
     return copied;
 }
 
-static int collectTemporalBitmapIndexesFromRemoteHost(const Utils::worker& worker,
-                                                      int graphId,
-                                                      const std::string& snapshotDir,
-                                                      const std::string& destinationDir) {
-    std::string hostTarget = buildWorkerTarget(worker);
+static int collectTemporalBitmapIndexesFromRemoteTarget(const std::string& hostTarget,
+                                                        int graphId,
+                                                        const std::string& snapshotDir,
+                                                        const std::string& destinationDir) {
     if (hostTarget.empty() || hostTarget == "localhost" || hostTarget == "127.0.0.1") {
         return 0;
     }
@@ -479,7 +502,7 @@ static int collectTemporalBitmapIndexesFromRemoteHost(const Utils::worker& worke
     std::string remoteFiles = captureCommandOutput(findCommand);
     if (remoteFiles.empty()) {
         frontend_logger.warn("No remote temporal bitmap files found for graph " +
-                             std::to_string(graphId) + " on host " + hostTarget +
+                             std::to_string(graphId) + " on target " + hostTarget +
                              " in " + snapshotDir);
     }
     std::stringstream filesStream(remoteFiles);
@@ -497,11 +520,32 @@ static int collectTemporalBitmapIndexesFromRemoteHost(const Utils::worker& worke
         if (copyCommandOutputToFile(catCommand, destinationPath)) {
             copied++;
         } else {
-            frontend_logger.error("Failed to fetch bitmap index from host " + hostTarget + ": " + remoteFile);
+            frontend_logger.error("Failed to fetch bitmap index from target " + hostTarget + ": " + remoteFile);
         }
     }
 
     return copied;
+}
+
+static int collectTemporalBitmapIndexesFromRemoteHost(const Utils::worker& worker,
+                                                      int graphId,
+                                                      const std::string& snapshotDir,
+                                                      const std::string& destinationDir) {
+    std::vector<std::string> targets = buildWorkerTargetCandidates(worker);
+    int totalCopied = 0;
+
+    for (const auto& target : targets) {
+        int copied = collectTemporalBitmapIndexesFromRemoteTarget(target, graphId, snapshotDir, destinationDir);
+        if (copied > 0) {
+            frontend_logger.info("Fetched " + std::to_string(copied) +
+                                 " temporal bitmap files for graph " + std::to_string(graphId) +
+                                 " from target " + target);
+            totalCopied += copied;
+            break;
+        }
+    }
+
+    return totalCopied;
 }
 
 static std::string stageTemporalBitmapIndexesForGraph(SQLiteDBInterface* sqlite,
