@@ -311,6 +311,11 @@ static bool copyCommandOutputToFile(const std::string& command, const std::strin
 }
 
 static std::string buildWorkerTarget(const Utils::worker& worker) {
+    // Some deployments persist user@host inside hostname already.
+    // Avoid invalid targets like user@user@host.
+    if (worker.hostname.find('@') != std::string::npos) {
+        return worker.hostname;
+    }
     if (!worker.username.empty()) {
         return worker.username + "@" + worker.hostname;
     }
@@ -472,6 +477,11 @@ static int collectTemporalBitmapIndexesFromRemoteHost(const Utils::worker& worke
 
     int copied = 0;
     std::string remoteFiles = captureCommandOutput(findCommand);
+    if (remoteFiles.empty()) {
+        frontend_logger.warn("No remote temporal bitmap files found for graph " +
+                             std::to_string(graphId) + " on host " + hostTarget +
+                             " in " + snapshotDir);
+    }
     std::stringstream filesStream(remoteFiles);
     std::string remoteFile;
     while (std::getline(filesStream, remoteFile)) {
