@@ -429,7 +429,10 @@ static int collectTemporalBitmapIndexesFromDirectory(const std::string& snapshot
 
     for (const auto& file : files) {
         if (file.find(graphPrefix) == std::string::npos) continue;
-        if (file.find("_bitmaps.ebm") == std::string::npos) continue;
+        bool isLegacyBitmap = file.find("_bitmaps.ebm") != std::string::npos;
+        bool isDeltaFile = file.find(".delta") != std::string::npos &&
+                           file.find("_snap") != std::string::npos;
+        if (!isLegacyBitmap && !isDeltaFile) continue;
 
         std::string sourcePath = snapshotDir + "/" + file;
         std::string destinationPath = destinationDir + "/" + file;
@@ -453,8 +456,10 @@ static int collectTemporalBitmapIndexesFromRemoteHost(const Utils::worker& worke
     std::string graphPrefix = "graph" + std::to_string(graphId) + "_part";
     std::string findCommand = "ssh -o BatchMode=yes -o ConnectTimeout=5 " + shellQuote(hostTarget) +
                               " find " + shellQuote(snapshotDir) +
-                              " -maxdepth 1 -type f -name " + shellQuote(graphPrefix + "*_bitmaps.ebm") +
-                              " 2>/dev/null";
+                              " -maxdepth 1 -type f \\( -name " +
+                              shellQuote(graphPrefix + "*_bitmaps.ebm") +
+                              " -o -name " + shellQuote(graphPrefix + "*_snap*.delta") +
+                              " \\) 2>/dev/null";
 
     int copied = 0;
     std::string remoteFiles = captureCommandOutput(findCommand);

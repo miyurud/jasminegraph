@@ -57,6 +57,41 @@ bool parsePartitionIdFromBitmapFileName(const std::string& fileName,
     return true;
 }
 
+bool parsePartitionIdFromDeltaFileName(const std::string& fileName,
+                                       int graphId,
+                                       uint32_t& partitionId) {
+    const std::string prefix = "graph" + std::to_string(graphId) + "_part";
+    const std::string splitMarker = "_snap";
+    const std::string suffix = ".delta";
+
+    if (fileName.rfind(prefix, 0) != 0) {
+        return false;
+    }
+    if (fileName.size() <= prefix.size() + splitMarker.size() + suffix.size()) {
+        return false;
+    }
+    if (fileName.compare(fileName.size() - suffix.size(), suffix.size(), suffix) != 0) {
+        return false;
+    }
+
+    size_t snapPos = fileName.find(splitMarker, prefix.size());
+    if (snapPos == std::string::npos || snapPos <= prefix.size()) {
+        return false;
+    }
+
+    std::string partitionText = fileName.substr(prefix.size(), snapPos - prefix.size());
+    if (partitionText.empty()) {
+        return false;
+    }
+    if (!std::all_of(partitionText.begin(), partitionText.end(),
+                     [](unsigned char ch) { return std::isdigit(ch); })) {
+        return false;
+    }
+
+    partitionId = static_cast<uint32_t>(std::stoul(partitionText));
+    return true;
+}
+
 std::vector<uint32_t> discoverBitmapPartitions(const std::string& snapshotDir, int graphId) {
     std::vector<std::string> files = Utils::getListOfFilesInDirectory(snapshotDir);
     std::vector<uint32_t> partitionIds;
@@ -64,7 +99,8 @@ std::vector<uint32_t> discoverBitmapPartitions(const std::string& snapshotDir, i
 
     for (const auto& file : files) {
         uint32_t partitionId = 0;
-        if (parsePartitionIdFromBitmapFileName(file, graphId, partitionId)) {
+        if (parsePartitionIdFromBitmapFileName(file, graphId, partitionId) ||
+            parsePartitionIdFromDeltaFileName(file, graphId, partitionId)) {
             partitionIds.push_back(partitionId);
         }
     }

@@ -59,7 +59,7 @@ static void deleteTemporalSnapshotsOnRemoteWorkers(SQLiteDBInterface *sqlite,
                                                    const std::string& snapshotDir) {
     const std::vector<Utils::worker> workers = Utils::getWorkerList(sqlite);
     std::set<std::string> visitedHosts;
-    std::string pattern = "graph" + graphID + "_*";
+    std::string graphPrefix = "graph" + graphID + "_";
 
     for (const auto& worker : workers) {
         std::string hostTarget = buildWorkerTarget(worker);
@@ -76,8 +76,12 @@ static void deleteTemporalSnapshotsOnRemoteWorkers(SQLiteDBInterface *sqlite,
         }
 
         std::string remoteCommand = "find " + shellQuote(snapshotDir) +
-                                    " -maxdepth 1 -type f -name " + shellQuote(pattern) +
-                                    " -delete 2>/dev/null";
+                        " -maxdepth 1 -type f \\( "
+                        "-name " + shellQuote(graphPrefix + "*_bitmaps.ebm") +
+                        " -o -name " + shellQuote(graphPrefix + "*_snap*.delta") +
+                        " -o -name " + shellQuote(graphPrefix + "*_snapmeta.bin") +
+                        " -o -name " + shellQuote(graphPrefix + "*_snap*.tgs") +
+                        " \\) -delete 2>/dev/null";
         std::string sshCommand = "ssh -o BatchMode=yes -o ConnectTimeout=5 " +
                                  shellQuote(hostTarget) + " " + shellQuote(remoteCommand);
 
@@ -149,9 +153,10 @@ void JasmineGraphFrontEndCommon::removeGraph(std::string graphID, SQLiteDBInterf
     JasmineGraphServer::removeGraph(hostHasPartition, graphID, masterIP);
 
     // Remove all temporal snapshot-related files for this graph:
-    //   graph{id}_part{n}_snap{n}.tgs   - snapshot data
-    //   graph{id}_part{n}_bitmaps.ebm   - bitmap index
+    //   graph{id}_part{n}_snap{n}.delta - delta snapshot segments
+    //   graph{id}_part{n}_bitmaps.ebm   - legacy bitmap index
     //   graph{id}_part{n}_snapmeta.bin  - snapshot metadata
+    //   graph{id}_part{n}_snap{n}.tgs   - legacy snapshot data
     std::string snapshotDir = getTemporalSnapshotDir();
     DIR* dir = opendir(snapshotDir.c_str());
     if (dir != nullptr) {
@@ -161,8 +166,17 @@ void JasmineGraphFrontEndCommon::removeGraph(std::string graphID, SQLiteDBInterf
 
         while ((entry = readdir(dir)) != nullptr) {
             std::string filename(entry->d_name);
-            // Remove any file that belongs to this graph (all extensions: .tgs, .ebm, .bin)
             if (filename.find(graphPrefix) != 0) {
+                continue;
+            }
+
+            bool isLegacyBitmap = filename.find("_bitmaps.ebm") != std::string::npos;
+            bool isDelta = filename.find("_snap") != std::string::npos &&
+                           filename.rfind(".delta") == filename.size() - 6;
+            bool isSnapMeta = filename.find("_snapmeta.bin") != std::string::npos;
+            bool isLegacySnapshot = filename.find("_snap") != std::string::npos &&
+                                    filename.rfind(".tgs") == filename.size() - 4;
+            if (!isLegacyBitmap && !isDelta && !isSnapMeta && !isLegacySnapshot) {
                 continue;
             }
 
