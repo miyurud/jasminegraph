@@ -493,14 +493,13 @@ static int collectTemporalBitmapIndexesFromRemoteTarget(const std::string& hostT
     std::string graphPrefix = "graph" + std::to_string(graphId) + "_part";
 
     auto buildFindCommand = [&](const std::string& rootDir) {
-        std::string bitmapCommand = "find " + shellQuote(rootDir) +
-                                    " -maxdepth 1 -type f -name " +
-                                    shellQuote(graphPrefix + "*_bitmaps.ebm");
-        std::string deltaCommand = "find " + shellQuote(rootDir) +
-                                   " -maxdepth 1 -type f -name " +
-                                   shellQuote(graphPrefix + "*_snap*.delta");
-        return "ssh -o BatchMode=yes -o ConnectTimeout=5 " + shellQuote(hostTarget) +
-               " sh -lc " + shellQuote(bitmapCommand + " ; " + deltaCommand + " 2>/dev/null");
+         std::string remoteCommand = "find " + shellQuote(rootDir) +
+                         " -maxdepth 1 -type f \\( -name " +
+                         shellQuote(graphPrefix + "*_bitmaps.ebm") +
+                         " -o -name " + shellQuote(graphPrefix + "*_snap*.delta") +
+                         " \\) 2>/dev/null";
+         return "ssh -o BatchMode=yes -o ConnectTimeout=5 " + shellQuote(hostTarget) +
+             " " + shellQuote(remoteCommand);
     };
 
     int copied = 0;
