@@ -92,6 +92,7 @@ std::map<int, std::thread::id> activeStreamThreads;           // map graphID →
 std::map<int, std::shared_ptr<std::atomic<bool>>> stopFlags;  // map graphID → stop flag
 
 std::mutex threadMapMutex;
+std::mutex historyResultFileMutex;
 static void list_command(int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_p);
 static void cypherCommand(std::string masterIP, int connFd, vector<DataPublisher *> &workerClients,
                           int numberOfPartitions, bool *loop_exit, SQLiteDBInterface *sqlite,
@@ -256,6 +257,38 @@ static std::string shellQuote(const std::string& value) {
     }
     quoted += "'";
     return quoted;
+}
+
+static std::string getHistoryResultLogFilePath() {
+    return Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder") +
+           "/history_query_results.log";
+}
+
+static void appendHistoryQueryResultToFile(const std::string& queryName,
+                                           int graphId,
+                                           const std::string& requestDetails,
+                                           const std::string& responseText) {
+    std::lock_guard<std::mutex> lock(historyResultFileMutex);
+
+    std::string resultFilePath = getHistoryResultLogFilePath();
+    std::ofstream out(resultFilePath, std::ios::out | std::ios::app);
+    if (!out.is_open()) {
+        frontend_logger.warn("Unable to open history results file: " + resultFilePath);
+        return;
+    }
+
+    std::time_t now = std::time(nullptr);
+    out << "[" << format_local_timestamp(now) << "] " << queryName
+        << " graph=" << graphId;
+    if (!requestDetails.empty()) {
+        out << " " << requestDetails;
+    }
+    out << "\n";
+    out << responseText;
+    if (responseText.empty() || responseText.back() != '\n') {
+        out << "\n";
+    }
+    out << "----\n";
 }
 
 static std::string sanitizeForFileName(const std::string& value) {
@@ -4098,6 +4131,10 @@ static void history_triangle_command(int connFd, SQLiteDBInterface *sqlite, bool
             resultWr = write(connFd, responseStr.c_str(), responseStr.length());
             resultWr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
 
+            appendHistoryQueryResultToFile("histrian", graphId,
+                                           "snapshot=" + std::to_string(snapshotId),
+                                           responseStr);
+
             frontend_logger.info("History triangle count completed: " + std::to_string(result.triangleCount) +
                                " triangles on merged graph with " + std::to_string(result.totalEdges) +
                                " edges across " + std::to_string(result.partitionsProcessed) + " partitions");
@@ -4245,6 +4282,11 @@ static void history_triangle_timestamp_command(int connFd, SQLiteDBInterface *sq
         resultWr = write(connFd, responseStr.c_str(), responseStr.length());
         resultWr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
 
+        appendHistoryQueryResultToFile("histrian_ts", graphId,
+                                       "target_ts=" + timestampStr +
+                                           " closest_snapshot=" + std::to_string(closestSnapshotId),
+                                       responseStr);
+
         frontend_logger.info("History triangle count by timestamp completed");
     } catch (const std::exception& e) {
         cleanupStagedTemporalBitmapIndexes(stagedSnapshotDir);
@@ -4357,6 +4399,12 @@ static void history_pagerank_command(int connFd, SQLiteDBInterface *sqlite, bool
             resultWr = write(connFd, responseStr.c_str(), responseStr.length());
             resultWr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(),
                              Conts::CARRIAGE_RETURN_NEW_LINE.size());
+
+            appendHistoryQueryResultToFile("histpgr", graphId,
+                                           "snapshot=" + std::to_string(snapshotId) +
+                                               " topk=" + std::to_string(topK) +
+                                               " max_iterations=" + std::to_string(maxIterations),
+                                           responseStr);
 
             frontend_logger.info("History PageRank completed: top " +
                                  std::to_string(result.rankedNodes.size()) +
@@ -4476,6 +4524,13 @@ static void history_pagerank_timestamp_command(int connFd, SQLiteDBInterface *sq
             resultWr = write(connFd, responseStr.c_str(), responseStr.length());
             resultWr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(),
                              Conts::CARRIAGE_RETURN_NEW_LINE.size());
+
+            appendHistoryQueryResultToFile("histpgr_ts", graphId,
+                                           "target_ts=" + timestampStr +
+                                               " closest_snapshot=" + std::to_string(closestSnapshotId) +
+                                               " topk=" + std::to_string(topK) +
+                                               " max_iterations=" + std::to_string(maxIterations),
+                                           responseStr);
 
             frontend_logger.info("History PageRank by timestamp completed: snapshot " +
                                   std::to_string(closestSnapshotId) + " (" + timeStr + ")");
