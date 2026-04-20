@@ -263,13 +263,19 @@ void WorkerKafkaConsumer::initTemporalStores() {
             }
             std::string bitmapPath = TemporalStorePersistence::generateBitmapFilePath(
                 snapshotDir, cfg.graphId, p);
-            if (localTemporalStores[p]->loadBitmapIndexFromDisk(bitmapPath)) {
+            struct stat stBitmap;
+            bool hasLegacyBitmap = (stat(bitmapPath.c_str(), &stBitmap) == 0);
+            if (hasLegacyBitmap && localTemporalStores[p]->loadBitmapIndexFromDisk(bitmapPath)) {
                 // loadBitmapIndexFromDisk already restores snapshotId via setCurrentSnapshotId
                 localTemporalStores[p]->openNewSnapshot();
                 workerKafkaLogger().info(
                     "Restored temporal snapshot for graph=" + std::to_string(cfg.graphId) +
                     " partition=" + std::to_string(p) +
                     " snapshotId=" + std::to_string(maxId));
+            } else if (!hasLegacyBitmap) {
+                workerKafkaLogger().info("[TEMPORAL INIT] No legacy bitmap index for partition " +
+                                         std::to_string(p) +
+                                         "; continuing in delta-only mode");
             }
         }
     }
@@ -285,14 +291,22 @@ void WorkerKafkaConsumer::initTemporalStores() {
             }
             std::string bitmapPath = TemporalStorePersistence::generateBitmapFilePath(
                 snapshotDir, cfg.graphId, centralPartitionId);
-            workerKafkaLogger().info("[TEMPORAL INIT] Restoring central bitmap index: " + bitmapPath);
-            if (centralTemporalStore->loadBitmapIndexFromDisk(bitmapPath)) {
-                centralTemporalStore->openNewSnapshot();
-                workerKafkaLogger().info(
-                    "Restored central temporal snapshot for graph=" + std::to_string(cfg.graphId) +
-                    " snapshotId=" + std::to_string(maxCentral));
+            struct stat stBitmap;
+            bool hasLegacyBitmap = (stat(bitmapPath.c_str(), &stBitmap) == 0);
+            if (hasLegacyBitmap) {
+                workerKafkaLogger().info("[TEMPORAL INIT] Restoring central bitmap index: " + bitmapPath);
+                if (centralTemporalStore->loadBitmapIndexFromDisk(bitmapPath)) {
+                    centralTemporalStore->openNewSnapshot();
+                    workerKafkaLogger().info(
+                        "Restored central temporal snapshot for graph=" + std::to_string(cfg.graphId) +
+                        " snapshotId=" + std::to_string(maxCentral));
+                } else {
+                    workerKafkaLogger().warn("[TEMPORAL INIT] Unable to load central legacy bitmap index: " + bitmapPath +
+                                             " ; continuing with delta-only snapshots");
+                }
             } else {
-                workerKafkaLogger().error("[TEMPORAL INIT] Failed to load central bitmap index: " + bitmapPath);
+                workerKafkaLogger().info("[TEMPORAL INIT] No central legacy bitmap index found; "
+                                         "continuing in delta-only mode");
             }
         } else {
             workerKafkaLogger().info("[TEMPORAL INIT] No existing central bitmap index for graph=" +

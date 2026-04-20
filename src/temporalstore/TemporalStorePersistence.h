@@ -25,6 +25,8 @@ limitations under the License.
 #include <cstdio>
 #include <limits>
 #include <unordered_set>
+#include <algorithm>
+#include <cctype>
 #include <dirent.h>
 #include "EdgeLifespanBitmap.h"
 #include "PropertyIntervalDictionary.h"
@@ -155,6 +157,87 @@ class TemporalStorePersistence {
         }
 
         if (dotPos + 4 != filename.length()) {
+            return false;
+        }
+
+        std::string snapIdStr = filename.substr(prefix.length(), dotPos - prefix.length());
+        if (snapIdStr.empty()) {
+            return false;
+        }
+
+        errno = 0;
+        char* endPtr = nullptr;
+        unsigned long parsed = std::strtoul(snapIdStr.c_str(), &endPtr, 10);
+        if (errno != 0 || endPtr == snapIdStr.c_str() || *endPtr != '\0' ||
+            parsed > static_cast<unsigned long>(std::numeric_limits<uint32_t>::max())) {
+            return false;
+        }
+
+        snapshotId = static_cast<uint32_t>(parsed);
+        return true;
+    }
+
+    static bool parseGraphAndPartitionFromBitmapIndexPath(const std::string& filePath,
+                                                          uint32_t& graphId,
+                                                          uint32_t& partitionId,
+                                                          std::string& baseDir) {
+        const std::string marker = "/graph";
+        size_t markerPos = filePath.rfind(marker);
+        if (markerPos == std::string::npos) {
+            return false;
+        }
+
+        baseDir = filePath.substr(0, markerPos);
+        std::string tail = filePath.substr(markerPos + 1);
+
+        const std::string prefix = "graph";
+        const std::string mid = "_part";
+        const std::string suffix = "_bitmaps.ebm";
+        if (tail.rfind(prefix, 0) != 0 ||
+            tail.size() <= prefix.size() + mid.size() + suffix.size() ||
+            tail.compare(tail.size() - suffix.size(), suffix.size(), suffix) != 0) {
+            return false;
+        }
+
+        size_t partPos = tail.find(mid, prefix.size());
+        if (partPos == std::string::npos) {
+            return false;
+        }
+
+        std::string graphText = tail.substr(prefix.size(), partPos - prefix.size());
+        std::string partitionText =
+            tail.substr(partPos + mid.size(), tail.size() - (partPos + mid.size()) - suffix.size());
+        if (graphText.empty() || partitionText.empty()) {
+            return false;
+        }
+        if (!std::all_of(graphText.begin(), graphText.end(), [](unsigned char ch) { return std::isdigit(ch); }) ||
+            !std::all_of(partitionText.begin(), partitionText.end(), [](unsigned char ch) { return std::isdigit(ch); })) {
+            return false;
+        }
+
+        graphId = static_cast<uint32_t>(std::stoul(graphText));
+        partitionId = static_cast<uint32_t>(std::stoul(partitionText));
+        return true;
+    }
+
+    static bool tryParseSnapshotIdFromDeltaFilename(const std::string& filename,
+                                                    uint32_t graphId,
+                                                    uint32_t partitionId,
+                                                    uint32_t& snapshotId) {
+        std::string prefix = "graph" + std::to_string(graphId) +
+                             "_part" + std::to_string(partitionId) +
+                             "_snap";
+        const std::string suffix = ".delta";
+
+        if (filename.rfind(prefix, 0) != 0) {
+            return false;
+        }
+
+        size_t dotPos = filename.rfind(suffix);
+        if (dotPos == std::string::npos || dotPos <= prefix.length()) {
+            return false;
+        }
+        if (dotPos + suffix.length() != filename.length()) {
             return false;
         }
 
@@ -422,6 +505,19 @@ class TemporalStorePersistence {
         return baseDir + "/graph" + std::to_string(graphId) +
                "_part" + std::to_string(partitionId) + "_bitmaps.ebm";
     }
+
+        /**
+         * Path for append-only snapshot delta files.
+         * graph{G}_part{P}_snap{S}.delta
+         */
+        static std::string generateBitmapDeltaFilePath(const std::string& baseDir,
+                                  uint32_t graphId,
+                                  uint32_t partitionId,
+                                  uint32_t snapshotId) {
+         return baseDir + "/graph" + std::to_string(graphId) +
+             "_part" + std::to_string(partitionId) +
+             "_snap" + std::to_string(snapshotId) + ".delta";
+        }
 
     /**
      * Path for the snapshot metadata file.
@@ -700,6 +796,61 @@ class TemporalStorePersistence {
     }
 
     /**
+     * Persist only the current snapshot window into a dedicated delta file.
+     * This is append-only over snapshots and avoids rewriting cumulative indexes.
+     */
+    template<typename EdgeBitmapMap>
+    static bool appendBitmapDeltaWindow(const std::string& baseDir,
+                                        uint32_t graphId,
+                                        uint32_t partitionId,
+                                        uint32_t snapshotId,
+                                        const EdgeBitmapMap& windowBitmaps,
+                                        uint64_t* savedEdgeCount = nullptr) {
+        std::string filePath = generateBitmapDeltaFilePath(baseDir, graphId, partitionId, snapshotId);
+        std::ofstream file(filePath, std::ios::binary | std::ios::trunc);
+        if (!file.is_open()) {
+            return false;
+        }
+
+        std::vector<char> writeBuffer(4 * 1024 * 1024);
+        file.rdbuf()->pubsetbuf(writeBuffer.data(), static_cast<std::streamsize>(writeBuffer.size()));
+
+        BitmapFileHeader header;
+        std::memcpy(header.magic, "JGBDELTA", 8);
+        header.version = 1;
+        header.graphId = graphId;
+        header.partitionId = partitionId;
+        header.latestSnapshotId = snapshotId;
+        header.edgeCount = windowBitmaps.size();
+        header.timestamp = static_cast<uint64_t>(
+            std::chrono::system_clock::now().time_since_epoch().count());
+        header.flags = 0;
+        std::memset(header.reserved, 0, 20);
+        file.write(reinterpret_cast<const char*>(&header), sizeof(BitmapFileHeader));
+
+        uint64_t edgeCount = windowBitmaps.size();
+        file.write(reinterpret_cast<const char*>(&edgeCount), sizeof(uint64_t));
+
+        for (const auto& pair : windowBitmaps) {
+            writeString(file, pair.first.sourceId);
+            writeString(file, pair.first.destId);
+
+            std::string bitmapData = pair.second.serialize();
+            uint32_t dataSize = static_cast<uint32_t>(bitmapData.size());
+            file.write(reinterpret_cast<const char*>(&dataSize), sizeof(uint32_t));
+            file.write(bitmapData.data(), dataSize);
+        }
+
+        bool ok = file.good();
+        file.close();
+
+        if (ok && savedEdgeCount != nullptr) {
+            *savedEdgeCount = edgeCount;
+        }
+        return ok;
+    }
+
+    /**
      * Stream every edge that is active at the requested snapshot ID from a
      * bitmap index file.
      *
@@ -709,51 +860,138 @@ class TemporalStorePersistence {
     static bool forEachActiveBitmapEdgeAtSnapshot(const std::string& filePath,
                                                   uint32_t snapshotId,
                                                   EdgeHandler&& handler) {
+        // Legacy path: cumulative bitmap index in a single .ebm file.
         std::ifstream file(filePath, std::ios::binary);
-        if (!file.is_open()) {
-            return false;
-        }
+        if (file.is_open()) {
+            std::vector<char> readBuffer(4 * 1024 * 1024);
+            file.rdbuf()->pubsetbuf(readBuffer.data(), static_cast<std::streamsize>(readBuffer.size()));
 
-        std::vector<char> readBuffer(4 * 1024 * 1024);
-        file.rdbuf()->pubsetbuf(readBuffer.data(), static_cast<std::streamsize>(readBuffer.size()));
-
-        BitmapFileHeader header;
-        file.read(reinterpret_cast<char*>(&header), sizeof(BitmapFileHeader));
-        if (!file.good()) {
-            return false;
-        }
-
-        if (std::memcmp(header.magic, "JGBINDEX", 8) != 0 || header.version != 1) {
-            return false;
-        }
-
-        uint64_t edgeCount = 0;
-        file.read(reinterpret_cast<char*>(&edgeCount), sizeof(uint64_t));
-        if (!file.good()) {
-            return false;
-        }
-
-        for (uint64_t i = 0; i < edgeCount; ++i) {
-            std::string sourceId = readString(file);
-            std::string destId = readString(file);
-
-            uint32_t dataSize = 0;
-            file.read(reinterpret_cast<char*>(&dataSize), sizeof(uint32_t));
+            BitmapFileHeader header;
+            file.read(reinterpret_cast<char*>(&header), sizeof(BitmapFileHeader));
             if (!file.good()) {
                 return false;
             }
 
-            std::string bitmapData(dataSize, '\0');
-            file.read(&bitmapData[0], dataSize);
-            if (!file.good()) {
-                return false;
+            if (std::memcmp(header.magic, "JGBINDEX", 8) == 0 && header.version == 1) {
+                uint64_t edgeCount = 0;
+                file.read(reinterpret_cast<char*>(&edgeCount), sizeof(uint64_t));
+                if (!file.good()) {
+                    return false;
+                }
+
+                for (uint64_t i = 0; i < edgeCount; ++i) {
+                    std::string sourceId = readString(file);
+                    std::string destId = readString(file);
+
+                    uint32_t dataSize = 0;
+                    file.read(reinterpret_cast<char*>(&dataSize), sizeof(uint32_t));
+                    if (!file.good()) {
+                        return false;
+                    }
+
+                    std::string bitmapData(dataSize, '\0');
+                    file.read(&bitmapData[0], dataSize);
+                    if (!file.good()) {
+                        return false;
+                    }
+
+                    EdgeLifespanBitmap bitmap = EdgeLifespanBitmap::deserialize(bitmapData);
+                    if (bitmap.intersectsRange(0, snapshotId)) {
+                        if (!handler(sourceId, destId)) {
+                            return true;
+                        }
+                    }
+                }
+
+                return true;
+            }
+        }
+
+        // Delta path: replay graph{G}_part{P}_snap{S}.delta files for S <= snapshotId.
+        uint32_t graphId = 0;
+        uint32_t partitionId = 0;
+        std::string baseDir;
+        if (!parseGraphAndPartitionFromBitmapIndexPath(filePath, graphId, partitionId, baseDir)) {
+            return false;
+        }
+
+        DIR* dir = opendir(baseDir.c_str());
+        if (!dir) {
+            return false;
+        }
+
+        std::vector<std::pair<uint32_t, std::string>> deltaFiles;
+        struct dirent* entry;
+        while ((entry = readdir(dir)) != nullptr) {
+            uint32_t sid = 0;
+            std::string filename(entry->d_name);
+            if (tryParseSnapshotIdFromDeltaFilename(filename, graphId, partitionId, sid) &&
+                sid <= snapshotId) {
+                deltaFiles.emplace_back(sid, baseDir + "/" + filename);
+            }
+        }
+        closedir(dir);
+
+        if (deltaFiles.empty()) {
+            return false;
+        }
+
+        std::sort(deltaFiles.begin(), deltaFiles.end(),
+                  [](const std::pair<uint32_t, std::string>& left,
+                     const std::pair<uint32_t, std::string>& right) {
+                      return left.first < right.first;
+                  });
+
+        for (const auto& deltaFileInfo : deltaFiles) {
+            std::ifstream deltaFile(deltaFileInfo.second, std::ios::binary);
+            if (!deltaFile.is_open()) {
+                continue;
             }
 
-            EdgeLifespanBitmap bitmap = EdgeLifespanBitmap::deserialize(bitmapData);
-            // For history commands: include edge if it was active at ANY snapshot from 0 to snapshotId (cumulative)
-            if (bitmap.intersectsRange(0, snapshotId)) {
-                if (!handler(sourceId, destId)) {
-                    return true;
+            std::vector<char> deltaReadBuffer(2 * 1024 * 1024);
+            deltaFile.rdbuf()->pubsetbuf(deltaReadBuffer.data(),
+                                         static_cast<std::streamsize>(deltaReadBuffer.size()));
+
+            BitmapFileHeader deltaHeader;
+            deltaFile.read(reinterpret_cast<char*>(&deltaHeader), sizeof(BitmapFileHeader));
+            if (!deltaFile.good()) {
+                continue;
+            }
+
+            if (std::memcmp(deltaHeader.magic, "JGBDELTA", 8) != 0 ||
+                deltaHeader.version != 1 ||
+                deltaHeader.graphId != graphId ||
+                deltaHeader.partitionId != partitionId) {
+                continue;
+            }
+
+            uint64_t edgeCount = 0;
+            deltaFile.read(reinterpret_cast<char*>(&edgeCount), sizeof(uint64_t));
+            if (!deltaFile.good()) {
+                continue;
+            }
+
+            for (uint64_t i = 0; i < edgeCount; ++i) {
+                std::string sourceId = readString(deltaFile);
+                std::string destId = readString(deltaFile);
+
+                uint32_t dataSize = 0;
+                deltaFile.read(reinterpret_cast<char*>(&dataSize), sizeof(uint32_t));
+                if (!deltaFile.good()) {
+                    return false;
+                }
+
+                std::string bitmapData(dataSize, '\0');
+                deltaFile.read(&bitmapData[0], dataSize);
+                if (!deltaFile.good()) {
+                    return false;
+                }
+
+                EdgeLifespanBitmap bitmap = EdgeLifespanBitmap::deserialize(bitmapData);
+                if (bitmap.intersectsRange(0, snapshotId)) {
+                    if (!handler(sourceId, destId)) {
+                        return true;
+                    }
                 }
             }
         }

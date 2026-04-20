@@ -458,8 +458,12 @@ int deleteStreamingGraphPartition(std::string graphID, std::string partitionID) 
 
 /** Remove all temporal snapshot files for a graph from this worker.
  *
- * Deletes all files with prefix graph{graphID}_ from the configured temporal
- * snapshot directory (or the default datafolder/temporal_snapshots).
+ * Deletes known temporal artifacts for this graph from the configured temporal
+ * snapshot directory (or the default datafolder/temporal_snapshots):
+ *   - graph{id}_part{p}_bitmaps.ebm      (legacy cumulative bitmap index)
+ *   - graph{id}_part{p}_snap{s}.delta    (delta snapshot segments)
+ *   - graph{id}_part{p}_snapmeta.bin     (snapshot metadata)
+ *   - graph{id}_part{p}_snap{s}.tgs      (legacy snapshot files)
  */
 static int deleteTemporalSnapshotFilesForGraph(const std::string& graphID) {
     std::string snapshotDataFolder =
@@ -483,6 +487,16 @@ static int deleteTemporalSnapshotFilesForGraph(const std::string& graphID) {
     while ((entry = readdir(dir)) != nullptr) {
         std::string fileName(entry->d_name);
         if (fileName.find(graphPrefix) != 0) {
+            continue;
+        }
+
+        bool isLegacyBitmap = fileName.find("_bitmaps.ebm") != std::string::npos;
+        bool isDelta = fileName.find("_snap") != std::string::npos &&
+                       fileName.rfind(".delta") == fileName.size() - 6;
+        bool isSnapMeta = fileName.find("_snapmeta.bin") != std::string::npos;
+        bool isLegacySnapshot = fileName.find("_snap") != std::string::npos &&
+                                fileName.rfind(".tgs") == fileName.size() - 4;
+        if (!isLegacyBitmap && !isDelta && !isSnapMeta && !isLegacySnapshot) {
             continue;
         }
 

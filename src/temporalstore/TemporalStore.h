@@ -475,9 +475,9 @@ class TemporalStore {
     // ─────────────────────────────────────────────────────────────────────────
     // Bitmap-index persistence  (replaces per-snapshot full dumps)
     //
-    //  graph{G}_part{P}_bitmaps.ebm  — single file, rewritten on each snapshot
-    //                                   close; contains ALL edges + their full
-    //                                   Roaring bitmaps, Roaring-compressed.
+    //  graph{G}_part{P}_snap{S}.delta — append-only per-snapshot windows,
+    //                                   each containing only edges observed in
+    //                                   that snapshot window.
     //  graph{G}_part{P}_snapmeta.bin — append-only; one 32-byte record per
     //                                   closed snapshot (ID, counts, timestamp).
     //
@@ -486,19 +486,13 @@ class TemporalStore {
     // ─────────────────────────────────────────────────────────────────────────
 
     /**
-     * Rewrite graph{G}_part{P}_bitmaps.ebm with the current edgeBitmaps_ map.
-      * To keep memory usage bounded, incoming edges for the current window are
-      * swapped out from RAM and merged into existing on-disk data using a
-      * streaming merge (without loading the full index into memory).
+     * Persist only the current in-memory window as an append-only delta file.
+     * This avoids rewriting cumulative bitmap indexes on every snapshot close.
      */
     bool saveBitmapIndexToDisk(const std::string& baseDir,
                                uint32_t closedSnapshotId,
                                uint64_t* savedEdgeCount = nullptr) {
-        std::string filePath = TemporalStorePersistence::generateBitmapFilePath(
-            baseDir, graphId_, partitionId_);
-
         // Move the current window out in O(1) under lock, then persist outside the lock.
-        // This removes the expensive full-map copy and the second eviction pass.
         decltype(edgeBitmaps_) windowBitmaps;
         {
             std::lock_guard<std::mutex> lock(mutex_);
@@ -506,8 +500,8 @@ class TemporalStore {
             totalEdgesTracked_ = 0;
         }
 
-        bool saved = TemporalStorePersistence::mergeBitmapIndexWithWindow(
-            filePath, graphId_, partitionId_, closedSnapshotId, windowBitmaps, savedEdgeCount);
+        bool saved = TemporalStorePersistence::appendBitmapDeltaWindow(
+            baseDir, graphId_, partitionId_, closedSnapshotId, windowBitmaps, savedEdgeCount);
 
         if (!saved) {
             // Restore data on failure to avoid dropping the in-memory window.
