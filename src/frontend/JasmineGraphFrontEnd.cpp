@@ -29,6 +29,7 @@ limitations under the License.
 #include <nlohmann/json.hpp>
 #include <set>
 #include <thread>
+#include <sys/stat.h>
 
 #include "../knowledgegraph/construction/Pipeline.h"
 #include "../localstore/incremental/JasmineGraphIncrementalLocalStore.h"
@@ -168,7 +169,15 @@ static std::string getTemporalSnapshotDir() {
     std::string configuredPath =
         Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.temporalsnapshotfolder");
     if (!configuredPath.empty()) {
-        return configuredPath;
+        struct stat configuredStats;
+        if (stat(configuredPath.c_str(), &configuredStats) == 0 && S_ISDIR(configuredStats.st_mode)) {
+            return configuredPath;
+        }
+
+        // Configuration drift can happen when master/worker containers are built from
+        // slightly different property files. Fallback to datafolder-based path.
+        frontend_logger.warn("Configured temporal snapshot directory not accessible: " + configuredPath +
+                             ". Falling back to datafolder/temporal_snapshots");
     }
 
     return Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder") +
