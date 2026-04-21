@@ -63,6 +63,7 @@ extern const string OUTPUT_FILE_PATH;
 extern const string ADD_STREAM;
 extern const string ADD_STREAM_KAFKA;
 extern const string ADD_STREAM_HDFS;
+extern const string SEND_GRAPH_HDFS;
 extern const string CONSTRUCT_KG;
 extern const string  STOP_CONSTRUCT_KG;
 extern const string STRM_ACK;
@@ -105,6 +106,7 @@ class JasminGraphFrontEndProtocol {
 const int FRONTEND_COMMAND_LENGTH = 4;
 const int FRONTEND_DATA_LENGTH = 1096;
 const int FRONTEND_GRAPH_TYPE_LENGTH = 20;
+const int CTIME_BUFFER_SIZE = 26;  // Required for ctime_r() output: "Www Mmm dd hh:mm:ss yyyy\n\0"
 
 const double PAGE_RANK_ALPHA = 0.85;
 const int PAGE_RANK_ITERATIONS = 10;

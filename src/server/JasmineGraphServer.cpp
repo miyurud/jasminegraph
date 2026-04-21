@@ -57,8 +57,10 @@ static bool batchUploadCentralAttributeFile(std::string host, int port, int data
                                             std::string masterIP);
 static bool batchUploadCompositeCentralstoreFile(std::string host, int port, int dataPort, int graphID,
                                                  std::string filePath, std::string masterIP);
-static bool removeFragmentThroughService(string host, int port, string graphID, string masterIP);
-static bool removePartitionThroughService(string host, int port, string graphID, string partitionID, string masterIP);
+static bool removeFragmentThroughService(const string &host, int port, const string &graphID,
+                                         const string &masterIP);
+static bool removePartitionThroughService(const string &host, int port, const string &graphID,
+                                          const string &partitionID, const string &masterIP);
 static bool initiateCommon(std::string host, int port, std::string trainingArgs, int iteration, std::string masterIP,
                            std::string initType);
 static bool initiateTrain(std::string host, int port, std::string trainingArgs, int iteration, std::string masterIP);
@@ -652,9 +654,9 @@ void JasmineGraphServer::resolveOperationalGraphs() {
             continue;
         }
 
-        bzero((char *)&serv_addr, sizeof(serv_addr));
+        memset((char *)&serv_addr, 0, sizeof(serv_addr));
         serv_addr.sin_family = AF_INET;
-        bcopy((char *)server->h_addr, (char *)&serv_addr.sin_addr.s_addr, server->h_length);
+        memcpy(&serv_addr.sin_addr.s_addr, server->h_addr, server->h_length);
         serv_addr.sin_port = htons(workerPort);
         if (Utils::connect_wrapper(sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
             continue;
@@ -727,7 +729,7 @@ void JasmineGraphServer::resolveOperationalGraphs() {
 
     for (std::set<int>::iterator itr = graphIDsFromWorkersSet.begin(); itr != graphIDsFromWorkersSet.end(); itr++) {
         if (graphIDsFromMetDBSet.find(*itr) == graphIDsFromMetDBSet.end()) {
-            deleteNonOperationalGraphFragment(*itr);
+            deleteNON_OPERATIONALGraphFragment(*itr);
         }
     }
 }
@@ -736,7 +738,7 @@ void JasmineGraphServer::resolveOperationalGraphs() {
  *
  * @param graphID ID of graph fragments to be deleted
  */
-void JasmineGraphServer::deleteNonOperationalGraphFragment(int graphID) {
+void JasmineGraphServer::deleteNON_OPERATIONALGraphFragment(int graphID) {
     server_logger.info("Deleting non-operational fragment " + to_string(graphID));
     int count = 0;
     // Define threads for each host
@@ -808,9 +810,9 @@ int JasmineGraphServer::shutdown_worker(std::string workerIP, int port) {
         return -1;
     }
 
-    bzero((char *)&serv_addr, sizeof(serv_addr));
+    memset((char *)&serv_addr, 0, sizeof(serv_addr));
     serv_addr.sin_family = AF_INET;
-    bcopy((char *)server->h_addr, (char *)&serv_addr.sin_addr.s_addr, server->h_length);
+    memcpy(&serv_addr.sin_addr.s_addr, server->h_addr, server->h_length);
     serv_addr.sin_port = htons(port);
     if (Utils::connect_wrapper(sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) != 0) {
         return -1;
@@ -1265,17 +1267,8 @@ void JasmineGraphServer::removeGraph(vector<pair<string, string>> hostHasPartiti
  *  @param graphID ID of graph fragments to be deleted
  *  @param masterIP IP of master node
  */
-static bool removeFragmentThroughService(string host, int port, string graphID, string masterIP) {
-    server_logger.info("Host:" + host + " Port:" + to_string(port));
-    int sockfd;
-    char data[FED_DATA_LENGTH + 1];
-    bool loop = false;
-    socklen_t len;
-    struct sockaddr_in serv_addr;
-    struct hostent *server;
-
+static bool initWorkerSession(string host, int port, const string &masterIP, int &sockfd, char *data) {
     sockfd = socket(AF_INET, SOCK_STREAM, 0);
-
     if (sockfd < 0) {
         server_logger.error("Cannot create socket");
         return false;
@@ -1285,23 +1278,43 @@ static bool removeFragmentThroughService(string host, int port, string graphID, 
         host = Utils::split(host, '@')[1];
     }
 
-    server = gethostbyname(host.c_str());
-    if (server == NULL) {
+    struct hostent hostEntry;
+    struct hostent *server = nullptr;
+    std::vector<char> hostBuffer(HOSTNAME_BUFFER_SIZE);
+    if (int hostError = 0;
+        gethostbyname_r(host.c_str(), &hostEntry, hostBuffer.data(), hostBuffer.size(), &server, &hostError) != 0 ||
+        server == nullptr) {
         server_logger.error("ERROR, no host named " + host);
+        close(sockfd);
         return false;
     }
 
-    bzero((char *)&serv_addr, sizeof(serv_addr));
+    struct sockaddr_in serv_addr;
+    memset((char *)&serv_addr, 0, sizeof(serv_addr));
     serv_addr.sin_family = AF_INET;
-    bcopy((char *)server->h_addr, (char *)&serv_addr.sin_addr.s_addr, server->h_length);
+    memcpy(&serv_addr.sin_addr.s_addr, server->h_addr, server->h_length);
     serv_addr.sin_port = htons(port);
     if (Utils::connect_wrapper(sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
+        close(sockfd);
         return false;
     }
 
     if (!Utils::performHandshake(sockfd, data, FED_DATA_LENGTH, masterIP)) {
         Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::CLOSE);
         close(sockfd);
+        return false;
+    }
+
+    return true;
+}
+
+static bool removeFragmentThroughService(const string &host, int port, const string &graphID,
+                                         const string &masterIP) {
+    server_logger.info("Host:" + host + " Port:" + to_string(port));
+    int sockfd;
+    char data[FED_DATA_LENGTH + 1];
+
+    if (!initWorkerSession(host, port, masterIP, sockfd, data)) {
         return false;
     }
 
@@ -1322,43 +1335,13 @@ static bool removeFragmentThroughService(string host, int port, string graphID, 
     return true;
 }
 
-static bool removePartitionThroughService(string host, int port, string graphID, string partitionID, string masterIP) {
+static bool removePartitionThroughService(const string &host, int port, const string &graphID,
+                                          const string &partitionID, const string &masterIP) {
     server_logger.info("Host:" + host + " Port:" + to_string(port));
     int sockfd;
     char data[FED_DATA_LENGTH + 1];
-    bool loop = false;
-    socklen_t len;
-    struct sockaddr_in serv_addr;
-    struct hostent *server;
 
-    sockfd = socket(AF_INET, SOCK_STREAM, 0);
-
-    if (sockfd < 0) {
-        server_logger.error("Cannot create socket");
-        return false;
-    }
-
-    if (host.find('@') != std::string::npos) {
-        host = Utils::split(host, '@')[1];
-    }
-
-    server = gethostbyname(host.c_str());
-    if (server == NULL) {
-        server_logger.error("ERROR, no host named " + host);
-        return false;
-    }
-
-    bzero((char *)&serv_addr, sizeof(serv_addr));
-    serv_addr.sin_family = AF_INET;
-    bcopy((char *)server->h_addr, (char *)&serv_addr.sin_addr.s_addr, server->h_length);
-    serv_addr.sin_port = htons(port);
-    if (Utils::connect_wrapper(sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
-        return false;
-    }
-
-    if (!Utils::performHandshake(sockfd, data, FED_DATA_LENGTH, masterIP)) {
-        Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::CLOSE);
-        close(sockfd);
+    if (!initWorkerSession(host, port, masterIP, sockfd, data)) {
         return false;
     }
 
@@ -1422,7 +1405,7 @@ void JasmineGraphServer::updateOperationalGraphList() {
         "UPDATE graph SET graph_status_idgraph_status = ("
         "CASE WHEN idgraph IN (" +
         graphIDs + ") THEN '" + to_string(Conts::GRAPH_STATUS::OPERATIONAL) +
-        "' ELSE '" + to_string(Conts::GRAPH_STATUS::NONOPERATIONAL) + "' END )";
+        "' ELSE '" + to_string(Conts::GRAPH_STATUS::NON_OPERATIONAL) + "' END )";
     this->sqlite->runUpdate(sqlStatement2);
 }
 
@@ -1623,9 +1606,9 @@ static void degreeDistributionCommon(std::string graphID, std::string command) {
         for (std::vector<std::string>::iterator partitionit = workerPartition.partitionID.begin();
              partitionit != workerPartition.partitionID.end(); partitionit++) {
             std::string partition = *partitionit;
-            bzero((char *)&serv_addr, sizeof(serv_addr));
+            memset((char *)&serv_addr, 0, sizeof(serv_addr));
             serv_addr.sin_family = AF_INET;
-            bcopy((char *)server->h_addr, (char *)&serv_addr.sin_addr.s_addr, server->h_length);
+            memcpy(&serv_addr.sin_addr.s_addr, server->h_addr, server->h_length);
             serv_addr.sin_port = htons(port);
             if (Utils::connect_wrapper(sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
                 continue;
@@ -1733,9 +1716,9 @@ void JasmineGraphServer::duplicateCentralStore(std::string graphID) {
         for (std::vector<std::string>::iterator partitionit = workerPartition.partitionID.begin();
              partitionit != workerPartition.partitionID.end(); partitionit++) {
             std::string partition = *partitionit;
-            bzero((char *)&serv_addr, sizeof(serv_addr));
+            memset((char *)&serv_addr, 0, sizeof(serv_addr));
             serv_addr.sin_family = AF_INET;
-            bcopy((char *)server->h_addr, (char *)&serv_addr.sin_addr.s_addr, server->h_length);
+            memcpy(&serv_addr.sin_addr.s_addr, server->h_addr, server->h_length);
             serv_addr.sin_port = htons(port);
             if (Utils::connect_wrapper(sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
                 continue;
@@ -1977,9 +1960,9 @@ static bool initiateCommon(std::string host, int port, std::string trainingArgs,
         return false;
     }
 
-    bzero((char *)&serv_addr, sizeof(serv_addr));
+    memset((char *)&serv_addr, 0, sizeof(serv_addr));
     serv_addr.sin_family = AF_INET;
-    bcopy((char *)server->h_addr, (char *)&serv_addr.sin_addr.s_addr, server->h_length);
+    memcpy(&serv_addr.sin_addr.s_addr, server->h_addr, server->h_length);
     serv_addr.sin_port = htons(port);
     if (Utils::connect_wrapper(sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
         return false;
@@ -2067,9 +2050,9 @@ bool JasmineGraphServer::receiveGlobalWeights(std::string host, int port, std::s
         return false;
     }
 
-    bzero((char *)&serv_addr, sizeof(serv_addr));
+    memset((char *)&serv_addr, 0, sizeof(serv_addr));
     serv_addr.sin_family = AF_INET;
-    bcopy((char *)server->h_addr, (char *)&serv_addr.sin_addr.s_addr, server->h_length);
+    memcpy(&serv_addr.sin_addr.s_addr, server->h_addr, server->h_length);
     serv_addr.sin_port = htons(port);
     Utils::connect_wrapper(sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr));
 
@@ -2162,9 +2145,9 @@ bool JasmineGraphServer::mergeFiles(std::string host, int port, std::string trai
         return false;
     }
 
-    bzero((char *)&serv_addr, sizeof(serv_addr));
+    memset((char *)&serv_addr, 0, sizeof(serv_addr));
     serv_addr.sin_family = AF_INET;
-    bcopy((char *)server->h_addr, (char *)&serv_addr.sin_addr.s_addr, server->h_length);
+    memcpy(&serv_addr.sin_addr.s_addr, server->h_addr, server->h_length);
     serv_addr.sin_port = htons(port);
     if (Utils::connect_wrapper(sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
         return false;
@@ -2221,9 +2204,9 @@ bool JasmineGraphServer::sendTrainCommand(std::string host, int port, std::strin
         return false;
     }
 
-    bzero((char *)&serv_addr, sizeof(serv_addr));
+    memset((char *)&serv_addr, 0, sizeof(serv_addr));
     serv_addr.sin_family = AF_INET;
-    bcopy((char *)server->h_addr, (char *)&serv_addr.sin_addr.s_addr, server->h_length);
+    memcpy(&serv_addr.sin_addr.s_addr, server->h_addr, server->h_length);
     serv_addr.sin_port = htons(port);
     if (Utils::connect_wrapper(sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
         return false;
@@ -2293,9 +2276,9 @@ void JasmineGraphServer::egoNet(std::string graphID) {
         for (std::vector<std::string>::iterator partitionit = workerPartition.partitionID.begin();
              partitionit != workerPartition.partitionID.end(); partitionit++) {
             std::string partition = *partitionit;
-            bzero((char *)&serv_addr, sizeof(serv_addr));
+            memset((char *)&serv_addr, 0, sizeof(serv_addr));
             serv_addr.sin_family = AF_INET;
-            bcopy((char *)server->h_addr, (char *)&serv_addr.sin_addr.s_addr, server->h_length);
+            memcpy(&serv_addr.sin_addr.s_addr, server->h_addr, server->h_length);
             serv_addr.sin_port = htons(port);
             if (Utils::connect_wrapper(sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
                 return;

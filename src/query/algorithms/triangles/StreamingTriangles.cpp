@@ -14,8 +14,8 @@ limitations under the License.
 #include "StreamingTriangles.h"
 #include <algorithm>
 #include <vector>
-#include <future>
 #include <sstream>
+#include <thread>
 
 #include "../../../util/logger/Logger.h"
 
@@ -61,23 +61,25 @@ std::string StreamingTriangles::countCentralStoreStreamingTriangles(std::string 
                                    "Counting: Started");
     std::map<long, std::unordered_set<long>> adjacencyList;
     std::map<long, long> degreeMap;
-    std::vector<std::future<std::map<long, std::unordered_set<long>>>> adjacencyListResponse;
+    std::vector<std::map<long, std::unordered_set<long>>> adjacencyLists(partitionIdList.size());
+    std::vector<std::thread> workers;
+    workers.reserve(partitionIdList.size());
 
-    std::vector<std::string>::iterator partitionIdListIterator;
-
-    for (partitionIdListIterator = partitionIdList.begin(); partitionIdListIterator != partitionIdList.end();
-         ++partitionIdListIterator) {
-        std::string aggregatePartitionId = *partitionIdListIterator;
-
-        adjacencyListResponse.push_back(std::async(std::launch::async, StreamingTriangles::getCentralAdjacencyList,
-                                                   std::stoi(graphId), std::stoi(aggregatePartitionId)));
+    for (size_t i = 0; i < partitionIdList.size(); ++i) {
+        workers.emplace_back([&adjacencyLists, &graphId, &partitionIdList, i]() {
+            adjacencyLists[i] = StreamingTriangles::getCentralAdjacencyList(
+                std::stoi(graphId), std::stoi(partitionIdList[i]));
+        });
     }
 
-    for (auto&& futureCall : adjacencyListResponse) {
+    for (auto &worker : workers) {
+        worker.join();
+    }
+
+    for (const auto &currentAdjacencyList : adjacencyLists) {
         // Merge adjacency lists
-        const std::map<long, std::unordered_set<long>>& currentAdjacencyList = futureCall.get();
-        for (const auto& entry : currentAdjacencyList) {
-            adjacencyList[entry.first].insert(entry.second.begin(), entry.second.end());
+        for (const auto& [nodeId, neighbors] : currentAdjacencyList) {
+            adjacencyList[nodeId].insert(neighbors.begin(), neighbors.end());
         }
     }
 
@@ -206,8 +208,9 @@ std::string StreamingTriangles::countDynamicCentralTriangles(
     std::map<long, std::unordered_set<long>> adjacencyList;
     std::vector<std::pair<long, long>> edges;
     int position = 0;
-    std::vector<std::future<std::map<long, std::unordered_set<long>>>> adjacencyListResponse;
-    std::vector<std::future<std::vector<std::pair<long, long>>>> edgeMapResponse;
+    std::vector<std::vector<std::pair<long, long>>> edgeMaps(partitionIdList.size());
+    std::vector<std::thread> workers;
+    workers.reserve(partitionIdList.size());
     std::vector<std::string>::iterator partitionIdListIterator;
 
     for (partitionIdListIterator = partitionIdList.begin(); partitionIdListIterator != partitionIdList.end();
@@ -219,17 +222,21 @@ std::string StreamingTriangles::countDynamicCentralTriangles(
         streaming_triangle_logger.debug("got previous central count " +
                                       std::to_string(previousCentralRelationCount));
 
-        edgeMapResponse.push_back(std::async(std::launch::async, StreamingTriangles::getEdges, std::stoi(graphId),
-                                                   std::stoi(aggregatePartitionId), previousCentralRelationCount));
+        const auto edgeMapIndex = static_cast<size_t>(position - 1);
+        workers.emplace_back([&edgeMaps, &graphId, aggregatePartitionId, previousCentralRelationCount, edgeMapIndex]() {
+            edgeMaps[edgeMapIndex] = StreamingTriangles::getEdges(
+                std::stoi(graphId), std::stoi(aggregatePartitionId), previousCentralRelationCount);
+        });
     }
 
-    for (auto &&futureCall : edgeMapResponse) {
+    for (auto &worker : workers) {
+        worker.join();
+    }
+
+    for (const auto &edgeMap : edgeMaps) {
         // Merge degree maps
-        const std::vector<std::pair<long, long>>& edgeMap = futureCall.get();
-        for (const auto& entry : edgeMap) {
-            long sourceNode = entry.first;
-            long targetNode = entry.second;
-            edges.push_back(entry);
+        for (const auto& [sourceNode, targetNode] : edgeMap) {
+            edges.emplace_back(sourceNode, targetNode);
             centralAdjacencyList[joinedString][sourceNode].insert(targetNode);
             centralAdjacencyList[joinedString][targetNode].insert(sourceNode);
         }
@@ -300,18 +307,19 @@ long StreamingTriangles::count(const std::map<long, std::unordered_set<long>>& g
 }
 
 long StreamingTriangles::totalCount(const std::map<long, std::unordered_set<long>>& g1,
-                std::map<long, std::unordered_set<long>>& g2,
-                std::vector<std::pair<long, long>>& edges) {
-    std::vector<std::future<long>> countResponse;
-    countResponse.push_back(std::async(std::launch::async, StreamingTriangles::count,
-                                       std::ref(g1), std::ref(g1), std::ref(edges)));
-    countResponse.push_back(std::async(std::launch::async, StreamingTriangles::count,
-                                       std::ref(g1), std::ref(g2), std::ref(edges)));
-    countResponse.push_back(std::async(std::launch::async, StreamingTriangles::count,
-                                       std::ref(g2), std::ref(g2), std::ref(edges)));
-    long s3 = countResponse[2].get();
-    long s2 = countResponse[1].get();
-    long s1 = countResponse[0].get();
+                const std::map<long, std::unordered_set<long>>& g2,
+                const std::vector<std::pair<long, long>>& edges) {
+    long s1 = 0;
+    long s2 = 0;
+    long s3 = 0;
+
+    std::thread t1([&s1, &g1, &edges]() { s1 = StreamingTriangles::count(g1, g1, edges); });
+    std::thread t2([&s2, &g1, &g2, &edges]() { s2 = StreamingTriangles::count(g1, g2, edges); });
+    std::thread t3([&s3, &g2, &edges]() { s3 = StreamingTriangles::count(g2, g2, edges); });
+
+    t3.join();
+    t2.join();
+    t1.join();
 
     return 0.5 * ((s1 - s2) + (s3 / 3));
 }

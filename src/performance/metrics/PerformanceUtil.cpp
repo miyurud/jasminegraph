@@ -671,19 +671,19 @@ void PerformanceUtil::initiateCollectingRemoteSLAResourceUtilization(std::string
         return;
     }
 
-    bzero((char *)&serv_addr, sizeof(serv_addr));
+    memset((char *)&serv_addr, 0, sizeof(serv_addr));
     serv_addr.sin_family = AF_INET;
-    bcopy((char *)server->h_addr, (char *)&serv_addr.sin_addr.s_addr, server->h_length);
+    memcpy(&serv_addr.sin_addr.s_addr, server->h_addr, server->h_length);
     serv_addr.sin_port = htons(port);
     if (Utils::connect_wrapper(sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
         std::cerr << "ERROR connecting" << std::endl;
         return;
     }
 
-    bzero(data, 301);
+    memset(data, 0, 301);
     write(sockfd, JasmineGraphInstanceProtocol::HANDSHAKE.c_str(), JasmineGraphInstanceProtocol::HANDSHAKE.size());
     scheduler_logger.log("Sent : " + JasmineGraphInstanceProtocol::HANDSHAKE, "info");
-    bzero(data, 301);
+    memset(data, 0, 301);
     read(sockfd, data, 300);
     string response = (data);
 
@@ -694,7 +694,7 @@ void PerformanceUtil::initiateCollectingRemoteSLAResourceUtilization(std::string
         write(sockfd, masterIP.c_str(), masterIP.size());
         scheduler_logger.log("Sent : " + masterIP, "info");
 
-        bzero(data, 301);
+        memset(data, 0, 301);
         read(sockfd, data, 300);
         response = (data);
         response = Utils::trim_copy(response);
@@ -704,7 +704,7 @@ void PerformanceUtil::initiateCollectingRemoteSLAResourceUtilization(std::string
             write(sockfd, JasmineGraphInstanceProtocol::START_STAT_COLLECTION.c_str(),
                   JasmineGraphInstanceProtocol::START_STAT_COLLECTION.size());
             scheduler_logger.log("Sent : " + JasmineGraphInstanceProtocol::START_STAT_COLLECTION, "info");
-            bzero(data, 301);
+            memset(data, 0, 301);
             read(sockfd, data, 300);
             response = (data);
             response = Utils::trim_copy(response);

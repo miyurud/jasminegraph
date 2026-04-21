@@ -20,6 +20,7 @@ limitations under the License.
 #include <algorithm>
 #include <cctype>
 #include <cmath>
+#include <functional>
 #include <string>
 #include <thread>
 
@@ -138,6 +139,12 @@ static void degree_distribution_common(int connFd, int serverPort,
                                        bool *loop_exit_p, bool in);
 static void push_partition_command(int connFd, bool *loop_exit_p);
 static void push_file_command(int connFd, bool *loop_exit_p);
+static void send_edges_command(int connFd, bool *loop_exit_p);
+static void send_edges_to_hdfs_command(int connFd, bool *loop_exit_p);
+template<typename ChunkConsumer>
+static bool stream_partition_edge_data(const std::string &graphID, const std::string &partitionID,
+                                       const ChunkConsumer &chunkConsumer,
+                                       size_t *totalBytes);
 static void query_start_command(int connFd, InstanceHandler &instanceHandler, std::map<std::string,
                                 JasmineGraphIncrementalLocalStore *> &incrementalLocalStoreMap, bool *loop_exit_p);
 static void semantic_beam_search(int connFd, InstanceHandler &instanceHandler, std::map<std::string,
@@ -307,6 +314,10 @@ void *instanceservicesession(void *dummyPt) {
             hdfs_start_stream_command(connFd, &loop_exit, true, streamHandler);
         } else if (line.compare(JasmineGraphInstanceProtocol::HDFS_CENTRAL_STREAM_START) == 0) {
             hdfs_start_stream_command(connFd, &loop_exit, false, streamHandler);
+        } else if (line.compare(JasmineGraphInstanceProtocol::SEND_EDGES) == 0) {
+            send_edges_command(connFd, &loop_exit);
+        } else if (line.compare(JasmineGraphInstanceProtocol::SEND_EDGES_TO_HDFS) == 0) {
+            send_edges_to_hdfs_command(connFd, &loop_exit);
         } else if (line.compare(JasmineGraphInstanceProtocol::QUERY_START) == 0) {
             query_start_command(connFd, instanceHandler, incrementalLocalStoreMap, &loop_exit);
         } else if (line.compare(JasmineGraphInstanceProtocol::SUB_QUERY_START) == 0) {
@@ -336,7 +347,7 @@ void JasmineGraphInstanceService::run(string masterHost, string host, int server
         return;
     }
 
-    bzero((char *)&svrAdd, sizeof(svrAdd));
+    memset((char *)&svrAdd, 0, sizeof(svrAdd));
 
     svrAdd.sin_family = AF_INET;
     svrAdd.sin_addr.s_addr = INADDR_ANY;
@@ -781,9 +792,9 @@ int JasmineGraphInstanceService::collectTrainedModelThreadFunction(instanceservi
         return 0;
     }
 
-    bzero((char *)&serv_addr, sizeof(serv_addr));
+    memset((char *)&serv_addr, 0, sizeof(serv_addr));
     serv_addr.sin_family = AF_INET;
-    bcopy((char *)server->h_addr, (char *)&serv_addr.sin_addr.s_addr, server->h_length);
+    memcpy(&serv_addr.sin_addr.s_addr, server->h_addr, server->h_length);
     serv_addr.sin_port = htons(port);
     if (Utils::connect_wrapper(sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
         return 0;
@@ -1079,9 +1090,9 @@ bool JasmineGraphInstanceService::duplicateCentralStore(int thisWorkerPort, int 
             return false;
         }
 
-        bzero((char *)&serv_addr, sizeof(serv_addr));
+        memset((char *)&serv_addr, 0, sizeof(serv_addr));
         serv_addr.sin_family = AF_INET;
-        bcopy((char *)server->h_addr, (char *)&serv_addr.sin_addr.s_addr, server->h_length);
+        memcpy(&serv_addr.sin_addr.s_addr, server->h_addr, server->h_length);
         serv_addr.sin_port = htons(port);
         if (Utils::connect_wrapper(sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
             return false;
@@ -1560,9 +1571,9 @@ void calculateEgoNet(string graphID, string partitionID, int serverPort, Jasmine
             return;
         }
 
-        bzero((char *)&serv_addr, sizeof(serv_addr));
+        memset((char *)&serv_addr, 0, sizeof(serv_addr));
         serv_addr.sin_family = AF_INET;
-        bcopy((char *)server->h_addr, (char *)&serv_addr.sin_addr.s_addr, server->h_length);
+        memcpy(&serv_addr.sin_addr.s_addr, server->h_addr, server->h_length);
         serv_addr.sin_port = htons(port);
         if (Utils::connect_wrapper(sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
             return;
@@ -2202,8 +2213,8 @@ static void delete_graph_command(int connFd, bool *loop_exit_p) {
     }
     instance_logger.info("Sent : " + JasmineGraphInstanceProtocol::OK);
 
-    char data[DATA_BUFFER_SIZE];
-    string graphID = Utils::read_str_trim_wrapper(connFd, data, INSTANCE_DATA_LENGTH);
+    std::string data(DATA_BUFFER_SIZE, '\0');
+    string graphID = Utils::read_str_trim_wrapper(connFd, data.data(), INSTANCE_DATA_LENGTH);
     instance_logger.info("Received Graph ID: " + graphID);
 
     if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::SEND_PARTITION_ID)) {
@@ -2212,7 +2223,7 @@ static void delete_graph_command(int connFd, bool *loop_exit_p) {
     }
     instance_logger.info("Sent : " + JasmineGraphInstanceProtocol::SEND_PARTITION_ID);
 
-    string partitionID = Utils::read_str_wrapper(connFd, data, INSTANCE_DATA_LENGTH, false);
+    string partitionID = Utils::read_str_wrapper(connFd, data.data(), INSTANCE_DATA_LENGTH, false);
     instance_logger.info("Received partition ID: " + partitionID);
     deleteGraphPartition(graphID, partitionID);
     deleteStreamingGraphPartition(graphID, partitionID);
@@ -5374,4 +5385,252 @@ static void processFile(string fileName, bool isLocal,
     instance_logger.info("Finished processing file: " + filePath);
 }
 
+static void send_edges_command(int connFd, bool *loop_exit_p) {
+    if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::OK)) {
+        *loop_exit_p = true;
+        return;
+    }
+    instance_logger.info("Sent : " + JasmineGraphInstanceProtocol::OK);
+
+    char data[DATA_BUFFER_SIZE];
+    string graphID = Utils::read_str_trim_wrapper(connFd, data, INSTANCE_DATA_LENGTH);
+    instance_logger.info("Received Graph ID: " + graphID);
+
+    if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::SEND_PARTITION_ID)) {
+        *loop_exit_p = true;
+        return;
+    }
+    instance_logger.info("Sent : " + JasmineGraphInstanceProtocol::SEND_PARTITION_ID);
+
+    string partitionID = Utils::read_str_trim_wrapper(connFd, data, INSTANCE_DATA_LENGTH);
+    instance_logger.info("Received Partition ID: " + partitionID);
+
+    size_t edgeDataSize = 0;
+    if (!stream_partition_edge_data(graphID, partitionID, [](const std::string &) { return true; }, &edgeDataSize)) {
+        instance_logger.error("Failed to scan edge data for graph " + graphID + " partition " + partitionID);
+        *loop_exit_p = true;
+        return;
+    }
+
+    std::string sizeStr = std::to_string(edgeDataSize);
+    instance_logger.info("Sending " + sizeStr + " bytes of edge data for partition " + partitionID);
+
+    if (!Utils::send_str_wrapper(connFd, sizeStr)) {
+        *loop_exit_p = true;
+        return;
+    }
+
+    std::string ack = Utils::read_str_trim_wrapper(connFd, data, INSTANCE_DATA_LENGTH);
+    if (ack != JasmineGraphInstanceProtocol::OK) {
+        instance_logger.error("Expected OK, received: " + ack);
+        *loop_exit_p = true;
+        return;
+    }
+
+    if (edgeDataSize > 0) {
+        bool streamed = stream_partition_edge_data(
+            graphID, partitionID,
+            [connFd](const std::string &chunk) {
+                ssize_t totalSent = 0;
+                auto remaining = static_cast<ssize_t>(chunk.size());
+                const char *ptr = chunk.c_str();
+                while (remaining > 0) {
+                    ssize_t sent = write(connFd, ptr + totalSent, remaining);
+                    if (sent < 0) {
+                        return false;
+                    }
+                    totalSent += sent;
+                    remaining -= sent;
+                }
+                return true;
+            },
+            nullptr);
+
+        if (!streamed) {
+            instance_logger.error("Error streaming edge data");
+            *loop_exit_p = true;
+            return;
+        }
+    }
+
+    ack = Utils::read_str_trim_wrapper(connFd, data, INSTANCE_DATA_LENGTH);
+    if (ack != JasmineGraphInstanceProtocol::OK) {
+        instance_logger.error("Expected final OK, received: " + ack);
+    }
+    instance_logger.info("Finished sending edges for graph " + graphID + " partition " + partitionID);
+}
+
+template<typename EdgeAppender>
+static bool processLocalStoreEdges(const std::string &graphID, const std::string &partitionID,
+                                   const std::string &dataFolder,
+                                   const EdgeAppender &appendEdge) {
+    std::string partitionFile = dataFolder + "/" + graphID + "_" + partitionID;
+    if (!Utils::fileExists(partitionFile)) {
+        return true;
+    }
+
+    JasmineGraphHashMapLocalStore localStore;
+    std::map<int, std::vector<int>> partEdgeMap = localStore.getEdgeHashMap(partitionFile);
+    for (const auto &[src, destinations] : partEdgeMap) {
+        for (int dest : destinations) {
+            if (!appendEdge(src, dest)) {
+                return false;
+            }
+        }
+    }
+    return true;
+}
+
+template<typename EdgeAppender>
+static bool processCentralStoreEdges(const std::string &graphID, const std::string &partitionID,
+                                     const std::string &dataFolder,
+                                     const EdgeAppender &appendEdge) {
+    std::string centralFile = dataFolder + "/" + graphID + "_centralstore_" + partitionID;
+    if (!Utils::fileExists(centralFile)) {
+        return true;
+    }
+
+    JasmineGraphHashMapCentralStore centralStore(stoi(graphID), stoi(partitionID));
+    if (!centralStore.loadGraph(centralFile)) {
+        return true;
+    }
+
+    const auto &centralMap = centralStore.getUnderlyingHashMap();
+    for (const auto &[src, destinations] : centralMap) {
+        for (long dest : destinations) {
+            if (!appendEdge(src, dest)) {
+                return false;
+            }
+        }
+    }
+    return true;
+}
+
+template<typename ChunkConsumer>
+static bool stream_partition_edge_data(const std::string &graphID, const std::string &partitionID,
+                                       const ChunkConsumer &chunkConsumer,
+                                       size_t *totalBytes) {
+    const size_t EDGE_STREAM_BUFFER_SIZE = 1024 * 1024;
+    std::string dataFolder = Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder");
+    std::string buffer;
+    buffer.reserve(EDGE_STREAM_BUFFER_SIZE);
+
+    if (totalBytes != nullptr) {
+        *totalBytes = 0;
+    }
+
+    auto flushBuffer = [&buffer, totalBytes, &chunkConsumer]() {
+        if (buffer.empty()) {
+            return true;
+        }
+
+        if (totalBytes != nullptr) {
+            *totalBytes += buffer.size();
+        }
+
+        if (!chunkConsumer(buffer)) {
+            return false;
+        }
+
+        buffer.clear();
+        return true;
+    };
+
+    auto appendEdge = [&buffer, &flushBuffer](long src, long dst) -> bool {
+        buffer += std::to_string(src);
+        buffer.push_back(' ');
+        buffer += std::to_string(dst);
+        buffer.push_back('\n');
+
+        if (buffer.size() >= EDGE_STREAM_BUFFER_SIZE) {
+            return flushBuffer();
+        }
+        return true;
+    };
+
+    if (!processLocalStoreEdges(graphID, partitionID, dataFolder, appendEdge)) {
+        return false;
+    }
+
+    if (!processCentralStoreEdges(graphID, partitionID, dataFolder, appendEdge)) {
+        return false;
+    }
+
+    return flushBuffer();
+}
+
+static void send_edges_to_hdfs_command(int connFd, bool *loop_exit_p) {
+    if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::OK)) {
+        *loop_exit_p = true;
+        return;
+    }
+
+    std::string data(INSTANCE_LONG_DATA_LENGTH + 1, '\0');
+    std::string graphID = Utils::read_str_trim_wrapper(connFd, data.data(), INSTANCE_LONG_DATA_LENGTH);
+    instance_logger.info("Received Graph ID for direct HDFS export: " + graphID);
+
+    if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::SEND_PARTITION_ID)) {
+        *loop_exit_p = true;
+        return;
+    }
+
+    std::string partitionID = Utils::read_str_trim_wrapper(connFd, data.data(), INSTANCE_LONG_DATA_LENGTH);
+    instance_logger.info("Received Partition ID for direct HDFS export: " + partitionID);
+
+    if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::OK)) {
+        *loop_exit_p = true;
+        return;
+    }
+
+    std::string hdfsHost = Utils::read_str_trim_wrapper(connFd, data.data(), INSTANCE_LONG_DATA_LENGTH);
+    if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::OK)) {
+        *loop_exit_p = true;
+        return;
+    }
+
+    std::string hdfsPort = Utils::read_str_trim_wrapper(connFd, data.data(), INSTANCE_LONG_DATA_LENGTH);
+    if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::OK)) {
+        *loop_exit_p = true;
+        return;
+    }
+
+    std::string hdfsPath = Utils::read_str_trim_wrapper(connFd, data.data(), INSTANCE_LONG_DATA_LENGTH);
+
+    HDFSConnector hdfsConnector(hdfsHost, hdfsPort);
+    bool ok = true;
+    size_t separatorPos = hdfsPath.find_last_of('/');
+    if (separatorPos != std::string::npos && separatorPos > 0) {
+        ok = hdfsConnector.createDirectory(hdfsPath.substr(0, separatorPos));
+    }
+
+    if (ok) {
+        ok = hdfsConnector.openFileForWrite(hdfsPath);
+    }
+    if (ok) {
+        ok = stream_partition_edge_data(
+            graphID, partitionID,
+            [&hdfsConnector](const std::string &chunk) {
+                return hdfsConnector.appendData(chunk.c_str(), chunk.size());
+            },
+            nullptr);
+    }
+    if (ok) {
+        ok = hdfsConnector.closeWriteFile();
+    }
+
+    if (!Utils::send_str_wrapper(connFd, ok ? JasmineGraphInstanceProtocol::OK
+                                            : JasmineGraphInstanceProtocol::ERROR)) {
+        *loop_exit_p = true;
+        return;
+    }
+
+    if (!ok) {
+        instance_logger.error("Direct HDFS export failed for graph " + graphID + " partition " + partitionID +
+                              " path=" + hdfsPath);
+        return;
+    }
+
+    instance_logger.info("Finished direct HDFS export for graph " + graphID +
+                         " partition " + partitionID + " path=" + hdfsPath);
+}
 
