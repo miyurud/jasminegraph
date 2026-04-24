@@ -3363,45 +3363,32 @@ static void history_triangles_command(int connFd, bool *loop_exit_p) {
     std::string snapshotDir = Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder") +
                               "/temporal_snapshots";
 
-    std::vector<uint32_t> partitionIds = discoverBitmapPartitions(snapshotDir, graphIdInt);
-    if (partitionIds.empty()) {
-        *loop_exit_p = true;
-        return;
-    }
-
     std::vector<std::pair<std::string, std::string>> batch;
     batch.reserve(HISTORY_TRIANGLE_BATCH_SIZE);
 
     uint64_t rawEdgesRead = 0;
-    uint64_t processedPartitions = 0;
     auto start = std::chrono::high_resolution_clock::now();
 
-    for (uint32_t currentPartitionId : partitionIds) {
-        std::string filePath = TemporalStorePersistence::generateBitmapFilePath(snapshotDir, graphIdInt,
-                                                                                currentPartitionId);
+    std::string filePath = TemporalStorePersistence::generateBitmapFilePath(snapshotDir, graphIdInt,
+                                                                             partitionIdInt);
 
-        bool loaded = TemporalStorePersistence::forEachActiveBitmapEdgeAtSnapshot(
-            filePath, snapshotId,
-            [&](const std::string& sourceId, const std::string& destId) {
-                if (sourceId == destId) {
-                    return true;
-                }
-
-                batch.emplace_back(sourceId, destId);
-                rawEdgesRead++;
-                if (batch.size() >= HISTORY_TRIANGLE_BATCH_SIZE) {
-                    if (!flushHistoryTriangleBatch(connFd, batch)) {
-                        return false;
-                    }
-                    batch.clear();
-                }
+    TemporalStorePersistence::forEachActiveBitmapEdgeAtSnapshot(
+        filePath, snapshotId,
+        [&](const std::string& sourceId, const std::string& destId) {
+            if (sourceId == destId) {
                 return true;
-            });
+            }
 
-        if (loaded) {
-            processedPartitions++;
-        }
-    }
+            batch.emplace_back(sourceId, destId);
+            rawEdgesRead++;
+            if (batch.size() >= HISTORY_TRIANGLE_BATCH_SIZE) {
+                if (!flushHistoryTriangleBatch(connFd, batch)) {
+                    return false;
+                }
+                batch.clear();
+            }
+            return true;
+        });
 
     if (!batch.empty() && !flushHistoryTriangleBatch(connFd, batch)) {
         *loop_exit_p = true;

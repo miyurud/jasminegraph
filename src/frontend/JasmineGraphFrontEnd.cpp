@@ -1214,19 +1214,17 @@ static TemporalTriangleResult countHistoryTrianglesDistributed(SQLiteDBInterface
 
     long workerDurationSum = 0;
     uint64_t rawEdgesRead = 0;
-    bool collectionFailed = false;
     for (auto& futureResult : futures) {
         std::pair<long, long> workerResult = futureResult.get();
         if (workerResult.first < 0) {
-            collectionFailed = true;
-            break;
+            continue;
         }
         rawEdgesRead += static_cast<uint64_t>(workerResult.first);
         result.partitionsProcessed++;
         workerDurationSum += workerResult.second;
     }
 
-    if (collectionFailed) {
+    if (result.partitionsProcessed == 0) {
         return result;
     }
 
@@ -1368,7 +1366,8 @@ void *frontendservicesesion(void *dummyPt) {
         } else if (line.compare(STREAMING_TRIANGLES) == 0) {
             streaming_triangles_command(masterIP, connFd, jobScheduler, &loop_exit, numberOfPartitions,
                                         &JasmineGraphFrontEnd::strian_exit);
-        } else if (line.compare(HISTORY_TRIANGLE) == 0) {
+        } else if (line.compare(HISTORY_TRIANGLE) == 0 || line.compare("htria") == 0 ||
+                   line.compare("hstria") == 0) {
             history_triangle_command(connFd, sqlite, &loop_exit, masterIP);
         } else if (line.compare(HISTORY_TRIANGLE_TIMESTAMP) == 0) {
             history_triangle_timestamp_command(connFd, sqlite, &loop_exit, masterIP);
