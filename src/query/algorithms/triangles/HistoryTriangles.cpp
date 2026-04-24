@@ -14,14 +14,16 @@ limitations under the License.
 #include "HistoryTriangles.h"
 
 #include <algorithm>
-#include <atomic>
 #include <set>
 #include <fstream>
 #include <sstream>
-#include <thread>
 #include <unordered_set>
 
 #include "../../../util/Utils.h"
+
+#ifdef _OPENMP
+#include <omp.h>
+#endif
 
 namespace {
 
@@ -162,13 +164,13 @@ uint64_t countTrianglesOnForwardGraph(const std::vector<std::vector<uint32_t>>& 
     if (forwardNeighbors.empty()) {
         return 0;
     }
+    uint64_t triangleCount = 0;
 
-    const unsigned int hwThreads = std::thread::hardware_concurrency();
-    const unsigned int workerCount = std::max(1u, hwThreads);
-
-    if (workerCount == 1 || forwardNeighbors.size() < 2048) {
-        uint64_t triangleCount = 0;
-        for (uint32_t sourceIndex = 0; sourceIndex < forwardNeighbors.size(); ++sourceIndex) {
+#ifdef _OPENMP
+    if (forwardNeighbors.size() >= 2048) {
+#pragma omp parallel for schedule(dynamic, 64) reduction(+:triangleCount)
+        for (int64_t sourceIndex = 0; sourceIndex < static_cast<int64_t>(forwardNeighbors.size());
+             ++sourceIndex) {
             const std::vector<uint32_t>& sourceNeighbors = forwardNeighbors[sourceIndex];
             for (uint32_t middleIndex : sourceNeighbors) {
                 const std::vector<uint32_t>& middleNeighbors = forwardNeighbors[middleIndex];
@@ -181,50 +183,18 @@ uint64_t countTrianglesOnForwardGraph(const std::vector<std::vector<uint32_t>>& 
         }
         return triangleCount;
     }
+#endif
 
-    std::atomic<uint32_t> nextSourceIndex{0};
-    const uint32_t chunkSize = 64;
-    std::vector<std::thread> workers;
-    workers.reserve(workerCount);
-    std::vector<uint64_t> localCounts(workerCount, 0);
-
-    for (unsigned int workerId = 0; workerId < workerCount; ++workerId) {
-        workers.emplace_back([&, workerId]() {
-            uint64_t localTriangleCount = 0;
-            while (true) {
-                uint32_t begin = nextSourceIndex.fetch_add(chunkSize);
-                if (begin >= forwardNeighbors.size()) {
-                    break;
-                }
-
-                uint32_t end = std::min<uint32_t>(begin + chunkSize,
-                                                  static_cast<uint32_t>(forwardNeighbors.size()));
-                for (uint32_t sourceIndex = begin; sourceIndex < end; ++sourceIndex) {
-                    const std::vector<uint32_t>& sourceNeighbors = forwardNeighbors[sourceIndex];
-                    for (uint32_t middleIndex : sourceNeighbors) {
-                        const std::vector<uint32_t>& middleNeighbors = forwardNeighbors[middleIndex];
-                        if (sourceNeighbors.size() < middleNeighbors.size()) {
-                            localTriangleCount +=
-                                countCommonSortedValues(sourceNeighbors, middleNeighbors);
-                        } else {
-                            localTriangleCount +=
-                                countCommonSortedValues(middleNeighbors, sourceNeighbors);
-                        }
-                    }
-                }
+    for (uint32_t sourceIndex = 0; sourceIndex < forwardNeighbors.size(); ++sourceIndex) {
+        const std::vector<uint32_t>& sourceNeighbors = forwardNeighbors[sourceIndex];
+        for (uint32_t middleIndex : sourceNeighbors) {
+            const std::vector<uint32_t>& middleNeighbors = forwardNeighbors[middleIndex];
+            if (sourceNeighbors.size() < middleNeighbors.size()) {
+                triangleCount += countCommonSortedValues(sourceNeighbors, middleNeighbors);
+            } else {
+                triangleCount += countCommonSortedValues(middleNeighbors, sourceNeighbors);
             }
-
-            localCounts[workerId] = localTriangleCount;
-        });
-    }
-
-    for (auto& worker : workers) {
-        worker.join();
-    }
-
-    uint64_t triangleCount = 0;
-    for (uint64_t localCount : localCounts) {
-        triangleCount += localCount;
+        }
     }
 
     return triangleCount;
