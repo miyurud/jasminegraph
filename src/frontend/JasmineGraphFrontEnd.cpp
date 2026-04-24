@@ -1153,105 +1153,26 @@ static TemporalTriangleResult countHistoryTrianglesDistributed(SQLiteDBInterface
                                                                int graphId,
                                                                uint32_t snapshotId,
                                                                const std::string& masterIP) {
+    (void)masterIP;
+
     TemporalTriangleResult result{};
+    std::string stagedSnapshotDir;
 
-    std::string sqlStatement =
-        "SELECT DISTINCT worker_idworker,partition_idpartition "
-        "FROM worker_has_partition INNER JOIN worker ON worker_has_partition.worker_idworker=worker.idworker "
-        "WHERE partition_graph_idgraph=" + std::to_string(graphId) + ";";
-
-    const std::vector<std::vector<std::pair<std::string, std::string>>>& rows = sqlite->runSelect(sqlStatement);
-    if (rows.empty()) {
-        return result;
-    }
-
-    std::map<std::string, std::vector<int>> partitionMap;
-    for (const auto& row : rows) {
-        std::string workerId = row.at(0).second;
-        int partitionId = std::stoi(row.at(1).second);
-        partitionMap[workerId].push_back(partitionId);
-    }
-
-    std::vector<Utils::worker> workerList = Utils::getWorkerList(sqlite);
-    std::map<std::string, Utils::worker> workersById;
-    for (const auto& worker : workerList) {
-        workersById[worker.workerID] = worker;
-    }
-
-    HistoryTriangleAggregation aggregation;
-    if (!aggregation.ready()) {
-        return result;
-    }
-
-    auto start = std::chrono::high_resolution_clock::now();
-    std::vector<std::future<std::pair<long, long>>> futures;
-    for (const auto& entry : partitionMap) {
-        auto workerIt = workersById.find(entry.first);
-        if (workerIt == workersById.end()) {
-            continue;
+    try {
+        std::string snapshotDir = getTemporalSnapshotDir();
+        stagedSnapshotDir = stageTemporalBitmapIndexesForGraph(sqlite, graphId, snapshotDir);
+        if (stagedSnapshotDir.empty()) {
+            return result;
         }
-        for (int partitionId : entry.second) {
-            futures.push_back(std::async(std::launch::async,
-                                         [&aggregation, graphId, snapshotId, masterIP]
-                                         (const Utils::worker& worker, int partitionIdValue) {
-                                             long durationMs = 0;
-                                             uint64_t rawEdges = 0;
-                                             if (!collectHistoryTriangleEdgesFromWorker(graphId, snapshotId, worker,
-                                                                                        partitionIdValue,
-                                                                                        masterIP,
-                                                                                        Conts::DEFAULT_THREAD_PRIORITY,
-                                                                                        aggregation,
-                                                                                        durationMs,
-                                                                                        rawEdges)) {
-                                                 return std::make_pair(-1L, 0L);
-                                             }
-                                             return std::make_pair(static_cast<long>(rawEdges), durationMs);
-                                         },
-                                         workerIt->second,
-                                         partitionId));
-        }
-    }
 
-    long workerDurationSum = 0;
-    uint64_t rawEdgesRead = 0;
-    for (auto& futureResult : futures) {
-        std::pair<long, long> workerResult = futureResult.get();
-        if (workerResult.first < 0) {
-            continue;
-        }
-        rawEdgesRead += static_cast<uint64_t>(workerResult.first);
-        result.partitionsProcessed++;
-        workerDurationSum += workerResult.second;
-    }
-
-    if (result.partitionsProcessed == 0) {
+        // Exact cumulative history triangles on snapshots [0..snapshotId].
+        result = HistoryTriangles::countTrianglesAtSnapshot(graphId, snapshotId, stagedSnapshotDir);
+        cleanupStagedTemporalBitmapIndexes(stagedSnapshotDir);
         return result;
+    } catch (...) {
+        cleanupStagedTemporalBitmapIndexes(stagedSnapshotDir);
+        return TemporalTriangleResult{};
     }
-
-    if (!aggregation.finalizeShardStreams()) {
-        return result;
-    }
-
-    auto countStart = std::chrono::high_resolution_clock::now();
-    std::pair<uint64_t, uint64_t> countResult = countTrianglesFromEncodedShards(aggregation.getShardPaths(),
-                                                                                aggregation.getNodeCount());
-    auto countEnd = std::chrono::high_resolution_clock::now();
-    long distributedWallClockMs = std::chrono::duration_cast<std::chrono::milliseconds>(countEnd - start).count();
-    long frontendCountMs = std::chrono::duration_cast<std::chrono::milliseconds>(countEnd - countStart).count();
-
-    result.triangleCount = countResult.first;
-    result.rawEdges = rawEdgesRead;
-    result.totalEdges = countResult.second;
-    result.uniqueEdges = countResult.second;
-    result.localEdges = countResult.second;
-    result.uniqueNodes = aggregation.getNodeCount();
-    result.durationMs = workerDurationSum;
-
-    frontend_logger.info("Distributed history triangle timings: worker_algorithm_aggregate=" +
-                         std::to_string(workerDurationSum) +
-                         "ms, frontend_count=" + std::to_string(frontendCountMs) +
-                         "ms, distributed_wall_clock=" + std::to_string(distributedWallClockMs) + "ms");
-    return result;
 }
 
 void *frontendservicesesion(void *dummyPt) {
