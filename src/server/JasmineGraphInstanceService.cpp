@@ -17,6 +17,8 @@ limitations under the License.
 #include <stdio.h>
 #include <unistd.h>
 
+#include <arpa/inet.h>
+
 #include <algorithm>
 #include <cctype>
 #include <cmath>
@@ -59,6 +61,141 @@ bool collectValid = false;
 std::thread JasmineGraphInstanceService::workerThread;
 
 std::string masterIP;
+
+namespace {
+
+constexpr size_t HISTORY_TRIANGLE_BATCH_SIZE = 1024;
+
+bool parsePartitionIdFromBitmapFileName(const std::string& fileName,
+                                        int graphId,
+                                        uint32_t& partitionId) {
+    const std::string prefix = "graph" + std::to_string(graphId) + "_part";
+    const std::string suffix = "_bitmaps.ebm";
+
+    if (fileName.rfind(prefix, 0) != 0) {
+        return false;
+    }
+    if (fileName.size() <= prefix.size() + suffix.size()) {
+        return false;
+    }
+    if (fileName.compare(fileName.size() - suffix.size(), suffix.size(), suffix) != 0) {
+        return false;
+    }
+
+    std::string partitionText =
+        fileName.substr(prefix.size(), fileName.size() - prefix.size() - suffix.size());
+    if (partitionText.empty()) {
+        return false;
+    }
+    if (!std::all_of(partitionText.begin(), partitionText.end(),
+                     [](unsigned char ch) { return std::isdigit(ch); })) {
+        return false;
+    }
+
+    partitionId = static_cast<uint32_t>(std::stoul(partitionText));
+    return true;
+}
+
+bool parsePartitionIdFromDeltaFileName(const std::string& fileName,
+                                       int graphId,
+                                       uint32_t& partitionId) {
+    const std::string prefix = "graph" + std::to_string(graphId) + "_part";
+    const std::string splitMarker = "_snap";
+    const std::string suffix = ".delta";
+
+    if (fileName.rfind(prefix, 0) != 0) {
+        return false;
+    }
+    if (fileName.size() <= prefix.size() + splitMarker.size() + suffix.size()) {
+        return false;
+    }
+    if (fileName.compare(fileName.size() - suffix.size(), suffix.size(), suffix) != 0) {
+        return false;
+    }
+
+    size_t snapPos = fileName.find(splitMarker, prefix.size());
+    if (snapPos == std::string::npos || snapPos <= prefix.size()) {
+        return false;
+    }
+
+    std::string partitionText = fileName.substr(prefix.size(), snapPos - prefix.size());
+    if (partitionText.empty()) {
+        return false;
+    }
+    if (!std::all_of(partitionText.begin(), partitionText.end(),
+                     [](unsigned char ch) { return std::isdigit(ch); })) {
+        return false;
+    }
+
+    partitionId = static_cast<uint32_t>(std::stoul(partitionText));
+    return true;
+}
+
+std::vector<uint32_t> discoverBitmapPartitions(const std::string& snapshotDir, int graphId) {
+    std::vector<std::string> files = Utils::getListOfFilesInDirectory(snapshotDir);
+    std::vector<uint32_t> partitionIds;
+    partitionIds.reserve(files.size());
+
+    for (const auto& file : files) {
+        uint32_t partitionId = 0;
+        if (parsePartitionIdFromBitmapFileName(file, graphId, partitionId) ||
+            parsePartitionIdFromDeltaFileName(file, graphId, partitionId)) {
+            partitionIds.push_back(partitionId);
+        }
+    }
+
+    std::sort(partitionIds.begin(), partitionIds.end());
+    partitionIds.erase(std::unique(partitionIds.begin(), partitionIds.end()), partitionIds.end());
+    return partitionIds;
+}
+
+bool sendAll(int sockfd, const void* data, size_t length) {
+    const char* cursor = static_cast<const char*>(data);
+    size_t sent = 0;
+    while (sent < length) {
+        ssize_t written = send(sockfd, cursor + sent, length - sent, 0);
+        if (written <= 0) {
+            return false;
+        }
+        sent += static_cast<size_t>(written);
+    }
+    return true;
+}
+
+bool sendUint32(int sockfd, uint32_t value) {
+    uint32_t networkValue = htonl(value);
+    return sendAll(sockfd, &networkValue, sizeof(networkValue));
+}
+
+bool sendUint64(int sockfd, uint64_t value) {
+#if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
+    uint64_t networkValue = (static_cast<uint64_t>(htonl(static_cast<uint32_t>(value & 0xffffffffULL))) << 32) |
+                            static_cast<uint64_t>(htonl(static_cast<uint32_t>(value >> 32)));
+#else
+    uint64_t networkValue = value;
+#endif
+    return sendAll(sockfd, &networkValue, sizeof(networkValue));
+}
+
+bool flushHistoryTriangleBatch(int sockfd,
+                               const std::vector<std::pair<std::string, std::string>>& batch) {
+    if (!sendUint32(sockfd, static_cast<uint32_t>(batch.size()))) {
+        return false;
+    }
+
+    for (const auto& edge : batch) {
+        if (!sendUint32(sockfd, static_cast<uint32_t>(edge.first.size())) ||
+            !sendAll(sockfd, edge.first.data(), edge.first.size()) ||
+            !sendUint32(sockfd, static_cast<uint32_t>(edge.second.size())) ||
+            !sendAll(sockfd, edge.second.data(), edge.second.size())) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+}  // namespace
 
 static void handshake_command(int connFd, bool *loop_exit_p);
 static inline void close_command(int connFd, bool *loop_exit_p);
@@ -3225,31 +3362,63 @@ static void history_triangles_command(int connFd, bool *loop_exit_p) {
 
     std::string snapshotDir = Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder") +
                               "/temporal_snapshots";
-    std::string filePath = TemporalStorePersistence::generateBitmapFilePath(snapshotDir, graphIdInt, partitionIdInt);
 
-    std::vector<TemporalStore::EdgeKey> partitionEdges;
-    bool loaded = TemporalStorePersistence::forEachActiveBitmapEdgeAtSnapshot(
-        filePath, snapshotId,
-        [&](const std::string& sourceId, const std::string& destId) {
-            if (sourceId != destId) {
-                partitionEdges.emplace_back(sourceId, destId);
-            }
-            return true;
-        });
-
-    uint64_t localTriangleCount = 0;
-    long durationMs = 0;
-    if (loaded && !partitionEdges.empty()) {
-        auto start = std::chrono::high_resolution_clock::now();
-        auto result = HistoryTriangles::countTrianglesOnMergedGraph(partitionEdges);
-        auto end = std::chrono::high_resolution_clock::now();
-        durationMs = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
-        localTriangleCount = result.first;
+    std::vector<uint32_t> partitionIds = discoverBitmapPartitions(snapshotDir, graphIdInt);
+    if (partitionIds.empty()) {
+        *loop_exit_p = true;
+        return;
     }
 
-    std::string payload = std::to_string(localTriangleCount) + "|" + std::to_string(durationMs);
-    if (!Utils::send_str_wrapper(connFd, payload)) {
+    std::vector<std::pair<std::string, std::string>> batch;
+    batch.reserve(HISTORY_TRIANGLE_BATCH_SIZE);
+
+    uint64_t rawEdgesRead = 0;
+    uint64_t processedPartitions = 0;
+    auto start = std::chrono::high_resolution_clock::now();
+
+    for (uint32_t currentPartitionId : partitionIds) {
+        std::string filePath = TemporalStorePersistence::generateBitmapFilePath(snapshotDir, graphIdInt,
+                                                                                currentPartitionId);
+
+        bool loaded = TemporalStorePersistence::forEachActiveBitmapEdgeAtSnapshot(
+            filePath, snapshotId,
+            [&](const std::string& sourceId, const std::string& destId) {
+                if (sourceId == destId) {
+                    return true;
+                }
+
+                batch.emplace_back(sourceId, destId);
+                rawEdgesRead++;
+                if (batch.size() >= HISTORY_TRIANGLE_BATCH_SIZE) {
+                    if (!flushHistoryTriangleBatch(connFd, batch)) {
+                        return false;
+                    }
+                    batch.clear();
+                }
+                return true;
+            });
+
+        if (loaded) {
+            processedPartitions++;
+        }
+    }
+
+    if (!batch.empty() && !flushHistoryTriangleBatch(connFd, batch)) {
         *loop_exit_p = true;
+        return;
+    }
+
+    if (!sendUint32(connFd, 0) || !sendUint64(connFd, rawEdgesRead)) {
+        *loop_exit_p = true;
+        return;
+    }
+
+    auto end = std::chrono::high_resolution_clock::now();
+    long durationMs = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
+
+    if (!sendUint64(connFd, static_cast<uint64_t>(durationMs))) {
+        *loop_exit_p = true;
+        return;
     }
 }
 

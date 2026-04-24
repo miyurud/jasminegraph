@@ -27,9 +27,11 @@ limitations under the License.
 #include <iomanip>
 #include <iostream>
 #include <map>
+#include <mutex>
 #include <nlohmann/json.hpp>
 #include <set>
 #include <thread>
+#include <unordered_map>
 #include <sys/stat.h>
 
 #include "../knowledgegraph/construction/Pipeline.h"
@@ -659,16 +661,241 @@ static void cleanupStagedTemporalBitmapIndexes(const std::string& stagingDir) {
     rmdir(stagingDir.c_str());
 }
 
-static std::pair<long, long> getHistoryTriangleCountFromWorker(int graphId,
-                                                                uint32_t snapshotId,
-                                                                const Utils::worker& worker,
-                                                                int partitionId,
-                                                                const std::string& masterIP,
-                                                                int threadPriority) {
+namespace {
+
+constexpr size_t HISTORY_TRIANGLE_SHARD_COUNT = 256;
+constexpr size_t HISTORY_TRIANGLE_NODE_BUCKET_COUNT = 256;
+constexpr size_t HISTORY_TRIANGLE_BATCH_SIZE = 1024;
+
+bool recvAll(int sockfd, void* data, size_t length) {
+    char* cursor = static_cast<char*>(data);
+    size_t received = 0;
+    while (received < length) {
+        ssize_t readCount = recv(sockfd, cursor + received, length - received, 0);
+        if (readCount <= 0) {
+            return false;
+        }
+        received += static_cast<size_t>(readCount);
+    }
+    return true;
+}
+
+uint32_t fromNetwork32(uint32_t value) {
+    return ntohl(value);
+}
+
+uint64_t fromNetwork64(uint64_t value) {
+#if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
+    uint32_t high = ntohl(static_cast<uint32_t>(value >> 32));
+    uint32_t low = ntohl(static_cast<uint32_t>(value & 0xffffffffULL));
+    return (static_cast<uint64_t>(high) << 32) | static_cast<uint64_t>(low);
+#else
+    return value;
+#endif
+}
+
+bool readUint32(int sockfd, uint32_t& value) {
+    uint32_t networkValue = 0;
+    if (!recvAll(sockfd, &networkValue, sizeof(networkValue))) {
+        return false;
+    }
+    value = fromNetwork32(networkValue);
+    return true;
+}
+
+bool readUint64(int sockfd, uint64_t& value) {
+    uint64_t networkValue = 0;
+    if (!recvAll(sockfd, &networkValue, sizeof(networkValue))) {
+        return false;
+    }
+    value = fromNetwork64(networkValue);
+    return true;
+}
+
+std::string createEdgeShardTempDir() {
+    char tempDirTemplate[] = "/tmp/jg_histrian_frontend_XXXXXX";
+    char* createdDir = mkdtemp(tempDirTemplate);
+    if (createdDir == nullptr) {
+        return "";
+    }
+    return std::string(createdDir);
+}
+
+uint64_t encodeUndirectedEdge(uint32_t sourceIndex, uint32_t destIndex) {
+    if (sourceIndex > destIndex) {
+        std::swap(sourceIndex, destIndex);
+    }
+    return (static_cast<uint64_t>(sourceIndex) << 32) | static_cast<uint64_t>(destIndex);
+}
+
+uint32_t decodeSourceIndex(uint64_t encoded) {
+    return static_cast<uint32_t>(encoded >> 32);
+}
+
+uint32_t decodeDestIndex(uint64_t encoded) {
+    return static_cast<uint32_t>(encoded & 0xffffffffULL);
+}
+
+size_t countCommonSortedValues(const std::vector<uint32_t>& left,
+                               const std::vector<uint32_t>& right) {
+    size_t count = 0;
+    size_t leftIndex = 0;
+    size_t rightIndex = 0;
+
+    while (leftIndex < left.size() && rightIndex < right.size()) {
+        uint32_t leftValue = left[leftIndex];
+        uint32_t rightValue = right[rightIndex];
+        if (leftValue == rightValue) {
+            ++count;
+            ++leftIndex;
+            ++rightIndex;
+        } else if (leftValue < rightValue) {
+            ++leftIndex;
+        } else {
+            ++rightIndex;
+        }
+    }
+
+    return count;
+}
+
+uint64_t countTrianglesOnForwardGraph(const std::vector<std::vector<uint32_t>>& forwardNeighbors) {
+    if (forwardNeighbors.empty()) {
+        return 0;
+    }
+
+    uint64_t triangleCount = 0;
+    for (uint32_t sourceIndex = 0; sourceIndex < forwardNeighbors.size(); ++sourceIndex) {
+        const std::vector<uint32_t>& sourceNeighbors = forwardNeighbors[sourceIndex];
+        for (uint32_t middleIndex : sourceNeighbors) {
+            const std::vector<uint32_t>& middleNeighbors = forwardNeighbors[middleIndex];
+            if (sourceNeighbors.size() < middleNeighbors.size()) {
+                triangleCount += countCommonSortedValues(sourceNeighbors, middleNeighbors);
+            } else {
+                triangleCount += countCommonSortedValues(middleNeighbors, sourceNeighbors);
+            }
+        }
+    }
+
+    return triangleCount;
+}
+
+bool rewriteUniqueEncodedEdgesToBinaryFile(const std::string& filePath,
+                                           const std::vector<uint64_t>& edges) {
+    std::ofstream out(filePath, std::ios::binary | std::ios::trunc);
+    if (!out.is_open()) {
+        return false;
+    }
+    if (!edges.empty()) {
+        out.write(reinterpret_cast<const char*>(edges.data()),
+                  static_cast<std::streamsize>(edges.size() * sizeof(uint64_t)));
+    }
+    return static_cast<bool>(out);
+}
+
+class HistoryTriangleAggregation {
+ public:
+    HistoryTriangleAggregation() : tempDir(createEdgeShardTempDir()) {
+        if (!tempDir.empty()) {
+            for (size_t shardId = 0; shardId < HISTORY_TRIANGLE_SHARD_COUNT; ++shardId) {
+                shardPaths[shardId] = tempDir + "/edges_" + std::to_string(shardId) + ".bin";
+                shardStreams[shardId].open(shardPaths[shardId], std::ios::binary | std::ios::trunc);
+            }
+        }
+    }
+
+    ~HistoryTriangleAggregation() {
+        for (auto& stream : shardStreams) {
+            if (stream.is_open()) {
+                stream.close();
+            }
+        }
+        if (!tempDir.empty()) {
+            Utils::deleteDirectory(tempDir);
+        }
+    }
+
+    bool ready() const {
+        if (tempDir.empty()) {
+            return false;
+        }
+        for (const auto& stream : shardStreams) {
+            if (!stream.is_open()) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    uint32_t getOrAddNode(const std::string& node) {
+        size_t bucketId = std::hash<std::string>{}(node) % HISTORY_TRIANGLE_NODE_BUCKET_COUNT;
+        std::lock_guard<std::mutex> lock(nodeBucketLocks[bucketId]);
+        auto& bucket = nodeBuckets[bucketId];
+        auto it = bucket.find(node);
+        if (it != bucket.end()) {
+            return it->second;
+        }
+        uint32_t index = nextNodeIndex.fetch_add(1, std::memory_order_relaxed);
+        bucket.emplace(node, index);
+        return index;
+    }
+
+    void appendEdge(const std::string& sourceId, const std::string& destId) {
+        uint32_t sourceIndex = getOrAddNode(sourceId);
+        uint32_t destIndex = getOrAddNode(destId);
+        uint64_t encoded = encodeUndirectedEdge(sourceIndex, destIndex);
+        size_t shardId = static_cast<size_t>(encoded & (HISTORY_TRIANGLE_SHARD_COUNT - 1));
+        std::lock_guard<std::mutex> lock(shardLocks[shardId]);
+        shardStreams[shardId].write(reinterpret_cast<const char*>(&encoded), sizeof(encoded));
+        rawEdgeCount.fetch_add(1, std::memory_order_relaxed);
+    }
+
+    uint64_t getRawEdgeCount() const {
+        return rawEdgeCount.load(std::memory_order_relaxed);
+    }
+
+    uint32_t getNodeCount() const {
+        return nextNodeIndex.load(std::memory_order_relaxed);
+    }
+
+    const std::array<std::string, HISTORY_TRIANGLE_SHARD_COUNT>& getShardPaths() const {
+        return shardPaths;
+    }
+
+    bool finalizeShardStreams() {
+        for (auto& stream : shardStreams) {
+            stream.flush();
+            if (!stream.good()) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+ private:
+    std::string tempDir;
+    std::array<std::string, HISTORY_TRIANGLE_SHARD_COUNT> shardPaths{};
+    std::array<std::ofstream, HISTORY_TRIANGLE_SHARD_COUNT> shardStreams;
+    std::array<std::mutex, HISTORY_TRIANGLE_SHARD_COUNT> shardLocks;
+    std::array<std::unordered_map<std::string, uint32_t>, HISTORY_TRIANGLE_NODE_BUCKET_COUNT> nodeBuckets;
+    std::array<std::mutex, HISTORY_TRIANGLE_NODE_BUCKET_COUNT> nodeBucketLocks;
+    std::atomic<uint32_t> nextNodeIndex{0};
+    std::atomic<uint64_t> rawEdgeCount{0};
+};
+
+bool collectHistoryTriangleEdgesFromWorker(int graphId,
+                                           uint32_t snapshotId,
+                                           const Utils::worker& worker,
+                                           int partitionId,
+                                           const std::string& masterIP,
+                                           int threadPriority,
+                                           HistoryTriangleAggregation& aggregation,
+                                           long& workerDurationMs,
+                                           uint64_t& workerRawEdges) {
     int sockfd = socket(AF_INET, SOCK_STREAM, 0);
     if (sockfd < 0) {
         frontend_logger.error("Cannot create socket for distributed history triangle count");
-        return {-1, 0};
+        return false;
     }
 
     std::string host = worker.hostname;
@@ -680,7 +907,7 @@ static std::pair<long, long> getHistoryTriangleCountFromWorker(int graphId,
     if (server == nullptr) {
         frontend_logger.error("Failed to resolve worker host " + host);
         close(sockfd);
-        return {-1, 0};
+        return false;
     }
 
     struct sockaddr_in serv_addr;
@@ -692,14 +919,14 @@ static std::pair<long, long> getHistoryTriangleCountFromWorker(int graphId,
     if (Utils::connect_wrapper(sockfd, (struct sockaddr*)&serv_addr, sizeof(serv_addr)) < 0) {
         frontend_logger.error("Failed to connect to worker " + host + ":" + worker.port);
         close(sockfd);
-        return {-1, 0};
+        return false;
     }
 
     std::string data(INSTANCE_DATA_LENGTH + 1, '\0');
     auto closeAndFail = [&]() {
         Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::CLOSE);
         close(sockfd);
-        return std::make_pair(-1L, 0L);
+        return false;
     };
 
     if (!Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::HANDSHAKE) ||
@@ -748,26 +975,178 @@ static std::pair<long, long> getHistoryTriangleCountFromWorker(int graphId,
         return closeAndFail();
     }
 
-    std::string response = Utils::read_str_trim_wrapper(sockfd, data.data(), INSTANCE_DATA_LENGTH);
-    Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::CLOSE);
-    close(sockfd);
-
-    long triangleCount = -1;
-    long durationMs = 0;
-    size_t delimiter = response.find('|');
-    try {
-        if (delimiter == std::string::npos) {
-            triangleCount = std::stol(response);
-        } else {
-            triangleCount = std::stol(response.substr(0, delimiter));
-            durationMs = std::stol(response.substr(delimiter + 1));
+    uint32_t batchCount = 0;
+    while (true) {
+        if (!readUint32(sockfd, batchCount)) {
+            return closeAndFail();
         }
-    } catch (const std::exception&) {
-        frontend_logger.error("Invalid history triangle response from worker " + host + ": " + response);
-        return {-1, 0};
+        if (batchCount == 0) {
+            break;
+        }
+
+        for (uint32_t i = 0; i < batchCount; ++i) {
+            uint32_t sourceLength = 0;
+            uint32_t destLength = 0;
+            if (!readUint32(sockfd, sourceLength)) {
+                return closeAndFail();
+            }
+            std::string sourceId(sourceLength, '\0');
+            if (!recvAll(sockfd, sourceId.data(), sourceLength)) {
+                return closeAndFail();
+            }
+
+            if (!readUint32(sockfd, destLength)) {
+                return closeAndFail();
+            }
+            std::string destId(destLength, '\0');
+            if (!recvAll(sockfd, destId.data(), destLength)) {
+                return closeAndFail();
+            }
+
+            if (sourceId != destId) {
+                aggregation.appendEdge(sourceId, destId);
+            }
+        }
     }
 
-    return {triangleCount, durationMs};
+    uint64_t rawEdgesFromWorker = 0;
+    uint64_t durationFromWorker = 0;
+    if (!readUint64(sockfd, rawEdgesFromWorker) || !readUint64(sockfd, durationFromWorker)) {
+        return closeAndFail();
+    }
+
+    workerRawEdges = rawEdgesFromWorker;
+    workerDurationMs = static_cast<long>(durationFromWorker);
+
+    Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::CLOSE);
+    close(sockfd);
+    return true;
+}
+
+std::pair<uint64_t, uint64_t> countTrianglesFromEncodedShards(
+    const std::array<std::string, HISTORY_TRIANGLE_SHARD_COUNT>& shardPaths,
+    uint32_t nodeCount) {
+
+    if (nodeCount == 0) {
+        return {0, 0};
+    }
+
+    std::vector<uint32_t> degree(nodeCount, 0);
+    uint64_t uniqueEdges = 0;
+
+    for (const auto& shardPath : shardPaths) {
+        std::ifstream in(shardPath, std::ios::binary);
+        if (!in.is_open()) {
+            continue;
+        }
+
+        in.seekg(0, std::ios::end);
+        std::streamoff fileSize = in.tellg();
+        in.seekg(0, std::ios::beg);
+
+        std::vector<uint64_t> shardEdges;
+        if (fileSize > 0) {
+            shardEdges.reserve(static_cast<size_t>(fileSize / static_cast<std::streamoff>(sizeof(uint64_t))));
+        }
+
+        uint64_t encoded = 0;
+        while (in.read(reinterpret_cast<char*>(&encoded), sizeof(encoded))) {
+            shardEdges.push_back(encoded);
+        }
+
+        if (shardEdges.empty()) {
+            continue;
+        }
+
+        std::sort(shardEdges.begin(), shardEdges.end());
+        shardEdges.erase(std::unique(shardEdges.begin(), shardEdges.end()), shardEdges.end());
+
+        uniqueEdges += shardEdges.size();
+        for (uint64_t edge : shardEdges) {
+            uint32_t sourceIndex = decodeSourceIndex(edge);
+            uint32_t destIndex = decodeDestIndex(edge);
+            degree[sourceIndex]++;
+            degree[destIndex]++;
+        }
+
+        if (!rewriteUniqueEncodedEdgesToBinaryFile(shardPath, shardEdges)) {
+            return {0, 0};
+        }
+    }
+
+    std::vector<uint32_t> forwardDegree(nodeCount, 0);
+    for (const auto& shardPath : shardPaths) {
+        std::ifstream in(shardPath, std::ios::binary);
+        if (!in.is_open()) {
+            continue;
+        }
+
+        uint64_t encoded = 0;
+        while (in.read(reinterpret_cast<char*>(&encoded), sizeof(encoded))) {
+            uint32_t sourceIndex = decodeSourceIndex(encoded);
+            uint32_t destIndex = decodeDestIndex(encoded);
+
+            bool sourceBeforeDest = (degree[sourceIndex] < degree[destIndex]) ||
+                                    (degree[sourceIndex] == degree[destIndex] &&
+                                     sourceIndex < destIndex);
+            if (sourceBeforeDest) {
+                forwardDegree[sourceIndex]++;
+            } else {
+                forwardDegree[destIndex]++;
+            }
+        }
+    }
+
+    std::vector<std::vector<uint32_t>> forwardNeighbors(nodeCount);
+    for (uint32_t nodeIndex = 0; nodeIndex < nodeCount; ++nodeIndex) {
+        forwardNeighbors[nodeIndex].reserve(forwardDegree[nodeIndex]);
+    }
+
+    for (const auto& shardPath : shardPaths) {
+        std::ifstream in(shardPath, std::ios::binary);
+        if (!in.is_open()) {
+            continue;
+        }
+
+        uint64_t encoded = 0;
+        while (in.read(reinterpret_cast<char*>(&encoded), sizeof(encoded))) {
+            uint32_t sourceIndex = decodeSourceIndex(encoded);
+            uint32_t destIndex = decodeDestIndex(encoded);
+
+            bool sourceBeforeDest = (degree[sourceIndex] < degree[destIndex]) ||
+                                    (degree[sourceIndex] == degree[destIndex] &&
+                                     sourceIndex < destIndex);
+            if (sourceBeforeDest) {
+                forwardNeighbors[sourceIndex].push_back(destIndex);
+            } else {
+                forwardNeighbors[destIndex].push_back(sourceIndex);
+            }
+        }
+    }
+
+    for (auto& neighbors : forwardNeighbors) {
+        std::sort(neighbors.begin(), neighbors.end());
+    }
+
+    uint64_t triangleCount = countTrianglesOnForwardGraph(forwardNeighbors);
+    return {triangleCount, static_cast<uint32_t>(uniqueEdges)};
+}
+
+}  // namespace
+
+static std::pair<long, long> getHistoryTriangleCountFromWorker(int graphId,
+                                                                uint32_t snapshotId,
+                                                                const Utils::worker& worker,
+                                                                int partitionId,
+                                                                const std::string& masterIP,
+                                                                int threadPriority) {
+    (void)graphId;
+    (void)snapshotId;
+    (void)worker;
+    (void)partitionId;
+    (void)masterIP;
+    (void)threadPriority;
+    return {-1, 0};
 }
 
 static TemporalTriangleResult countHistoryTrianglesDistributed(SQLiteDBInterface* sqlite,
@@ -799,6 +1178,11 @@ static TemporalTriangleResult countHistoryTrianglesDistributed(SQLiteDBInterface
         workersById[worker.workerID] = worker;
     }
 
+    HistoryTriangleAggregation aggregation;
+    if (!aggregation.ready()) {
+        return result;
+    }
+
     auto start = std::chrono::high_resolution_clock::now();
     std::vector<std::future<std::pair<long, long>>> futures;
     for (const auto& entry : partitionMap) {
@@ -808,32 +1192,66 @@ static TemporalTriangleResult countHistoryTrianglesDistributed(SQLiteDBInterface
         }
         for (int partitionId : entry.second) {
             futures.push_back(std::async(std::launch::async,
-                                         getHistoryTriangleCountFromWorker,
-                                         graphId,
-                                         snapshotId,
+                                         [&aggregation, graphId, snapshotId, masterIP]
+                                         (const Utils::worker& worker, int partitionIdValue) {
+                                             long durationMs = 0;
+                                             uint64_t rawEdges = 0;
+                                             if (!collectHistoryTriangleEdgesFromWorker(graphId, snapshotId, worker,
+                                                                                        partitionIdValue,
+                                                                                        masterIP,
+                                                                                        Conts::DEFAULT_THREAD_PRIORITY,
+                                                                                        aggregation,
+                                                                                        durationMs,
+                                                                                        rawEdges)) {
+                                                 return std::make_pair(-1L, 0L);
+                                             }
+                                             return std::make_pair(static_cast<long>(rawEdges), durationMs);
+                                         },
                                          workerIt->second,
-                                         partitionId,
-                                         masterIP,
-                                         Conts::DEFAULT_THREAD_PRIORITY));
+                                         partitionId));
         }
     }
 
-    long localAlgorithmDurationSum = 0;
+    long workerDurationSum = 0;
+    uint64_t rawEdgesRead = 0;
+    bool collectionFailed = false;
     for (auto& futureResult : futures) {
         std::pair<long, long> workerResult = futureResult.get();
-        if (workerResult.first >= 0) {
-            result.triangleCount += workerResult.first;
-            result.partitionsProcessed++;
-            localAlgorithmDurationSum += workerResult.second;
+        if (workerResult.first < 0) {
+            collectionFailed = true;
+            break;
         }
+        rawEdgesRead += static_cast<uint64_t>(workerResult.first);
+        result.partitionsProcessed++;
+        workerDurationSum += workerResult.second;
     }
 
-    auto end = std::chrono::high_resolution_clock::now();
-    long distributedWallClockMs = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
-    result.durationMs = localAlgorithmDurationSum;
+    if (collectionFailed) {
+        return result;
+    }
 
-    frontend_logger.info("Distributed history triangle timings: local_algorithm_aggregate=" +
-                         std::to_string(localAlgorithmDurationSum) +
+    if (!aggregation.finalizeShardStreams()) {
+        return result;
+    }
+
+    auto countStart = std::chrono::high_resolution_clock::now();
+    std::pair<uint64_t, uint64_t> countResult = countTrianglesFromEncodedShards(aggregation.getShardPaths(),
+                                                                                aggregation.getNodeCount());
+    auto countEnd = std::chrono::high_resolution_clock::now();
+    long distributedWallClockMs = std::chrono::duration_cast<std::chrono::milliseconds>(countEnd - start).count();
+    long frontendCountMs = std::chrono::duration_cast<std::chrono::milliseconds>(countEnd - countStart).count();
+
+    result.triangleCount = countResult.first;
+    result.rawEdges = rawEdgesRead;
+    result.totalEdges = countResult.second;
+    result.uniqueEdges = countResult.second;
+    result.localEdges = countResult.second;
+    result.uniqueNodes = aggregation.getNodeCount();
+    result.durationMs = workerDurationSum;
+
+    frontend_logger.info("Distributed history triangle timings: worker_algorithm_aggregate=" +
+                         std::to_string(workerDurationSum) +
+                         "ms, frontend_count=" + std::to_string(frontendCountMs) +
                          "ms, distributed_wall_clock=" + std::to_string(distributedWallClockMs) + "ms");
     return result;
 }
