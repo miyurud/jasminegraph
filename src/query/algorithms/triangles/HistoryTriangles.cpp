@@ -14,9 +14,11 @@ limitations under the License.
 #include "HistoryTriangles.h"
 
 #include <algorithm>
+#include <atomic>
 #include <set>
 #include <fstream>
 #include <sstream>
+#include <thread>
 #include <unordered_set>
 
 #include "../../../util/Utils.h"
@@ -156,6 +158,78 @@ size_t countCommonSortedValues(const std::vector<uint32_t>& left,
     return count;
 }
 
+uint64_t countTrianglesOnForwardGraph(const std::vector<std::vector<uint32_t>>& forwardNeighbors) {
+    if (forwardNeighbors.empty()) {
+        return 0;
+    }
+
+    const unsigned int hwThreads = std::thread::hardware_concurrency();
+    const unsigned int workerCount = std::max(1u, hwThreads);
+
+    if (workerCount == 1 || forwardNeighbors.size() < 2048) {
+        uint64_t triangleCount = 0;
+        for (uint32_t sourceIndex = 0; sourceIndex < forwardNeighbors.size(); ++sourceIndex) {
+            const std::vector<uint32_t>& sourceNeighbors = forwardNeighbors[sourceIndex];
+            for (uint32_t middleIndex : sourceNeighbors) {
+                const std::vector<uint32_t>& middleNeighbors = forwardNeighbors[middleIndex];
+                if (sourceNeighbors.size() < middleNeighbors.size()) {
+                    triangleCount += countCommonSortedValues(sourceNeighbors, middleNeighbors);
+                } else {
+                    triangleCount += countCommonSortedValues(middleNeighbors, sourceNeighbors);
+                }
+            }
+        }
+        return triangleCount;
+    }
+
+    std::atomic<uint32_t> nextSourceIndex{0};
+    const uint32_t chunkSize = 64;
+    std::vector<std::thread> workers;
+    workers.reserve(workerCount);
+    std::vector<uint64_t> localCounts(workerCount, 0);
+
+    for (unsigned int workerId = 0; workerId < workerCount; ++workerId) {
+        workers.emplace_back([&, workerId]() {
+            uint64_t localTriangleCount = 0;
+            while (true) {
+                uint32_t begin = nextSourceIndex.fetch_add(chunkSize);
+                if (begin >= forwardNeighbors.size()) {
+                    break;
+                }
+
+                uint32_t end = std::min<uint32_t>(begin + chunkSize,
+                                                  static_cast<uint32_t>(forwardNeighbors.size()));
+                for (uint32_t sourceIndex = begin; sourceIndex < end; ++sourceIndex) {
+                    const std::vector<uint32_t>& sourceNeighbors = forwardNeighbors[sourceIndex];
+                    for (uint32_t middleIndex : sourceNeighbors) {
+                        const std::vector<uint32_t>& middleNeighbors = forwardNeighbors[middleIndex];
+                        if (sourceNeighbors.size() < middleNeighbors.size()) {
+                            localTriangleCount +=
+                                countCommonSortedValues(sourceNeighbors, middleNeighbors);
+                        } else {
+                            localTriangleCount +=
+                                countCommonSortedValues(middleNeighbors, sourceNeighbors);
+                        }
+                    }
+                }
+            }
+
+            localCounts[workerId] = localTriangleCount;
+        });
+    }
+
+    for (auto& worker : workers) {
+        worker.join();
+    }
+
+    uint64_t triangleCount = 0;
+    for (uint64_t localCount : localCounts) {
+        triangleCount += localCount;
+    }
+
+    return triangleCount;
+}
+
 }  // namespace
 
 Logger history_triangle_logger;
@@ -176,17 +250,16 @@ TemporalTriangleResult HistoryTriangles::countTrianglesAtSnapshot(
     TemporalTriangleResult result{};
     int partitionsProcessed = 0;
     std::unordered_map<std::string, uint32_t> nodeToIndex;
-    std::vector<std::string> indexToNode;
-    std::unordered_set<uint64_t> uniqueUndirectedEdges;
+    std::vector<uint64_t> encodedUndirectedEdges;
+    uint32_t nodeCount = 0;
 
     auto getOrAddNode = [&](const std::string& node) -> uint32_t {
         auto it = nodeToIndex.find(node);
         if (it != nodeToIndex.end()) {
             return it->second;
         }
-        uint32_t idx = static_cast<uint32_t>(indexToNode.size());
+        uint32_t idx = nodeCount++;
         nodeToIndex.emplace(node, idx);
-        indexToNode.push_back(node);
         return idx;
     };
 
@@ -219,7 +292,7 @@ TemporalTriangleResult HistoryTriangles::countTrianglesAtSnapshot(
 
                 uint32_t sourceIndex = getOrAddNode(sourceId);
                 uint32_t destIndex = getOrAddNode(destId);
-                uniqueUndirectedEdges.insert(encodeUndirectedEdge(sourceIndex, destIndex));
+                encodedUndirectedEdges.push_back(encodeUndirectedEdge(sourceIndex, destIndex));
                 return true;
             });
 
@@ -232,11 +305,19 @@ TemporalTriangleResult HistoryTriangles::countTrianglesAtSnapshot(
         }
     }
 
-    result.localEdges = uniqueUndirectedEdges.size();
+    if (!encodedUndirectedEdges.empty()) {
+        std::sort(encodedUndirectedEdges.begin(), encodedUndirectedEdges.end());
+        encodedUndirectedEdges.erase(
+            std::unique(encodedUndirectedEdges.begin(), encodedUndirectedEdges.end()),
+            encodedUndirectedEdges.end());
+    }
+
+    result.localEdges = encodedUndirectedEdges.size();
     result.centralEdges = 0;
     result.partitionsProcessed = partitionsProcessed;
-    result.totalEdges = uniqueUndirectedEdges.size();
-    result.uniqueEdges = uniqueUndirectedEdges.size();
+    result.totalEdges = encodedUndirectedEdges.size();
+    result.uniqueEdges = encodedUndirectedEdges.size();
+    result.uniqueNodes = nodeCount;
 
     if (partitionsProcessed == 0) {
         history_triangle_logger.error("No snapshot files found for graph " +
@@ -245,21 +326,44 @@ TemporalTriangleResult HistoryTriangles::countTrianglesAtSnapshot(
         return result;
     }
 
-    if (uniqueUndirectedEdges.empty()) {
+    if (encodedUndirectedEdges.empty()) {
         history_triangle_logger.info("No edges active at snapshot " + std::to_string(snapshotId));
         return result;
     }
 
-    std::vector<uint32_t> degree(indexToNode.size(), 0);
-    for (uint64_t encoded : uniqueUndirectedEdges) {
+    // String-to-index mapping is not needed after this point; release memory early.
+    nodeToIndex.clear();
+    nodeToIndex.rehash(0);
+
+    std::vector<uint32_t> degree(nodeCount, 0);
+    for (uint64_t encoded : encodedUndirectedEdges) {
         uint32_t sourceIndex = decodeSourceIndex(encoded);
         uint32_t destIndex = decodeDestIndex(encoded);
         degree[sourceIndex]++;
         degree[destIndex]++;
     }
 
-    std::vector<std::vector<uint32_t>> forwardNeighbors(indexToNode.size());
-    for (uint64_t encoded : uniqueUndirectedEdges) {
+    std::vector<uint32_t> forwardDegree(nodeCount, 0);
+    for (uint64_t encoded : encodedUndirectedEdges) {
+        uint32_t sourceIndex = decodeSourceIndex(encoded);
+        uint32_t destIndex = decodeDestIndex(encoded);
+
+        bool sourceBeforeDest = (degree[sourceIndex] < degree[destIndex]) ||
+                                (degree[sourceIndex] == degree[destIndex] &&
+                                 sourceIndex < destIndex);
+        if (sourceBeforeDest) {
+            forwardDegree[sourceIndex]++;
+        } else {
+            forwardDegree[destIndex]++;
+        }
+    }
+
+    std::vector<std::vector<uint32_t>> forwardNeighbors(nodeCount);
+    for (uint32_t nodeIndex = 0; nodeIndex < nodeCount; ++nodeIndex) {
+        forwardNeighbors[nodeIndex].reserve(forwardDegree[nodeIndex]);
+    }
+
+    for (uint64_t encoded : encodedUndirectedEdges) {
         uint32_t sourceIndex = decodeSourceIndex(encoded);
         uint32_t destIndex = decodeDestIndex(encoded);
 
@@ -277,31 +381,18 @@ TemporalTriangleResult HistoryTriangles::countTrianglesAtSnapshot(
         std::sort(neighbors.begin(), neighbors.end());
     }
 
-    uniqueUndirectedEdges.clear();
-    uniqueUndirectedEdges.rehash(0);
+    encodedUndirectedEdges.clear();
+    encodedUndirectedEdges.shrink_to_fit();
 
     history_triangle_logger.info("Counting triangles on degree-ordered forward graph with " +
                                  std::to_string(result.uniqueEdges) + " edges");
 
-    uint64_t triangleCount = 0;
-    for (uint32_t sourceIndex = 0; sourceIndex < forwardNeighbors.size(); ++sourceIndex) {
-        const std::vector<uint32_t>& sourceNeighbors = forwardNeighbors[sourceIndex];
-        for (uint32_t middleIndex : sourceNeighbors) {
-            const std::vector<uint32_t>& middleNeighbors = forwardNeighbors[middleIndex];
-            if (sourceNeighbors.size() < middleNeighbors.size()) {
-                triangleCount += countCommonSortedValues(sourceNeighbors, middleNeighbors);
-            } else {
-                triangleCount += countCommonSortedValues(middleNeighbors, sourceNeighbors);
-            }
-        }
-    }
-
-    result.triangleCount = triangleCount;
+    result.triangleCount = countTrianglesOnForwardGraph(forwardNeighbors);
 
     auto end = std::chrono::high_resolution_clock::now();
     result.durationMs = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
 
-    history_triangle_logger.info("Triangle count completed: " + std::to_string(triangleCount) +
+    history_triangle_logger.info("Triangle count completed: " + std::to_string(result.triangleCount) +
                                " triangles found in " + std::to_string(result.durationMs) + "ms");
 
     return result;
@@ -315,17 +406,16 @@ std::pair<uint64_t, uint32_t> HistoryTriangles::countTrianglesOnMergedGraph(
     }
 
     std::unordered_map<std::string, uint32_t> nodeToIndex;
-    std::vector<std::string> indexToNode;
-    std::unordered_set<uint64_t> uniqueUndirectedEdges;
+    std::vector<uint64_t> encodedUndirectedEdges;
+    uint32_t nodeCount = 0;
 
     auto getOrAddNode = [&](const std::string& node) -> uint32_t {
         auto it = nodeToIndex.find(node);
         if (it != nodeToIndex.end()) {
             return it->second;
         }
-        uint32_t idx = static_cast<uint32_t>(indexToNode.size());
+        uint32_t idx = nodeCount++;
         nodeToIndex.emplace(node, idx);
-        indexToNode.push_back(node);
         return idx;
     };
 
@@ -335,23 +425,50 @@ std::pair<uint64_t, uint32_t> HistoryTriangles::countTrianglesOnMergedGraph(
         }
         uint32_t sourceIndex = getOrAddNode(edge.sourceId);
         uint32_t destIndex = getOrAddNode(edge.destId);
-        uniqueUndirectedEdges.insert(encodeUndirectedEdge(sourceIndex, destIndex));
+        encodedUndirectedEdges.push_back(encodeUndirectedEdge(sourceIndex, destIndex));
     }
 
-    if (uniqueUndirectedEdges.empty()) {
-        return {0, static_cast<uint32_t>(indexToNode.size())};
+    if (encodedUndirectedEdges.empty()) {
+        return {0, nodeCount};
     }
 
-    std::vector<uint32_t> degree(indexToNode.size(), 0);
-    for (uint64_t encoded : uniqueUndirectedEdges) {
+    std::sort(encodedUndirectedEdges.begin(), encodedUndirectedEdges.end());
+    encodedUndirectedEdges.erase(
+        std::unique(encodedUndirectedEdges.begin(), encodedUndirectedEdges.end()),
+        encodedUndirectedEdges.end());
+
+    nodeToIndex.clear();
+    nodeToIndex.rehash(0);
+
+    std::vector<uint32_t> degree(nodeCount, 0);
+    for (uint64_t encoded : encodedUndirectedEdges) {
         uint32_t sourceIndex = decodeSourceIndex(encoded);
         uint32_t destIndex = decodeDestIndex(encoded);
         degree[sourceIndex]++;
         degree[destIndex]++;
     }
 
-    std::vector<std::vector<uint32_t>> forwardNeighbors(indexToNode.size());
-    for (uint64_t encoded : uniqueUndirectedEdges) {
+    std::vector<uint32_t> forwardDegree(nodeCount, 0);
+    for (uint64_t encoded : encodedUndirectedEdges) {
+        uint32_t sourceIndex = decodeSourceIndex(encoded);
+        uint32_t destIndex = decodeDestIndex(encoded);
+
+        bool sourceBeforeDest = (degree[sourceIndex] < degree[destIndex]) ||
+                                (degree[sourceIndex] == degree[destIndex] &&
+                                 sourceIndex < destIndex);
+        if (sourceBeforeDest) {
+            forwardDegree[sourceIndex]++;
+        } else {
+            forwardDegree[destIndex]++;
+        }
+    }
+
+    std::vector<std::vector<uint32_t>> forwardNeighbors(nodeCount);
+    for (uint32_t nodeIndex = 0; nodeIndex < nodeCount; ++nodeIndex) {
+        forwardNeighbors[nodeIndex].reserve(forwardDegree[nodeIndex]);
+    }
+
+    for (uint64_t encoded : encodedUndirectedEdges) {
         uint32_t sourceIndex = decodeSourceIndex(encoded);
         uint32_t destIndex = decodeDestIndex(encoded);
 
@@ -369,23 +486,12 @@ std::pair<uint64_t, uint32_t> HistoryTriangles::countTrianglesOnMergedGraph(
         std::sort(neighbors.begin(), neighbors.end());
     }
 
-    uniqueUndirectedEdges.clear();
-    uniqueUndirectedEdges.rehash(0);
+    encodedUndirectedEdges.clear();
+    encodedUndirectedEdges.shrink_to_fit();
 
-    uint64_t triangleCount = 0;
-    for (uint32_t sourceIndex = 0; sourceIndex < forwardNeighbors.size(); ++sourceIndex) {
-        const std::vector<uint32_t>& sourceNeighbors = forwardNeighbors[sourceIndex];
-        for (uint32_t middleIndex : sourceNeighbors) {
-            const std::vector<uint32_t>& middleNeighbors = forwardNeighbors[middleIndex];
-            if (sourceNeighbors.size() < middleNeighbors.size()) {
-                triangleCount += countCommonSortedValues(sourceNeighbors, middleNeighbors);
-            } else {
-                triangleCount += countCommonSortedValues(middleNeighbors, sourceNeighbors);
-            }
-        }
-    }
+    uint64_t triangleCount = countTrianglesOnForwardGraph(forwardNeighbors);
 
-    return {triangleCount, static_cast<uint32_t>(indexToNode.size())};
+    return {triangleCount, nodeCount};
 }
 
 uint32_t HistoryTriangles::buildNodeIndex(
