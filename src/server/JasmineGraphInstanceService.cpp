@@ -28,6 +28,7 @@ limitations under the License.
 #include "../knowledgegraph/construction/Pipeline.h"
 #include "../knowledgegraph/construction/VLLMTupleStreamer.h"
 #include "../query/algorithms/triangles/StreamingTriangles.h"
+#include "../query/algorithms/triangles/HistoryTriangles.h"
 #include "../query/processor/cypher/runtime/InstanceHandler.h"
 #include "../query/processor/nlp/semanticbeamsearch/SemanticBeamSearch.h"
 #include "../server/JasmineGraphServer.h"
@@ -100,6 +101,7 @@ static void triangles_command(
     std::map<std::string, JasmineGraphHashMapCentralStore> &graphDBMapCentralStores,
     std::map<std::string, JasmineGraphHashMapDuplicateCentralStore> &graphDBMapDuplicateCentralStores,
     bool *loop_exit_p);
+static void history_triangles_command(int connFd, bool *loop_exit_p);
 static void streaming_triangles_command(
     int connFd, int serverPort, std::map<std::string, JasmineGraphIncrementalLocalStore *> &incrementalLocalStoreMap,
     bool *loop_exit_p);
@@ -260,6 +262,8 @@ void *instanceservicesession(void *dummyPt) {
         } else if (line.compare(JasmineGraphInstanceProtocol::TRIANGLES) == 0) {
             triangles_command(connFd, serverPort, *graphDBMapLocalStores, *graphDBMapCentralStores,
                               *graphDBMapDuplicateCentralStores, &loop_exit);
+        } else if (line.compare(JasmineGraphInstanceProtocol::HISTORY_TRIANGLES) == 0) {
+            history_triangles_command(connFd, &loop_exit);
         } else if (line.compare(JasmineGraphInstanceProtocol::INITIATE_STREAMING_TRIAN) == 0) {
             streaming_triangles_command(connFd, serverPort, incrementalLocalStoreMap, &loop_exit);
         } else if (line.compare(JasmineGraphInstanceProtocol::INITIATE_STREAMING_KG_CONSTRUCTION) == 0) {
@@ -3176,6 +3180,77 @@ static void streaming_triangles_command(
     instance_logger.info("Sent result: " + std::to_string(result));
 
     instance_logger.info("Streaming triangle count sent successfully");
+}
+
+static void history_triangles_command(int connFd, bool *loop_exit_p) {
+    if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::OK)) {
+        *loop_exit_p = true;
+        return;
+    }
+
+    char data[DATA_BUFFER_SIZE];
+    string graphID = Utils::read_str_trim_wrapper(connFd, data, INSTANCE_DATA_LENGTH);
+    if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::OK)) {
+        *loop_exit_p = true;
+        return;
+    }
+
+    string partitionId = Utils::read_str_trim_wrapper(connFd, data, INSTANCE_DATA_LENGTH);
+    if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::OK)) {
+        *loop_exit_p = true;
+        return;
+    }
+
+    string snapshotIdText = Utils::read_str_trim_wrapper(connFd, data, INSTANCE_DATA_LENGTH);
+    if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::OK)) {
+        *loop_exit_p = true;
+        return;
+    }
+
+    string priority = Utils::read_str_trim_wrapper(connFd, data, INSTANCE_DATA_LENGTH);
+    if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::OK)) {
+        *loop_exit_p = true;
+        return;
+    }
+
+    string traceContext = Utils::read_str_trim_wrapper(connFd, data, INSTANCE_DATA_LENGTH);
+    OpenTelemetryUtil::receiveAndSetTraceContext(traceContext, "history triangle counting");
+    OTEL_TRACE_FUNCTION();
+
+    (void)priority;
+
+    uint32_t snapshotId = static_cast<uint32_t>(std::stoul(snapshotIdText));
+    int graphIdInt = std::stoi(graphID);
+    uint32_t partitionIdInt = static_cast<uint32_t>(std::stoul(partitionId));
+
+    std::string snapshotDir = Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder") +
+                              "/temporal_snapshots";
+    std::string filePath = TemporalStorePersistence::generateBitmapFilePath(snapshotDir, graphIdInt, partitionIdInt);
+
+    std::vector<TemporalStore::EdgeKey> partitionEdges;
+    bool loaded = TemporalStorePersistence::forEachActiveBitmapEdgeAtSnapshot(
+        filePath, snapshotId,
+        [&](const std::string& sourceId, const std::string& destId) {
+            if (sourceId != destId) {
+                partitionEdges.emplace_back(sourceId, destId);
+            }
+            return true;
+        });
+
+    uint64_t localTriangleCount = 0;
+    long durationMs = 0;
+    if (loaded && !partitionEdges.empty()) {
+        auto start = std::chrono::high_resolution_clock::now();
+        auto result = HistoryTriangles::countTrianglesOnMergedGraph(partitionEdges);
+        auto end = std::chrono::high_resolution_clock::now();
+        durationMs = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
+        localTriangleCount = result.first;
+    }
+
+    std::string payload = std::to_string(localTriangleCount) + "|" + std::to_string(durationMs);
+    if (!Utils::send_str_wrapper(connFd, payload)) {
+        *loop_exit_p = true;
+    }
 }
 
 static void streaming_kg_construction(

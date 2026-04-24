@@ -23,6 +23,7 @@ limitations under the License.
 #include <chrono>
 #include <ctime>
 #include <fstream>
+#include <future>
 #include <iomanip>
 #include <iostream>
 #include <map>
@@ -123,8 +124,10 @@ static void triangles_command(std::string masterIP, int connFd, SQLiteDBInterfac
                               PerformanceSQLiteDBInterface *perfSqlite, JobScheduler *jobScheduler, bool *loop_exit_p);
 static void streaming_triangles_command(std::string masterIP, int connFd, JobScheduler *jobScheduler, bool *loop_exit_p,
                                         int numberOfPartitions, bool *strian_exit);
-static void history_triangle_command(int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_p);
-static void history_triangle_timestamp_command(int connFd, SQLiteDBInterface *, bool *);
+static void history_triangle_command(int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_p,
+                                     const std::string& masterIP);
+static void history_triangle_timestamp_command(int connFd, SQLiteDBInterface *, bool *,
+                                               const std::string& masterIP);
 static void history_pagerank_command(int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_p);
 static void history_pagerank_timestamp_command(int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_p);
 static void history_bfs_command(int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_p);
@@ -656,6 +659,185 @@ static void cleanupStagedTemporalBitmapIndexes(const std::string& stagingDir) {
     rmdir(stagingDir.c_str());
 }
 
+static std::pair<long, long> getHistoryTriangleCountFromWorker(int graphId,
+                                                                uint32_t snapshotId,
+                                                                const Utils::worker& worker,
+                                                                int partitionId,
+                                                                const std::string& masterIP,
+                                                                int threadPriority) {
+    int sockfd = socket(AF_INET, SOCK_STREAM, 0);
+    if (sockfd < 0) {
+        frontend_logger.error("Cannot create socket for distributed history triangle count");
+        return {-1, 0};
+    }
+
+    std::string host = worker.hostname;
+    if (host.find('@') != std::string::npos) {
+        host = Utils::split(host, '@')[1];
+    }
+
+    struct hostent* server = gethostbyname(host.c_str());
+    if (server == nullptr) {
+        frontend_logger.error("Failed to resolve worker host " + host);
+        close(sockfd);
+        return {-1, 0};
+    }
+
+    struct sockaddr_in serv_addr;
+    bzero((char*)&serv_addr, sizeof(serv_addr));
+    serv_addr.sin_family = AF_INET;
+    bcopy((char*)server->h_addr, (char*)&serv_addr.sin_addr.s_addr, server->h_length);
+    serv_addr.sin_port = htons(std::stoi(worker.port));
+
+    if (Utils::connect_wrapper(sockfd, (struct sockaddr*)&serv_addr, sizeof(serv_addr)) < 0) {
+        frontend_logger.error("Failed to connect to worker " + host + ":" + worker.port);
+        close(sockfd);
+        return {-1, 0};
+    }
+
+    std::string data(INSTANCE_DATA_LENGTH + 1, '\0');
+    auto closeAndFail = [&]() {
+        Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::CLOSE);
+        close(sockfd);
+        return std::make_pair(-1L, 0L);
+    };
+
+    if (!Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::HANDSHAKE) ||
+        Utils::read_str_trim_wrapper(sockfd, data.data(), INSTANCE_DATA_LENGTH) !=
+            JasmineGraphInstanceProtocol::HANDSHAKE_OK) {
+        return closeAndFail();
+    }
+
+    if (!Utils::send_str_wrapper(sockfd, masterIP) ||
+        Utils::read_str_trim_wrapper(sockfd, data.data(), INSTANCE_DATA_LENGTH) !=
+            JasmineGraphInstanceProtocol::HOST_OK) {
+        return closeAndFail();
+    }
+
+    if (!Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::HISTORY_TRIANGLES) ||
+        Utils::read_str_trim_wrapper(sockfd, data.data(), INSTANCE_DATA_LENGTH) !=
+            JasmineGraphInstanceProtocol::OK) {
+        return closeAndFail();
+    }
+
+    if (!Utils::send_str_wrapper(sockfd, std::to_string(graphId)) ||
+        Utils::read_str_trim_wrapper(sockfd, data.data(), INSTANCE_DATA_LENGTH) !=
+            JasmineGraphInstanceProtocol::OK) {
+        return closeAndFail();
+    }
+
+    if (!Utils::send_str_wrapper(sockfd, std::to_string(partitionId)) ||
+        Utils::read_str_trim_wrapper(sockfd, data.data(), INSTANCE_DATA_LENGTH) !=
+            JasmineGraphInstanceProtocol::OK) {
+        return closeAndFail();
+    }
+
+    if (!Utils::send_str_wrapper(sockfd, std::to_string(snapshotId)) ||
+        Utils::read_str_trim_wrapper(sockfd, data.data(), INSTANCE_DATA_LENGTH) !=
+            JasmineGraphInstanceProtocol::OK) {
+        return closeAndFail();
+    }
+
+    if (!Utils::send_str_wrapper(sockfd, std::to_string(threadPriority)) ||
+        Utils::read_str_trim_wrapper(sockfd, data.data(), INSTANCE_DATA_LENGTH) !=
+            JasmineGraphInstanceProtocol::OK) {
+        return closeAndFail();
+    }
+
+    if (!Utils::send_str_wrapper(sockfd, "trace-disabled")) {
+        return closeAndFail();
+    }
+
+    std::string response = Utils::read_str_trim_wrapper(sockfd, data.data(), INSTANCE_DATA_LENGTH);
+    Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::CLOSE);
+    close(sockfd);
+
+    long triangleCount = -1;
+    long durationMs = 0;
+    size_t delimiter = response.find('|');
+    try {
+        if (delimiter == std::string::npos) {
+            triangleCount = std::stol(response);
+        } else {
+            triangleCount = std::stol(response.substr(0, delimiter));
+            durationMs = std::stol(response.substr(delimiter + 1));
+        }
+    } catch (const std::exception&) {
+        frontend_logger.error("Invalid history triangle response from worker " + host + ": " + response);
+        return {-1, 0};
+    }
+
+    return {triangleCount, durationMs};
+}
+
+static TemporalTriangleResult countHistoryTrianglesDistributed(SQLiteDBInterface* sqlite,
+                                                               int graphId,
+                                                               uint32_t snapshotId,
+                                                               const std::string& masterIP) {
+    TemporalTriangleResult result{};
+
+    std::string sqlStatement =
+        "SELECT DISTINCT worker_idworker,partition_idpartition "
+        "FROM worker_has_partition INNER JOIN worker ON worker_has_partition.worker_idworker=worker.idworker "
+        "WHERE partition_graph_idgraph=" + std::to_string(graphId) + ";";
+
+    const std::vector<std::vector<std::pair<std::string, std::string>>>& rows = sqlite->runSelect(sqlStatement);
+    if (rows.empty()) {
+        return result;
+    }
+
+    std::map<std::string, std::vector<int>> partitionMap;
+    for (const auto& row : rows) {
+        std::string workerId = row.at(0).second;
+        int partitionId = std::stoi(row.at(1).second);
+        partitionMap[workerId].push_back(partitionId);
+    }
+
+    std::vector<Utils::worker> workerList = Utils::getWorkerList(sqlite);
+    std::map<std::string, Utils::worker> workersById;
+    for (const auto& worker : workerList) {
+        workersById[worker.workerID] = worker;
+    }
+
+    auto start = std::chrono::high_resolution_clock::now();
+    std::vector<std::future<std::pair<long, long>>> futures;
+    for (const auto& entry : partitionMap) {
+        auto workerIt = workersById.find(entry.first);
+        if (workerIt == workersById.end()) {
+            continue;
+        }
+        for (int partitionId : entry.second) {
+            futures.push_back(std::async(std::launch::async,
+                                         getHistoryTriangleCountFromWorker,
+                                         graphId,
+                                         snapshotId,
+                                         workerIt->second,
+                                         partitionId,
+                                         masterIP,
+                                         Conts::DEFAULT_THREAD_PRIORITY));
+        }
+    }
+
+    long localAlgorithmDurationSum = 0;
+    for (auto& futureResult : futures) {
+        std::pair<long, long> workerResult = futureResult.get();
+        if (workerResult.first >= 0) {
+            result.triangleCount += workerResult.first;
+            result.partitionsProcessed++;
+            localAlgorithmDurationSum += workerResult.second;
+        }
+    }
+
+    auto end = std::chrono::high_resolution_clock::now();
+    long distributedWallClockMs = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
+    result.durationMs = localAlgorithmDurationSum;
+
+    frontend_logger.info("Distributed history triangle timings: local_algorithm_aggregate=" +
+                         std::to_string(localAlgorithmDurationSum) +
+                         "ms, distributed_wall_clock=" + std::to_string(distributedWallClockMs) + "ms");
+    return result;
+}
+
 void *frontendservicesesion(void *dummyPt) {
     frontendservicesessionargs *sessionargs = (frontendservicesessionargs *)dummyPt;
     std::string masterIP = sessionargs->masterIP;
@@ -769,9 +951,9 @@ void *frontendservicesesion(void *dummyPt) {
             streaming_triangles_command(masterIP, connFd, jobScheduler, &loop_exit, numberOfPartitions,
                                         &JasmineGraphFrontEnd::strian_exit);
         } else if (line.compare(HISTORY_TRIANGLE) == 0) {
-            history_triangle_command(connFd, sqlite, &loop_exit);
+            history_triangle_command(connFd, sqlite, &loop_exit, masterIP);
         } else if (line.compare(HISTORY_TRIANGLE_TIMESTAMP) == 0) {
-            history_triangle_timestamp_command(connFd, sqlite, &loop_exit);
+            history_triangle_timestamp_command(connFd, sqlite, &loop_exit, masterIP);
         } else if (line.compare(HISTORY_PAGERANK) == 0) {
             history_pagerank_command(connFd, sqlite, &loop_exit);
         } else if (line.compare(HISTORY_PAGERANK_TIMESTAMP) == 0) {
@@ -4049,7 +4231,8 @@ static void temporal_range_command(int connFd, SQLiteDBInterface *sqlite, bool *
 // NOTE: For partitioned graphs, this aggregates triangle counts from all partitions.
 // WARNING: If using edge-cut partitioning, this may miss triangles that span partitions.
 // Count triangles at a specific historical snapshot using HistoryTriangles class
-static void history_triangle_command(int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_p) {
+static void history_triangle_command(int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_p,
+                                     const std::string& masterIP) {
     frontend_logger.info("History triangle count command received");
     auto totalStart = std::chrono::high_resolution_clock::now();
 
@@ -4067,8 +4250,6 @@ static void history_triangle_command(int connFd, SQLiteDBInterface *sqlite, bool
     std::string snapshotStr = read_frontend_socket_value(connFd);
     uint32_t snapshotId = std::stoul(snapshotStr);
 
-    std::string stagedSnapshotDir;
-
     try {
         if (!JasmineGraphFrontEndCommon::graphExistsByID(graphIdStr, sqlite)) {
             std::string response = "Error: Graph " + graphIdStr + " does not exist";
@@ -4077,8 +4258,6 @@ static void history_triangle_command(int connFd, SQLiteDBInterface *sqlite, bool
             frontend_logger.warn("History triangle requested for non-existent graph " + graphIdStr);
             return;
         }
-
-        std::string snapshotDir = getTemporalSnapshotDir();
 
         auto snapMap = loadTemporalSnapshotSummariesForGraph(sqlite, graphId);
         if (snapMap.empty()) {
@@ -4099,26 +4278,10 @@ static void history_triangle_command(int connFd, SQLiteDBInterface *sqlite, bool
             return;
         }
 
-        stagedSnapshotDir = stageTemporalBitmapIndexesForGraph(sqlite, graphId, snapshotDir);
-        if (stagedSnapshotDir.empty()) {
-            std::string error = "Error: No temporal bitmap index files found for graph " + std::to_string(graphId);
-            resultWr = write(connFd, error.c_str(), error.length());
-            resultWr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
-            frontend_logger.error(error);
-            return;
-        }
-
-        uint64_t timeThreshold = 60;
-        uint64_t edgeThreshold = 10000;
-
-        // Count triangles using cumulative edges over snapshots [0..snapshotId].
-        TemporalTriangleResult result = HistoryTriangles::countTrianglesAtSnapshot(
-            graphId, snapshotId, stagedSnapshotDir, timeThreshold, edgeThreshold);
-
-        cleanupStagedTemporalBitmapIndexes(stagedSnapshotDir);
+        TemporalTriangleResult result = countHistoryTrianglesDistributed(sqlite, graphId, snapshotId, masterIP);
 
         if (result.partitionsProcessed == 0) {
-            std::string error = "Error: No snapshot files found for graph " +
+            std::string error = "Error: Distributed history triangle count failed for graph " +
                               std::to_string(graphId) + " at snapshot " + std::to_string(snapshotId);
             resultWr = write(connFd, error.c_str(), error.length());
             resultWr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
@@ -4131,7 +4294,7 @@ static void history_triangle_command(int connFd, SQLiteDBInterface *sqlite, bool
             std::stringstream response;
             response << "Triangle count is " << result.triangleCount << "\n";
             response << "Time taken (total): " << totalDurationMs << "ms\n";
-            response << "Time taken (triangle algorithm only): " << result.durationMs << "ms\n";
+            response << "Time taken (worker algorithm aggregate): " << result.durationMs << "ms\n";
 
             std::string responseStr = response.str();
             resultWr = write(connFd, responseStr.c_str(), responseStr.length());
@@ -4141,14 +4304,14 @@ static void history_triangle_command(int connFd, SQLiteDBInterface *sqlite, bool
                                            "snapshot=" + std::to_string(snapshotId),
                                            responseStr);
 
-            frontend_logger.info("History triangle count completed: " + std::to_string(result.triangleCount) +
-                               " triangles on merged graph with " + std::to_string(result.totalEdges) +
-                               " edges across " + std::to_string(result.partitionsProcessed) +
-                               " partitions (total=" + std::to_string(totalDurationMs) +
-                               "ms, algorithm=" + std::to_string(result.durationMs) + "ms)");
+            frontend_logger.info("Distributed history triangle count completed: " +
+                                 std::to_string(result.triangleCount) + " triangles across " +
+                                 std::to_string(result.partitionsProcessed) +
+                                 " partitions (total=" + std::to_string(totalDurationMs) +
+                                 "ms, worker_algorithm_aggregate=" +
+                                 std::to_string(result.durationMs) + "ms)");
         }
     } catch (const std::exception& e) {
-        cleanupStagedTemporalBitmapIndexes(stagedSnapshotDir);
         std::string error = "Error: " + std::string(e.what());
         resultWr = write(connFd, error.c_str(), error.length());
         resultWr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
@@ -4207,7 +4370,8 @@ static std::string formatSnapshotTimestamp(uint64_t timestampNs) {
     return format_local_timestamp(snapshotTime);
 }
 
-static void history_triangle_timestamp_command(int connFd, SQLiteDBInterface *sqlite, bool *) {
+static void history_triangle_timestamp_command(int connFd, SQLiteDBInterface *sqlite, bool *,
+                                               const std::string& masterIP) {
     frontend_logger.info("History triangle count by timestamp command received");
     auto totalStart = std::chrono::high_resolution_clock::now();
 
@@ -4223,8 +4387,6 @@ static void history_triangle_timestamp_command(int connFd, SQLiteDBInterface *sq
     resultWr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
 
     std::string timestampStr = read_frontend_socket_value(connFd);
-
-    std::string stagedSnapshotDir;
 
     try {
         uint64_t targetTimestamp = 0;
@@ -4243,7 +4405,6 @@ static void history_triangle_timestamp_command(int connFd, SQLiteDBInterface *sq
             return;
         }
 
-        std::string snapshotDir = getTemporalSnapshotDir();
         std::map<uint32_t, uint64_t> snapshotTimestamps = loadSnapshotTimestampsForGraph(sqlite, graphId);
 
         if (snapshotTimestamps.empty()) {
@@ -4255,22 +4416,8 @@ static void history_triangle_timestamp_command(int connFd, SQLiteDBInterface *sq
 
         uint32_t closestSnapshotId = findClosestSnapshotId(snapshotTimestamps, targetTimestamp);
 
-        stagedSnapshotDir = stageTemporalBitmapIndexesForGraph(sqlite, graphId, snapshotDir);
-        if (stagedSnapshotDir.empty()) {
-            std::string error = "Error: No temporal bitmap index files found for graph " + std::to_string(graphId);
-            resultWr = write(connFd, error.c_str(), error.length());
-            resultWr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
-            frontend_logger.error(error);
-            return;
-        }
-
-        uint64_t timeThreshold = 60;
-        uint64_t edgeThreshold = 10000;
-
-        TemporalTriangleResult result = HistoryTriangles::countTrianglesAtSnapshot(
-            graphId, closestSnapshotId, stagedSnapshotDir, timeThreshold, edgeThreshold);
-
-        cleanupStagedTemporalBitmapIndexes(stagedSnapshotDir);
+        TemporalTriangleResult result =
+            countHistoryTrianglesDistributed(sqlite, graphId, closestSnapshotId, masterIP);
 
         if (result.partitionsProcessed == 0) {
             std::string error = "Error: Failed to process snapshot " + std::to_string(closestSnapshotId);
@@ -4290,7 +4437,7 @@ static void history_triangle_timestamp_command(int connFd, SQLiteDBInterface *sq
              << "]: " << result.triangleCount << "\n";
         response << "Partitions processed: " << result.partitionsProcessed << "\n";
         response << "Time taken (total): " << totalDurationMs << "ms\n";
-        response << "Time taken (triangle algorithm only): " << result.durationMs << "ms\n";
+        response << "Time taken (worker algorithm aggregate): " << result.durationMs << "ms\n";
 
         std::string responseStr = response.str();
         resultWr = write(connFd, responseStr.c_str(), responseStr.length());
@@ -4303,7 +4450,6 @@ static void history_triangle_timestamp_command(int connFd, SQLiteDBInterface *sq
 
         frontend_logger.info("History triangle count by timestamp completed");
     } catch (const std::exception& e) {
-        cleanupStagedTemporalBitmapIndexes(stagedSnapshotDir);
         std::string error = "Error: " + std::string(e.what());
         resultWr = write(connFd, error.c_str(), error.length());
         resultWr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
