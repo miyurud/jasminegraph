@@ -4051,6 +4051,7 @@ static void temporal_range_command(int connFd, SQLiteDBInterface *sqlite, bool *
 // Count triangles at a specific historical snapshot using HistoryTriangles class
 static void history_triangle_command(int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_p) {
     frontend_logger.info("History triangle count command received");
+    auto totalStart = std::chrono::high_resolution_clock::now();
 
     std::string message = "Graph ID?";
     int resultWr = write(connFd, message.c_str(), message.length());
@@ -4123,9 +4124,14 @@ static void history_triangle_command(int connFd, SQLiteDBInterface *sqlite, bool
             resultWr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
             frontend_logger.error(error);
         } else {
+            auto totalEnd = std::chrono::high_resolution_clock::now();
+            long totalDurationMs =
+                std::chrono::duration_cast<std::chrono::milliseconds>(totalEnd - totalStart).count();
+
             std::stringstream response;
             response << "Triangle count is " << result.triangleCount << "\n";
-            response << "Time taken: " << result.durationMs << "ms\n";
+            response << "Time taken (total): " << totalDurationMs << "ms\n";
+            response << "Time taken (triangle algorithm only): " << result.durationMs << "ms\n";
 
             std::string responseStr = response.str();
             resultWr = write(connFd, responseStr.c_str(), responseStr.length());
@@ -4137,7 +4143,9 @@ static void history_triangle_command(int connFd, SQLiteDBInterface *sqlite, bool
 
             frontend_logger.info("History triangle count completed: " + std::to_string(result.triangleCount) +
                                " triangles on merged graph with " + std::to_string(result.totalEdges) +
-                               " edges across " + std::to_string(result.partitionsProcessed) + " partitions");
+                               " edges across " + std::to_string(result.partitionsProcessed) +
+                               " partitions (total=" + std::to_string(totalDurationMs) +
+                               "ms, algorithm=" + std::to_string(result.durationMs) + "ms)");
         }
     } catch (const std::exception& e) {
         cleanupStagedTemporalBitmapIndexes(stagedSnapshotDir);
@@ -4201,6 +4209,7 @@ static std::string formatSnapshotTimestamp(uint64_t timestampNs) {
 
 static void history_triangle_timestamp_command(int connFd, SQLiteDBInterface *sqlite, bool *) {
     frontend_logger.info("History triangle count by timestamp command received");
+    auto totalStart = std::chrono::high_resolution_clock::now();
 
     std::string message = "Graph ID?";
     int resultWr = write(connFd, message.c_str(), message.length());
@@ -4271,12 +4280,17 @@ static void history_triangle_timestamp_command(int connFd, SQLiteDBInterface *sq
         }
 
         std::string timeStr = formatSnapshotTimestamp(snapshotTimestamps.at(closestSnapshotId));
+        auto totalEnd = std::chrono::high_resolution_clock::now();
+        long totalDurationMs =
+            std::chrono::duration_cast<std::chrono::milliseconds>(totalEnd - totalStart).count();
+
         std::stringstream response;
         response << "Closest snapshot: " << closestSnapshotId << " (created: " << timeStr << ")\n";
         response << "Triangle count using cumulative edges from snapshots [0, " << closestSnapshotId
              << "]: " << result.triangleCount << "\n";
         response << "Partitions processed: " << result.partitionsProcessed << "\n";
-        response << "Time taken: " << result.durationMs << "ms\n";
+        response << "Time taken (total): " << totalDurationMs << "ms\n";
+        response << "Time taken (triangle algorithm only): " << result.durationMs << "ms\n";
 
         std::string responseStr = response.str();
         resultWr = write(connFd, responseStr.c_str(), responseStr.length());
