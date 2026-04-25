@@ -4774,31 +4774,34 @@ static void history_triangle_command(int connFd, SQLiteDBInterface *sqlite, bool
             return;
         }
 
-        TemporalTriangleResult result = countHistoryTrianglesDistributed(sqlite, graphId, snapshotId, masterIP);
+        TemporalTriangleResult result{};
+        std::string stagedError;
+        bool stagedOk = countHistoryTrianglesFromStagedBitmaps(sqlite, graphId, snapshotId,
+                                                                result, stagedError);
 
-        if (result.partitionsProcessed == 0) {
-            frontend_logger.warn("Distributed history triangle count failed for graph " +
+        if (!stagedOk) {
+            frontend_logger.warn("Staged bitmap history triangle count failed for graph " +
                                  std::to_string(graphId) + " at snapshot " +
-                                 std::to_string(snapshotId) + ", trying staged bitmap fallback");
+                                 std::to_string(snapshotId) + ", trying distributed fallback");
 
-            std::string fallbackError;
-            TemporalTriangleResult fallbackResult;
-            if (countHistoryTrianglesFromStagedBitmaps(sqlite, graphId, snapshotId,
-                                                       fallbackResult, fallbackError)) {
-                result = fallbackResult;
-                frontend_logger.info("History triangle fallback succeeded for graph " +
-                                     std::to_string(graphId) + " snapshot " +
-                                     std::to_string(snapshotId));
-            } else {
-                std::string error = "Error: Distributed history triangle count failed for graph " +
+            result = countHistoryTrianglesDistributed(sqlite, graphId, snapshotId, masterIP);
+            if (result.partitionsProcessed == 0) {
+                std::string error = "Error: History triangle count failed for graph " +
                                   std::to_string(graphId) + " at snapshot " +
                                   std::to_string(snapshotId) +
-                                  " (fallback failed: " + fallbackError + ")";
+                                  " (staged failed: " + stagedError + ")";
                 resultWr = write(connFd, error.c_str(), error.length());
                 resultWr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
                 frontend_logger.error(error);
                 return;
             }
+            frontend_logger.info("History triangle distributed fallback succeeded for graph " +
+                                 std::to_string(graphId) + " snapshot " +
+                                 std::to_string(snapshotId));
+        } else {
+            frontend_logger.info("History triangle staged bitmap path succeeded for graph " +
+                                 std::to_string(graphId) + " snapshot " +
+                                 std::to_string(snapshotId));
         }
 
         {
@@ -4931,23 +4934,20 @@ static void history_triangle_timestamp_command(int connFd, SQLiteDBInterface *sq
 
         uint32_t closestSnapshotId = findClosestSnapshotId(snapshotTimestamps, targetTimestamp);
 
-        TemporalTriangleResult result =
-            countHistoryTrianglesDistributed(sqlite, graphId, closestSnapshotId, masterIP);
-
-        if (result.partitionsProcessed == 0) {
-            frontend_logger.warn("Distributed history triangle-by-timestamp failed for graph " +
+        TemporalTriangleResult result{};
+        std::string stagedError;
+        bool stagedOk = countHistoryTrianglesFromStagedBitmaps(sqlite, graphId, closestSnapshotId,
+                                                                result, stagedError);
+        if (!stagedOk) {
+            frontend_logger.warn("Staged bitmap history triangle-by-timestamp failed for graph " +
                                  std::to_string(graphId) + " snapshot " +
                                  std::to_string(closestSnapshotId) +
-                                 ", trying staged bitmap fallback");
-            std::string fallbackError;
-            TemporalTriangleResult fallbackResult;
-            if (countHistoryTrianglesFromStagedBitmaps(sqlite, graphId, closestSnapshotId,
-                                                       fallbackResult, fallbackError)) {
-                result = fallbackResult;
-            } else {
+                                 ", trying distributed fallback");
+            result = countHistoryTrianglesDistributed(sqlite, graphId, closestSnapshotId, masterIP);
+            if (result.partitionsProcessed == 0) {
                 std::string error = "Error: Failed to process snapshot " +
                                     std::to_string(closestSnapshotId) +
-                                    " (fallback failed: " + fallbackError + ")";
+                                    " (staged failed: " + stagedError + ")";
                 resultWr = write(connFd, error.c_str(), error.length());
                 resultWr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
                 return;
