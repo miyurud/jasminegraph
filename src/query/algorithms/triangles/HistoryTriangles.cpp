@@ -274,12 +274,8 @@ Logger history_triangle_logger;
 TemporalTriangleResult HistoryTriangles::countTrianglesAtSnapshot(
     int graphId,
     uint32_t snapshotId,
-    const std::string& snapshotDir,
-    uint64_t timeThreshold,
-    uint64_t edgeThreshold) {
+    const std::string& snapshotDir) {
 
-    (void)timeThreshold;
-    (void)edgeThreshold;
 
     auto start = std::chrono::high_resolution_clock::now();
 
