@@ -23,7 +23,7 @@ BUILD_LOG="${LOG_DIR}/build.log"
 RUN_LOG="${LOG_DIR}/run_master.log"
 TEST_LOG="${LOG_DIR}/test.log"
 WORKER_LOG_DIR="/tmp/jasminegraph"
-rm -rf "${WORKER_LOG_DIR}"
+rm -rf "${WORKER_LOG_DIR}" &>/dev/null || sudo rm -rf "${WORKER_LOG_DIR}"
 mkdir -p "${WORKER_LOG_DIR}"
 
 force_remove() {
@@ -79,14 +79,40 @@ wait_for_hadoop() {
     done
     echo "Hadoop Namenode is ready."
 
-    # Check and leave safe mode if necessary
-    docker exec -i hdfs-namenode hadoop dfsadmin -safemode get
-    if docker exec -i hdfs-namenode hadoop dfsadmin -safemode get | grep -q "Safe mode is ON"; then
+    # Check and leave safe mode if necessary (with retries for transient RPC/EOF startup races)
+    safemode_status=""
+    for attempt in {1..20}; do
+        safemode_status="$(docker exec -i hdfs-namenode hdfs dfsadmin -safemode get 2>&1 || true)"
+        if echo "$safemode_status" | grep -q "Safe mode is ON\|Safe mode is OFF"; then
+            break
+        fi
+        echo "HDFS safemode status not available yet (attempt ${attempt}/20). Retrying..."
+        sleep 3
+    done
+
+    if echo "$safemode_status" | grep -q "Safe mode is ON"; then
         echo "Exiting safe mode..."
-        docker exec -i hdfs-namenode hadoop dfsadmin -safemode leave
-        echo "Safe mode exited."
-    else
+        left_safe_mode=false
+        for attempt in {1..10}; do
+            leave_output="$(docker exec -i hdfs-namenode hdfs dfsadmin -safemode leave 2>&1 || true)"
+            if echo "$leave_output" | grep -q "Safe mode is OFF\|Safe mode is OFF in"; then
+                left_safe_mode=true
+                break
+            fi
+            echo "Retrying safemode leave (attempt ${attempt}/10)..."
+            sleep 2
+        done
+
+        if [[ $left_safe_mode == true ]]; then
+            echo "Safe mode exited."
+        else
+            echo "Warning: Could not confirm safe mode exit. Continuing test setup."
+        fi
+    elif echo "$safemode_status" | grep -q "Safe mode is OFF"; then
         echo "Namenode is not in safe mode."
+    else
+        echo "Warning: Unable to read HDFS safemode status reliably. Continuing test setup."
+        echo "$safemode_status"
     fi
 
     export HOST_IP=$(hostname -I | awk '{print $1}')
@@ -218,7 +244,8 @@ done
 sleep 2
 stop_tests_on_failure &
 
-timeout "$TIMEOUT_SECONDS" python3 -u "${TEST_ROOT}/test.py" |& tee "$TEST_LOG"
+JASMINEGRAPH_ENABLE_STREAMING_TEST="${JASMINEGRAPH_ENABLE_STREAMING_TEST:-1}" \
+    timeout "$TIMEOUT_SECONDS" python3 -u "${TEST_ROOT}/test.py" |& tee "$TEST_LOG"
 exit_code="${PIPESTATUS[0]}"
 set +ex
 if [ "$exit_code" = '124' ]; then
@@ -279,6 +306,6 @@ fi
 stop_and_remove_containers
 force_remove "${TEST_ROOT}/env" "${WORKER_LOG_DIR}"
 if [ "$exit_code" = '0' ]; then
-    docker tag jasminegraph:test jasmTest Timeoutinegraph:latest
+    docker tag jasminegraph:test jasminegraph:latest
 fi
 exit "$exit_code"
