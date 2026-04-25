@@ -25,6 +25,8 @@ limitations under the License.
 #include <sstream>
 #include <string>
 #include <thread>
+#include <unordered_map>
+#include <unordered_set>
 
 #include "../knowledgegraph/construction/OllamaTupleStreamer.h"
 #include "../knowledgegraph/construction/Pipeline.h"
@@ -3360,54 +3362,186 @@ static void history_triangles_command(int connFd, bool *loop_exit_p) {
     int graphIdInt = std::stoi(graphID);
     uint32_t partitionIdInt = static_cast<uint32_t>(std::stoul(partitionId));
 
-    std::string snapshotDir = Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder") +
-                              "/temporal_snapshots";
+    std::string snapshotDir =
+        Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder") +
+        "/temporal_snapshots";
 
-    std::vector<std::pair<std::string, std::string>> batch;
-    batch.reserve(HISTORY_TRIANGLE_BATCH_SIZE);
-
-    uint64_t rawEdgesRead = 0;
     auto start = std::chrono::high_resolution_clock::now();
 
-    std::string filePath = TemporalStorePersistence::generateBitmapFilePath(snapshotDir, graphIdInt,
-                                                                             partitionIdInt);
+    // ── Step 1: Load all temporal edges for this partition up to snapshotId ──────
+    std::unordered_map<std::string, uint32_t> nodeToIndex;
+    nodeToIndex.reserve(1 << 20);
+    uint32_t nodeCount = 0;
+    auto getOrAddNode = [&](const std::string &node) -> uint32_t {
+        auto it = nodeToIndex.find(node);
+        if (it != nodeToIndex.end()) return it->second;
+        uint32_t idx = nodeCount++;
+        nodeToIndex.emplace(node, idx);
+        return idx;
+    };
+
+    // Keep both indexed (for local counting) and raw (for network streaming)
+    std::vector<std::pair<uint32_t, uint32_t>> indexedEdges;
+    std::vector<std::pair<std::string, std::string>> rawEdges;
+    uint64_t rawEdgesRead = 0;
+
+    std::string filePath =
+        TemporalStorePersistence::generateBitmapFilePath(snapshotDir, graphIdInt, partitionIdInt);
 
     TemporalStorePersistence::forEachActiveBitmapEdgeAtSnapshot(
         filePath, snapshotId,
-        [&](const std::string& sourceId, const std::string& destId) {
-            if (sourceId == destId) {
-                return true;
-            }
-
-            batch.emplace_back(sourceId, destId);
+        [&](const std::string &sourceId, const std::string &destId) {
+            if (sourceId == destId) return true;
+            uint32_t u = getOrAddNode(sourceId);
+            uint32_t v = getOrAddNode(destId);
+            indexedEdges.emplace_back(u, v);
+            rawEdges.emplace_back(sourceId, destId);
             rawEdgesRead++;
-            if (batch.size() >= HISTORY_TRIANGLE_BATCH_SIZE) {
-                if (!flushHistoryTriangleBatch(connFd, batch)) {
-                    return false;
-                }
-                batch.clear();
-            }
             return true;
         });
 
+    // ── Step 2: Identify boundary vertices using the static central store ─────────
+    // A vertex in the central store is shared with another partition.
+    // Any triangle involving a boundary vertex may be a cross-partition triangle
+    // and must be counted by the master from the full set of boundary edges.
+    std::unordered_set<uint32_t> boundaryIndexSet;
+    {
+        JasmineGraphHashMapCentralStore centralStore(graphIdInt, partitionIdInt);
+        centralStore.loadGraph();
+        const auto &centralMap = centralStore.getUnderlyingHashMap();
+        for (const auto &[srcLong, dstSet] : centralMap) {
+            auto it = nodeToIndex.find(std::to_string(srcLong));
+            if (it != nodeToIndex.end()) {
+                boundaryIndexSet.insert(it->second);
+            }
+            for (long dst : dstSet) {
+                auto it2 = nodeToIndex.find(std::to_string(dst));
+                if (it2 != nodeToIndex.end()) {
+                    boundaryIndexSet.insert(it2->second);
+                }
+            }
+        }
+    }
+
+    // ── Step 3: Count intra-partition triangles with OpenMP ───────────────────────
+    // Only edges where BOTH endpoints are non-boundary are used here.
+    // These edges form triangles wholly within this partition — no double-counting.
+    std::vector<uint32_t> degree(nodeCount, 0);
+    for (const auto &[u, v] : indexedEdges) {
+        if (boundaryIndexSet.count(u) == 0 && boundaryIndexSet.count(v) == 0) {
+            degree[u]++;
+            degree[v]++;
+        }
+    }
+
+    std::vector<uint32_t> forwardDegree(nodeCount, 0);
+    for (const auto &[u, v] : indexedEdges) {
+        if (boundaryIndexSet.count(u) > 0 || boundaryIndexSet.count(v) > 0) continue;
+        bool uFirst = (degree[u] < degree[v]) || (degree[u] == degree[v] && u < v);
+        if (uFirst) forwardDegree[u]++;
+        else        forwardDegree[v]++;
+    }
+
+    std::vector<std::vector<uint32_t>> forwardNeighbors(nodeCount);
+    for (uint32_t i = 0; i < nodeCount; ++i) {
+        forwardNeighbors[i].reserve(forwardDegree[i]);
+    }
+    for (const auto &[u, v] : indexedEdges) {
+        if (boundaryIndexSet.count(u) > 0 || boundaryIndexSet.count(v) > 0) continue;
+        bool uFirst = (degree[u] < degree[v]) || (degree[u] == degree[v] && u < v);
+        if (uFirst) forwardNeighbors[u].push_back(v);
+        else        forwardNeighbors[v].push_back(u);
+    }
+    for (auto &nbrs : forwardNeighbors) std::sort(nbrs.begin(), nbrs.end());
+
+    degree.clear();
+    degree.shrink_to_fit();
+    forwardDegree.clear();
+    forwardDegree.shrink_to_fit();
+    nodeToIndex.clear();
+
+    uint64_t localTriangleCount = 0;
+#ifdef _OPENMP
+    if (static_cast<int64_t>(nodeCount) >= 2048) {
+#pragma omp parallel for schedule(dynamic, 64) reduction(+:localTriangleCount)
+        for (int64_t i = 0; i < static_cast<int64_t>(nodeCount); ++i) {
+            const auto &srcNbrs = forwardNeighbors[i];
+            for (uint32_t mid : srcNbrs) {
+                const auto &midNbrs = forwardNeighbors[mid];
+                size_t li = 0, ri = 0;
+                while (li < srcNbrs.size() && ri < midNbrs.size()) {
+                    if      (srcNbrs[li] == midNbrs[ri]) { localTriangleCount++; li++; ri++; }
+                    else if (srcNbrs[li]  < midNbrs[ri]) { li++; }
+                    else                                  { ri++; }
+                }
+            }
+        }
+    } else {
+#endif
+        for (uint32_t i = 0; i < nodeCount; ++i) {
+            const auto &srcNbrs = forwardNeighbors[i];
+            for (uint32_t mid : srcNbrs) {
+                const auto &midNbrs = forwardNeighbors[mid];
+                size_t li = 0, ri = 0;
+                while (li < srcNbrs.size() && ri < midNbrs.size()) {
+                    if      (srcNbrs[li] == midNbrs[ri]) { localTriangleCount++; li++; ri++; }
+                    else if (srcNbrs[li]  < midNbrs[ri]) { li++; }
+                    else                                  { ri++; }
+                }
+            }
+        }
+#ifdef _OPENMP
+    }
+#endif
+
+    forwardNeighbors.clear();
+    forwardNeighbors.shrink_to_fit();
+
+    // ── Step 4: Send localTriangleCount to master ─────────────────────────────────
+    if (!sendUint64(connFd, localTriangleCount)) {
+        *loop_exit_p = true;
+        return;
+    }
+
+    // ── Step 5: Stream only boundary-incident edges to master ─────────────────────
+    // Master uses these to count cross-partition triangles.
+    std::vector<std::pair<std::string, std::string>> batch;
+    batch.reserve(HISTORY_TRIANGLE_BATCH_SIZE);
+
+    for (size_t idx = 0; idx < indexedEdges.size(); ++idx) {
+        const auto &[u, v] = indexedEdges[idx];
+        if (boundaryIndexSet.count(u) > 0 || boundaryIndexSet.count(v) > 0) {
+            batch.emplace_back(rawEdges[idx].first, rawEdges[idx].second);
+            if (batch.size() >= HISTORY_TRIANGLE_BATCH_SIZE) {
+                if (!flushHistoryTriangleBatch(connFd, batch)) {
+                    *loop_exit_p = true;
+                    return;
+                }
+                batch.clear();
+            }
+        }
+    }
     if (!batch.empty() && !flushHistoryTriangleBatch(connFd, batch)) {
         *loop_exit_p = true;
         return;
     }
 
-    if (!sendUint32(connFd, 0) || !sendUint64(connFd, rawEdgesRead)) {
+    // End-of-stream marker + stats
+    if (!sendUint32(connFd, 0) ||
+        !sendUint64(connFd, rawEdgesRead)) {
         *loop_exit_p = true;
         return;
     }
 
     auto end = std::chrono::high_resolution_clock::now();
-    long durationMs = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
-
+    long durationMs =
+        std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
     if (!sendUint64(connFd, static_cast<uint64_t>(durationMs))) {
         *loop_exit_p = true;
         return;
     }
 }
+
 
 static void streaming_kg_construction(
     int connFd, int serverPort,

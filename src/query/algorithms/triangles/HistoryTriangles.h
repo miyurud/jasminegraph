@@ -23,103 +23,44 @@ limitations under the License.
 #include "../../../temporalstore/TemporalStore.h"
 #include "../../../temporalstore/TemporalStorePersistence.h"
 #include "../../../util/logger/Logger.h"
-#include <roaring/roaring.h>
 
 // Result structure for temporal triangle counting
 struct TemporalTriangleResult {
-    uint64_t triangleCount;
-    size_t rawEdges;
-    size_t totalEdges;
-    size_t uniqueEdges;
-    size_t localEdges;
-    size_t centralEdges;
-    uint32_t uniqueNodes;
-    int partitionsProcessed;
-    long durationMs;
+    uint64_t triangleCount{0};
+    size_t rawEdges{0};
+    size_t totalEdges{0};
+    size_t uniqueEdges{0};
+    size_t localEdges{0};
+    size_t centralEdges{0};
+    uint32_t uniqueNodes{0};
+    int partitionsProcessed{0};
+    long durationMs{0};
 };
 
 /**
  * HistoryTriangles: Triangle counting for temporal graph snapshots
  *
- * This class implements efficient triangle counting on historical snapshots
- * of streaming graphs stored in temporal storage. It merges edges from both
- * local partition stores and central stores (cross-partition edges) to count
- * ALL triangles including those spanning multiple partitions.
- *
- * Algorithm:
- * 1. Load edges from all local partition snapshots at given snapshot ID
- * 2. Load edges from central store snapshot (cross-partition edges)
- * 3. Build merged adjacency map using Roaring bitmaps for efficiency
- * 4. Count triangles using SIMD-optimized bitmap intersections
- * 5. Return complete triangle count on merged graph
+ * Counts triangles on the cumulative graph formed by all edges that were
+ * active at a given snapshotId.  The algorithm uses a degree-ordered forward
+ * adjacency list and sorted-merge intersection (nodeIterator approach), with
+ * OpenMP parallelisation for large graphs.
  */
 class HistoryTriangles {
  public:
     /**
-     * Count triangles at a specific snapshot across all partitions
+     * Count triangles at a specific snapshot across all partitions.
+     * Loads all bitmap-index files from snapshotDir, merges edges, and
+     * counts triangles using forward-adjacency + OpenMP.
      *
-     * @param graphId Graph ID
-     * @param snapshotId Snapshot ID to query
-     * @param snapshotDir Directory containing temporal snapshot files
-     * @param timeThreshold Time threshold for snapshot creation (seconds)
-     * @param edgeThreshold Edge count threshold for snapshot creation
-     * @return TemporalTriangleResult containing triangle count and metadata
+     * @param graphId     Graph ID
+     * @param snapshotId  Target snapshot (inclusive upper bound)
+     * @param snapshotDir Directory containing temporal bitmap index files
+     * @return TemporalTriangleResult with triangle count and metadata
      */
     static TemporalTriangleResult countTrianglesAtSnapshot(
         int graphId,
         uint32_t snapshotId,
-        const std::string& snapshotDir,
-        uint64_t timeThreshold = 60,
-        uint64_t edgeThreshold = 10000);
-
-    /**
-     * Count triangles using merged adjacency from all stores
-     * This is the core algorithm that handles the actual triangle counting
-     *
-     * @param allEdges Vector of all edges from local + central stores
-     * @return Pair of (triangle count, unique node count)
-     */
-    static std::pair<uint64_t, uint32_t> countTrianglesOnMergedGraph(
-        const std::vector<TemporalStore::EdgeKey>& allEdges);
-
- private:
-    /**
-     * Build node index mapping: string nodeId -> uint32_t index
-     * This enables efficient Roaring bitmap operations
-     *
-     * @param edges Vector of edges
-     * @param nodeToIndex Output map: nodeId -> index
-     * @param indexToNode Output vector: index -> nodeId
-     * @return Number of unique nodes
-     */
-    static uint32_t buildNodeIndex(
-        const std::vector<TemporalStore::EdgeKey>& edges,
-        std::map<std::string, uint32_t>& nodeToIndex,
-        std::vector<std::string>& indexToNode);
-
-    /**
-     * Build adjacency map using Roaring bitmaps
-     *
-     * @param edges Vector of edges
-     * @param nodeToIndex Map from nodeId to index
-     * @return Map from node index to neighbor bitmap
-     */
-    static std::map<uint32_t, roaring_bitmap_t*> buildAdjacencyBitmaps(
-        const std::vector<TemporalStore::EdgeKey>& edges,
-        const std::map<std::string, uint32_t>& nodeToIndex);
-
-    /**
-     * Count triangles using bitmap intersection (SIMD-optimized)
-     *
-     * @param edges Vector of edges
-     * @param nodeToIndex Map from nodeId to index
-     * @param neighbors Adjacency bitmap map
-     * @return Raw triangle count (counted 3x, needs division by 3)
-     */
-    static uint64_t countTrianglesFromBitmaps(
-        const std::vector<TemporalStore::EdgeKey>& edges,
-        const std::map<std::string, uint32_t>& nodeToIndex,
-        const std::map<uint32_t, roaring_bitmap_t*>& neighbors);
+        const std::string& snapshotDir);
 };
 
 #endif  // JASMINEGRAPH_HISTORYTRIANGLES_H

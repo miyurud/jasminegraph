@@ -763,20 +763,31 @@ uint64_t countTrianglesOnForwardGraph(const std::vector<std::vector<uint32_t>>& 
     if (forwardNeighbors.empty()) {
         return 0;
     }
-
     uint64_t triangleCount = 0;
-    for (uint32_t sourceIndex = 0; sourceIndex < forwardNeighbors.size(); ++sourceIndex) {
-        const std::vector<uint32_t>& sourceNeighbors = forwardNeighbors[sourceIndex];
-        for (uint32_t middleIndex : sourceNeighbors) {
-            const std::vector<uint32_t>& middleNeighbors = forwardNeighbors[middleIndex];
-            if (sourceNeighbors.size() < middleNeighbors.size()) {
-                triangleCount += countCommonSortedValues(sourceNeighbors, middleNeighbors);
-            } else {
-                triangleCount += countCommonSortedValues(middleNeighbors, sourceNeighbors);
+#ifdef _OPENMP
+    if (forwardNeighbors.size() >= 2048) {
+#pragma omp parallel for schedule(dynamic, 64) reduction(+:triangleCount)
+        for (int64_t i = 0; i < static_cast<int64_t>(forwardNeighbors.size()); ++i) {
+            const auto& srcNbrs = forwardNeighbors[i];
+            for (uint32_t mid : srcNbrs) {
+                const auto& midNbrs = forwardNeighbors[mid];
+                triangleCount += (srcNbrs.size() < midNbrs.size())
+                    ? countCommonSortedValues(srcNbrs, midNbrs)
+                    : countCommonSortedValues(midNbrs, srcNbrs);
             }
         }
+        return triangleCount;
     }
-
+#endif
+    for (uint32_t i = 0; i < static_cast<uint32_t>(forwardNeighbors.size()); ++i) {
+        const auto& srcNbrs = forwardNeighbors[i];
+        for (uint32_t mid : srcNbrs) {
+            const auto& midNbrs = forwardNeighbors[mid];
+            triangleCount += (srcNbrs.size() < midNbrs.size())
+                ? countCommonSortedValues(srcNbrs, midNbrs)
+                : countCommonSortedValues(midNbrs, srcNbrs);
+        }
+    }
     return triangleCount;
 }
 
@@ -883,6 +894,8 @@ class HistoryTriangleAggregation {
     std::atomic<uint64_t> rawEdgeCount{0};
 };
 
+// Returns localTriangleCount on success, or -1 on failure.
+// Boundary edges from the worker are inserted into `aggregation`.
 bool collectHistoryTriangleEdgesFromWorker(int graphId,
                                            uint32_t snapshotId,
                                            const Utils::worker& worker,
@@ -891,7 +904,8 @@ bool collectHistoryTriangleEdgesFromWorker(int graphId,
                                            int threadPriority,
                                            HistoryTriangleAggregation& aggregation,
                                            long& workerDurationMs,
-                                           uint64_t& workerRawEdges) {
+                                           uint64_t& workerRawEdges,
+                                           uint64_t& workerLocalTriangles) {
     int sockfd = socket(AF_INET, SOCK_STREAM, 0);
     if (sockfd < 0) {
         frontend_logger.error("Cannot create socket for distributed history triangle count");
@@ -975,6 +989,13 @@ bool collectHistoryTriangleEdgesFromWorker(int graphId,
         return closeAndFail();
     }
 
+    // New protocol: worker sends localTriangleCount FIRST, then boundary-edge batches
+    uint64_t localTriCount = 0;
+    if (!readUint64(sockfd, localTriCount)) {
+        return closeAndFail();
+    }
+    workerLocalTriangles = localTriCount;
+
     uint32_t batchCount = 0;
     while (true) {
         if (!readUint32(sockfd, batchCount)) {
@@ -1015,13 +1036,14 @@ bool collectHistoryTriangleEdgesFromWorker(int graphId,
         return closeAndFail();
     }
 
-    workerRawEdges = rawEdgesFromWorker;
-    workerDurationMs = static_cast<long>(durationFromWorker);
+    workerRawEdges    = rawEdgesFromWorker;
+    workerDurationMs  = static_cast<long>(durationFromWorker);
 
     Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::CLOSE);
     close(sockfd);
     return true;
 }
+
 
 std::pair<uint64_t, uint64_t> countTrianglesFromEncodedShards(
     const std::array<std::string, HISTORY_TRIANGLE_SHARD_COUNT>& shardPaths,
@@ -1153,26 +1175,126 @@ static TemporalTriangleResult countHistoryTrianglesDistributed(SQLiteDBInterface
                                                                int graphId,
                                                                uint32_t snapshotId,
                                                                const std::string& masterIP) {
-    (void)masterIP;
-
     TemporalTriangleResult result{};
-    std::string stagedSnapshotDir;
 
-    try {
-        std::string snapshotDir = getTemporalSnapshotDir();
-        stagedSnapshotDir = stageTemporalBitmapIndexesForGraph(sqlite, graphId, snapshotDir);
-        if (stagedSnapshotDir.empty()) {
-            return result;
-        }
+    // Query which workers host which partitions for this graph
+    std::string sqlStatement =
+        "SELECT DISTINCT worker_idworker, partition_idpartition "
+        "FROM worker_has_partition "
+        "WHERE partition_graph_idgraph=" + std::to_string(graphId) + ";";
+    const auto& rows = sqlite->runSelect(sqlStatement);
 
-        // Exact cumulative history triangles on snapshots [0..snapshotId].
-        result = HistoryTriangles::countTrianglesAtSnapshot(graphId, snapshotId, stagedSnapshotDir);
-        cleanupStagedTemporalBitmapIndexes(stagedSnapshotDir);
-        return result;
-    } catch (...) {
-        cleanupStagedTemporalBitmapIndexes(stagedSnapshotDir);
-        return TemporalTriangleResult{};
+    // workerID -> list of partition IDs
+    std::map<std::string, std::vector<int>> workerPartitionMap;
+    for (const auto& row : rows) {
+        workerPartitionMap[row.at(0).second].push_back(std::stoi(row.at(1).second));
     }
+
+    if (workerPartitionMap.empty()) {
+        frontend_logger.error("No worker-partition assignments found for graph " +
+                              std::to_string(graphId));
+        return result;
+    }
+
+    // Thread-safe sharded accumulator for boundary edges from all workers
+    HistoryTriangleAggregation aggregation;
+    if (!aggregation.ready()) {
+        frontend_logger.error("Failed to initialise HistoryTriangleAggregation temp dir");
+        return result;
+    }
+
+    std::vector<Utils::worker> allWorkers = Utils::getWorkerList(sqlite);
+
+    // Per-task state (no shared mutation during async execution)
+    struct WorkerTask {
+        std::string workerID;
+        int partitionId{0};
+        uint64_t localTriangles{0};
+        uint64_t rawEdges{0};
+        long durationMs{0};
+        std::future<bool> fut;
+    };
+    std::vector<WorkerTask> tasks;
+    tasks.reserve(rows.size());
+
+    // Launch one async task per (worker, partition)
+    for (const auto& w : allWorkers) {
+        auto it = workerPartitionMap.find(w.workerID);
+        if (it == workerPartitionMap.end()) continue;
+
+        for (int pid : it->second) {
+            tasks.push_back({w.workerID, pid, 0, 0, 0, {}});
+            WorkerTask& task = tasks.back();
+            task.fut = std::async(
+                std::launch::async,
+                [&aggregation, graphId, snapshotId, w, pid, &masterIP, &task]() mutable -> bool {
+                    long dur = 0;
+                    uint64_t raw = 0;
+                    uint64_t localTri = 0;
+                    bool ok = collectHistoryTriangleEdgesFromWorker(
+                        graphId, snapshotId, w, pid, masterIP,
+                        Conts::DEFAULT_THREAD_PRIORITY,
+                        aggregation, dur, raw, localTri);
+                    task.localTriangles = localTri;
+                    task.rawEdges       = raw;
+                    task.durationMs     = dur;
+                    return ok;
+                });
+        }
+    }
+
+    // Collect results
+    int partitionsProcessed = 0;
+    uint64_t totalLocalTriangles = 0;
+    uint64_t totalRawEdges = 0;
+    long maxWorkerDuration = 0;
+
+    for (auto& task : tasks) {
+        bool ok = task.fut.get();
+        if (ok) {
+            partitionsProcessed++;
+            totalLocalTriangles += task.localTriangles;
+            totalRawEdges       += task.rawEdges;
+            if (task.durationMs > maxWorkerDuration) maxWorkerDuration = task.durationMs;
+            frontend_logger.info(
+                "Worker " + task.workerID +
+                " partition=" + std::to_string(task.partitionId) +
+                " localTriangles=" + std::to_string(task.localTriangles) +
+                " rawEdges=" + std::to_string(task.rawEdges) +
+                " dur=" + std::to_string(task.durationMs) + "ms");
+        } else {
+            frontend_logger.warn(
+                "Worker " + task.workerID +
+                " partition=" + std::to_string(task.partitionId) + " failed — skipped");
+        }
+    }
+
+    if (partitionsProcessed == 0) {
+        return result;
+    }
+
+    // Finalize shard streams before reading from disk
+    aggregation.finalizeShardStreams();
+
+    // Count cross-partition triangles from boundary edges (OpenMP used inside)
+    auto [crossCount, uniqueBoundaryEdges] =
+        countTrianglesFromEncodedShards(aggregation.getShardPaths(),
+                                        aggregation.getNodeCount());
+
+    result.triangleCount       = totalLocalTriangles + crossCount;
+    result.rawEdges            = totalRawEdges;
+    result.uniqueEdges         = uniqueBoundaryEdges;
+    result.partitionsProcessed = partitionsProcessed;
+    result.durationMs          = maxWorkerDuration;
+    result.uniqueNodes         = aggregation.getNodeCount();
+
+    frontend_logger.info(
+        "[histrian] local=" + std::to_string(totalLocalTriangles) +
+        " cross=" + std::to_string(crossCount) +
+        " total=" + std::to_string(result.triangleCount) +
+        " partitions=" + std::to_string(partitionsProcessed));
+
+    return result;
 }
 
 void *frontendservicesesion(void *dummyPt) {
