@@ -170,13 +170,9 @@ bool sendUint32(int sockfd, uint32_t value) {
 }
 
 bool sendUint64(int sockfd, uint64_t value) {
-#if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
-    uint64_t networkValue = (static_cast<uint64_t>(htonl(static_cast<uint32_t>(value & 0xffffffffULL))) << 32) |
-                            static_cast<uint64_t>(htonl(static_cast<uint32_t>(value >> 32)));
-#else
-    uint64_t networkValue = value;
-#endif
-    return sendAll(sockfd, &networkValue, sizeof(networkValue));
+    uint32_t high = static_cast<uint32_t>(value >> 32);
+    uint32_t low = static_cast<uint32_t>(value & 0xffffffffULL);
+    return sendUint32(sockfd, high) && sendUint32(sockfd, low);
 }
 
 bool flushHistoryTriangleBatch(int sockfd,

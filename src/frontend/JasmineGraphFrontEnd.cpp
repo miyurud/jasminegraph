@@ -684,16 +684,6 @@ uint32_t fromNetwork32(uint32_t value) {
     return ntohl(value);
 }
 
-uint64_t fromNetwork64(uint64_t value) {
-#if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
-    uint32_t high = ntohl(static_cast<uint32_t>(value >> 32));
-    uint32_t low = ntohl(static_cast<uint32_t>(value & 0xffffffffULL));
-    return (static_cast<uint64_t>(high) << 32) | static_cast<uint64_t>(low);
-#else
-    return value;
-#endif
-}
-
 bool readUint32(int sockfd, uint32_t& value) {
     uint32_t networkValue = 0;
     if (!recvAll(sockfd, &networkValue, sizeof(networkValue))) {
@@ -704,11 +694,14 @@ bool readUint32(int sockfd, uint32_t& value) {
 }
 
 bool readUint64(int sockfd, uint64_t& value) {
-    uint64_t networkValue = 0;
-    if (!recvAll(sockfd, &networkValue, sizeof(networkValue))) {
+    uint32_t high = 0;
+    uint32_t low = 0;
+
+    if (!readUint32(sockfd, high) || !readUint32(sockfd, low)) {
         return false;
     }
-    value = fromNetwork64(networkValue);
+
+    value = (static_cast<uint64_t>(high) << 32) | static_cast<uint64_t>(low);
     return true;
 }
 
@@ -1243,8 +1236,17 @@ static TemporalTriangleResult countHistoryTrianglesDistributed(SQLiteDBInterface
         }
     }
 
+    if (tasks.empty()) {
+        frontend_logger.error(
+            "No runnable worker-partition tasks found for graph " +
+            std::to_string(graphId) +
+            ". Partition assignments may reference workers that are not currently registered");
+        return result;
+    }
+
     // Collect results
     int partitionsProcessed = 0;
+    int partitionsFailed = 0;
     uint64_t totalLocalTriangles = 0;
     uint64_t totalRawEdges = 0;
     long maxWorkerDuration = 0;
@@ -1263,6 +1265,7 @@ static TemporalTriangleResult countHistoryTrianglesDistributed(SQLiteDBInterface
                 " rawEdges=" + std::to_string(task.rawEdges) +
                 " dur=" + std::to_string(task.durationMs) + "ms");
         } else {
+            partitionsFailed++;
             frontend_logger.warn(
                 "Worker " + task.workerID +
                 " partition=" + std::to_string(task.partitionId) + " failed — skipped");
@@ -1270,6 +1273,10 @@ static TemporalTriangleResult countHistoryTrianglesDistributed(SQLiteDBInterface
     }
 
     if (partitionsProcessed == 0) {
+        frontend_logger.error(
+            "All distributed history triangle tasks failed for graph " +
+            std::to_string(graphId) + " snapshot=" + std::to_string(snapshotId) +
+            " (failed_tasks=" + std::to_string(partitionsFailed) + ")");
         return result;
     }
 
