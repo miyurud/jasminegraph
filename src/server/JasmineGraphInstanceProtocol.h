@@ -145,6 +145,8 @@ class JasmineGraphInstanceProtocol {
     static const string SEMANTIC_BEAM_SEARCH;
     static const string EXPAND_NODE_BATCH;
     static const string HDFS_STREAM_IS_EMBED_ACK;
+    static const string SEND_EDGES;
+    static const string SEND_EDGES_TO_HDFS;
 };
 
 const int INSTANCE_DATA_LENGTH = 300;
@@ -152,6 +154,7 @@ const int FED_DATA_LENGTH = 300;
 const int INSTANCE_LONG_DATA_LENGTH = 5048;
 const int INSTANCE_FILE_BUFFER_LENGTH = 1024;
 const int MAX_STREAMING_DATA_LENGTH = 1024;
+const int HOSTNAME_BUFFER_SIZE = 4096;  // Required for gethostbyname_r() buffer
 
 const int TOP_K_PAGE_RANK = 100;
 

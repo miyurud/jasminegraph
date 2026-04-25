@@ -200,8 +200,8 @@ class Utils {
 
     static double exponentialWeightedMovingAverage(const std::deque<double>& vals, double alpha = 0.3);
     static  double  computeSlope(const std::deque<double>& vals);
-    static bool uploadFileToWorker(std::string host, int port, int dataPort, int graphID, std::string filePath,
-                                   std::string masterIP, std::string uploadType);
+    static bool uploadFileToWorker(const std::string &host, int port, int dataPort, int graphID,
+        const std::string &filePath, const std::string &masterIP, const std::string &uploadType);
 
     static bool sendFileThroughService(std::string host, int dataPort, std::string fileName, std::string filePath);
 
@@ -211,7 +211,8 @@ class Utils {
     static bool sendQueryPlanToWorker(const std::string& host, int port, const std::string& masterIP,
                                       int graphID, int PartitionId, const std::string& message,
                                       SharedBuffer &sharedBuffer, const std::string& masterTraceContext = "");
-    static std::optional<std::tuple<std::string, int, int>> getWorker(string partitionID, std::string host, int port);
+    static std::optional<std::tuple<std::string, int, int>> getWorker(const std::string &partitionID,
+                                                                      const std::string &host, int port);
     static bool sendDataFromWorkerToWorker(string masterIP, int graphID, string partitionId, std::string message,
                                            SharedBuffer &sharedBuffer);
     bool sendPartitionMetadata(int sockfd, int partitionId, int graphId, int localVertexCount, int centralVertexCount,
@@ -223,14 +224,30 @@ class Utils {
     static bool sendIntExpectResponse(int sockfd, char *data, size_t data_length,
                                       int value, std::string expectMsg);
 
-    static bool sendFileChunkToWorker(std::string host, int port, int dataPort, std::string filePath,
-                                      std::string masterIP, std::string uploadType, bool isEmbedGraph);
+    static bool sendFileChunkToWorker(const std::string &host, int port, int dataPort, const std::string &filePath,
+                                      const std::string &masterIP, const std::string &uploadType,
+                                      bool isEmbedGraph);
 
     static void assignPartitionToWorker(int graphId, int partitionIndex, string  hostname, int port);
 
     static string getFrontendInput(int connFd);
-    static string getPartitionAlgorithm(string graphID, std::string host);
-    static string getGraphDirection(string graphID, std::string host);
+    static string getPartitionAlgorithm(const std::string &graphID, const std::string &host);
+    static string getGraphDirection(const std::string &graphID, const std::string &host);
+
+    /**
+     * Helper function to create a socket and connect to a worker
+     * Handles hostname extraction (removes user@ prefix if present) and performs handshake
+     * 
+     * @param host hostname or user@hostname format
+     * @param port port number to connect to
+     * @param masterIP master IP to use for handshake
+     * @param data buffer for communication (must be at least FED_DATA_LENGTH + 1)
+     * @param dataLength size of the data buffer
+     * @param performHS whether to perform handshake after connection (default true)
+     * @return socket file descriptor on success, -1 on failure
+     */
+    static int createAndConnectToWorker(const std::string& host, int port, const std::string& masterIP,
+                                       char* data, size_t dataLength, bool performHS = true);
 };
 
 #endif  // JASMINEGRAPH_UTILS_H

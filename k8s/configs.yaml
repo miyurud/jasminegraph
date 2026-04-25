@@ -5,8 +5,8 @@ metadata:
   labels:
     application: jasminegraph
 data:
-  pushgateway_address: "${pushgateway_address}"
-  prometheus_address: "${prometheus_address}"
-  max_worker_count: "${max_worker_count}"
+  PUSHGATEWAY_ADDRESS: "${PUSHGATEWAY_ADDRESS}"
+  PROMETHEUS_ADDRESS: "${PROMETHEUS_ADDRESS}"
+  MAX_WORKER_COUNT: "${MAX_WORKER_COUNT}"
   auto_scaling_enabled: "true"
   scale_on_adgr: "false"

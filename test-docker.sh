@@ -129,35 +129,24 @@ wait_for_hadoop() {
     FILE_NAME="powergrid.dl"
     LOCAL_DIRECTORY="/var/tmp/data/"
     LOCAL_FILE_PATH="${LOCAL_DIRECTORY}${FILE_NAME}"
-
     HDFS_DIRECTORY="/home/"
-    HDFS_FILE_PATH="${HDFS_DIRECTORY}${FILE_NAME}"
 
-    # # cp the hdfs config file to the jasminegraph container
+    # cp the hdfs config file to the JasmineGraph container
     docker cp "${HDFS_CONF_FILE}" integration-jasminegraph-1:/var/tmp/config/hdfs_config.txt
 
     docker exec -i integration-jasminegraph-1 cat /var/tmp/config/hdfs_config.txt
 
-    # Upload the file to HDFS
-    # Ensure local directory exists
+    # Ensure local directory exists and copy powergrid.dl from the JasmineGraph container
     mkdir -p "${LOCAL_DIRECTORY}"
 
     # Copy the file from integration-jasminegraph-1 to the current container
     docker cp integration-jasminegraph-1:"${LOCAL_FILE_PATH}" "${LOCAL_DIRECTORY}"
 
-    # Create the HDFS directory (this ensures it exists in HDFS)
+    # Create the HDFS /home directory and grant write permissions
+    # (sdhdfs will write graph data here during integration tests)
     docker exec -i hdfs-namenode hadoop fs -mkdir -p "${HDFS_DIRECTORY}"
-
-    # Copy the file from host to the namenode container
-    docker cp "${LOCAL_FILE_PATH}" hdfs-namenode:"${HDFS_FILE_PATH}"
-
-    # Check if the file exists in HDFS
-    if ! docker exec -i hdfs-namenode hadoop fs -test -e "${HDFS_FILE_PATH}"; then
-        docker exec -i hdfs-namenode hadoop fs -put "${HDFS_FILE_PATH}" "${HDFS_DIRECTORY}"
-        echo "File: ${LOCAL_FILE_PATH} successfully uploaded to HDFS."
-    else
-        echo "File already exists in HDFS at ${HDFS_FILE_PATH}. Skipping upload."
-    fi
+    docker exec -i hdfs-namenode hadoop fs -chmod 777 "${HDFS_DIRECTORY}"
+    echo "HDFS directory ${HDFS_DIRECTORY} created with write permissions."
 
     # uploading custom_graph_with_properties.txt
     CUSTOM_GRAPH_FILE="graph_with_properties.txt"

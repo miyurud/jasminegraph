@@ -122,6 +122,25 @@ def run_core_workflow(sock):
     common.logging.info('Testing lst after rmgr')
     common.send_and_expect_response(sock, 'lst after rmgr', common.LIST, POWERGRID_ROW)
 
+    print()
+    common.logging.info('Testing sdhdfs')
+    common.send_and_expect_response(
+        sock, 'sdhdfs', common.SDHDFS, b'Graph ID:', exit_on_failure=True
+    )
+    common.send_and_expect_response(sock, 'sdhdfs', b'1',
+                                b'Do you want to use the default HDFS server(y/n)?',
+                                exit_on_failure=True)
+    common.send_and_expect_response(sock, 'sdhdfs', b'n',
+                                b'Send the file path to the HDFS configuration file.'
+                                b' This file needs to be in some directory location '
+                                b'that is accessible for JasmineGraph master',
+                                exit_on_failure=True)
+    common.send_and_expect_response(sock, 'sdhdfs', b'/var/tmp/config/hdfs_config.txt',  # NOSONAR
+                                b'HDFS destination file path:',
+                                exit_on_failure=True)
+    common.send_and_expect_response(sock, 'sdhdfs', b'/home/powergrid.dl', common.DONE,
+                                exit_on_failure=True)
+
     common.send_and_expect_response(sock, 'rmgr', common.RMGR, common.SEND)
     common.send_and_expect_response(sock, 'rmgr', b'1', common.DONE)
 

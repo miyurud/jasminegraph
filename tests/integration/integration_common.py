@@ -51,6 +51,7 @@ SHDN = b'shdn'
 SEND = b'send'
 DONE = b'done'
 ADHDFS = b'adhdfs'
+SDHDFS = b'sdhdfs'
 LINE_END = b'\r\n'
 CYPHER = b'cypher'
 
