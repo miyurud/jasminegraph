@@ -687,38 +687,75 @@ static bool hasTemporalBitmapIndexesForGraphInDirectory(const std::string& direc
     return false;
 }
 
+static std::vector<std::string> getLocalTemporalSnapshotCandidateDirs() {
+    std::vector<std::string> candidates;
+
+    std::string configuredDir = getTemporalSnapshotDir();
+    if (!configuredDir.empty()) {
+        candidates.push_back(configuredDir);
+    }
+
+    std::string dataFolderDir =
+        Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder") +
+        "/temporal_snapshots";
+    if (!dataFolderDir.empty() &&
+        std::find(candidates.begin(), candidates.end(), dataFolderDir) == candidates.end()) {
+        candidates.push_back(dataFolderDir);
+    }
+
+    std::string homeFallbackDir = Utils::getJasmineGraphHome() + "/env/data/temporal_snapshots";
+    if (!homeFallbackDir.empty() &&
+        std::find(candidates.begin(), candidates.end(), homeFallbackDir) == candidates.end()) {
+        candidates.push_back(homeFallbackDir);
+    }
+
+    return candidates;
+}
+
 static bool countHistoryTrianglesFromStagedBitmaps(SQLiteDBInterface* sqlite,
                                                    int graphId,
                                                    uint32_t snapshotId,
                                                    TemporalTriangleResult& result,
                                                    std::string& errorMessage) {
-    auto stagedStart = std::chrono::high_resolution_clock::now();
     std::string snapshotDir = getTemporalSnapshotDir();
-    bool localDirect = hasTemporalBitmapIndexesForGraphInDirectory(snapshotDir, graphId);
-    std::string stagedSnapshotDir;
 
-    if (!localDirect) {
-        stagedSnapshotDir = stageTemporalBitmapIndexesForGraph(sqlite, graphId, snapshotDir);
-        if (stagedSnapshotDir.empty()) {
-            errorMessage = "No temporal bitmap index files available for graph " + std::to_string(graphId);
-            return false;
+    // Fast path: execute directly from local snapshot directories that actually contain
+    // bitmap files for this graph. This avoids expensive per-query staging.
+    for (const auto& localDir : getLocalTemporalSnapshotCandidateDirs()) {
+        if (!hasTemporalBitmapIndexesForGraphInDirectory(localDir, graphId)) {
+            continue;
         }
+
+        try {
+            TemporalTriangleResult directResult =
+                HistoryTriangles::countTrianglesAtSnapshot(graphId, snapshotId, localDir);
+            if (directResult.partitionsProcessed > 0) {
+                directResult.stagingMs = 0;
+                result = std::move(directResult);
+                frontend_logger.info("histrian local-direct path used: " + localDir);
+                return true;
+            }
+        } catch (const std::exception&) {
+            // Try next local candidate.
+        }
+    }
+
+    auto stagedStart = std::chrono::high_resolution_clock::now();
+    std::string stagedSnapshotDir = stageTemporalBitmapIndexesForGraph(sqlite, graphId, snapshotDir);
+    if (stagedSnapshotDir.empty()) {
+        errorMessage = "No temporal bitmap index files available for graph " + std::to_string(graphId);
+        return false;
     }
 
     auto stagedEnd = std::chrono::high_resolution_clock::now();
     long stagingMs = std::chrono::duration_cast<std::chrono::milliseconds>(stagedEnd - stagedStart).count();
 
     try {
-        const std::string& inputSnapshotDir = localDirect ? snapshotDir : stagedSnapshotDir;
-        result = HistoryTriangles::countTrianglesAtSnapshot(graphId, snapshotId, inputSnapshotDir);
+        result = HistoryTriangles::countTrianglesAtSnapshot(graphId, snapshotId, stagedSnapshotDir);
         result.stagingMs = stagingMs;
-        if (!localDirect) {
-            cleanupStagedTemporalBitmapIndexes(stagedSnapshotDir);
-        }
+        cleanupStagedTemporalBitmapIndexes(stagedSnapshotDir);
     } catch (const std::exception& e) {
-        if (!localDirect) {
-            cleanupStagedTemporalBitmapIndexes(stagedSnapshotDir);
-        }
+        cleanupStagedTemporalBitmapIndexes(stagedSnapshotDir);
         errorMessage = e.what();
         return false;
     }
