@@ -168,7 +168,6 @@ set(SOURCES src/backend/JasmineGraphBackend.cpp
         src/util/Utils.cpp
         src/util/kafka/KafkaCC.cpp
         src/util/kafka/StreamHandler.cpp
-        src/util/kafka/StreamRegistry.cpp
         src/util/kafka/InstanceStreamHandler.cpp
         src/util/logger/Logger.cpp
         src/util/scheduler/SchedulerService.cpp

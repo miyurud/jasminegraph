@@ -11,9 +11,8 @@ See the License for the specific language governing permissions and
 limitations under the License.
 **/
 
-#include <atomic>
 #include <cppkafka/cppkafka.h>
-#include <memory>
+
 #include <string>
 #include <vector>
 
@@ -27,8 +26,7 @@ class StreamHandler {
  public:
     StreamHandler(KafkaConnector *kstream, int numberOfPartitions,
                   std::vector<DataPublisher *> &workerClients, SQLiteDBInterface* sqlite,
-                  int graphId, bool isDirected, spt::Algorithms algo = spt::Algorithms::HASH,
-                  std::shared_ptr<std::atomic<bool>> stopFlag = nullptr);
+                  int graphId, bool isDirected, spt::Algorithms algo = spt::Algorithms::HASH);
     void listen_to_kafka_topic();
     cppkafka::Message pollMessage();
     bool isErrorInMessage(const cppkafka::Message &msg);
@@ -40,5 +38,4 @@ class StreamHandler {
     Logger frontend_logger;
     std::string stream_topic_name;
     std::vector<DataPublisher *> &workerClients;
-    std::shared_ptr<std::atomic<bool>> stopFlag;
 };
