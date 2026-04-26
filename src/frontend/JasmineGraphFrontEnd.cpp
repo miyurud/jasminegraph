@@ -666,6 +666,7 @@ static bool countHistoryTrianglesFromStagedBitmaps(SQLiteDBInterface* sqlite,
                                                    uint32_t snapshotId,
                                                    TemporalTriangleResult& result,
                                                    std::string& errorMessage) {
+    auto stagedStart = std::chrono::high_resolution_clock::now();
     std::string snapshotDir = getTemporalSnapshotDir();
     std::string stagedSnapshotDir = stageTemporalBitmapIndexesForGraph(sqlite, graphId, snapshotDir);
     if (stagedSnapshotDir.empty()) {
@@ -675,6 +676,8 @@ static bool countHistoryTrianglesFromStagedBitmaps(SQLiteDBInterface* sqlite,
 
     try {
         result = HistoryTriangles::countTrianglesAtSnapshot(graphId, snapshotId, stagedSnapshotDir);
+        auto stagedEnd = std::chrono::high_resolution_clock::now();
+        result.stagingMs = std::chrono::duration_cast<std::chrono::milliseconds>(stagedEnd - stagedStart).count();
         cleanupStagedTemporalBitmapIndexes(stagedSnapshotDir);
     } catch (const std::exception& e) {
         cleanupStagedTemporalBitmapIndexes(stagedSnapshotDir);
@@ -4813,6 +4816,17 @@ static void history_triangle_command(int connFd, SQLiteDBInterface *sqlite, bool
             response << "Triangle count is " << result.triangleCount << "\n";
             response << "Time taken (total): " << totalDurationMs << "ms\n";
             response << "Time taken (worker algorithm aggregate): " << result.durationMs << "ms\n";
+            if (result.loadShardMs > 0 || result.dedupMs > 0 || result.degreeMs > 0 ||
+                result.forwardBuildMs > 0 || result.sortMs > 0 || result.countMs > 0) {
+                response << "Time breakdown (histrian): "
+                         << "stage=" << result.stagingMs << "ms, "
+                         << "load+shard=" << result.loadShardMs << "ms, "
+                         << "dedup=" << result.dedupMs << "ms, "
+                         << "degree=" << result.degreeMs << "ms, "
+                         << "forward-build=" << result.forwardBuildMs << "ms, "
+                         << "sort=" << result.sortMs << "ms, "
+                         << "triangle-count=" << result.countMs << "ms\n";
+            }
 
             std::string responseStr = response.str();
             resultWr = write(connFd, responseStr.c_str(), responseStr.length());

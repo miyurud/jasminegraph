@@ -35,6 +35,13 @@ struct TemporalTriangleResult {
     uint32_t uniqueNodes{0};
     int partitionsProcessed{0};
     long durationMs{0};
+    long stagingMs{0};
+    long loadShardMs{0};
+    long dedupMs{0};
+    long degreeMs{0};
+    long forwardBuildMs{0};
+    long sortMs{0};
+    long countMs{0};
 };
 
 /**

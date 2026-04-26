@@ -289,6 +289,12 @@ TemporalTriangleResult HistoryTriangles::countTrianglesAtSnapshot(
     uint32_t nodeCount = 0;
     uint64_t rawEdgesRead = 0;
 
+    auto nowMs = []() -> int64_t {
+        return std::chrono::duration_cast<std::chrono::milliseconds>(
+            std::chrono::high_resolution_clock::now().time_since_epoch()).count();
+    };
+    int64_t phaseStart = nowMs();
+
     static constexpr size_t EDGE_SHARD_COUNT = 256;
     std::string shardTempDir = createEdgeShardTempDir();
     if (shardTempDir.empty()) {
@@ -367,6 +373,8 @@ TemporalTriangleResult HistoryTriangles::countTrianglesAtSnapshot(
         shardWriters[shardId].close();
     }
 
+    result.loadShardMs = static_cast<long>(nowMs() - phaseStart);
+
     if (rawEdgesRead == 0) {
         cleanupEdgeShardTempDir(shardTempDir);
         history_triangle_logger.info("No edges active at snapshot " + std::to_string(snapshotId));
@@ -376,13 +384,13 @@ TemporalTriangleResult HistoryTriangles::countTrianglesAtSnapshot(
     std::vector<uint32_t> degree(nodeCount, 0);
     uint64_t uniqueEdgeCount = 0;
 
+    phaseStart = nowMs();
+
     // Parallelize shard deduplication: each thread processes one shard independently
     std::vector<std::vector<uint64_t>> deduplicatedShards(EDGE_SHARD_COUNT);
     std::vector<uint64_t> shardCounts(EDGE_SHARD_COUNT, 0);
-    bool shardProcessError = false;
-
 #ifdef _OPENMP
-#pragma omp parallel for schedule(dynamic) shared(deduplicatedShards, shardCounts, shardProcessError)
+#pragma omp parallel for schedule(dynamic) shared(deduplicatedShards, shardCounts)
 #endif
     for (int shardId = 0; shardId < static_cast<int>(EDGE_SHARD_COUNT); ++shardId) {
         std::vector<uint64_t> shardEdges = readEncodedEdgesFromBinaryFile(shardFilePaths[shardId]);
@@ -396,28 +404,16 @@ TemporalTriangleResult HistoryTriangles::countTrianglesAtSnapshot(
 
         shardCounts[shardId] = shardEdges.size();
         deduplicatedShards[shardId] = shardEdges;
-
-        if (!rewriteUniqueEncodedEdgesToBinaryFile(shardFilePaths[shardId], shardEdges)) {
-#ifdef _OPENMP
-#pragma omp critical
-#endif
-            {
-                shardProcessError = true;
-                history_triangle_logger.error("Failed to rewrite deduplicated shard file " +
-                                             shardFilePaths[shardId]);
-            }
-        }
-    }
-
-    if (shardProcessError) {
-        cleanupEdgeShardTempDir(shardTempDir);
-        return result;
     }
 
     // Accumulate edge counts from all shards
     for (uint64_t count : shardCounts) {
         uniqueEdgeCount += count;
     }
+
+    result.dedupMs = static_cast<long>(nowMs() - phaseStart);
+
+    phaseStart = nowMs();
 
     // Parallelize degree accumulation across shards (atomic updates per endpoint)
 #ifdef _OPENMP
@@ -438,6 +434,8 @@ TemporalTriangleResult HistoryTriangles::countTrianglesAtSnapshot(
             degree[destIndex]++;
         }
     }
+
+    result.degreeMs = static_cast<long>(nowMs() - phaseStart);
 
     result.rawEdges = rawEdgesRead;
     result.localEdges = uniqueEdgeCount;
@@ -467,6 +465,7 @@ TemporalTriangleResult HistoryTriangles::countTrianglesAtSnapshot(
 
     // Parallelize forward degree computation across shards
     std::vector<uint32_t> forwardDegree(nodeCount, 0);
+    phaseStart = nowMs();
 #ifdef _OPENMP
 #pragma omp parallel for shared(deduplicatedShards, degree, forwardDegree)
 #endif
@@ -524,20 +523,26 @@ TemporalTriangleResult HistoryTriangles::countTrianglesAtSnapshot(
         }
     }
 
+    result.forwardBuildMs = static_cast<long>(nowMs() - phaseStart);
+
     // Sort forward neighbor lists in parallel
+    phaseStart = nowMs();
 #ifdef _OPENMP
 #pragma omp parallel for shared(forwardNeighbors)
 #endif
     for (int nodeIdx = 0; nodeIdx < static_cast<int>(forwardNeighbors.size()); ++nodeIdx) {
         std::sort(forwardNeighbors[nodeIdx].begin(), forwardNeighbors[nodeIdx].end());
     }
+    result.sortMs = static_cast<long>(nowMs() - phaseStart);
 
     cleanupEdgeShardTempDir(shardTempDir);
 
     history_triangle_logger.info("Counting triangles on degree-ordered forward graph with " +
                                  std::to_string(result.uniqueEdges) + " edges");
 
+    phaseStart = nowMs();
     result.triangleCount = countTrianglesOnForwardGraph(forwardNeighbors);
+    result.countMs = static_cast<long>(nowMs() - phaseStart);
 
     auto end = std::chrono::high_resolution_clock::now();
     result.durationMs = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
