@@ -661,6 +661,32 @@ static void cleanupStagedTemporalBitmapIndexes(const std::string& stagingDir) {
     rmdir(stagingDir.c_str());
 }
 
+static bool hasTemporalBitmapIndexesForGraphInDirectory(const std::string& directory,
+                                                        int graphId) {
+    if (directory.empty()) {
+        return false;
+    }
+
+    std::vector<std::string> files = Utils::getListOfFilesInDirectory(directory);
+    const std::string bitmapPrefix = "graph" + std::to_string(graphId) + "_part";
+    const std::string bitmapSuffix = "_bitmaps.ebm";
+    const std::string deltaSuffix = ".delta";
+
+    for (const auto& file : files) {
+        if (file.rfind(bitmapPrefix, 0) != 0) {
+            continue;
+        }
+        if ((file.size() > bitmapSuffix.size() &&
+             file.compare(file.size() - bitmapSuffix.size(), bitmapSuffix.size(), bitmapSuffix) == 0) ||
+            (file.size() > deltaSuffix.size() &&
+             file.compare(file.size() - deltaSuffix.size(), deltaSuffix.size(), deltaSuffix) == 0)) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
 static bool countHistoryTrianglesFromStagedBitmaps(SQLiteDBInterface* sqlite,
                                                    int graphId,
                                                    uint32_t snapshotId,
@@ -668,19 +694,31 @@ static bool countHistoryTrianglesFromStagedBitmaps(SQLiteDBInterface* sqlite,
                                                    std::string& errorMessage) {
     auto stagedStart = std::chrono::high_resolution_clock::now();
     std::string snapshotDir = getTemporalSnapshotDir();
-    std::string stagedSnapshotDir = stageTemporalBitmapIndexesForGraph(sqlite, graphId, snapshotDir);
-    if (stagedSnapshotDir.empty()) {
-        errorMessage = "No temporal bitmap index files available for graph " + std::to_string(graphId);
-        return false;
+    bool localDirect = hasTemporalBitmapIndexesForGraphInDirectory(snapshotDir, graphId);
+    std::string stagedSnapshotDir;
+
+    if (!localDirect) {
+        stagedSnapshotDir = stageTemporalBitmapIndexesForGraph(sqlite, graphId, snapshotDir);
+        if (stagedSnapshotDir.empty()) {
+            errorMessage = "No temporal bitmap index files available for graph " + std::to_string(graphId);
+            return false;
+        }
     }
 
+    auto stagedEnd = std::chrono::high_resolution_clock::now();
+    long stagingMs = std::chrono::duration_cast<std::chrono::milliseconds>(stagedEnd - stagedStart).count();
+
     try {
-        result = HistoryTriangles::countTrianglesAtSnapshot(graphId, snapshotId, stagedSnapshotDir);
-        auto stagedEnd = std::chrono::high_resolution_clock::now();
-        result.stagingMs = std::chrono::duration_cast<std::chrono::milliseconds>(stagedEnd - stagedStart).count();
-        cleanupStagedTemporalBitmapIndexes(stagedSnapshotDir);
+        const std::string& inputSnapshotDir = localDirect ? snapshotDir : stagedSnapshotDir;
+        result = HistoryTriangles::countTrianglesAtSnapshot(graphId, snapshotId, inputSnapshotDir);
+        result.stagingMs = stagingMs;
+        if (!localDirect) {
+            cleanupStagedTemporalBitmapIndexes(stagedSnapshotDir);
+        }
     } catch (const std::exception& e) {
-        cleanupStagedTemporalBitmapIndexes(stagedSnapshotDir);
+        if (!localDirect) {
+            cleanupStagedTemporalBitmapIndexes(stagedSnapshotDir);
+        }
         errorMessage = e.what();
         return false;
     }
@@ -4826,6 +4864,8 @@ static void history_triangle_command(int connFd, SQLiteDBInterface *sqlite, bool
                          << "forward-build=" << result.forwardBuildMs << "ms, "
                          << "sort=" << result.sortMs << "ms, "
                          << "triangle-count=" << result.countMs << "ms\n";
+                response << "Memory hint (histrian): cached-dedup-edges="
+                         << result.cachedDedupEdges << "\n";
             }
 
             std::string responseStr = response.str();

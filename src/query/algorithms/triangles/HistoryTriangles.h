@@ -42,6 +42,7 @@ struct TemporalTriangleResult {
     long forwardBuildMs{0};
     long sortMs{0};
     long countMs{0};
+    size_t cachedDedupEdges{0};
 };
 
 /**
