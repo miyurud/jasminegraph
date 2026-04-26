@@ -14,6 +14,7 @@ limitations under the License.
 #include "HistoryTriangles.h"
 
 #include <algorithm>
+#include <atomic>
 #include <array>
 #include <cstdlib>
 #include <set>
@@ -418,9 +419,9 @@ TemporalTriangleResult HistoryTriangles::countTrianglesAtSnapshot(
         uniqueEdgeCount += count;
     }
 
-    // Parallelize degree accumulation: each thread updates degree array safely
+    // Parallelize degree accumulation across shards (atomic updates per endpoint)
 #ifdef _OPENMP
-#pragma omp parallel for collapse(2) shared(deduplicatedShards, degree)
+#pragma omp parallel for schedule(dynamic) shared(deduplicatedShards, degree)
 #endif
     for (int shardId = 0; shardId < static_cast<int>(EDGE_SHARD_COUNT); ++shardId) {
         for (size_t edgeIdx = 0; edgeIdx < deduplicatedShards[shardId].size(); ++edgeIdx) {
@@ -493,18 +494,19 @@ TemporalTriangleResult HistoryTriangles::countTrianglesAtSnapshot(
 
     std::vector<std::vector<uint32_t>> forwardNeighbors(nodeCount);
     for (uint32_t nodeIndex = 0; nodeIndex < nodeCount; ++nodeIndex) {
-        forwardNeighbors[nodeIndex].reserve(forwardDegree[nodeIndex]);
+        forwardNeighbors[nodeIndex].resize(forwardDegree[nodeIndex]);
     }
 
-    // Parallelize forward neighbor construction across shards
+    // Build forward neighbors with lock-free indexed writes.
+    std::vector<std::atomic<uint32_t>> forwardWriteIndex(nodeCount);
+    for (uint32_t nodeIndex = 0; nodeIndex < nodeCount; ++nodeIndex) {
+        forwardWriteIndex[nodeIndex].store(0, std::memory_order_relaxed);
+    }
+
 #ifdef _OPENMP
-#pragma omp parallel for shared(deduplicatedShards, degree, forwardNeighbors)
+#pragma omp parallel for schedule(dynamic) shared(deduplicatedShards, degree, forwardNeighbors, forwardWriteIndex)
 #endif
     for (int shardId = 0; shardId < static_cast<int>(EDGE_SHARD_COUNT); ++shardId) {
-        // Thread-local buffer to avoid contention on forwardNeighbors vectors
-        std::vector<std::pair<uint32_t, uint32_t>> localAdditions;
-        localAdditions.reserve(deduplicatedShards[shardId].size());
-
         for (uint64_t encoded : deduplicatedShards[shardId]) {
             uint32_t sourceIndex = decodeSourceIndex(encoded);
             uint32_t destIndex = decodeDestIndex(encoded);
@@ -513,19 +515,11 @@ TemporalTriangleResult HistoryTriangles::countTrianglesAtSnapshot(
                                     (degree[sourceIndex] == degree[destIndex] &&
                                      sourceIndex < destIndex);
             if (sourceBeforeDest) {
-                localAdditions.push_back({sourceIndex, destIndex});
+                uint32_t slot = forwardWriteIndex[sourceIndex].fetch_add(1, std::memory_order_relaxed);
+                forwardNeighbors[sourceIndex][slot] = destIndex;
             } else {
-                localAdditions.push_back({destIndex, sourceIndex});
-            }
-        }
-
-        // Batch add to avoid locks
-        for (const auto& [node, neighbor] : localAdditions) {
-#ifdef _OPENMP
-#pragma omp critical
-#endif
-            {
-                forwardNeighbors[node].push_back(neighbor);
+                uint32_t slot = forwardWriteIndex[destIndex].fetch_add(1, std::memory_order_relaxed);
+                forwardNeighbors[destIndex][slot] = sourceIndex;
             }
         }
     }
