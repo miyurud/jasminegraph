@@ -716,12 +716,15 @@ static bool countHistoryTrianglesFromStagedBitmaps(SQLiteDBInterface* sqlite,
                                                    int graphId,
                                                    uint32_t snapshotId,
                                                    TemporalTriangleResult& result,
-                                                   std::string& errorMessage) {
+                                                   std::string& errorMessage,
+                                                   std::string& dataSourceInfo) {
     std::string snapshotDir = getTemporalSnapshotDir();
+    std::string localDirectFailureReason;
+    std::vector<std::string> localDirs = getLocalTemporalSnapshotCandidateDirs();
 
     // Fast path: execute directly from local snapshot directories that actually contain
     // bitmap files for this graph. This avoids expensive per-query staging.
-    for (const auto& localDir : getLocalTemporalSnapshotCandidateDirs()) {
+    for (const auto& localDir : localDirs) {
         if (!hasTemporalBitmapIndexesForGraphInDirectory(localDir, graphId)) {
             continue;
         }
@@ -732,12 +735,31 @@ static bool countHistoryTrianglesFromStagedBitmaps(SQLiteDBInterface* sqlite,
             if (directResult.partitionsProcessed > 0) {
                 directResult.stagingMs = 0;
                 result = std::move(directResult);
+                dataSourceInfo = "Data source: local-direct (path=" + localDir + ")";
                 frontend_logger.info("histrian local-direct path used: " + localDir);
                 return true;
             }
+            localDirectFailureReason = "local-direct found files in " + localDir +
+                                       " but processed zero partitions";
         } catch (const std::exception&) {
-            // Try next local candidate.
+            localDirectFailureReason = "local-direct read/count failed in " + localDir;
         }
+    }
+
+    if (localDirectFailureReason.empty()) {
+        std::stringstream reason;
+        reason << "no graph bitmap files found in local candidates";
+        if (!localDirs.empty()) {
+            reason << " [";
+            for (size_t i = 0; i < localDirs.size(); ++i) {
+                if (i > 0) {
+                    reason << ",";
+                }
+                reason << localDirs[i];
+            }
+            reason << "]";
+        }
+        localDirectFailureReason = reason.str();
     }
 
     auto stagedStart = std::chrono::high_resolution_clock::now();
@@ -753,6 +775,7 @@ static bool countHistoryTrianglesFromStagedBitmaps(SQLiteDBInterface* sqlite,
     try {
         result = HistoryTriangles::countTrianglesAtSnapshot(graphId, snapshotId, stagedSnapshotDir);
         result.stagingMs = stagingMs;
+        dataSourceInfo = "Data source: staged-fallback (reason=" + localDirectFailureReason + ")";
         cleanupStagedTemporalBitmapIndexes(stagedSnapshotDir);
     } catch (const std::exception& e) {
         cleanupStagedTemporalBitmapIndexes(stagedSnapshotDir);
@@ -4854,8 +4877,9 @@ static void history_triangle_command(int connFd, SQLiteDBInterface *sqlite, bool
 
         TemporalTriangleResult result{};
         std::string stagedError;
+        std::string dataSourceInfo;
         bool stagedOk = countHistoryTrianglesFromStagedBitmaps(sqlite, graphId, snapshotId,
-                                                                result, stagedError);
+                                                                result, stagedError, dataSourceInfo);
 
         if (!stagedOk) {
             frontend_logger.warn("Staged bitmap history triangle count failed for graph " +
@@ -4873,6 +4897,8 @@ static void history_triangle_command(int connFd, SQLiteDBInterface *sqlite, bool
                 frontend_logger.error(error);
                 return;
             }
+            dataSourceInfo = "Data source: distributed-fallback (reason=staged-fallback failed: " +
+                             stagedError + ")";
             frontend_logger.info("History triangle distributed fallback succeeded for graph " +
                                  std::to_string(graphId) + " snapshot " +
                                  std::to_string(snapshotId));
@@ -4891,6 +4917,9 @@ static void history_triangle_command(int connFd, SQLiteDBInterface *sqlite, bool
             response << "Triangle count is " << result.triangleCount << "\n";
             response << "Time taken (total): " << totalDurationMs << "ms\n";
             response << "Time taken (worker algorithm aggregate): " << result.durationMs << "ms\n";
+            if (!dataSourceInfo.empty()) {
+                response << dataSourceInfo << "\n";
+            }
             if (result.loadShardMs > 0 || result.dedupMs > 0 || result.degreeMs > 0 ||
                 result.forwardBuildMs > 0 || result.sortMs > 0 || result.countMs > 0) {
                 response << "Time breakdown (histrian): "
@@ -5027,8 +5056,9 @@ static void history_triangle_timestamp_command(int connFd, SQLiteDBInterface *sq
 
         TemporalTriangleResult result{};
         std::string stagedError;
+        std::string dataSourceInfo;
         bool stagedOk = countHistoryTrianglesFromStagedBitmaps(sqlite, graphId, closestSnapshotId,
-                                                                result, stagedError);
+                                                                result, stagedError, dataSourceInfo);
         if (!stagedOk) {
             frontend_logger.warn("Staged bitmap history triangle-by-timestamp failed for graph " +
                                  std::to_string(graphId) + " snapshot " +
@@ -5043,6 +5073,8 @@ static void history_triangle_timestamp_command(int connFd, SQLiteDBInterface *sq
                 resultWr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
                 return;
             }
+            dataSourceInfo = "Data source: distributed-fallback (reason=staged-fallback failed: " +
+                             stagedError + ")";
         }
 
         std::string timeStr = formatSnapshotTimestamp(snapshotTimestamps.at(closestSnapshotId));
@@ -5057,6 +5089,9 @@ static void history_triangle_timestamp_command(int connFd, SQLiteDBInterface *sq
         response << "Partitions processed: " << result.partitionsProcessed << "\n";
         response << "Time taken (total): " << totalDurationMs << "ms\n";
         response << "Time taken (worker algorithm aggregate): " << result.durationMs << "ms\n";
+        if (!dataSourceInfo.empty()) {
+            response << dataSourceInfo << "\n";
+        }
 
         std::string responseStr = response.str();
         resultWr = write(connFd, responseStr.c_str(), responseStr.length());
