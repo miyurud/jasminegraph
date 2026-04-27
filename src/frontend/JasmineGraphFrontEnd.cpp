@@ -1627,10 +1627,10 @@ static void add_stream_kafka_command(int connFd, std::string &kafka_server_IP, c
     kstream = new KafkaConnector(configs);
     // Subscribe to the Kafka topic.
     kstream->Subscribe(topic_name_s);
-    
+
     // Convert graphId string to integer
     int graphIdInt = stoi(graphId);
-    
+
     // Register the stream in the global registry
     StreamRegistry &registry = StreamRegistry::getInstance();
     std::string userId = "user_" + std::to_string(connFd);  // Use connection FD as simple user identifier
@@ -1643,7 +1643,7 @@ static void add_stream_kafka_command(int connFd, std::string &kafka_server_IP, c
         *loop_exit_p = true;
         return;
     }
-    
+
     // Get the stop flag from the registry (lookup by topic)
     auto streamMetadata = registry.getStreamByTopic(topic_name_s);
     if (!streamMetadata) {
@@ -1657,7 +1657,7 @@ static void add_stream_kafka_command(int connFd, std::string &kafka_server_IP, c
         return;
     }
     auto stopFlag = streamMetadata->stopFlag;
-    
+
     // Create the StreamHandler object with the stop flag
     StreamHandler *stream_handler = new StreamHandler(kstream, numberOfPartitions, workerClients, sqlite, graphIdInt,
                                                       direction == Conts::DIRECTED, spt::getPartitioner(partitionAlgo),
@@ -1682,7 +1682,7 @@ static void add_stream_kafka_command(int connFd, std::string &kafka_server_IP, c
     }
     frontend_logger.info("Start listening to " + topic_name_s);
     input_stream_handler_thread = thread(&StreamHandler::listen_to_kafka_topic, stream_handler);
-    
+
     // Update the stream registry with the new thread ID
     registry.updateStreamThreadId(graphIdInt, input_stream_handler_thread.get_id());
 }
@@ -2670,7 +2670,7 @@ bool JasmineGraphFrontEnd::constructKGStreamHDFSCommand(const std::string &maste
 
 static void stop_stream_kafka_command(int connFd, const std::string &topicName, bool *loop_exit_p) {
     frontend_logger.info("Started serving `" + STOP_STREAM_KAFKA + "` command for topic=" + topicName);
-    
+
     StreamRegistry &registry = StreamRegistry::getInstance();
 
     // Get stream metadata by topic
@@ -2684,14 +2684,14 @@ static void stop_stream_kafka_command(int connFd, const std::string &topicName, 
     }
 
     int graphId = streamMetadata->graphId;
-    
+
     // Signal the stream to stop gracefully
     if (registry.signalStreamStop(graphId)) {
         // Also unsubscribe from Kafka consumer immediately
         if (streamMetadata->kafkaConnector) {
             streamMetadata->kafkaConnector->Unsubscribe();
         }
-        
+
         string message = "Successfully initiated stop for topic `" + streamMetadata->topicName +
                  "` (graph ID " + std::to_string(graphId) + ")";
         int result_wr = write(connFd, message.c_str(), message.length());
@@ -2706,7 +2706,7 @@ static void stop_stream_kafka_command(int connFd, const std::string &topicName, 
             *loop_exit_p = true;
             return;
         }
-        
+
         // Unregister the stream from the registry
         registry.unregisterStream(graphId);
     } else {
