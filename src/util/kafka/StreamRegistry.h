@@ -1,5 +1,5 @@
 /**
-Copyright 2019 JasminGraph Team
+Copyright 2026 JasminGraph Team
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
@@ -78,13 +78,6 @@ class StreamRegistry {
      * @param threadId Thread ID of the consumption thread
      */
     void updateStreamThreadId(int graphId, std::thread::id threadId);
-
-    /**
-     * Get stream metadata by graph ID
-     * @param graphId Graph ID to look up
-     * @return Pointer to StreamMetadata if found, nullptr otherwise
-     */
-    std::shared_ptr<StreamMetadata> getStreamByGraphId(int graphId);
 
     /**
      * Get stream metadata by Kafka topic name

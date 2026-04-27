@@ -1,5 +1,5 @@
 /**
-Copyright 2019 JasminGraph Team
+Copyright 2026 JasminGraph Team
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
@@ -52,16 +52,6 @@ void StreamRegistry::updateStreamThreadId(int graphId, std::thread::id threadId)
         std::cerr << "StreamRegistry: Cannot update thread ID - stream graphId " << graphId
                   << " not found" << std::endl;
     }
-}
-
-std::shared_ptr<StreamMetadata> StreamRegistry::getStreamByGraphId(int graphId) {
-    std::lock_guard<std::mutex> lock(registryMutex);
-
-    auto it = activeStreams.find(graphId);
-    if (it != activeStreams.end()) {
-        return it->second;
-    }
-    return nullptr;
 }
 
 std::shared_ptr<StreamMetadata> StreamRegistry::getStreamByTopic(const std::string &topicName) {

@@ -1644,8 +1644,18 @@ static void add_stream_kafka_command(int connFd, std::string &kafka_server_IP, c
         return;
     }
     
-    // Get the stop flag from the registry
-    auto streamMetadata = registry.getStreamByGraphId(graphIdInt);
+    // Get the stop flag from the registry (lookup by topic)
+    auto streamMetadata = registry.getStreamByTopic(topic_name_s);
+    if (!streamMetadata) {
+        frontend_logger.error("Failed to retrieve stream metadata for topic " + topic_name_s);
+        string errorMsg = "Error: Failed to initialize stream metadata";
+        write(connFd, errorMsg.c_str(), errorMsg.length());
+        write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
+        registry.unregisterStream(graphIdInt);
+        delete kstream;
+        *loop_exit_p = true;
+        return;
+    }
     auto stopFlag = streamMetadata->stopFlag;
     
     // Create the StreamHandler object with the stop flag
