@@ -5002,37 +5002,42 @@ static void history_triangle_command(int connFd, SQLiteDBInterface *sqlite, bool
             return;
         }
 
-        TemporalTriangleResult result{};
-        std::string stagedError;
-        std::string dataSourceInfo;
-        bool stagedOk = countHistoryTrianglesFromStagedBitmaps(sqlite, graphId, snapshotId,
-                                                                result, stagedError, dataSourceInfo);
+        TemporalTriangleResult result =
+            countHistoryTrianglesDistributed(sqlite, graphId, snapshotId, masterIP);
+        std::string dataSourceInfo =
+            "Data source: distributed-direct (worker-local snapshot files; staging disabled)";
 
-        if (!stagedOk) {
-            frontend_logger.warn("Staged bitmap history triangle count failed for graph " +
-                                 std::to_string(graphId) + " at snapshot " +
-                                 std::to_string(snapshotId) + ", trying distributed fallback");
-
-            result = countHistoryTrianglesDistributed(sqlite, graphId, snapshotId, masterIP);
-            if (result.partitionsProcessed == 0) {
+        if (result.partitionsProcessed == 0) {
+            bool allowStagedFallback = Utils::parseBoolean(
+                Utils::getJasmineGraphProperty("org.jasminegraph.histrian.allow.staged.fallback"));
+            if (!allowStagedFallback) {
                 std::string error = "Error: History triangle count failed for graph " +
-                                  std::to_string(graphId) + " at snapshot " +
-                                  std::to_string(snapshotId) +
-                                  " (staged failed: " + stagedError + ")";
+                                    std::to_string(graphId) + " at snapshot " +
+                                    std::to_string(snapshotId) +
+                                    " (no partitions responded — check worker connectivity, htria protocol, and snapshot availability)";
                 resultWr = write(connFd, error.c_str(), error.length());
                 resultWr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
                 frontend_logger.error(error);
                 return;
             }
-            dataSourceInfo = "Data source: distributed-fallback (reason=staged-fallback failed: " +
-                             stagedError + ")";
-            frontend_logger.info("History triangle distributed fallback succeeded for graph " +
+
+            frontend_logger.warn("Distributed-direct history triangle count failed for graph " +
                                  std::to_string(graphId) + " snapshot " +
-                                 std::to_string(snapshotId));
-        } else {
-            frontend_logger.info("History triangle staged bitmap path succeeded for graph " +
-                                 std::to_string(graphId) + " snapshot " +
-                                 std::to_string(snapshotId));
+                                 std::to_string(snapshotId) +
+                                 "; staged fallback is enabled via org.jasminegraph.histrian.allow.staged.fallback");
+
+            std::string stagedError;
+            if (!countHistoryTrianglesFromStagedBitmaps(sqlite, graphId, snapshotId,
+                                                        result, stagedError, dataSourceInfo)) {
+                std::string error = "Error: History triangle count failed for graph " +
+                                    std::to_string(graphId) + " at snapshot " +
+                                    std::to_string(snapshotId) +
+                                    " (distributed-direct failed; staged failed: " + stagedError + ")";
+                resultWr = write(connFd, error.c_str(), error.length());
+                resultWr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
+                frontend_logger.error(error);
+                return;
+            }
         }
 
         {
@@ -5181,27 +5186,37 @@ static void history_triangle_timestamp_command(int connFd, SQLiteDBInterface *sq
 
         uint32_t closestSnapshotId = findClosestSnapshotId(snapshotTimestamps, targetTimestamp);
 
-        TemporalTriangleResult result{};
-        std::string stagedError;
-        std::string dataSourceInfo;
-        bool stagedOk = countHistoryTrianglesFromStagedBitmaps(sqlite, graphId, closestSnapshotId,
-                                                                result, stagedError, dataSourceInfo);
-        if (!stagedOk) {
-            frontend_logger.warn("Staged bitmap history triangle-by-timestamp failed for graph " +
-                                 std::to_string(graphId) + " snapshot " +
-                                 std::to_string(closestSnapshotId) +
-                                 ", trying distributed fallback");
-            result = countHistoryTrianglesDistributed(sqlite, graphId, closestSnapshotId, masterIP);
-            if (result.partitionsProcessed == 0) {
+        TemporalTriangleResult result =
+            countHistoryTrianglesDistributed(sqlite, graphId, closestSnapshotId, masterIP);
+        std::string dataSourceInfo =
+            "Data source: distributed-direct (worker-local snapshot files; staging disabled)";
+        if (result.partitionsProcessed == 0) {
+            bool allowStagedFallback = Utils::parseBoolean(
+                Utils::getJasmineGraphProperty("org.jasminegraph.histrian.allow.staged.fallback"));
+            if (!allowStagedFallback) {
                 std::string error = "Error: Failed to process snapshot " +
                                     std::to_string(closestSnapshotId) +
-                                    " (staged failed: " + stagedError + ")";
+                                    " (no partitions responded — check worker connectivity, htria protocol, and snapshot availability)";
                 resultWr = write(connFd, error.c_str(), error.length());
                 resultWr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
                 return;
             }
-            dataSourceInfo = "Data source: distributed-fallback (reason=staged-fallback failed: " +
-                             stagedError + ")";
+
+            frontend_logger.warn("Distributed-direct history triangle-by-timestamp failed for graph " +
+                                 std::to_string(graphId) + " snapshot " +
+                                 std::to_string(closestSnapshotId) +
+                                 "; staged fallback is enabled via org.jasminegraph.histrian.allow.staged.fallback");
+
+            std::string stagedError;
+            if (!countHistoryTrianglesFromStagedBitmaps(sqlite, graphId, closestSnapshotId,
+                                                        result, stagedError, dataSourceInfo)) {
+                std::string error = "Error: Failed to process snapshot " +
+                                    std::to_string(closestSnapshotId) +
+                                    " (distributed-direct failed; staged failed: " + stagedError + ")";
+                resultWr = write(connFd, error.c_str(), error.length());
+                resultWr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
+                return;
+            }
         }
 
         std::string timeStr = formatSnapshotTimestamp(snapshotTimestamps.at(closestSnapshotId));
