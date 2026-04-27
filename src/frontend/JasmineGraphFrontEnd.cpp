@@ -4876,37 +4876,28 @@ static void history_triangle_command(int connFd, SQLiteDBInterface *sqlite, bool
         }
 
         TemporalTriangleResult result{};
-        std::string stagedError;
         std::string dataSourceInfo;
-        bool stagedOk = countHistoryTrianglesFromStagedBitmaps(sqlite, graphId, snapshotId,
-                                                                result, stagedError, dataSourceInfo);
 
-        if (!stagedOk) {
-            frontend_logger.warn("Staged bitmap history triangle count failed for graph " +
-                                 std::to_string(graphId) + " at snapshot " +
-                                 std::to_string(snapshotId) + ", trying distributed fallback");
-
-            result = countHistoryTrianglesDistributed(sqlite, graphId, snapshotId, masterIP);
-            if (result.partitionsProcessed == 0) {
-                std::string error = "Error: History triangle count failed for graph " +
-                                  std::to_string(graphId) + " at snapshot " +
-                                  std::to_string(snapshotId) +
-                                  " (staged failed: " + stagedError + ")";
-                resultWr = write(connFd, error.c_str(), error.length());
-                resultWr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
-                frontend_logger.error(error);
-                return;
-            }
-            dataSourceInfo = "Data source: distributed-fallback (reason=staged-fallback failed: " +
-                             stagedError + ")";
-            frontend_logger.info("History triangle distributed fallback succeeded for graph " +
-                                 std::to_string(graphId) + " snapshot " +
-                                 std::to_string(snapshotId));
-        } else {
-            frontend_logger.info("History triangle staged bitmap path succeeded for graph " +
-                                 std::to_string(graphId) + " snapshot " +
-                                 std::to_string(snapshotId));
+        // Distributed path: each worker counts triangles locally on its own
+        // snapshot files and streams only boundary edges to the master.
+        // No staging needed — snapshot files stay on the workers.
+        result = countHistoryTrianglesDistributed(sqlite, graphId, snapshotId, masterIP);
+        if (result.partitionsProcessed == 0) {
+            std::string error = "Error: History triangle count failed for graph " +
+                               std::to_string(graphId) + " at snapshot " +
+                               std::to_string(snapshotId) +
+                               " (no partitions responded — check that workers are running"
+                               " and temporal snapshots exist on each worker)";
+            resultWr = write(connFd, error.c_str(), error.length());
+            resultWr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(),
+                             Conts::CARRIAGE_RETURN_NEW_LINE.size());
+            frontend_logger.error(error);
+            return;
         }
+        dataSourceInfo = "Data source: distributed (workers count locally, stream boundary edges)";
+        frontend_logger.info("History triangle distributed count succeeded for graph " +
+                             std::to_string(graphId) + " snapshot " +
+                             std::to_string(snapshotId));
 
         {
             auto totalEnd = std::chrono::high_resolution_clock::now();
@@ -4916,37 +4907,24 @@ static void history_triangle_command(int connFd, SQLiteDBInterface *sqlite, bool
             std::stringstream response;
             response << "Triangle count is " << result.triangleCount << "\n";
             response << "Time taken (total): " << totalDurationMs << "ms\n";
-            response << "Time taken (worker algorithm aggregate): " << result.durationMs << "ms\n";
-            if (!dataSourceInfo.empty()) {
-                response << dataSourceInfo << "\n";
-            }
-            if (result.loadShardMs > 0 || result.dedupMs > 0 || result.degreeMs > 0 ||
-                result.forwardBuildMs > 0 || result.sortMs > 0 || result.countMs > 0) {
-                response << "Time breakdown (histrian): "
-                         << "stage=" << result.stagingMs << "ms, "
-                         << "load+shard=" << result.loadShardMs << "ms, "
-                         << "dedup=" << result.dedupMs << "ms, "
-                         << "degree=" << result.degreeMs << "ms, "
-                         << "forward-build=" << result.forwardBuildMs << "ms, "
-                         << "sort=" << result.sortMs << "ms, "
-                         << "triangle-count=" << result.countMs << "ms\n";
-                response << "Memory hint (histrian): cached-dedup-edges="
-                         << result.cachedDedupEdges << "\n";
-            }
+            response << "Time taken (worker aggregate): " << result.durationMs << "ms\n";
+            response << "Partitions processed: " << result.partitionsProcessed << "\n";
+            response << dataSourceInfo << "\n";
 
             std::string responseStr = response.str();
             resultWr = write(connFd, responseStr.c_str(), responseStr.length());
-            resultWr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
+            resultWr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(),
+                             Conts::CARRIAGE_RETURN_NEW_LINE.size());
 
             appendHistoryQueryResultToFile("histrian", graphId,
                                            "snapshot=" + std::to_string(snapshotId),
                                            responseStr);
 
-            frontend_logger.info("Distributed history triangle count completed: " +
+            frontend_logger.info("History triangle count completed: " +
                                  std::to_string(result.triangleCount) + " triangles across " +
                                  std::to_string(result.partitionsProcessed) +
                                  " partitions (total=" + std::to_string(totalDurationMs) +
-                                 "ms, worker_algorithm_aggregate=" +
+                                 "ms, worker_aggregate=" +
                                  std::to_string(result.durationMs) + "ms)");
         }
     } catch (const std::exception& e) {
