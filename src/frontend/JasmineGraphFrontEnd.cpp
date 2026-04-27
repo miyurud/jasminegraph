@@ -132,7 +132,7 @@ static void addStreamHDFSCommand(std::string masterIP, int connFd, std::string &
                                  SQLiteDBInterface *sqlite, bool *loop_exit_p);
 static void send_graph_hdfs_command(const std::string &masterIP, int connectionFd, SQLiteDBInterface *sqlite,
                                     bool *loop_exit_p);
-static void stop_stream_kafka_command(int connFd, int graphId, bool *loop_exit_p);
+static void stop_stream_kafka_command(int connFd, const std::string &topicName, bool *loop_exit_p);
 static void process_dataset_command(int connFd, bool *loop_exit_p);
 static void triangles_command(std::string masterIP, int connFd, SQLiteDBInterface *sqlite,
                               PerformanceSQLiteDBInterface *perfSqlite, JobScheduler *jobScheduler, bool *loop_exit_p);
@@ -267,24 +267,32 @@ void *frontendservicesesion(void *dummyPt) {
                                                                &loop_exit);
         } else if (line.compare(STOP_CONSTRUCT_KG) == 0) {
             JasmineGraphFrontEnd::stop_graph_streaming(connFd, &loop_exit);
-        } else if (line.compare(STOP_STREAM_KAFKA) == 0) {
-            // Request graph ID from client
-            string graphIdMsg = "Enter Graph ID to stop streaming: ";
-            write(connFd, graphIdMsg.c_str(), graphIdMsg.length());
-            write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
-            
-            char graphIdBuffer[FRONTEND_DATA_LENGTH + 1];
-            memset(graphIdBuffer, 0, FRONTEND_DATA_LENGTH + 1);
-            read(connFd, graphIdBuffer, FRONTEND_DATA_LENGTH);
-            string graphIdStr = Utils::trim_copy(string(graphIdBuffer));
-            
-            try {
-                int graphId = std::stoi(graphIdStr);
-                stop_stream_kafka_command(connFd, graphId, &loop_exit);
-            } catch (const std::exception &e) {
-                string errorMsg = "Error: Invalid graph ID format";
+        } else if (line.compare(0, STOP_STREAM_KAFKA.length(), STOP_STREAM_KAFKA) == 0 &&
+                   (line.length() == STOP_STREAM_KAFKA.length() ||
+                    std::isspace(static_cast<unsigned char>(line[STOP_STREAM_KAFKA.length()])))) {
+            std::string topicName;
+
+            if (line.length() > STOP_STREAM_KAFKA.length()) {
+                topicName = Utils::trim_copy(line.substr(STOP_STREAM_KAFKA.length()));
+            }
+
+            if (topicName.empty()) {
+                string topicMsg = "Enter Kafka topic to stop streaming: ";
+                write(connFd, topicMsg.c_str(), topicMsg.length());
+                write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
+
+                char topicBuffer[FRONTEND_DATA_LENGTH + 1];
+                memset(topicBuffer, 0, FRONTEND_DATA_LENGTH + 1);
+                read(connFd, topicBuffer, FRONTEND_DATA_LENGTH);
+                topicName = Utils::trim_copy(string(topicBuffer));
+            }
+
+            if (topicName.empty()) {
+                string errorMsg = "Error: Invalid topic name";
                 write(connFd, errorMsg.c_str(), errorMsg.length());
                 write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
+            } else {
+                stop_stream_kafka_command(connFd, topicName, &loop_exit);
             }
         } else if (line.compare(RMGR) == 0) {
             remove_graph_command(masterIP, connFd, sqlite, &loop_exit);
@@ -2650,29 +2658,22 @@ bool JasmineGraphFrontEnd::constructKGStreamHDFSCommand(const std::string &maste
     return writeSocketLine(connectionFd, "Graph Id: " + std::to_string(newGraphID), loop_exit_p);
 }
 
-static void stop_stream_kafka_command(int connFd, int graphId, bool *loop_exit_p) {
-    frontend_logger.info("Started serving `" + STOP_STREAM_KAFKA + "` command for graphId=" + std::to_string(graphId));
+static void stop_stream_kafka_command(int connFd, const std::string &topicName, bool *loop_exit_p) {
+    frontend_logger.info("Started serving `" + STOP_STREAM_KAFKA + "` command for topic=" + topicName);
     
     StreamRegistry &registry = StreamRegistry::getInstance();
-    
-    // Check if the stream exists
-    if (!registry.isStreamActive(graphId)) {
-        string errorMsg = "Error: No active stream found for graph ID " + std::to_string(graphId);
-        frontend_logger.error(errorMsg);
-        write(connFd, errorMsg.c_str(), errorMsg.length());
-        write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
-        return;
-    }
-    
-    // Get the stream metadata
-    auto streamMetadata = registry.getStreamByGraphId(graphId);
+
+    // Get stream metadata by topic
+    auto streamMetadata = registry.getStreamByTopic(topicName);
     if (!streamMetadata) {
-        string errorMsg = "Error: Could not retrieve stream metadata for graph ID " + std::to_string(graphId);
+        string errorMsg = "Error: No active stream found for topic `" + topicName + "`";
         frontend_logger.error(errorMsg);
         write(connFd, errorMsg.c_str(), errorMsg.length());
         write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
         return;
     }
+
+    int graphId = streamMetadata->graphId;
     
     // Signal the stream to stop gracefully
     if (registry.signalStreamStop(graphId)) {
@@ -2681,8 +2682,8 @@ static void stop_stream_kafka_command(int connFd, int graphId, bool *loop_exit_p
             streamMetadata->kafkaConnector->Unsubscribe();
         }
         
-        string message = "Successfully initiated stop for graph ID " + std::to_string(graphId) + 
-                        " streaming topic `" + streamMetadata->topicName + "`";
+        string message = "Successfully initiated stop for topic `" + streamMetadata->topicName +
+                 "` (graph ID " + std::to_string(graphId) + ")";
         int result_wr = write(connFd, message.c_str(), message.length());
         if (result_wr < 0) {
             frontend_logger.error("Error writing to socket");
@@ -2699,7 +2700,7 @@ static void stop_stream_kafka_command(int connFd, int graphId, bool *loop_exit_p
         // Unregister the stream from the registry
         registry.unregisterStream(graphId);
     } else {
-        string errorMsg = "Error: Could not signal stop for graph ID " + std::to_string(graphId);
+        string errorMsg = "Error: Could not signal stop for topic `" + topicName + "`";
         frontend_logger.error(errorMsg);
         write(connFd, errorMsg.c_str(), errorMsg.length());
         write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
