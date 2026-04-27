@@ -17,6 +17,7 @@ import integration_common as common
 from integration_workflow_core import run_core_workflow
 from integration_workflow_cypher import run_cypher_workflow
 from integration_workflow_intrapartition import run_intrapartition_workflow
+from integration_workflow_stopstrm import run_stopstrm_workflow
 
 
 def test(host, port):
@@ -29,6 +30,7 @@ def test(host, port):
         run_core_workflow(sock)
         run_cypher_workflow(sock, host, port)
         run_intrapartition_workflow(sock)
+        run_stopstrm_workflow(host, port)
 
         print()
         logging.info('Shutting down')
