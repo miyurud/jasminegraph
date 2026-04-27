@@ -661,6 +661,95 @@ static void cleanupStagedTemporalBitmapIndexes(const std::string& stagingDir) {
     rmdir(stagingDir.c_str());
 }
 
+static bool tryParsePartitionIdFromTemporalFileName(const std::string& fileName,
+                                                    int graphId,
+                                                    int& partitionId) {
+    std::string prefix = "graph" + std::to_string(graphId) + "_part";
+    if (fileName.rfind(prefix, 0) != 0) {
+        return false;
+    }
+
+    size_t partitionStart = prefix.size();
+    size_t partitionEnd = partitionStart;
+    while (partitionEnd < fileName.size() &&
+           std::isdigit(static_cast<unsigned char>(fileName[partitionEnd]))) {
+        ++partitionEnd;
+    }
+
+    if (partitionEnd == partitionStart) {
+        return false;
+    }
+
+    partitionId = std::stoi(fileName.substr(partitionStart, partitionEnd - partitionStart));
+    return true;
+}
+
+static std::set<int> discoverTemporalPartitionsOnRemoteTarget(const std::string& hostTarget,
+                                                              int graphId,
+                                                              const std::string& snapshotDir) {
+    std::set<int> partitionIds;
+    if (hostTarget.empty() || hostTarget == "localhost" || hostTarget == "127.0.0.1") {
+        return partitionIds;
+    }
+
+    auto listFilesForRoot = [&](const std::string& rootDir) {
+        std::string graphPrefix = "graph" + std::to_string(graphId) + "_part";
+        std::string remoteCommand =
+            "find " + shellQuote(rootDir) +
+            " -maxdepth 1 -type f \\( -name " + shellQuote(graphPrefix + "*_snapmeta.bin") +
+            " -o -name " + shellQuote(graphPrefix + "*_bitmaps.ebm") +
+            " -o -name " + shellQuote(graphPrefix + "*_snap*.delta") +
+            " \\) 2>/dev/null";
+        std::string command = "ssh -o BatchMode=yes -o ConnectTimeout=5 " +
+                              shellQuote(hostTarget) + " " + shellQuote(remoteCommand);
+        return captureCommandOutput(command);
+    };
+
+    std::string files = listFilesForRoot(snapshotDir);
+    if (files.empty()) {
+        std::string fallbackDir =
+            Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder") +
+            "/temporal_snapshots";
+        if (fallbackDir != snapshotDir) {
+            files = listFilesForRoot(fallbackDir);
+        }
+    }
+
+    std::stringstream fileStream(files);
+    std::string remoteFile;
+    while (std::getline(fileStream, remoteFile)) {
+        std::string trimmed = Utils::trim_copy(remoteFile);
+        if (trimmed.empty()) {
+            continue;
+        }
+
+        int partitionId = -1;
+        std::string baseName = Utils::getFileName(trimmed);
+        if (tryParsePartitionIdFromTemporalFileName(baseName, graphId, partitionId)) {
+            partitionIds.insert(partitionId);
+        }
+    }
+
+    return partitionIds;
+}
+
+static std::set<int> discoverTemporalPartitionsForWorker(const Utils::worker& worker,
+                                                         int graphId,
+                                                         const std::string& snapshotDir) {
+    std::set<int> partitionIds;
+    std::vector<std::string> targets = buildWorkerTargetCandidates(worker);
+
+    for (const auto& target : targets) {
+        std::set<int> found = discoverTemporalPartitionsOnRemoteTarget(target, graphId, snapshotDir);
+        if (!found.empty()) {
+            partitionIds.insert(found.begin(), found.end());
+            break;
+        }
+    }
+
+    return partitionIds;
+}
+
 static bool hasTemporalBitmapIndexesForGraphInDirectory(const std::string& directory,
                                                         int graphId) {
     if (directory.empty()) {
@@ -1299,6 +1388,7 @@ static TemporalTriangleResult countHistoryTrianglesDistributed(SQLiteDBInterface
                                                                uint32_t snapshotId,
                                                                const std::string& masterIP) {
     TemporalTriangleResult result{};
+    std::vector<Utils::worker> allWorkers = Utils::getWorkerList(sqlite);
 
     // Query which workers host which partitions for this graph
     std::string sqlStatement =
@@ -1314,9 +1404,48 @@ static TemporalTriangleResult countHistoryTrianglesDistributed(SQLiteDBInterface
     }
 
     if (workerPartitionMap.empty()) {
-        frontend_logger.error("No worker-partition assignments found for graph " +
-                              std::to_string(graphId));
-        return result;
+        frontend_logger.warn("No worker-partition assignments found in worker_has_partition for graph " +
+                             std::to_string(graphId) +
+                             ". Falling back to remote temporal file discovery");
+
+        std::string snapshotDir = getTemporalSnapshotDir();
+        std::map<int, std::string> partitionOwner;
+        for (const auto& worker : allWorkers) {
+            std::set<int> discoveredPartitions =
+                discoverTemporalPartitionsForWorker(worker, graphId, snapshotDir);
+
+            if (discoveredPartitions.empty()) {
+                continue;
+            }
+
+            for (int partitionId : discoveredPartitions) {
+                auto inserted = partitionOwner.emplace(partitionId, worker.workerID);
+                if (!inserted.second) {
+                    frontend_logger.warn("Skipping duplicate discovered partition " +
+                                         std::to_string(partitionId) +
+                                         " for worker " + worker.workerID +
+                                         " (already assigned to worker " + inserted.first->second + ")");
+                    continue;
+                }
+                workerPartitionMap[worker.workerID].push_back(partitionId);
+            }
+        }
+
+        if (workerPartitionMap.empty()) {
+            frontend_logger.error("No worker-partition assignments found for graph " +
+                                  std::to_string(graphId) +
+                                  " and remote temporal partition discovery found nothing");
+            return result;
+        }
+
+        for (auto& [workerId, partitions] : workerPartitionMap) {
+            std::sort(partitions.begin(), partitions.end());
+            partitions.erase(std::unique(partitions.begin(), partitions.end()), partitions.end());
+        }
+
+        frontend_logger.info("Discovered " + std::to_string(partitionOwner.size()) +
+                             " remote temporal partitions for graph " +
+                             std::to_string(graphId));
     }
 
     // Thread-safe sharded accumulator for boundary edges from all workers
@@ -1325,8 +1454,6 @@ static TemporalTriangleResult countHistoryTrianglesDistributed(SQLiteDBInterface
         frontend_logger.error("Failed to initialise HistoryTriangleAggregation temp dir");
         return result;
     }
-
-    std::vector<Utils::worker> allWorkers = Utils::getWorkerList(sqlite);
 
     // Per-task state (no shared mutation during async execution)
     struct WorkerTask {
@@ -4876,28 +5003,37 @@ static void history_triangle_command(int connFd, SQLiteDBInterface *sqlite, bool
         }
 
         TemporalTriangleResult result{};
+        std::string stagedError;
         std::string dataSourceInfo;
+        bool stagedOk = countHistoryTrianglesFromStagedBitmaps(sqlite, graphId, snapshotId,
+                                                                result, stagedError, dataSourceInfo);
 
-        // Distributed path: each worker counts triangles locally on its own
-        // snapshot files and streams only boundary edges to the master.
-        // No staging needed — snapshot files stay on the workers.
-        result = countHistoryTrianglesDistributed(sqlite, graphId, snapshotId, masterIP);
-        if (result.partitionsProcessed == 0) {
-            std::string error = "Error: History triangle count failed for graph " +
-                               std::to_string(graphId) + " at snapshot " +
-                               std::to_string(snapshotId) +
-                               " (no partitions responded — check that workers are running"
-                               " and temporal snapshots exist on each worker)";
-            resultWr = write(connFd, error.c_str(), error.length());
-            resultWr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(),
-                             Conts::CARRIAGE_RETURN_NEW_LINE.size());
-            frontend_logger.error(error);
-            return;
+        if (!stagedOk) {
+            frontend_logger.warn("Staged bitmap history triangle count failed for graph " +
+                                 std::to_string(graphId) + " at snapshot " +
+                                 std::to_string(snapshotId) + ", trying distributed fallback");
+
+            result = countHistoryTrianglesDistributed(sqlite, graphId, snapshotId, masterIP);
+            if (result.partitionsProcessed == 0) {
+                std::string error = "Error: History triangle count failed for graph " +
+                                  std::to_string(graphId) + " at snapshot " +
+                                  std::to_string(snapshotId) +
+                                  " (staged failed: " + stagedError + ")";
+                resultWr = write(connFd, error.c_str(), error.length());
+                resultWr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
+                frontend_logger.error(error);
+                return;
+            }
+            dataSourceInfo = "Data source: distributed-fallback (reason=staged-fallback failed: " +
+                             stagedError + ")";
+            frontend_logger.info("History triangle distributed fallback succeeded for graph " +
+                                 std::to_string(graphId) + " snapshot " +
+                                 std::to_string(snapshotId));
+        } else {
+            frontend_logger.info("History triangle staged bitmap path succeeded for graph " +
+                                 std::to_string(graphId) + " snapshot " +
+                                 std::to_string(snapshotId));
         }
-        dataSourceInfo = "Data source: distributed (workers count locally, stream boundary edges)";
-        frontend_logger.info("History triangle distributed count succeeded for graph " +
-                             std::to_string(graphId) + " snapshot " +
-                             std::to_string(snapshotId));
 
         {
             auto totalEnd = std::chrono::high_resolution_clock::now();
@@ -4907,24 +5043,37 @@ static void history_triangle_command(int connFd, SQLiteDBInterface *sqlite, bool
             std::stringstream response;
             response << "Triangle count is " << result.triangleCount << "\n";
             response << "Time taken (total): " << totalDurationMs << "ms\n";
-            response << "Time taken (worker aggregate): " << result.durationMs << "ms\n";
-            response << "Partitions processed: " << result.partitionsProcessed << "\n";
-            response << dataSourceInfo << "\n";
+            response << "Time taken (worker algorithm aggregate): " << result.durationMs << "ms\n";
+            if (!dataSourceInfo.empty()) {
+                response << dataSourceInfo << "\n";
+            }
+            if (result.loadShardMs > 0 || result.dedupMs > 0 || result.degreeMs > 0 ||
+                result.forwardBuildMs > 0 || result.sortMs > 0 || result.countMs > 0) {
+                response << "Time breakdown (histrian): "
+                         << "stage=" << result.stagingMs << "ms, "
+                         << "load+shard=" << result.loadShardMs << "ms, "
+                         << "dedup=" << result.dedupMs << "ms, "
+                         << "degree=" << result.degreeMs << "ms, "
+                         << "forward-build=" << result.forwardBuildMs << "ms, "
+                         << "sort=" << result.sortMs << "ms, "
+                         << "triangle-count=" << result.countMs << "ms\n";
+                response << "Memory hint (histrian): cached-dedup-edges="
+                         << result.cachedDedupEdges << "\n";
+            }
 
             std::string responseStr = response.str();
             resultWr = write(connFd, responseStr.c_str(), responseStr.length());
-            resultWr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(),
-                             Conts::CARRIAGE_RETURN_NEW_LINE.size());
+            resultWr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
 
             appendHistoryQueryResultToFile("histrian", graphId,
                                            "snapshot=" + std::to_string(snapshotId),
                                            responseStr);
 
-            frontend_logger.info("History triangle count completed: " +
+            frontend_logger.info("Distributed history triangle count completed: " +
                                  std::to_string(result.triangleCount) + " triangles across " +
                                  std::to_string(result.partitionsProcessed) +
                                  " partitions (total=" + std::to_string(totalDurationMs) +
-                                 "ms, worker_aggregate=" +
+                                 "ms, worker_algorithm_aggregate=" +
                                  std::to_string(result.durationMs) + "ms)");
         }
     } catch (const std::exception& e) {
