@@ -3364,7 +3364,7 @@ static void history_triangles_command(int connFd, bool *loop_exit_p) {
 
     auto start = std::chrono::high_resolution_clock::now();
 
-    // ── Step 1: Load all temporal edges for this partition up to snapshotId ──────
+    // ── Step 1: Stream temporal edges to master with local deduplication ──────
     std::unordered_map<std::string, uint32_t> nodeToIndex;
     nodeToIndex.reserve(1 << 20);
     uint32_t nodeCount = 0;
@@ -3376,10 +3376,19 @@ static void history_triangles_command(int connFd, bool *loop_exit_p) {
         return idx;
     };
 
-    // Keep both indexed (for local counting) and raw (for network streaming)
-    std::vector<std::pair<uint32_t, uint32_t>> indexedEdges;
-    std::vector<std::pair<std::string, std::string>> rawEdges;
+    // Use a set to stream only unique edges seen across all snapshots in this partition.
+    // This drastically reduces RAM and network I/O.
+    std::unordered_set<uint64_t> seenEdges;
+    std::vector<std::pair<std::string, std::string>> batch;
+    batch.reserve(HISTORY_TRIANGLE_BATCH_SIZE);
     uint64_t rawEdgesRead = 0;
+    uint64_t uniqueEdgesSent = 0;
+
+    // Local partition-only triangle counts are not used in distributed mode; send 0.
+    if (!sendUint64(connFd, 0)) {
+        *loop_exit_p = true;
+        return;
+    }
 
     std::string filePath =
         TemporalStorePersistence::generateBitmapFilePath(snapshotDir, graphIdInt, partitionIdInt);
@@ -3387,45 +3396,35 @@ static void history_triangles_command(int connFd, bool *loop_exit_p) {
     TemporalStorePersistence::forEachActiveBitmapEdgeAtSnapshot(
         filePath, snapshotId,
         [&](const std::string &sourceId, const std::string &destId) {
+            rawEdgesRead++;
             if (sourceId == destId) return true;
+
             uint32_t u = getOrAddNode(sourceId);
             uint32_t v = getOrAddNode(destId);
-            indexedEdges.emplace_back(u, v);
-            rawEdges.emplace_back(sourceId, destId);
-            rawEdgesRead++;
+            uint64_t encoded = (static_cast<uint64_t>(std::min(u, v)) << 32) | std::max(u, v);
+
+            if (seenEdges.insert(encoded).second) {
+                // New unique edge for this partition; stream to master.
+                batch.emplace_back(sourceId, destId);
+                uniqueEdgesSent++;
+
+                if (batch.size() >= HISTORY_TRIANGLE_BATCH_SIZE) {
+                    if (!flushHistoryTriangleBatch(connFd, batch)) {
+                        return false; // Stop iteration early on network error
+                    }
+                    batch.clear();
+                }
+            }
             return true;
         });
 
-    nodeToIndex.clear();
-
-    // Local partition-only triangle counts can undercount on edge-cut partitioning.
-    // Send 0 and let the frontend compute the exact global count from all streamed edges.
-    uint64_t localTriangleCount = 0;
-    if (!sendUint64(connFd, localTriangleCount)) {
-        *loop_exit_p = true;
-        return;
-    }
-
-    // Stream all edges for this partition so master can deduplicate and count globally.
-    std::vector<std::pair<std::string, std::string>> batch;
-    batch.reserve(HISTORY_TRIANGLE_BATCH_SIZE);
-
-    for (const auto& edge : rawEdges) {
-        batch.emplace_back(edge.first, edge.second);
-        if (batch.size() >= HISTORY_TRIANGLE_BATCH_SIZE) {
-            if (!flushHistoryTriangleBatch(connFd, batch)) {
-                *loop_exit_p = true;
-                return;
-            }
-            batch.clear();
-        }
-    }
+    // Final flush
     if (!batch.empty() && !flushHistoryTriangleBatch(connFd, batch)) {
         *loop_exit_p = true;
         return;
     }
 
-    // End-of-stream marker + stats
+    // End-of-stream marker (0 size batch) + stats
     if (!sendUint32(connFd, 0) ||
         !sendUint64(connFd, rawEdgesRead)) {
         *loop_exit_p = true;
@@ -3439,6 +3438,11 @@ static void history_triangles_command(int connFd, bool *loop_exit_p) {
         *loop_exit_p = true;
         return;
     }
+
+    instance_logger.info("Distributed history triangles for partition " + partitionId +
+                         " completed. Sent " + std::to_string(uniqueEdgesSent) +
+                         " unique edges out of " + std::to_string(rawEdgesRead) +
+                         " total processed.");
 }
 
 
