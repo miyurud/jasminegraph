@@ -546,24 +546,7 @@ static int collectTemporalBitmapIndexesFromRemoteTarget(const std::string& hostT
         frontend_logger.warn("No remote temporal bitmap files found for graph " +
                              std::to_string(graphId) + " on target " + hostTarget +
                              " in " + snapshotDir);
-        HistoryTriangleAggregation() {
-        tempDir = Utils::getJasmineGraphProperty("org.jasminegraph.server.frontend.tempdir");
-        if (tempDir.empty()) {
-            tempDir = "/tmp/jg_histrian_" + std::to_string(getpid());
-        }
-        Utils::createDirectory(tempDir);
 
-        for (size_t i = 0; i < HISTORY_TRIANGLE_SHARD_COUNT; ++i) {
-            shardPaths[i] = tempDir + "/edges_" + std::to_string(i) + ".bin";
-            shardStreams[i].open(shardPaths[i], std::ios::binary | std::ios::trunc);
-        }
-
-        // Pre-allocate maps to avoid frequent rehashes during ingestion.
-        // For a graph with 200M nodes, each of 256 buckets will hold ~800k entries.
-        for (auto& bucket : nodeBuckets) {
-            bucket.reserve(500000);
-        }
-    }
         std::string fallbackDir = Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder") +
                                   "/temporal_snapshots";
         if (fallbackDir != snapshotDir) {
@@ -1970,6 +1953,7 @@ static void list_command(int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_
 
 void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface *sqlite,
                             PerformanceSQLiteDBInterface *perfSqlite, JobScheduler *jobScheduler) {
+    return NULL;
 }
 
 static void cypherCommand(std::string masterIP, int connFd, vector<DataPublisher *> &workerClients,
