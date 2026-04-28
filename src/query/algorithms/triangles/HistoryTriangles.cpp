@@ -206,13 +206,15 @@ uint32_t decodeDestIndex(uint64_t encoded) {
     return static_cast<uint32_t>(encoded & 0xffffffffULL);
 }
 
-size_t countCommonSortedValues(const std::vector<uint32_t>& left,
-                               const std::vector<uint32_t>& right) {
+size_t countCommonSortedValues(const uint32_t* left,
+                               size_t leftSize,
+                               const uint32_t* right,
+                               size_t rightSize) {
     size_t count = 0;
     size_t leftIndex = 0;
     size_t rightIndex = 0;
 
-    while (leftIndex < left.size() && rightIndex < right.size()) {
+    while (leftIndex < leftSize && rightIndex < rightSize) {
         uint32_t leftValue = left[leftIndex];
         uint32_t rightValue = right[rightIndex];
         if (leftValue == rightValue) {
@@ -229,26 +231,38 @@ size_t countCommonSortedValues(const std::vector<uint32_t>& left,
     return count;
 }
 
-uint64_t countTrianglesOnForwardGraph(const std::vector<std::vector<uint32_t>>& forwardNeighbors) {
-    if (forwardNeighbors.empty()) {
+uint64_t countTrianglesOnCSRGraph(const std::vector<uint64_t>& csrOffsets,
+                                  const std::vector<uint32_t>& csrNeighbors) {
+    if (csrOffsets.size() < 2 || csrNeighbors.empty()) {
         return 0;
     }
+    const uint32_t nodeCount = static_cast<uint32_t>(csrOffsets.size() - 1);
+    const uint32_t* neighborsData = csrNeighbors.data();
     uint64_t triangleCount = 0;
 
 #ifdef _OPENMP
     // Parallelize triangle enumeration if graph is reasonably sized
     // Reduced threshold from 2048 to 512 for better parallelization on medium graphs
-    if (forwardNeighbors.size() >= 512) {
+    if (nodeCount >= 512) {
 #pragma omp parallel for schedule(dynamic, 32) reduction(+:triangleCount)
-        for (int64_t sourceIndex = 0; sourceIndex < static_cast<int64_t>(forwardNeighbors.size());
+        for (int64_t sourceIndex = 0; sourceIndex < static_cast<int64_t>(nodeCount);
              ++sourceIndex) {
-            const std::vector<uint32_t>& sourceNeighbors = forwardNeighbors[sourceIndex];
-            for (uint32_t middleIndex : sourceNeighbors) {
-                const std::vector<uint32_t>& middleNeighbors = forwardNeighbors[middleIndex];
-                if (sourceNeighbors.size() < middleNeighbors.size()) {
-                    triangleCount += countCommonSortedValues(sourceNeighbors, middleNeighbors);
+            uint64_t sourceBegin = csrOffsets[static_cast<size_t>(sourceIndex)];
+            uint64_t sourceEnd = csrOffsets[static_cast<size_t>(sourceIndex) + 1];
+            const uint32_t* sourceNeighbors = neighborsData + sourceBegin;
+            size_t sourceSize = static_cast<size_t>(sourceEnd - sourceBegin);
+            for (size_t middleOffset = 0; middleOffset < sourceSize; ++middleOffset) {
+                uint32_t middleIndex = sourceNeighbors[middleOffset];
+                uint64_t middleBegin = csrOffsets[middleIndex];
+                uint64_t middleEnd = csrOffsets[middleIndex + 1];
+                const uint32_t* middleNeighbors = neighborsData + middleBegin;
+                size_t middleSize = static_cast<size_t>(middleEnd - middleBegin);
+                if (sourceSize < middleSize) {
+                    triangleCount += countCommonSortedValues(sourceNeighbors, sourceSize,
+                                                             middleNeighbors, middleSize);
                 } else {
-                    triangleCount += countCommonSortedValues(middleNeighbors, sourceNeighbors);
+                    triangleCount += countCommonSortedValues(middleNeighbors, middleSize,
+                                                             sourceNeighbors, sourceSize);
                 }
             }
         }
@@ -256,14 +270,23 @@ uint64_t countTrianglesOnForwardGraph(const std::vector<std::vector<uint32_t>>& 
     }
 #endif
 
-    for (uint32_t sourceIndex = 0; sourceIndex < forwardNeighbors.size(); ++sourceIndex) {
-        const std::vector<uint32_t>& sourceNeighbors = forwardNeighbors[sourceIndex];
-        for (uint32_t middleIndex : sourceNeighbors) {
-            const std::vector<uint32_t>& middleNeighbors = forwardNeighbors[middleIndex];
-            if (sourceNeighbors.size() < middleNeighbors.size()) {
-                triangleCount += countCommonSortedValues(sourceNeighbors, middleNeighbors);
+    for (uint32_t sourceIndex = 0; sourceIndex < nodeCount; ++sourceIndex) {
+        uint64_t sourceBegin = csrOffsets[sourceIndex];
+        uint64_t sourceEnd = csrOffsets[sourceIndex + 1];
+        const uint32_t* sourceNeighbors = neighborsData + sourceBegin;
+        size_t sourceSize = static_cast<size_t>(sourceEnd - sourceBegin);
+        for (size_t middleOffset = 0; middleOffset < sourceSize; ++middleOffset) {
+            uint32_t middleIndex = sourceNeighbors[middleOffset];
+            uint64_t middleBegin = csrOffsets[middleIndex];
+            uint64_t middleEnd = csrOffsets[middleIndex + 1];
+            const uint32_t* middleNeighbors = neighborsData + middleBegin;
+            size_t middleSize = static_cast<size_t>(middleEnd - middleBegin);
+            if (sourceSize < middleSize) {
+                triangleCount += countCommonSortedValues(sourceNeighbors, sourceSize,
+                                                         middleNeighbors, middleSize);
             } else {
-                triangleCount += countCommonSortedValues(middleNeighbors, sourceNeighbors);
+                triangleCount += countCommonSortedValues(middleNeighbors, middleSize,
+                                                         sourceNeighbors, sourceSize);
             }
         }
     }
@@ -564,19 +587,16 @@ TemporalTriangleResult HistoryTriangles::countTrianglesAtSnapshot(
         }
     }
 
-    std::vector<std::vector<uint32_t>> forwardNeighbors(nodeCount);
+    std::vector<uint64_t> csrOffsets(nodeCount + 1, 0);
     for (uint32_t nodeIndex = 0; nodeIndex < nodeCount; ++nodeIndex) {
-        forwardNeighbors[nodeIndex].resize(forwardDegree[nodeIndex]);
+        csrOffsets[nodeIndex + 1] = csrOffsets[nodeIndex] + forwardDegree[nodeIndex];
     }
 
-    // Build forward neighbors with lock-free indexed writes.
-    std::vector<std::atomic<uint32_t>> forwardWriteIndex(nodeCount);
-    for (uint32_t nodeIndex = 0; nodeIndex < nodeCount; ++nodeIndex) {
-        forwardWriteIndex[nodeIndex].store(0, std::memory_order_relaxed);
-    }
+    std::vector<uint32_t> csrNeighbors(static_cast<size_t>(csrOffsets[nodeCount]));
+    std::fill(forwardDegree.begin(), forwardDegree.end(), 0);
 
 #ifdef _OPENMP
-#pragma omp parallel for schedule(dynamic) shared(deduplicatedShards, degree, forwardNeighbors, forwardWriteIndex)
+#pragma omp parallel for schedule(dynamic) shared(deduplicatedShards, degree, forwardDegree, csrOffsets, csrNeighbors)
 #endif
     for (int shardId = 0; shardId < static_cast<int>(EDGE_SHARD_COUNT); ++shardId) {
         auto insertForwardNeighbor = [&](uint64_t encoded) {
@@ -587,11 +607,19 @@ TemporalTriangleResult HistoryTriangles::countTrianglesAtSnapshot(
                                     (degree[sourceIndex] == degree[destIndex] &&
                                      sourceIndex < destIndex);
             if (sourceBeforeDest) {
-                uint32_t slot = forwardWriteIndex[sourceIndex].fetch_add(1, std::memory_order_relaxed);
-                forwardNeighbors[sourceIndex][slot] = destIndex;
+                uint32_t slot = 0;
+#ifdef _OPENMP
+#pragma omp atomic capture
+#endif
+                slot = forwardDegree[sourceIndex]++;
+                csrNeighbors[static_cast<size_t>(csrOffsets[sourceIndex] + slot)] = destIndex;
             } else {
-                uint32_t slot = forwardWriteIndex[destIndex].fetch_add(1, std::memory_order_relaxed);
-                forwardNeighbors[destIndex][slot] = sourceIndex;
+                uint32_t slot = 0;
+#ifdef _OPENMP
+#pragma omp atomic capture
+#endif
+                slot = forwardDegree[destIndex]++;
+                csrNeighbors[static_cast<size_t>(csrOffsets[destIndex] + slot)] = sourceIndex;
             }
         };
 
@@ -606,23 +634,33 @@ TemporalTriangleResult HistoryTriangles::countTrianglesAtSnapshot(
 
     result.forwardBuildMs = static_cast<long>(nowMs() - phaseStart);
 
+    std::vector<uint32_t>().swap(degree);
+    std::vector<uint32_t>().swap(forwardDegree);
+    deduplicatedShards.clear();
+    deduplicatedShards.shrink_to_fit();
+
     // Sort forward neighbor lists in parallel
     phaseStart = nowMs();
 #ifdef _OPENMP
-#pragma omp parallel for shared(forwardNeighbors)
+#pragma omp parallel for shared(csrOffsets, csrNeighbors)
 #endif
-    for (int nodeIdx = 0; nodeIdx < static_cast<int>(forwardNeighbors.size()); ++nodeIdx) {
-        std::sort(forwardNeighbors[nodeIdx].begin(), forwardNeighbors[nodeIdx].end());
+    for (int nodeIdx = 0; nodeIdx < static_cast<int>(nodeCount); ++nodeIdx) {
+        uint64_t begin = csrOffsets[static_cast<size_t>(nodeIdx)];
+        uint64_t end = csrOffsets[static_cast<size_t>(nodeIdx) + 1];
+        if (end > begin + 1) {
+            std::sort(csrNeighbors.begin() + static_cast<size_t>(begin),
+                      csrNeighbors.begin() + static_cast<size_t>(end));
+        }
     }
     result.sortMs = static_cast<long>(nowMs() - phaseStart);
 
     cleanupEdgeShardTempDir(shardTempDir);
 
-    history_triangle_logger.info("Counting triangles on degree-ordered forward graph with " +
+    history_triangle_logger.info("Counting triangles on CSR forward graph with " +
                                  std::to_string(result.uniqueEdges) + " edges");
 
     phaseStart = nowMs();
-    result.triangleCount = countTrianglesOnForwardGraph(forwardNeighbors);
+    result.triangleCount = countTrianglesOnCSRGraph(csrOffsets, csrNeighbors);
     result.countMs = static_cast<long>(nowMs() - phaseStart);
 
     auto end = std::chrono::high_resolution_clock::now();
