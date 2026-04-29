@@ -130,8 +130,10 @@ static void history_triangle_command(int connFd, SQLiteDBInterface *sqlite, bool
                                      const std::string& masterIP);
 static void history_triangle_timestamp_command(int connFd, SQLiteDBInterface *, bool *,
                                                const std::string& masterIP);
-static void history_pagerank_command(int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_p);
-static void history_pagerank_timestamp_command(int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_p);
+static void history_pagerank_command(int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_p,
+                                     const std::string& masterIP);
+static void history_pagerank_timestamp_command(int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_p,
+                                               const std::string& masterIP);
 static void history_bfs_command(int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_p);
 static void stop_strian_command(int connFd, bool *strian_exit);
 static void vertex_count_command(int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_p);
@@ -1733,9 +1735,9 @@ void *frontendservicesesion(void *dummyPt) {
         } else if (line.compare(HISTORY_TRIANGLE_TIMESTAMP) == 0) {
             history_triangle_timestamp_command(connFd, sqlite, &loop_exit, masterIP);
         } else if (line.compare(HISTORY_PAGERANK) == 0) {
-            history_pagerank_command(connFd, sqlite, &loop_exit);
+            history_pagerank_command(connFd, sqlite, &loop_exit, masterIP);
         } else if (line.compare(HISTORY_PAGERANK_TIMESTAMP) == 0) {
-            history_pagerank_timestamp_command(connFd, sqlite, &loop_exit);
+            history_pagerank_timestamp_command(connFd, sqlite, &loop_exit, masterIP);
         } else if (line.compare(HISTORY_BFS) == 0) {
             history_bfs_command(connFd, sqlite, &loop_exit);
         } else if (line.compare(STOP_STRIAN) == 0) {
@@ -5731,7 +5733,8 @@ static bool countHistoryPageRankFromStagedBitmaps(SQLiteDBInterface *sqlite,
     }
 }
 
-static void history_pagerank_command(int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_p) {
+static void history_pagerank_command(int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_p,
+                                     const std::string& masterIP) {
     frontend_logger.info("History PageRank command received");
 
     std::string message = "Graph ID?";
@@ -5870,7 +5873,8 @@ static void history_pagerank_command(int connFd, SQLiteDBInterface *sqlite, bool
 }
 
 // History PageRank by Timestamp Command
-static void history_pagerank_timestamp_command(int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_p) {
+static void history_pagerank_timestamp_command(int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_p,
+                                               const std::string& masterIP) {
     frontend_logger.info("History PageRank by timestamp command received");
 
     std::string message = "Graph ID?";
