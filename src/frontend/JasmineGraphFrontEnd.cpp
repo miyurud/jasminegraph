@@ -5301,6 +5301,81 @@ static void history_triangle_timestamp_command(int connFd, SQLiteDBInterface *sq
 }
 
 // History PageRank by Snapshot ID Command
+static bool countHistoryPageRankFromStagedBitmaps(SQLiteDBInterface *sqlite,
+                                                  int graphId,
+                                                  uint32_t snapshotId,
+                                                  int topK,
+                                                  int maxIterations,
+                                                  double dampingFactor,
+                                                  HistoryPageRankResult& result,
+                                                  std::string& errorMessage,
+                                                  std::string& dataSourceInfo) {
+    std::string snapshotDir = getTemporalSnapshotDir();
+    std::string localDirectFailureReason;
+    std::vector<std::string> localDirs = getLocalTemporalSnapshotCandidateDirs();
+
+    for (const auto& localDir : localDirs) {
+        if (!hasTemporalBitmapIndexesForGraphInDirectory(localDir, graphId)) {
+            continue;
+        }
+
+        try {
+            HistoryPageRankResult directResult = HistoryPageRank::computePageRankAtSnapshot(
+                graphId, snapshotId, localDir, topK, maxIterations, dampingFactor);
+            if (directResult.partitionsProcessed > 0) {
+                result = std::move(directResult);
+                dataSourceInfo = "Data source: local-direct (path=" + localDir + ")";
+                frontend_logger.info("histpgr local-direct path used: " + localDir);
+                return true;
+            }
+
+            localDirectFailureReason = "local-direct found files in " + localDir +
+                                       " but processed zero partitions";
+        } catch (const std::exception&) {
+            localDirectFailureReason = "local-direct read/count failed in " + localDir;
+        }
+    }
+
+    if (localDirectFailureReason.empty()) {
+        std::stringstream reason;
+        reason << "no graph bitmap files found in local candidates";
+        if (!localDirs.empty()) {
+            reason << " [";
+            for (size_t i = 0; i < localDirs.size(); ++i) {
+                if (i > 0) {
+                    reason << ",";
+                }
+                reason << localDirs[i];
+            }
+            reason << "]";
+        }
+        localDirectFailureReason = reason.str();
+    }
+
+    std::string stagedSnapshotDir = stageTemporalBitmapIndexesForGraph(sqlite, graphId, snapshotDir);
+    if (stagedSnapshotDir.empty()) {
+        errorMessage = "No temporal bitmap index files available for graph " + std::to_string(graphId);
+        return false;
+    }
+
+    try {
+        result = HistoryPageRank::computePageRankAtSnapshot(graphId, snapshotId, stagedSnapshotDir,
+                                                            topK, maxIterations, dampingFactor);
+        cleanupStagedTemporalBitmapIndexes(stagedSnapshotDir);
+        if (result.partitionsProcessed == 0) {
+            errorMessage = "No snapshot partitions were processed for graph " + std::to_string(graphId);
+            return false;
+        }
+
+        dataSourceInfo = "Data source: staged-fallback (reason=" + localDirectFailureReason + ")";
+        return true;
+    } catch (const std::exception& e) {
+        cleanupStagedTemporalBitmapIndexes(stagedSnapshotDir);
+        errorMessage = e.what();
+        return false;
+    }
+}
+
 static void history_pagerank_command(int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_p) {
     frontend_logger.info("History PageRank command received");
 
@@ -5331,8 +5406,7 @@ static void history_pagerank_command(int connFd, SQLiteDBInterface *sqlite, bool
 
     std::string iterStr = read_frontend_socket_value(connFd);
     int maxIterations = iterStr.empty() ? 100 : std::stoi(iterStr);
-
-    std::string stagedSnapshotDir;
+    std::string dataSourceInfo;
 
     try {
         if (!JasmineGraphFrontEndCommon::graphExistsByID(graphIdStr, sqlite)) {
@@ -5343,7 +5417,6 @@ static void history_pagerank_command(int connFd, SQLiteDBInterface *sqlite, bool
             return;
         }
 
-        std::string snapshotDir = getTemporalSnapshotDir();
         auto snapMap = loadTemporalSnapshotSummariesForGraph(sqlite, graphId);
         if (snapMap.empty()) {
             std::string error = "Error: No snapshots found for graph " + std::to_string(graphId);
@@ -5363,20 +5436,17 @@ static void history_pagerank_command(int connFd, SQLiteDBInterface *sqlite, bool
             return;
         }
 
-        stagedSnapshotDir = stageTemporalBitmapIndexesForGraph(sqlite, graphId, snapshotDir);
-        if (stagedSnapshotDir.empty()) {
-            std::string error = "Error: No temporal bitmap index files found for graph " + std::to_string(graphId);
+        HistoryPageRankResult result;
+        std::string errorMessage;
+        if (!countHistoryPageRankFromStagedBitmaps(sqlite, graphId, snapshotId, topK, maxIterations,
+                                                   PAGE_RANK_ALPHA, result, errorMessage,
+                                                   dataSourceInfo)) {
+            std::string error = "Error: " + errorMessage;
             resultWr = write(connFd, error.c_str(), error.length());
             resultWr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
             frontend_logger.error(error);
             return;
         }
-
-        HistoryPageRankResult result = HistoryPageRank::computePageRankAtSnapshot(
-            graphId, snapshotId, stagedSnapshotDir, topK,
-            maxIterations, PAGE_RANK_ALPHA);
-
-        cleanupStagedTemporalBitmapIndexes(stagedSnapshotDir);
 
         if (result.partitionsProcessed == 0) {
             std::string error = "Error: No snapshot files found for graph " +
@@ -5391,6 +5461,9 @@ static void history_pagerank_command(int connFd, SQLiteDBInterface *sqlite, bool
             response << "Nodes: " << result.totalNodes
                      << "  Iterations: " << result.iterations
                      << "  Time: " << result.durationMs << "ms\n";
+            if (!dataSourceInfo.empty()) {
+                response << dataSourceInfo << "\n";
+            }
             response << "Rank  Node                           Score\n";
             response << "----  ------------------------------  --------------------\n";
             int rank = 1;
@@ -5415,7 +5488,6 @@ static void history_pagerank_command(int connFd, SQLiteDBInterface *sqlite, bool
                                  " total nodes, " + std::to_string(result.totalEdges) + " cumulative edges");
         }
     } catch (const std::exception& e) {
-        cleanupStagedTemporalBitmapIndexes(stagedSnapshotDir);
         std::string error = "Error: " + std::string(e.what());
         resultWr = write(connFd, error.c_str(), error.length());
         resultWr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(),
@@ -5454,8 +5526,7 @@ static void history_pagerank_timestamp_command(int connFd, SQLiteDBInterface *sq
 
     std::string iterStr = read_frontend_socket_value(connFd);
     int maxIterations = iterStr.empty() ? 100 : std::stoi(iterStr);
-
-    std::string stagedSnapshotDir;
+    std::string dataSourceInfo;
 
     try {
         uint64_t targetTimestamp = 0;
@@ -5475,7 +5546,6 @@ static void history_pagerank_timestamp_command(int connFd, SQLiteDBInterface *sq
             return;
         }
 
-        std::string snapshotDir = getTemporalSnapshotDir();
         std::map<uint32_t, uint64_t> snapshotTimestamps = loadSnapshotTimestampsForGraph(sqlite, graphId);
 
         if (snapshotTimestamps.empty()) {
@@ -5488,20 +5558,17 @@ static void history_pagerank_timestamp_command(int connFd, SQLiteDBInterface *sq
 
         uint32_t closestSnapshotId = findClosestSnapshotId(snapshotTimestamps, targetTimestamp);
 
-        stagedSnapshotDir = stageTemporalBitmapIndexesForGraph(sqlite, graphId, snapshotDir);
-        if (stagedSnapshotDir.empty()) {
-            std::string error = "Error: No temporal bitmap index files found for graph " + std::to_string(graphId);
+        HistoryPageRankResult result;
+        std::string errorMessage;
+        if (!countHistoryPageRankFromStagedBitmaps(sqlite, graphId, closestSnapshotId, topK,
+                                                   maxIterations, PAGE_RANK_ALPHA, result,
+                                                   errorMessage, dataSourceInfo)) {
+            std::string error = "Error: " + errorMessage;
             resultWr = write(connFd, error.c_str(), error.length());
             resultWr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
             frontend_logger.error(error);
             return;
         }
-
-            HistoryPageRankResult result = HistoryPageRank::computePageRankAtSnapshot(
-            graphId, closestSnapshotId, stagedSnapshotDir, topK,
-            maxIterations, PAGE_RANK_ALPHA);
-
-        cleanupStagedTemporalBitmapIndexes(stagedSnapshotDir);
 
         if (result.partitionsProcessed == 0) {
             std::string error = "Error: Failed to process snapshot " + std::to_string(closestSnapshotId);
@@ -5516,6 +5583,9 @@ static void history_pagerank_timestamp_command(int connFd, SQLiteDBInterface *sq
             response << "Nodes: " << result.totalNodes
                      << "  Iterations: " << result.iterations
                      << "  Time: " << result.durationMs << "ms\n";
+            if (!dataSourceInfo.empty()) {
+                response << dataSourceInfo << "\n";
+            }
             response << "Rank  Node                           Score\n";
             response << "----  ------------------------------  --------------------\n";
             int rank = 1;
@@ -5539,7 +5609,6 @@ static void history_pagerank_timestamp_command(int connFd, SQLiteDBInterface *sq
                                   std::to_string(closestSnapshotId) + " (" + timeStr + ")");
         }
     } catch (const std::exception& e) {
-        cleanupStagedTemporalBitmapIndexes(stagedSnapshotDir);
         std::string error = "Error: " + std::string(e.what());
         resultWr = write(connFd, error.c_str(), error.length());
         resultWr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(),
