@@ -175,6 +175,11 @@ bool sendUint64(int sockfd, uint64_t value) {
     return sendUint32(sockfd, high) && sendUint32(sockfd, low);
 }
 
+bool sendDouble(int sockfd, double value) {
+    // Send double as 8 bytes
+    return sendAll(sockfd, &value, sizeof(double));
+}
+
 bool flushHistoryTriangleBatch(int sockfd,
                                const std::vector<std::pair<std::string, std::string>>& batch) {
     if (!sendUint32(sockfd, static_cast<uint32_t>(batch.size()))) {
@@ -237,6 +242,7 @@ static void triangles_command(
     std::map<std::string, JasmineGraphHashMapDuplicateCentralStore> &graphDBMapDuplicateCentralStores,
     bool *loop_exit_p);
 static void history_triangles_command(int connFd, bool *loop_exit_p);
+static void history_pagerank_command(int connFd, bool *loop_exit_p);
 static void streaming_triangles_command(
     int connFd, int serverPort, std::map<std::string, JasmineGraphIncrementalLocalStore *> &incrementalLocalStoreMap,
     bool *loop_exit_p);
@@ -399,6 +405,8 @@ void *instanceservicesession(void *dummyPt) {
                               *graphDBMapDuplicateCentralStores, &loop_exit);
         } else if (line.compare(JasmineGraphInstanceProtocol::HISTORY_TRIANGLES) == 0) {
             history_triangles_command(connFd, &loop_exit);
+        } else if (line.compare(JasmineGraphInstanceProtocol::HISTORY_PAGERANK) == 0) {
+            history_pagerank_command(connFd, &loop_exit);
         } else if (line.compare(JasmineGraphInstanceProtocol::INITIATE_STREAMING_TRIAN) == 0) {
             streaming_triangles_command(connFd, serverPort, incrementalLocalStoreMap, &loop_exit);
         } else if (line.compare(JasmineGraphInstanceProtocol::INITIATE_STREAMING_KG_CONSTRUCTION) == 0) {
@@ -3444,6 +3452,216 @@ static void history_triangles_command(int connFd, bool *loop_exit_p) {
                          " unique edges out of " + std::to_string(rawEdgesRead) +
                          " total processed.");
 }
+
+// ── DISTRIBUTED PAGERANK COMPUTATION ON WORKER ────────────────────────────────
+static void history_pagerank_command(int connFd, bool *loop_exit_p) {
+    if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::OK)) {
+        *loop_exit_p = true;
+        return;
+    }
+
+    char data[DATA_BUFFER_SIZE];
+    string graphID = Utils::read_str_trim_wrapper(connFd, data, INSTANCE_DATA_LENGTH);
+    if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::OK)) {
+        *loop_exit_p = true;
+        return;
+    }
+
+    string partitionId = Utils::read_str_trim_wrapper(connFd, data, INSTANCE_DATA_LENGTH);
+    if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::OK)) {
+        *loop_exit_p = true;
+        return;
+    }
+
+    string snapshotIdText = Utils::read_str_trim_wrapper(connFd, data, INSTANCE_DATA_LENGTH);
+    if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::OK)) {
+        *loop_exit_p = true;
+        return;
+    }
+
+    string topKText = Utils::read_str_trim_wrapper(connFd, data, INSTANCE_DATA_LENGTH);
+    if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::OK)) {
+        *loop_exit_p = true;
+        return;
+    }
+
+    string maxIterationsText = Utils::read_str_trim_wrapper(connFd, data, INSTANCE_DATA_LENGTH);
+    if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::OK)) {
+        *loop_exit_p = true;
+        return;
+    }
+
+    string dampingFactorText = Utils::read_str_trim_wrapper(connFd, data, INSTANCE_DATA_LENGTH);
+    if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::OK)) {
+        *loop_exit_p = true;
+        return;
+    }
+
+    string threadPriority = Utils::read_str_trim_wrapper(connFd, data, INSTANCE_DATA_LENGTH);
+    if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::OK)) {
+        *loop_exit_p = true;
+        return;
+    }
+
+    string traceContext = Utils::read_str_trim_wrapper(connFd, data, INSTANCE_DATA_LENGTH);
+    OpenTelemetryUtil::receiveAndSetTraceContext(traceContext, "history pagerank computation");
+    OTEL_TRACE_FUNCTION();
+
+    (void)threadPriority;
+
+    uint32_t snapshotId = static_cast<uint32_t>(std::stoul(snapshotIdText));
+    int graphIdInt = std::stoi(graphID);
+    uint32_t partitionIdInt = static_cast<uint32_t>(std::stoul(partitionId));
+    int topK = std::stoi(topKText);
+    int maxIterations = std::stoi(maxIterationsText);
+    double dampingFactor = std::stod(dampingFactorText);
+
+    std::string snapshotDir =
+        Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder") +
+        "/temporal_snapshots";
+
+    auto startTime = std::chrono::high_resolution_clock::now();
+
+    // Load edges from bitmap file and build CSR graph locally
+    std::unordered_map<std::string, uint32_t> nodeToIndex;
+    std::unordered_set<uint64_t> seenEdges;
+    std::vector<std::vector<uint32_t>> adjacency;
+    uint64_t rawEdgesRead = 0;
+
+    std::string filePath =
+        TemporalStorePersistence::generateBitmapFilePath(snapshotDir, graphIdInt, partitionIdInt);
+
+    // First pass: collect unique edges and build node mapping
+    TemporalStorePersistence::forEachActiveBitmapEdgeAtSnapshot(
+        filePath, snapshotId,
+        [&](const std::string &sourceId, const std::string &destId) {
+            rawEdgesRead++;
+            if (sourceId == destId) return true;  // Skip self-loops
+
+            uint32_t u = 0, v = 0;
+            auto it_u = nodeToIndex.find(sourceId);
+            if (it_u == nodeToIndex.end()) {
+                u = nodeToIndex.size();
+                nodeToIndex[sourceId] = u;
+            } else {
+                u = it_u->second;
+            }
+
+            auto it_v = nodeToIndex.find(destId);
+            if (it_v == nodeToIndex.end()) {
+                v = nodeToIndex.size();
+                nodeToIndex[destId] = v;
+            } else {
+                v = it_v->second;
+            }
+
+            uint64_t encodedEdge = (static_cast<uint64_t>(std::min(u, v)) << 32) | std::max(u, v);
+            seenEdges.insert(encodedEdge);
+            return true;
+        });
+
+    uint32_t nodeCount = nodeToIndex.size();
+    if (nodeCount == 0) {
+        // No nodes found; send empty result
+        if (!sendUint32(connFd, 0)) {
+            *loop_exit_p = true;
+            return;
+        }
+        if (!sendUint64(connFd, 0) || !sendUint64(connFd, 0)) {
+            *loop_exit_p = true;
+            return;
+        }
+        instance_logger.warn("No nodes found in partition " + partitionId + " for snapshot " + 
+                           snapshotIdText);
+        return;
+    }
+
+    // Build adjacency list from unique edges
+    adjacency.resize(nodeCount);
+    for (uint64_t encoded : seenEdges) {
+        uint32_t u = encoded >> 32;
+        uint32_t v = encoded & 0xFFFFFFFFULL;
+        
+        // Add edges (both directions for undirected graph or just u->v for directed)
+        adjacency[u].push_back(v);
+    }
+
+    // Remove duplicates from adjacency lists
+    for (auto& neighbors : adjacency) {
+        std::sort(neighbors.begin(), neighbors.end());
+        neighbors.erase(std::unique(neighbors.begin(), neighbors.end()), neighbors.end());
+    }
+
+    // Run PageRank algorithm
+    std::vector<double> scores(nodeCount, 1.0 / nodeCount);
+    std::vector<double> newScores(nodeCount);
+    double dampingFactor_inv = 1.0 - dampingFactor;
+
+    for (int iter = 0; iter < maxIterations; ++iter) {
+        std::fill(newScores.begin(), newScores.end(), dampingFactor_inv / nodeCount);
+
+        for (uint32_t u = 0; u < nodeCount; ++u) {
+            if (adjacency[u].empty()) continue;
+
+            double contribution = scores[u] / adjacency[u].size();
+            for (uint32_t v : adjacency[u]) {
+                newScores[v] += dampingFactor * contribution;
+            }
+        }
+
+        scores = newScores;
+    }
+
+    // Create reverse mapping from index to node
+    std::vector<std::string> indexToNode(nodeCount);
+    for (const auto& [nodeId, idx] : nodeToIndex) {
+        indexToNode[idx] = nodeId;
+    }
+
+    // Get top-K nodes by score
+    std::vector<std::pair<uint32_t, double>> indexedScores;
+    for (uint32_t i = 0; i < nodeCount; ++i) {
+        indexedScores.emplace_back(i, scores[i]);
+    }
+
+    // Sort by score descending
+    std::sort(indexedScores.begin(), indexedScores.end(),
+              [](const auto& a, const auto& b) { return a.second > b.second; });
+
+    // Send top-K
+    uint32_t topKToSend = std::min(static_cast<uint32_t>(topK), nodeCount);
+    if (!sendUint32(connFd, topKToSend)) {
+        *loop_exit_p = true;
+        return;
+    }
+
+    for (uint32_t i = 0; i < topKToSend; ++i) {
+        const auto& [nodeIdx, score] = indexedScores[i];
+        const std::string& nodeId = indexToNode[nodeIdx];
+
+        if (!sendUint32(connFd, static_cast<uint32_t>(nodeId.size())) ||
+            !sendAll(connFd, nodeId.data(), nodeId.size()) ||
+            !sendDouble(connFd, score)) {
+            *loop_exit_p = true;
+            return;
+        }
+    }
+
+    auto endTime = std::chrono::high_resolution_clock::now();
+    long durationMs = std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime).count();
+
+    // Send raw edges count and duration
+    if (!sendUint64(connFd, rawEdgesRead) || !sendUint64(connFd, static_cast<uint64_t>(durationMs))) {
+        *loop_exit_p = true;
+        return;
+    }
+
+    instance_logger.info("Distributed history pagerank for partition " + partitionId +
+                         " completed. Sent top " + std::to_string(topKToSend) +
+                         " nodes out of " + std::to_string(nodeCount) +
+                         " total nodes, " + std::to_string(rawEdgesRead) + " edges processed.");
+}
+
 
 
 static void streaming_kg_construction(

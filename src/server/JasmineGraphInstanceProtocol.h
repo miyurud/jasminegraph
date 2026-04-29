@@ -63,6 +63,7 @@ class JasmineGraphInstanceProtocol {
     static const string NPLACES;
     static const string TRIANGLES;
     static const string HISTORY_TRIANGLES;
+    static const string HISTORY_PAGERANK;
     static const string PAGE_RANK;
     static const string OUT_DEGREE_DISTRIBUTION;
     static const string IN_DEGREE_DISTRIBUTION;

@@ -536,7 +536,7 @@ static int collectTemporalBitmapIndexesFromRemoteTarget(const std::string& hostT
                          shellQuote(graphPrefix + "*_bitmaps.ebm") +
                          " -o -name " + shellQuote(graphPrefix + "*_snap*.delta") +
                          " \\) 2>/dev/null";
-         return "ssh -o BatchMode=yes -o ConnectTimeout=5 " + shellQuote(hostTarget) +
+         return "timeout 10 ssh -o BatchMode=yes -o ConnectTimeout=5 " + shellQuote(hostTarget) +
              " " + shellQuote(remoteCommand);
     };
 
@@ -567,7 +567,7 @@ static int collectTemporalBitmapIndexesFromRemoteTarget(const std::string& hostT
         }
 
         std::string destinationPath = destinationDir + "/" + Utils::getFileName(remoteFile);
-        std::string catCommand = "ssh -o BatchMode=yes -o ConnectTimeout=5 " + shellQuote(hostTarget) +
+        std::string catCommand = "timeout 10 ssh -o BatchMode=yes -o ConnectTimeout=5 " + shellQuote(hostTarget) +
                                  " cat " + shellQuote(remoteFile);
 
         if (copyCommandOutputToFile(catCommand, destinationPath)) {
@@ -922,6 +922,14 @@ bool readUint64(int sockfd, uint64_t& value) {
     }
 
     value = (static_cast<uint64_t>(high) << 32) | static_cast<uint64_t>(low);
+    return true;
+}
+
+bool readDouble(int sockfd, double& value) {
+    // Read double as 8 bytes
+    if (!recvAll(sockfd, &value, sizeof(double))) {
+        return false;
+    }
     return true;
 }
 
@@ -5301,6 +5309,353 @@ static void history_triangle_timestamp_command(int connFd, SQLiteDBInterface *sq
 }
 
 // History PageRank by Snapshot ID Command
+// ── DISTRIBUTED PAGERANK WORKER COMMUNICATION ────────────────────────────
+// Collects PageRank results from a single worker partition (streaming ranked nodes)
+bool collectHistoryPageRankFromWorker(int graphId,
+                                       uint32_t snapshotId,
+                                       const Utils::worker& worker,
+                                       int partitionId,
+                                       int topK,
+                                       int maxIterations,
+                                       double dampingFactor,
+                                       const std::string& masterIP,
+                                       int threadPriority,
+                                       std::vector<std::pair<std::string, double>>& workerRankedNodes,
+                                       long& workerDurationMs,
+                                       uint64_t& workerRawEdges) {
+    int sockfd = socket(AF_INET, SOCK_STREAM, 0);
+    if (sockfd < 0) {
+        frontend_logger.error("Cannot create socket for distributed history pagerank");
+        return false;
+    }
+
+    std::string host = worker.hostname;
+    if (host.find('@') != std::string::npos) {
+        host = Utils::split(host, '@')[1];
+    }
+
+    struct hostent* server = gethostbyname(host.c_str());
+    if (server == nullptr) {
+        frontend_logger.error("Failed to resolve worker host " + host);
+        close(sockfd);
+        return false;
+    }
+
+    struct sockaddr_in serv_addr;
+    bzero((char*)&serv_addr, sizeof(serv_addr));
+    serv_addr.sin_family = AF_INET;
+    bcopy((char*)server->h_addr, (char*)&serv_addr.sin_addr.s_addr, server->h_length);
+    serv_addr.sin_port = htons(std::stoi(worker.port));
+
+    if (Utils::connect_wrapper(sockfd, (struct sockaddr*)&serv_addr, sizeof(serv_addr)) < 0) {
+        frontend_logger.error("Failed to connect to worker " + host + ":" + worker.port);
+        close(sockfd);
+        return false;
+    }
+
+    std::string data(INSTANCE_DATA_LENGTH + 1, '\0');
+    auto closeAndFail = [&]() {
+        Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::CLOSE);
+        close(sockfd);
+        return false;
+    };
+
+    if (!Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::HANDSHAKE) ||
+        Utils::read_str_trim_wrapper(sockfd, data.data(), INSTANCE_DATA_LENGTH) !=
+            JasmineGraphInstanceProtocol::HANDSHAKE_OK) {
+        return closeAndFail();
+    }
+
+    if (!Utils::send_str_wrapper(sockfd, masterIP) ||
+        Utils::read_str_trim_wrapper(sockfd, data.data(), INSTANCE_DATA_LENGTH) !=
+            JasmineGraphInstanceProtocol::HOST_OK) {
+        return closeAndFail();
+    }
+
+    // Send HISTORY_PAGERANK command
+    if (!Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::HISTORY_PAGERANK) ||
+        Utils::read_str_trim_wrapper(sockfd, data.data(), INSTANCE_DATA_LENGTH) !=
+            JasmineGraphInstanceProtocol::OK) {
+        return closeAndFail();
+    }
+
+    if (!Utils::send_str_wrapper(sockfd, std::to_string(graphId)) ||
+        Utils::read_str_trim_wrapper(sockfd, data.data(), INSTANCE_DATA_LENGTH) !=
+            JasmineGraphInstanceProtocol::OK) {
+        return closeAndFail();
+    }
+
+    if (!Utils::send_str_wrapper(sockfd, std::to_string(partitionId)) ||
+        Utils::read_str_trim_wrapper(sockfd, data.data(), INSTANCE_DATA_LENGTH) !=
+            JasmineGraphInstanceProtocol::OK) {
+        return closeAndFail();
+    }
+
+    if (!Utils::send_str_wrapper(sockfd, std::to_string(snapshotId)) ||
+        Utils::read_str_trim_wrapper(sockfd, data.data(), INSTANCE_DATA_LENGTH) !=
+            JasmineGraphInstanceProtocol::OK) {
+        return closeAndFail();
+    }
+
+    if (!Utils::send_str_wrapper(sockfd, std::to_string(topK)) ||
+        Utils::read_str_trim_wrapper(sockfd, data.data(), INSTANCE_DATA_LENGTH) !=
+            JasmineGraphInstanceProtocol::OK) {
+        return closeAndFail();
+    }
+
+    if (!Utils::send_str_wrapper(sockfd, std::to_string(maxIterations)) ||
+        Utils::read_str_trim_wrapper(sockfd, data.data(), INSTANCE_DATA_LENGTH) !=
+            JasmineGraphInstanceProtocol::OK) {
+        return closeAndFail();
+    }
+
+    if (!Utils::send_str_wrapper(sockfd, std::to_string(dampingFactor)) ||
+        Utils::read_str_trim_wrapper(sockfd, data.data(), INSTANCE_DATA_LENGTH) !=
+            JasmineGraphInstanceProtocol::OK) {
+        return closeAndFail();
+    }
+
+    if (!Utils::send_str_wrapper(sockfd, std::to_string(threadPriority)) ||
+        Utils::read_str_trim_wrapper(sockfd, data.data(), INSTANCE_DATA_LENGTH) !=
+            JasmineGraphInstanceProtocol::OK) {
+        return closeAndFail();
+    }
+
+    if (!Utils::send_str_wrapper(sockfd, "trace-disabled")) {
+        return closeAndFail();
+    }
+
+    // Receive (node_id, score) pairs from worker
+    uint32_t nodeCount = 0;
+    if (!readUint32(sockfd, nodeCount)) {
+        return closeAndFail();
+    }
+
+    workerRankedNodes.clear();
+    workerRankedNodes.reserve(std::min(static_cast<size_t>(topK), static_cast<size_t>(nodeCount)));
+
+    for (uint32_t i = 0; i < nodeCount; ++i) {
+        uint32_t nodeIdLength = 0;
+        if (!readUint32(sockfd, nodeIdLength)) {
+            return closeAndFail();
+        }
+
+        std::string nodeId(nodeIdLength, '\0');
+        if (!recvAll(sockfd, nodeId.data(), nodeIdLength)) {
+            return closeAndFail();
+        }
+
+        double score = 0.0;
+        if (!readDouble(sockfd, score)) {
+            return closeAndFail();
+        }
+
+        workerRankedNodes.emplace_back(nodeId, score);
+    }
+
+    uint64_t rawEdgesFromWorker = 0;
+    uint64_t durationFromWorker = 0;
+    if (!readUint64(sockfd, rawEdgesFromWorker) || !readUint64(sockfd, durationFromWorker)) {
+        return closeAndFail();
+    }
+
+    workerRawEdges  = rawEdgesFromWorker;
+    workerDurationMs = static_cast<long>(durationFromWorker);
+
+    Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::CLOSE);
+    close(sockfd);
+    return true;
+}
+
+// ── DISTRIBUTED PAGERANK COORDINATOR ────────────────────────────────────────
+// Coordinates PageRank computation across all worker partitions
+static HistoryPageRankResult countHistoryPageRankDistributed(SQLiteDBInterface* sqlite,
+                                                             int graphId,
+                                                             uint32_t snapshotId,
+                                                             int topK,
+                                                             int maxIterations,
+                                                             double dampingFactor,
+                                                             const std::string& masterIP) {
+    HistoryPageRankResult result{};
+    std::vector<Utils::worker> allWorkers = Utils::getWorkerList(sqlite);
+
+    // Query which workers host which partitions for this graph
+    std::string sqlStatement =
+        "SELECT DISTINCT worker_idworker, partition_idpartition "
+        "FROM worker_has_partition "
+        "WHERE partition_graph_idgraph=" + std::to_string(graphId) + ";";
+    const auto& rows = sqlite->runSelect(sqlStatement);
+
+    // workerID -> list of partition IDs
+    std::map<std::string, std::vector<int>> workerPartitionMap;
+    for (const auto& row : rows) {
+        workerPartitionMap[row.at(0).second].push_back(std::stoi(row.at(1).second));
+    }
+
+    if (workerPartitionMap.empty()) {
+        frontend_logger.warn("No worker-partition assignments found in worker_has_partition for graph " +
+                             std::to_string(graphId) +
+                             ". Falling back to remote temporal file discovery");
+
+        std::string snapshotDir = getTemporalSnapshotDir();
+        std::map<int, std::string> partitionOwner;
+        for (const auto& worker : allWorkers) {
+            std::set<int> discoveredPartitions =
+                discoverTemporalPartitionsForWorker(worker, graphId, snapshotDir);
+
+            if (discoveredPartitions.empty()) {
+                continue;
+            }
+
+            for (int partitionId : discoveredPartitions) {
+                auto inserted = partitionOwner.emplace(partitionId, worker.workerID);
+                if (!inserted.second) {
+                    frontend_logger.warn("Skipping duplicate discovered partition " +
+                                         std::to_string(partitionId) +
+                                         " for worker " + worker.workerID +
+                                         " (already assigned to worker " + inserted.first->second + ")");
+                    continue;
+                }
+                workerPartitionMap[worker.workerID].push_back(partitionId);
+            }
+        }
+
+        if (workerPartitionMap.empty()) {
+            frontend_logger.error("No worker-partition assignments found for graph " +
+                                  std::to_string(graphId) +
+                                  " and remote temporal partition discovery found nothing");
+            return result;
+        }
+
+        for (auto& [workerId, partitions] : workerPartitionMap) {
+            std::sort(partitions.begin(), partitions.end());
+            partitions.erase(std::unique(partitions.begin(), partitions.end()), partitions.end());
+        }
+
+        frontend_logger.info("Discovered " + std::to_string(partitionOwner.size()) +
+                             " remote temporal partitions for graph " +
+                             std::to_string(graphId));
+    }
+
+    // Per-task state (no shared mutation during async execution)
+    struct WorkerTask {
+        std::string workerID;
+        int partitionId{0};
+        std::vector<std::pair<std::string, double>> rankedNodes;
+        uint64_t rawEdges{0};
+        long durationMs{0};
+        std::future<bool> fut;
+    };
+    std::vector<WorkerTask> tasks;
+    tasks.reserve(rows.size());
+
+    // Launch one async task per (worker, partition)
+    for (const auto& w : allWorkers) {
+        auto it = workerPartitionMap.find(w.workerID);
+        if (it == workerPartitionMap.end()) continue;
+
+        for (int pid : it->second) {
+            tasks.push_back({w.workerID, pid, {}, 0, 0, {}});
+            WorkerTask& task = tasks.back();
+            task.fut = std::async(
+                std::launch::async,
+                [graphId, snapshotId, w, pid, topK, maxIterations, dampingFactor, 
+                 &masterIP, &task]() mutable -> bool {
+                    long dur = 0;
+                    uint64_t raw = 0;
+                    bool ok = collectHistoryPageRankFromWorker(
+                        graphId, snapshotId, w, pid, topK, maxIterations, dampingFactor,
+                        masterIP, Conts::DEFAULT_THREAD_PRIORITY,
+                        task.rankedNodes, dur, raw);
+                    task.durationMs = dur;
+                    task.rawEdges = raw;
+                    return ok;
+                });
+        }
+    }
+
+    if (tasks.empty()) {
+        frontend_logger.error(
+            "No runnable worker-partition tasks found for graph " +
+            std::to_string(graphId) +
+            ". Partition assignments may reference workers that are not currently registered");
+        return result;
+    }
+
+    // Collect results
+    int partitionsProcessed = 0;
+    int partitionsFailed = 0;
+    uint64_t totalRawEdges = 0;
+    long maxWorkerDuration = 0;
+    std::unordered_map<std::string, double> aggregatedNodeScores; // node -> highest score
+
+    for (auto& task : tasks) {
+        bool ok = task.fut.get();
+        if (ok) {
+            partitionsProcessed++;
+            totalRawEdges += task.rawEdges;
+            if (task.durationMs > maxWorkerDuration) maxWorkerDuration = task.durationMs;
+
+            // Aggregate ranked nodes from this worker partition
+            for (const auto& [nodeId, score] : task.rankedNodes) {
+                auto it = aggregatedNodeScores.find(nodeId);
+                if (it == aggregatedNodeScores.end() || score > it->second) {
+                    aggregatedNodeScores[nodeId] = score;
+                }
+            }
+
+            frontend_logger.info(
+                "Worker " + task.workerID +
+                " partition=" + std::to_string(task.partitionId) +
+                " topK_returned=" + std::to_string(task.rankedNodes.size()) +
+                " rawEdges=" + std::to_string(task.rawEdges) +
+                " dur=" + std::to_string(task.durationMs) + "ms");
+        } else {
+            partitionsFailed++;
+            frontend_logger.warn(
+                "Worker " + task.workerID +
+                " partition=" + std::to_string(task.partitionId) + " failed — skipped");
+        }
+    }
+
+    if (partitionsProcessed == 0) {
+        frontend_logger.error(
+            "All distributed history pagerank tasks failed for graph " +
+            std::to_string(graphId) + " snapshot=" + std::to_string(snapshotId) +
+            " (failed_tasks=" + std::to_string(partitionsFailed) + ")");
+        return result;
+    }
+
+    // Aggregate and sort: take top-K from all workers' results
+    std::vector<std::pair<std::string, double>> globalRankedNodes;
+    for (const auto& [nodeId, score] : aggregatedNodeScores) {
+        globalRankedNodes.emplace_back(nodeId, score);
+    }
+
+    // Sort descending by score
+    std::sort(globalRankedNodes.begin(), globalRankedNodes.end(),
+              [](const auto& a, const auto& b) { return a.second > b.second; });
+
+    // Keep only top-K
+    if (static_cast<int>(globalRankedNodes.size()) > topK) {
+        globalRankedNodes.resize(topK);
+    }
+
+    result.rankedNodes = globalRankedNodes;
+    result.rawEdges = totalRawEdges;
+    result.partitionsProcessed = partitionsProcessed;
+    result.durationMs = maxWorkerDuration;
+    result.totalNodes = aggregatedNodeScores.size();
+
+    frontend_logger.info(
+        "[histpgr distributed] partitions=" + std::to_string(partitionsProcessed) +
+        " total_nodes=" + std::to_string(aggregatedNodeScores.size()) +
+        " top_k=" + std::to_string(globalRankedNodes.size()) +
+        " raw_edges=" + std::to_string(totalRawEdges));
+
+    return result;
+}
+
 static bool countHistoryPageRankFromStagedBitmaps(SQLiteDBInterface *sqlite,
                                                   int graphId,
                                                   uint32_t snapshotId,
@@ -5437,26 +5792,44 @@ static void history_pagerank_command(int connFd, SQLiteDBInterface *sqlite, bool
         }
 
         HistoryPageRankResult result;
-        std::string errorMessage;
-        if (!countHistoryPageRankFromStagedBitmaps(sqlite, graphId, snapshotId, topK, maxIterations,
-                                                   PAGE_RANK_ALPHA, result, errorMessage,
-                                                   dataSourceInfo)) {
-            std::string error = "Error: " + errorMessage;
-            resultWr = write(connFd, error.c_str(), error.length());
-            resultWr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
-            frontend_logger.error(error);
-            return;
-        }
+        // Try distributed approach first (worker-local computation, no centralized staging)
+        result = countHistoryPageRankDistributed(sqlite, graphId, snapshotId, topK, maxIterations,
+                                                  PAGE_RANK_ALPHA, masterIP);
+        dataSourceInfo = "Data source: distributed-direct (worker-local snapshot files; staging disabled)";
 
         if (result.partitionsProcessed == 0) {
-            std::string error = "Error: No snapshot files found for graph " +
-                                std::to_string(graphId) + " at snapshot " +
-                                std::to_string(snapshotId);
-            resultWr = write(connFd, error.c_str(), error.length());
-            resultWr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(),
-                             Conts::CARRIAGE_RETURN_NEW_LINE.size());
-            frontend_logger.error(error);
-        } else {
+            bool allowStagedFallback = Utils::parseBoolean(
+                Utils::getJasmineGraphProperty("org.jasminegraph.histpgr.allow.staged.fallback"));
+            if (!allowStagedFallback) {
+                std::string error = "Error: Failed to process snapshot " +
+                                    std::to_string(snapshotId) +
+                                    " (no partitions responded — check worker connectivity, hpgr protocol, and snapshot availability)";
+                resultWr = write(connFd, error.c_str(), error.length());
+                resultWr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
+                frontend_logger.warn("Distributed-direct history pagerank failed for graph " +
+                                     std::to_string(graphId) + " snapshot " +
+                                     std::to_string(snapshotId) +
+                                     " and staged fallback is disabled");
+                return;
+            }
+
+            frontend_logger.warn("Distributed-direct history pagerank failed for graph " +
+                                 std::to_string(graphId) + " snapshot " +
+                                 std::to_string(snapshotId) +
+                                 "; trying staged fallback");
+
+            std::string errorMessage;
+            if (!countHistoryPageRankFromStagedBitmaps(sqlite, graphId, snapshotId, topK, maxIterations,
+                                                       PAGE_RANK_ALPHA, result, errorMessage, dataSourceInfo)) {
+                std::string error = "Error: " + errorMessage;
+                resultWr = write(connFd, error.c_str(), error.length());
+                resultWr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
+                frontend_logger.error(error);
+                return;
+            }
+        }
+
+        if (result.partitionsProcessed > 0) {
             std::stringstream response;
             response << "Nodes: " << result.totalNodes
                      << "  Iterations: " << result.iterations
@@ -5559,23 +5932,45 @@ static void history_pagerank_timestamp_command(int connFd, SQLiteDBInterface *sq
         uint32_t closestSnapshotId = findClosestSnapshotId(snapshotTimestamps, targetTimestamp);
 
         HistoryPageRankResult result;
-        std::string errorMessage;
-        if (!countHistoryPageRankFromStagedBitmaps(sqlite, graphId, closestSnapshotId, topK,
-                                                   maxIterations, PAGE_RANK_ALPHA, result,
-                                                   errorMessage, dataSourceInfo)) {
-            std::string error = "Error: " + errorMessage;
-            resultWr = write(connFd, error.c_str(), error.length());
-            resultWr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
-            frontend_logger.error(error);
-            return;
-        }
+        // Try distributed approach first (worker-local computation, no centralized staging)
+        result = countHistoryPageRankDistributed(sqlite, graphId, closestSnapshotId, topK,
+                                                  maxIterations, PAGE_RANK_ALPHA, masterIP);
+        dataSourceInfo = "Data source: distributed-direct (worker-local snapshot files; staging disabled)";
 
         if (result.partitionsProcessed == 0) {
-            std::string error = "Error: Failed to process snapshot " + std::to_string(closestSnapshotId);
-            resultWr = write(connFd, error.c_str(), error.length());
-            resultWr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(),
-                             Conts::CARRIAGE_RETURN_NEW_LINE.size());
-        } else {
+            bool allowStagedFallback = Utils::parseBoolean(
+                Utils::getJasmineGraphProperty("org.jasminegraph.histpgr.allow.staged.fallback"));
+            if (!allowStagedFallback) {
+                std::string error = "Error: Failed to process snapshot " +
+                                    std::to_string(closestSnapshotId) +
+                                    " (no partitions responded — check worker connectivity, hpgr protocol, and snapshot availability)";
+                resultWr = write(connFd, error.c_str(), error.length());
+                resultWr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
+                frontend_logger.warn("Distributed-direct history pagerank-by-timestamp failed for graph " +
+                                     std::to_string(graphId) + " snapshot " +
+                                     std::to_string(closestSnapshotId) +
+                                     " and staged fallback is disabled");
+                return;
+            }
+
+            frontend_logger.warn("Distributed-direct history pagerank-by-timestamp failed for graph " +
+                                 std::to_string(graphId) + " snapshot " +
+                                 std::to_string(closestSnapshotId) +
+                                 "; trying staged fallback");
+
+            std::string errorMessage;
+            if (!countHistoryPageRankFromStagedBitmaps(sqlite, graphId, closestSnapshotId, topK,
+                                                       maxIterations, PAGE_RANK_ALPHA, result,
+                                                       errorMessage, dataSourceInfo)) {
+                std::string error = "Error: " + errorMessage;
+                resultWr = write(connFd, error.c_str(), error.length());
+                resultWr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
+                frontend_logger.error(error);
+                return;
+            }
+        }
+
+        if (result.partitionsProcessed > 0) {
             std::string timeStr = formatSnapshotTimestamp(snapshotTimestamps[closestSnapshotId]);
 
             std::stringstream response;
