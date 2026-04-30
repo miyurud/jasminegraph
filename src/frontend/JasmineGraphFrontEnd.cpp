@@ -5795,41 +5795,16 @@ static void history_pagerank_command(int connFd, SQLiteDBInterface *sqlite, bool
         }
 
         HistoryPageRankResult result;
-        // Try distributed approach first (worker-local computation, no centralized staging)
-        result = countHistoryPageRankDistributed(sqlite, graphId, snapshotId, topK, maxIterations,
-                                                  PAGE_RANK_ALPHA, masterIP);
-        dataSourceInfo = "Data source: distributed-direct (worker-local snapshot files; staging disabled)";
-
-        if (result.partitionsProcessed == 0) {
-            bool allowStagedFallback = Utils::parseBoolean(
-                Utils::getJasmineGraphProperty("org.jasminegraph.histpgr.allow.staged.fallback"));
-            if (!allowStagedFallback) {
-                std::string error = "Error: Failed to process snapshot " +
-                                    std::to_string(snapshotId) +
-                                    " (no partitions responded — check worker connectivity, hpgr protocol, and snapshot availability)";
-                resultWr = write(connFd, error.c_str(), error.length());
-                resultWr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
-                frontend_logger.warn("Distributed-direct history pagerank failed for graph " +
-                                     std::to_string(graphId) + " snapshot " +
-                                     std::to_string(snapshotId) +
-                                     " and staged fallback is disabled");
-                return;
-            }
-
-            frontend_logger.warn("Distributed-direct history pagerank failed for graph " +
-                                 std::to_string(graphId) + " snapshot " +
-                                 std::to_string(snapshotId) +
-                                 "; trying staged fallback");
-
-            std::string errorMessage;
-            if (!countHistoryPageRankFromStagedBitmaps(sqlite, graphId, snapshotId, topK, maxIterations,
-                                                       PAGE_RANK_ALPHA, result, errorMessage, dataSourceInfo)) {
-                std::string error = "Error: " + errorMessage;
-                resultWr = write(connFd, error.c_str(), error.length());
-                resultWr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
-                frontend_logger.error(error);
-                return;
-            }
+        std::string errorMessage;
+        if (!countHistoryPageRankFromStagedBitmaps(sqlite, graphId, snapshotId, topK, maxIterations,
+                                                   PAGE_RANK_ALPHA, result, errorMessage, dataSourceInfo)) {
+            std::string error = "Error: " + errorMessage;
+            resultWr = write(connFd, error.c_str(), error.length());
+            resultWr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
+            frontend_logger.error("History PageRank failed for graph " + std::to_string(graphId) +
+                                  " snapshot " + std::to_string(snapshotId) +
+                                  ": " + errorMessage);
+            return;
         }
 
         if (result.partitionsProcessed > 0) {
@@ -5936,42 +5911,17 @@ static void history_pagerank_timestamp_command(int connFd, SQLiteDBInterface *sq
         uint32_t closestSnapshotId = findClosestSnapshotId(snapshotTimestamps, targetTimestamp);
 
         HistoryPageRankResult result;
-        // Try distributed approach first (worker-local computation, no centralized staging)
-        result = countHistoryPageRankDistributed(sqlite, graphId, closestSnapshotId, topK,
-                                                  maxIterations, PAGE_RANK_ALPHA, masterIP);
-        dataSourceInfo = "Data source: distributed-direct (worker-local snapshot files; staging disabled)";
-
-        if (result.partitionsProcessed == 0) {
-            bool allowStagedFallback = Utils::parseBoolean(
-                Utils::getJasmineGraphProperty("org.jasminegraph.histpgr.allow.staged.fallback"));
-            if (!allowStagedFallback) {
-                std::string error = "Error: Failed to process snapshot " +
-                                    std::to_string(closestSnapshotId) +
-                                    " (no partitions responded — check worker connectivity, hpgr protocol, and snapshot availability)";
-                resultWr = write(connFd, error.c_str(), error.length());
-                resultWr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
-                frontend_logger.warn("Distributed-direct history pagerank-by-timestamp failed for graph " +
-                                     std::to_string(graphId) + " snapshot " +
-                                     std::to_string(closestSnapshotId) +
-                                     " and staged fallback is disabled");
-                return;
-            }
-
-            frontend_logger.warn("Distributed-direct history pagerank-by-timestamp failed for graph " +
-                                 std::to_string(graphId) + " snapshot " +
-                                 std::to_string(closestSnapshotId) +
-                                 "; trying staged fallback");
-
-            std::string errorMessage;
-            if (!countHistoryPageRankFromStagedBitmaps(sqlite, graphId, closestSnapshotId, topK,
-                                                       maxIterations, PAGE_RANK_ALPHA, result,
-                                                       errorMessage, dataSourceInfo)) {
-                std::string error = "Error: " + errorMessage;
-                resultWr = write(connFd, error.c_str(), error.length());
-                resultWr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
-                frontend_logger.error(error);
-                return;
-            }
+        std::string errorMessage;
+        if (!countHistoryPageRankFromStagedBitmaps(sqlite, graphId, closestSnapshotId, topK,
+                                                   maxIterations, PAGE_RANK_ALPHA, result,
+                                                   errorMessage, dataSourceInfo)) {
+            std::string error = "Error: " + errorMessage;
+            resultWr = write(connFd, error.c_str(), error.length());
+            resultWr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
+            frontend_logger.error("History PageRank timestamp failed for graph " +
+                                  std::to_string(graphId) + " snapshot " +
+                                  std::to_string(closestSnapshotId) + ": " + errorMessage);
+            return;
         }
 
         if (result.partitionsProcessed > 0) {
