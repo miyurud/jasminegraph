@@ -58,6 +58,7 @@ limitations under the License.
 #include "../util/hdfs/HDFSStreamHandler.h"
 #include "../util/kafka/KafkaCC.h"
 #include "../util/kafka/StreamHandler.h"
+#include "../util/kafka/StreamRegistry.h"
 #include "../util/logger/Logger.h"
 #include "/home/ubuntu/software/antlr/CypherLexer.h"
 #include "/home/ubuntu/software/antlr/CypherParser.h"
@@ -131,7 +132,7 @@ static void addStreamHDFSCommand(std::string masterIP, int connFd, std::string &
                                  SQLiteDBInterface *sqlite, bool *loop_exit_p);
 static void send_graph_hdfs_command(const std::string &masterIP, int connectionFd, SQLiteDBInterface *sqlite,
                                     bool *loop_exit_p);
-static void stop_stream_kafka_command(int connFd, KafkaConnector *kstream, bool *loop_exit_p);
+static void stop_stream_kafka_command(int connFd, const std::string &topicName, bool *loop_exit_p);
 static void process_dataset_command(int connFd, bool *loop_exit_p);
 static void triangles_command(std::string masterIP, int connFd, SQLiteDBInterface *sqlite,
                               PerformanceSQLiteDBInterface *perfSqlite, JobScheduler *jobScheduler, bool *loop_exit_p);
@@ -266,8 +267,33 @@ void *frontendservicesesion(void *dummyPt) {
                                                                &loop_exit);
         } else if (line.compare(STOP_CONSTRUCT_KG) == 0) {
             JasmineGraphFrontEnd::stop_graph_streaming(connFd, &loop_exit);
-        } else if (line.compare(STOP_STREAM_KAFKA) == 0) {
-            stop_stream_kafka_command(connFd, kstream, &loop_exit);
+        } else if (line.compare(0, STOP_STREAM_KAFKA.length(), STOP_STREAM_KAFKA) == 0 &&
+                   (line.length() == STOP_STREAM_KAFKA.length() ||
+                    std::isspace(static_cast<unsigned char>(line[STOP_STREAM_KAFKA.length()])))) {
+            std::string topicName;
+
+            if (line.length() > STOP_STREAM_KAFKA.length()) {
+                topicName = Utils::trim_copy(line.substr(STOP_STREAM_KAFKA.length()));
+            }
+
+            if (topicName.empty()) {
+                string topicMsg = "Enter Kafka topic to stop streaming: ";
+                write(connFd, topicMsg.c_str(), topicMsg.length());
+                write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
+
+                char topicBuffer[FRONTEND_DATA_LENGTH + 1];
+                memset(topicBuffer, 0, FRONTEND_DATA_LENGTH + 1);
+                read(connFd, topicBuffer, FRONTEND_DATA_LENGTH);
+                topicName = Utils::trim_copy(string(topicBuffer));
+            }
+
+            if (topicName.empty()) {
+                string errorMsg = "Error: Invalid topic name";
+                write(connFd, errorMsg.c_str(), errorMsg.length());
+                write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
+            } else {
+                stop_stream_kafka_command(connFd, topicName, &loop_exit);
+            }
         } else if (line.compare(RMGR) == 0) {
             remove_graph_command(masterIP, connFd, sqlite, &loop_exit);
         } else if (line.compare(TRUNCATE) == 0) {
@@ -1601,9 +1627,41 @@ static void add_stream_kafka_command(int connFd, std::string &kafka_server_IP, c
     kstream = new KafkaConnector(configs);
     // Subscribe to the Kafka topic.
     kstream->Subscribe(topic_name_s);
-    // Create the StreamHandler object.
-    StreamHandler *stream_handler = new StreamHandler(kstream, numberOfPartitions, workerClients, sqlite, stoi(graphId),
-                                                      direction == Conts::DIRECTED, spt::getPartitioner(partitionAlgo));
+
+    // Convert graphId string to integer
+    int graphIdInt = stoi(graphId);
+
+    // Register the stream in the global registry
+    StreamRegistry &registry = StreamRegistry::getInstance();
+    std::string userId = "user_" + std::to_string(connFd);  // Use connection FD as simple user identifier
+    if (!registry.registerStream(graphIdInt, topic_name_s, connFd, kstream, userId)) {
+        frontend_logger.error("Failed to register stream - graphId " + graphId + " may already be streaming");
+        string errorMsg = "Error: Stream for this graph ID is already active";
+        write(connFd, errorMsg.c_str(), errorMsg.length());
+        write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
+        delete kstream;
+        *loop_exit_p = true;
+        return;
+    }
+
+    // Get the stop flag from the registry (lookup by topic)
+    auto streamMetadata = registry.getStreamByTopic(topic_name_s);
+    if (!streamMetadata) {
+        frontend_logger.error("Failed to retrieve stream metadata for topic " + topic_name_s);
+        string errorMsg = "Error: Failed to initialize stream metadata";
+        write(connFd, errorMsg.c_str(), errorMsg.length());
+        write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
+        registry.unregisterStream(graphIdInt);
+        delete kstream;
+        *loop_exit_p = true;
+        return;
+    }
+    auto stopFlag = streamMetadata->stopFlag;
+
+    // Create the StreamHandler object with the stop flag
+    StreamHandler *stream_handler = new StreamHandler(kstream, numberOfPartitions, workerClients, sqlite, graphIdInt,
+                                                      direction == Conts::DIRECTED, spt::getPartitioner(partitionAlgo),
+                                                      stopFlag);
 
     if (existingGraph != "y") {
         string path = "kafka:\\" + topic_name_s + ":" + group_id;
@@ -1624,6 +1682,9 @@ static void add_stream_kafka_command(int connFd, std::string &kafka_server_IP, c
     }
     frontend_logger.info("Start listening to " + topic_name_s);
     input_stream_handler_thread = thread(&StreamHandler::listen_to_kafka_topic, stream_handler);
+
+    // Update the stream registry with the new thread ID
+    registry.updateStreamThreadId(graphIdInt, input_stream_handler_thread.get_id());
 }
 
 static bool writeSocketLine(int connectionFd, const std::string &message, bool *loop_exit_p) {
@@ -2607,21 +2668,52 @@ bool JasmineGraphFrontEnd::constructKGStreamHDFSCommand(const std::string &maste
     return writeSocketLine(connectionFd, "Graph Id: " + std::to_string(newGraphID), loop_exit_p);
 }
 
-static void stop_stream_kafka_command(int connFd, KafkaConnector *kstream, bool *loop_exit_p) {
-    frontend_logger.info("Started serving `" + STOP_STREAM_KAFKA + "` command");
-    //          Unsubscribe the kafka consumer.
-    kstream->Unsubscribe();
-    string message = "Successfully stop `" + stream_topic_name + "` input kafka stream";
-    int result_wr = write(connFd, message.c_str(), message.length());
-    if (result_wr < 0) {
-        frontend_logger.error("Error writing to socket");
-        *loop_exit_p = true;
+static void stop_stream_kafka_command(int connFd, const std::string &topicName, bool *loop_exit_p) {
+    frontend_logger.info("Started serving `" + STOP_STREAM_KAFKA + "` command for topic=" + topicName);
+
+    StreamRegistry &registry = StreamRegistry::getInstance();
+
+    // Get stream metadata by topic
+    auto streamMetadata = registry.getStreamByTopic(topicName);
+    if (!streamMetadata) {
+        string errorMsg = "Error: No active stream found for topic `" + topicName + "`";
+        frontend_logger.error(errorMsg);
+        write(connFd, errorMsg.c_str(), errorMsg.length());
+        write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
         return;
     }
-    result_wr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
 
-    if (result_wr < 0) {
-        frontend_logger.error("Error writing to socket");
+    int graphId = streamMetadata->graphId;
+
+    // Signal the stream to stop gracefully
+    if (registry.signalStreamStop(graphId)) {
+        // Also unsubscribe from Kafka consumer immediately
+        if (streamMetadata->kafkaConnector) {
+            streamMetadata->kafkaConnector->Unsubscribe();
+        }
+
+        string message = "Successfully initiated stop for topic `" + streamMetadata->topicName +
+                 "` (graph ID " + std::to_string(graphId) + ")";
+        int result_wr = write(connFd, message.c_str(), message.length());
+        if (result_wr < 0) {
+            frontend_logger.error("Error writing to socket");
+            *loop_exit_p = true;
+            return;
+        }
+        result_wr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
+        if (result_wr < 0) {
+            frontend_logger.error("Error writing to socket");
+            *loop_exit_p = true;
+            return;
+        }
+
+        // Unregister the stream from the registry
+        registry.unregisterStream(graphId);
+    } else {
+        string errorMsg = "Error: Could not signal stop for topic `" + topicName + "`";
+        frontend_logger.error(errorMsg);
+        write(connFd, errorMsg.c_str(), errorMsg.length());
+        write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
         *loop_exit_p = true;
     }
 }
@@ -2737,8 +2829,9 @@ static void triangles_command(std::string masterIP, int connFd, SQLiteDBInterfac
 
         priority = Utils::trim_copy(priority);
 
-        if (!(std::find_if(priority.begin(), priority.end(), [](unsigned char c) { return !std::isdigit(c); }) ==
-              priority.end())) {
+          if (!(std::find_if(priority.begin(), priority.end(), [](unsigned char c) {
+                return !std::isdigit(c);
+              }) == priority.end())) {
             *loop_exit_p = true;
             string error_message = "Priority should be numeric and > 1 or empty";
             result_wr = write(connFd, error_message.c_str(), error_message.length());
@@ -3438,8 +3531,9 @@ static void page_rank_command(std::string masterIP, int connFd, SQLiteDBInterfac
     string priority(priority_data);
     priority = Utils::trim_copy(priority);
 
-    if (!(std::find_if(priority.begin(), priority.end(), [](unsigned char c) { return !std::isdigit(c); }) ==
-          priority.end())) {
+    if (!(std::find_if(priority.begin(), priority.end(), [](unsigned char c) {
+              return !std::isdigit(c);
+          }) == priority.end())) {
         *loop_exit_p = true;
         string error_message = "Priority should be numeric and > 1 or empty";
         result_wr = write(connFd, error_message.c_str(), error_message.length());
