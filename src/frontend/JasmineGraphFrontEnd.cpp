@@ -2829,8 +2829,9 @@ static void triangles_command(std::string masterIP, int connFd, SQLiteDBInterfac
 
         priority = Utils::trim_copy(priority);
 
-        if (!(std::find_if(priority.begin(), priority.end(), [](unsigned char c) { return !std::isdigit(c); }) ==
-              priority.end())) {
+          if (!(std::find_if(priority.begin(), priority.end(), [](unsigned char c) {
+                return !std::isdigit(c);
+              }) == priority.end())) {
             *loop_exit_p = true;
             string error_message = "Priority should be numeric and > 1 or empty";
             result_wr = write(connFd, error_message.c_str(), error_message.length());
@@ -3530,8 +3531,9 @@ static void page_rank_command(std::string masterIP, int connFd, SQLiteDBInterfac
     string priority(priority_data);
     priority = Utils::trim_copy(priority);
 
-    if (!(std::find_if(priority.begin(), priority.end(), [](unsigned char c) { return !std::isdigit(c); }) ==
-          priority.end())) {
+    if (!(std::find_if(priority.begin(), priority.end(), [](unsigned char c) {
+              return !std::isdigit(c);
+          }) == priority.end())) {
         *loop_exit_p = true;
         string error_message = "Priority should be numeric and > 1 or empty";
         result_wr = write(connFd, error_message.c_str(), error_message.length());

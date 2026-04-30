@@ -141,4 +141,4 @@ class StreamRegistry {
     mutable std::mutex registryMutex;
 };
 
-#endif  
+#endif

@@ -804,8 +804,9 @@ static void triangles_command(std::string masterIP, int connFd,
             *loop_exit_p = true;
         }
     } else {
-        if (!(std::find_if(priority.begin(), priority.end(), [](unsigned char c) { return !std::isdigit(c); }) ==
-              priority.end())) {
+          if (!(std::find_if(priority.begin(), priority.end(), [](unsigned char c) {
+                return !std::isdigit(c);
+              }) == priority.end())) {
             *loop_exit_p = true;
             string error_message = "Priority should be numeric and > 1 or empty";
             int result_wr = write(connFd, error_message.c_str(), error_message.length());
