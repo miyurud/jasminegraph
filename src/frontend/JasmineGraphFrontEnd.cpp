@@ -2703,7 +2703,8 @@ static void stop_stream_kafka_command(int connFd, const std::string &topicName, 
             *loop_exit_p = true;
             return;
         }
-                                                                                                                                                                                                                                                                         result_wr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
+                                                                        result_wr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(),
+                                                                                  Conts::CARRIAGE_RETURN_NEW_LINE.size());
         if (result_wr < 0) {
             frontend_logger.error("Error writing to socket");
             *loop_exit_p = true;
