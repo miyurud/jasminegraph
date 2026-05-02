@@ -80,6 +80,7 @@ static void deleteTemporalSnapshotsOnRemoteWorkers(SQLiteDBInterface *sqlite,
                         "-name " + shellQuote(graphPrefix + "*_bitmaps.ebm") +
                         " -o -name " + shellQuote(graphPrefix + "*_snap*.delta") +
                         " -o -name " + shellQuote(graphPrefix + "*_snapmeta.bin") +
+                        " -o -name " + shellQuote(graphPrefix + "*_nodes.dict") +
                         " -o -name " + shellQuote(graphPrefix + "*_snap*.tgs") +
                         " \\) -delete 2>/dev/null";
         std::string sshCommand = "ssh -o BatchMode=yes -o ConnectTimeout=5 " +
@@ -156,6 +157,7 @@ void JasmineGraphFrontEndCommon::removeGraph(std::string graphID, SQLiteDBInterf
     //   graph{id}_part{n}_snap{n}.delta - delta snapshot segments
     //   graph{id}_part{n}_bitmaps.ebm   - legacy bitmap index
     //   graph{id}_part{n}_snapmeta.bin  - snapshot metadata
+    //   graph{id}_part{n}_nodes.dict    - persistent node dictionary
     //   graph{id}_part{n}_snap{n}.tgs   - legacy snapshot data
     std::string snapshotDir = getTemporalSnapshotDir();
     DIR* dir = opendir(snapshotDir.c_str());
@@ -174,9 +176,10 @@ void JasmineGraphFrontEndCommon::removeGraph(std::string graphID, SQLiteDBInterf
             bool isDelta = filename.find("_snap") != std::string::npos &&
                            filename.rfind(".delta") == filename.size() - 6;
             bool isSnapMeta = filename.find("_snapmeta.bin") != std::string::npos;
+            bool isNodeDict = filename.find("_nodes.dict") != std::string::npos;
             bool isLegacySnapshot = filename.find("_snap") != std::string::npos &&
                                     filename.rfind(".tgs") == filename.size() - 4;
-            if (!isLegacyBitmap && !isDelta && !isSnapMeta && !isLegacySnapshot) {
+            if (!isLegacyBitmap && !isDelta && !isSnapMeta && !isNodeDict && !isLegacySnapshot) {
                 continue;
             }
 

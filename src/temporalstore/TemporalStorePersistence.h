@@ -24,6 +24,7 @@ limitations under the License.
 #include <cstdlib>
 #include <cstdio>
 #include <limits>
+#include <unordered_map>
 #include <unordered_set>
 #include <algorithm>
 #include <cctype>
@@ -79,6 +80,16 @@ class TemporalStorePersistence {
     static const char* MAGIC_NUMBER;
     static const uint32_t VERSION = 1;
     static const uint32_t FLAG_COMPRESSED = 0x00000001;
+    // Delta-file format flags (BitmapFileHeader::flags)
+    static const uint32_t FLAG_DELTA_DICT_ENCODED = 0x00000002;
+    static const uint32_t FLAG_DELTA_SINGLE_SNAPSHOT = 0x00000004;
+    static const uint32_t FLAG_DELTA_PERSISTENT_DICT = 0x00000008;
+
+    enum class DictionaryLoadStatus {
+        OK,
+        NOT_FOUND,
+        INVALID
+    };
 
     struct FileHeader {
         char magic[8];
@@ -255,6 +266,105 @@ class TemporalStorePersistence {
         }
 
         snapshotId = static_cast<uint32_t>(parsed);
+        return true;
+    }
+
+    struct NodeDictionaryFileHeader {
+        char magic[8];  // "JGNDICT0"
+        uint32_t version;
+        uint32_t graphId;
+        uint32_t partitionId;
+        uint64_t nodeCount;
+        char reserved[8];
+    };
+
+    static DictionaryLoadStatus loadNodeDictionary(
+        const std::string& dictionaryPath,
+        uint32_t expectedGraphId,
+        uint32_t expectedPartitionId,
+        std::vector<std::string>& indexToNode,
+        std::unordered_map<std::string, uint32_t>* nodeToIndex = nullptr) {
+        indexToNode.clear();
+        if (nodeToIndex != nullptr) {
+            nodeToIndex->clear();
+        }
+
+        std::ifstream file(dictionaryPath, std::ios::binary);
+        if (!file.is_open()) {
+            return DictionaryLoadStatus::NOT_FOUND;
+        }
+
+        NodeDictionaryFileHeader header;
+        file.read(reinterpret_cast<char*>(&header), sizeof(NodeDictionaryFileHeader));
+        if (!file.good()) {
+            return DictionaryLoadStatus::INVALID;
+        }
+
+        if (std::memcmp(header.magic, "JGNDICT0", 8) != 0 ||
+            header.version != 1 ||
+            header.graphId != expectedGraphId ||
+            header.partitionId != expectedPartitionId) {
+            return DictionaryLoadStatus::INVALID;
+        }
+
+        indexToNode.reserve(static_cast<size_t>(header.nodeCount));
+        if (nodeToIndex != nullptr) {
+            nodeToIndex->reserve(static_cast<size_t>(header.nodeCount) + 1);
+        }
+
+        for (uint64_t i = 0; i < header.nodeCount; ++i) {
+            std::string nodeId = readString(file);
+            if (!file.good()) {
+                return DictionaryLoadStatus::INVALID;
+            }
+
+            if (nodeToIndex != nullptr) {
+                auto inserted = nodeToIndex->emplace(nodeId, static_cast<uint32_t>(indexToNode.size()));
+                if (!inserted.second) {
+                    return DictionaryLoadStatus::INVALID;
+                }
+            }
+            indexToNode.push_back(std::move(nodeId));
+        }
+
+        return DictionaryLoadStatus::OK;
+    }
+
+    static bool saveNodeDictionaryAtomic(
+        const std::string& dictionaryPath,
+        uint32_t graphId,
+        uint32_t partitionId,
+        const std::vector<std::string>& indexToNode) {
+        std::string tempPath = dictionaryPath + ".tmp";
+        std::ofstream file(tempPath, std::ios::binary | std::ios::trunc);
+        if (!file.is_open()) {
+            return false;
+        }
+
+        NodeDictionaryFileHeader header;
+        std::memcpy(header.magic, "JGNDICT0", 8);
+        header.version = 1;
+        header.graphId = graphId;
+        header.partitionId = partitionId;
+        header.nodeCount = indexToNode.size();
+        std::memset(header.reserved, 0, sizeof(header.reserved));
+
+        file.write(reinterpret_cast<const char*>(&header), sizeof(NodeDictionaryFileHeader));
+        for (const auto& nodeId : indexToNode) {
+            writeString(file, nodeId);
+        }
+
+        if (!file.good()) {
+            file.close();
+            std::remove(tempPath.c_str());
+            return false;
+        }
+
+        file.close();
+        if (std::rename(tempPath.c_str(), dictionaryPath.c_str()) != 0) {
+            std::remove(tempPath.c_str());
+            return false;
+        }
         return true;
     }
 
@@ -532,6 +642,17 @@ class TemporalStorePersistence {
                "_part" + std::to_string(partitionId) + "_snapmeta.bin";
     }
 
+        /**
+         * Path for graph-partition node dictionary.
+         * graph{G}_part{P}_nodes.dict
+         */
+        static std::string generateNodeDictionaryFilePath(const std::string& baseDir,
+                                     uint32_t graphId,
+                                     uint32_t partitionId) {
+         return baseDir + "/graph" + std::to_string(graphId) +
+             "_part" + std::to_string(partitionId) + "_nodes.dict";
+        }
+
     /**
      * Save the full edge bitmap index to disk (compressed).
      * Rewrites graph{G}_part{P}_bitmaps.ebm in full.
@@ -807,6 +928,57 @@ class TemporalStorePersistence {
                                         const EdgeBitmapMap& windowBitmaps,
                                         uint64_t* savedEdgeCount = nullptr) {
         std::string filePath = generateBitmapDeltaFilePath(baseDir, graphId, partitionId, snapshotId);
+
+        std::string dictionaryPath = generateNodeDictionaryFilePath(baseDir, graphId, partitionId);
+        std::vector<std::string> indexToNode;
+        std::unordered_map<std::string, uint32_t> nodeToIndex;
+        DictionaryLoadStatus dictStatus = loadNodeDictionary(dictionaryPath, graphId, partitionId,
+                                                             indexToNode, &nodeToIndex);
+        bool usePersistentDictionary = (dictStatus != DictionaryLoadStatus::INVALID);
+
+        if (dictStatus == DictionaryLoadStatus::NOT_FOUND) {
+            nodeToIndex.reserve(windowBitmaps.size() * 2 + 1);
+            indexToNode.reserve(windowBitmaps.size() * 2 + 1);
+        }
+
+        auto getOrAddNodeIndex = [&](const std::string& nodeId) -> uint32_t {
+            auto it = nodeToIndex.find(nodeId);
+            if (it != nodeToIndex.end()) {
+                return it->second;
+            }
+            uint32_t idx = static_cast<uint32_t>(indexToNode.size());
+            nodeToIndex.emplace(nodeId, idx);
+            indexToNode.push_back(nodeId);
+            return idx;
+        };
+
+        bool dictionaryChanged = false;
+        for (const auto& pair : windowBitmaps) {
+            size_t before = indexToNode.size();
+            getOrAddNodeIndex(pair.first.sourceId);
+            getOrAddNodeIndex(pair.first.destId);
+            if (indexToNode.size() != before) {
+                dictionaryChanged = true;
+            }
+        }
+
+        if (usePersistentDictionary && (dictStatus == DictionaryLoadStatus::NOT_FOUND || dictionaryChanged)) {
+            if (!saveNodeDictionaryAtomic(dictionaryPath, graphId, partitionId, indexToNode)) {
+                usePersistentDictionary = false;
+            }
+        }
+
+        if (!usePersistentDictionary) {
+            nodeToIndex.clear();
+            indexToNode.clear();
+            nodeToIndex.reserve(windowBitmaps.size() * 2 + 1);
+            indexToNode.reserve(windowBitmaps.size() * 2 + 1);
+            for (const auto& pair : windowBitmaps) {
+                getOrAddNodeIndex(pair.first.sourceId);
+                getOrAddNodeIndex(pair.first.destId);
+            }
+        }
+
         std::ofstream file(filePath, std::ios::binary | std::ios::trunc);
         if (!file.is_open()) {
             return false;
@@ -824,21 +996,51 @@ class TemporalStorePersistence {
         header.edgeCount = windowBitmaps.size();
         header.timestamp = static_cast<uint64_t>(
             std::chrono::system_clock::now().time_since_epoch().count());
-        header.flags = 0;
+
+        bool singleSnapshotDelta = true;
+        for (const auto& pair : windowBitmaps) {
+            const auto& bitmap = pair.second;
+            if (bitmap.countActiveSnapshots() != 1 || !bitmap.contains(snapshotId)) {
+                singleSnapshotDelta = false;
+                break;
+            }
+        }
+
+        // Always use dictionary-encoded node IDs in delta files.
+        // Prefer the persistent graph-partition dictionary when available.
+        header.flags = FLAG_DELTA_DICT_ENCODED;
+        if (singleSnapshotDelta) {
+            header.flags |= FLAG_DELTA_SINGLE_SNAPSHOT;
+        }
+        if (usePersistentDictionary) {
+            header.flags |= FLAG_DELTA_PERSISTENT_DICT;
+        }
         std::memset(header.reserved, 0, 20);
         file.write(reinterpret_cast<const char*>(&header), sizeof(BitmapFileHeader));
 
         uint64_t edgeCount = windowBitmaps.size();
         file.write(reinterpret_cast<const char*>(&edgeCount), sizeof(uint64_t));
 
-        for (const auto& pair : windowBitmaps) {
-            writeString(file, pair.first.sourceId);
-            writeString(file, pair.first.destId);
+        if (!usePersistentDictionary) {
+            uint32_t nodeCount = static_cast<uint32_t>(indexToNode.size());
+            file.write(reinterpret_cast<const char*>(&nodeCount), sizeof(uint32_t));
+            for (const auto& nodeId : indexToNode) {
+                writeString(file, nodeId);
+            }
+        }
 
-            std::string bitmapData = pair.second.serialize();
-            uint32_t dataSize = static_cast<uint32_t>(bitmapData.size());
-            file.write(reinterpret_cast<const char*>(&dataSize), sizeof(uint32_t));
-            file.write(bitmapData.data(), dataSize);
+        for (const auto& pair : windowBitmaps) {
+            uint32_t sourceIndex = nodeToIndex[pair.first.sourceId];
+            uint32_t destIndex = nodeToIndex[pair.first.destId];
+            file.write(reinterpret_cast<const char*>(&sourceIndex), sizeof(uint32_t));
+            file.write(reinterpret_cast<const char*>(&destIndex), sizeof(uint32_t));
+
+            if (!singleSnapshotDelta) {
+                std::string bitmapData = pair.second.serialize();
+                uint32_t dataSize = static_cast<uint32_t>(bitmapData.size());
+                file.write(reinterpret_cast<const char*>(&dataSize), sizeof(uint32_t));
+                file.write(bitmapData.data(), dataSize);
+            }
         }
 
         bool ok = file.good();
@@ -971,9 +1173,64 @@ class TemporalStorePersistence {
                 continue;
             }
 
+            bool dictEncoded = (deltaHeader.flags & FLAG_DELTA_DICT_ENCODED) != 0;
+            bool singleSnapshotDelta = (deltaHeader.flags & FLAG_DELTA_SINGLE_SNAPSHOT) != 0;
+            bool persistentDictionary = (deltaHeader.flags & FLAG_DELTA_PERSISTENT_DICT) != 0;
+
+            std::vector<std::string> indexToNode;
+            if (dictEncoded) {
+                if (persistentDictionary) {
+                    std::string dictionaryPath = generateNodeDictionaryFilePath(baseDir, graphId, partitionId);
+                    DictionaryLoadStatus dictStatus = loadNodeDictionary(dictionaryPath, graphId, partitionId,
+                                                                         indexToNode, nullptr);
+                    if (dictStatus != DictionaryLoadStatus::OK) {
+                        return false;
+                    }
+                } else {
+                    uint32_t nodeCount = 0;
+                    deltaFile.read(reinterpret_cast<char*>(&nodeCount), sizeof(uint32_t));
+                    if (!deltaFile.good()) {
+                        continue;
+                    }
+
+                    indexToNode.reserve(nodeCount);
+                    for (uint32_t i = 0; i < nodeCount; ++i) {
+                        indexToNode.push_back(readString(deltaFile));
+                        if (!deltaFile.good()) {
+                            return false;
+                        }
+                    }
+                }
+            }
+
             for (uint64_t i = 0; i < edgeCount; ++i) {
-                std::string sourceId = readString(deltaFile);
-                std::string destId = readString(deltaFile);
+                std::string sourceId;
+                std::string destId;
+
+                if (dictEncoded) {
+                    uint32_t sourceIndex = 0;
+                    uint32_t destIndex = 0;
+                    deltaFile.read(reinterpret_cast<char*>(&sourceIndex), sizeof(uint32_t));
+                    deltaFile.read(reinterpret_cast<char*>(&destIndex), sizeof(uint32_t));
+                    if (!deltaFile.good()) {
+                        return false;
+                    }
+                    if (sourceIndex >= indexToNode.size() || destIndex >= indexToNode.size()) {
+                        return false;
+                    }
+                    sourceId = indexToNode[sourceIndex];
+                    destId = indexToNode[destIndex];
+                } else {
+                    sourceId = readString(deltaFile);
+                    destId = readString(deltaFile);
+                }
+
+                if (singleSnapshotDelta) {
+                    if (!handler(sourceId, destId)) {
+                        return true;
+                    }
+                    continue;
+                }
 
                 uint32_t dataSize = 0;
                 deltaFile.read(reinterpret_cast<char*>(&dataSize), sizeof(uint32_t));

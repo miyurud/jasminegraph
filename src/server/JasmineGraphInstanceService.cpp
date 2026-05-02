@@ -610,6 +610,7 @@ int deleteStreamingGraphPartition(std::string graphID, std::string partitionID) 
  *   - graph{id}_part{p}_bitmaps.ebm      (legacy cumulative bitmap index)
  *   - graph{id}_part{p}_snap{s}.delta    (delta snapshot segments)
  *   - graph{id}_part{p}_snapmeta.bin     (snapshot metadata)
+ *   - graph{id}_part{p}_nodes.dict       (persistent node dictionary)
  *   - graph{id}_part{p}_snap{s}.tgs      (legacy snapshot files)
  */
 static int deleteTemporalSnapshotFilesForGraph(const std::string& graphID) {
@@ -641,9 +642,10 @@ static int deleteTemporalSnapshotFilesForGraph(const std::string& graphID) {
         bool isDelta = fileName.find("_snap") != std::string::npos &&
                        fileName.rfind(".delta") == fileName.size() - 6;
         bool isSnapMeta = fileName.find("_snapmeta.bin") != std::string::npos;
+        bool isNodeDict = fileName.find("_nodes.dict") != std::string::npos;
         bool isLegacySnapshot = fileName.find("_snap") != std::string::npos &&
                                 fileName.rfind(".tgs") == fileName.size() - 4;
-        if (!isLegacyBitmap && !isDelta && !isSnapMeta && !isLegacySnapshot) {
+        if (!isLegacyBitmap && !isDelta && !isSnapMeta && !isNodeDict && !isLegacySnapshot) {
             continue;
         }
 
