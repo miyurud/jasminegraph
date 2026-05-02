@@ -64,6 +64,7 @@ limitations under the License.
 #include "/home/ubuntu/software/antlr/CypherLexer.h"
 #include "/home/ubuntu/software/antlr/CypherParser.h"
 #include "JasmineGraphFrontEndProtocol.h"
+#include "KafkaTopicUtils.h"
 #include "antlr4-runtime.h"
 #include "core/CoreConstants.h"
 #include "core/common/JasmineGraphFrontendCommon.h"
@@ -2727,43 +2728,14 @@ static void kafka_topics_command(int connFd, SQLiteDBInterface *sqlite, bool *lo
     try {
         std::string sql = "SELECT upload_path FROM graph WHERE upload_path LIKE 'kafka:%'";
         auto rows = sqlite->runSelect(sql);
-
-        for (const auto &row : rows) {
-            if (row.empty()) {
-                continue;
-            }
-
-            std::string uploadPath = row[0].second;
-            if (uploadPath.empty()) {
-                continue;
-            }
-
-            size_t prefix = uploadPath.find("kafka:");
-            if (prefix == std::string::npos) {
-                continue;
-            }
-
-            std::string rest = uploadPath.substr(prefix + 6);
-            if (!rest.empty() && (rest[0] == '\\' || rest[0] == '/')) {
-                rest = rest.substr(1);
-            }
-
-            size_t sep = rest.find(':');
-            std::string topic = sep == std::string::npos ? rest : rest.substr(0, sep);
-            if (!topic.empty()) {
-                topicNames.insert(topic);
-            }
-        }
+        topicNames = KafkaTopicUtils::extractTopicNames(rows);
     } catch (const std::exception &ex) {
         frontend_logger.error("Failed to fetch Kafka topics from storage: " + std::string(ex.what()));
     }
 
-    std::ostringstream ss;
-    for (const auto &topicName : topicNames) {
-        ss << topicName << Conts::CARRIAGE_RETURN_NEW_LINE;
-    }
-
-    writeSocketResultOrEmpty(connFd, ss.str(), loop_exit_p);
+    writeSocketResultOrEmpty(connFd,
+                             KafkaTopicUtils::serializeTopicNames(topicNames, Conts::CARRIAGE_RETURN_NEW_LINE),
+                             loop_exit_p);
 }
 
 static void process_dataset_command(int connFd, bool *loop_exit_p) {

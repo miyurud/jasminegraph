@@ -4,6 +4,7 @@ project(JasmineGraphUnitTest)
 set(SOURCES
         main.cpp
         util/Utils_test.cpp
+        util/KafkaTopicUtils_test.cpp
         k8s/K8sInterface_test.cpp
         k8s/K8sWorkerController_test.cpp
         metadb/SQLiteDBInterface_test.cpp
