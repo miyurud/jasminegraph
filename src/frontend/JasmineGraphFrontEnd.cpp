@@ -133,6 +133,7 @@ static void addStreamHDFSCommand(std::string masterIP, int connFd, std::string &
 static void send_graph_hdfs_command(const std::string &masterIP, int connectionFd, SQLiteDBInterface *sqlite,
                                     bool *loop_exit_p);
 static void stop_stream_kafka_command(int connFd, const std::string &topicName, bool *loop_exit_p);
+static void kafka_topics_command(int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_p);
 static void process_dataset_command(int connFd, bool *loop_exit_p);
 static void triangles_command(std::string masterIP, int connFd, SQLiteDBInterface *sqlite,
                               PerformanceSQLiteDBInterface *perfSqlite, JobScheduler *jobScheduler, bool *loop_exit_p);
@@ -257,6 +258,8 @@ void *frontendservicesesion(void *dummyPt) {
             }
             add_stream_kafka_command(connFd, kafka_server_IP, configs, kstream, input_stream_handler, workerClients,
                                      numberOfPartitions, sqlite, &loop_exit);
+        } else if (line.compare(KTOP) == 0) {
+            kafka_topics_command(connFd, sqlite, &loop_exit);
         } else if (line.compare(ADD_STREAM_HDFS) == 0) {
             addStreamHDFSCommand(masterIP, connFd, hdfsServerIp, input_stream_handler, numberOfPartitions, sqlite,
                                  &loop_exit);
@@ -2700,7 +2703,7 @@ static void stop_stream_kafka_command(int connFd, const std::string &topicName, 
             *loop_exit_p = true;
             return;
         }
-        result_wr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
+                                                                                                                                                                                                                                                                         result_wr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
         if (result_wr < 0) {
             frontend_logger.error("Error writing to socket");
             *loop_exit_p = true;
@@ -2716,6 +2719,52 @@ static void stop_stream_kafka_command(int connFd, const std::string &topicName, 
         write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
         *loop_exit_p = true;
     }
+}
+
+static void kafka_topics_command(int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_p) {
+    frontend_logger.info("Serving `" + KTOP + "` command");
+    std::set<std::string> topicNames;
+
+    try {
+        std::string sql = "SELECT upload_path FROM graph WHERE upload_path LIKE 'kafka:%'";
+        auto rows = sqlite->runSelect(sql);
+
+        for (const auto &row : rows) {
+            if (row.empty()) {
+                continue;
+            }
+
+            std::string uploadPath = row[0].second;
+            if (uploadPath.empty()) {
+                continue;
+            }
+
+            size_t prefix = uploadPath.find("kafka:");
+            if (prefix == std::string::npos) {
+                continue;
+            }
+
+            std::string rest = uploadPath.substr(prefix + 6);
+            if (!rest.empty() && (rest[0] == '\\' || rest[0] == '/')) {
+                rest = rest.substr(1);
+            }
+
+            size_t sep = rest.find(':');
+            std::string topic = sep == std::string::npos ? rest : rest.substr(0, sep);
+            if (!topic.empty()) {
+                topicNames.insert(topic);
+            }
+        }
+    } catch (const std::exception &ex) {
+        frontend_logger.error("Failed to fetch Kafka topics from storage: " + std::string(ex.what()));
+    }
+
+    std::ostringstream ss;
+    for (const auto &topicName : topicNames) {
+        ss << topicName << Conts::CARRIAGE_RETURN_NEW_LINE;
+    }
+
+    writeSocketResultOrEmpty(connFd, ss.str(), loop_exit_p);
 }
 
 static void process_dataset_command(int connFd, bool *loop_exit_p) {
