@@ -221,8 +221,10 @@ class TemporalStorePersistence {
         if (graphText.empty() || partitionText.empty()) {
             return false;
         }
-        if (!std::all_of(graphText.begin(), graphText.end(), [](unsigned char ch) { return std::isdigit(ch); }) ||
-            !std::all_of(partitionText.begin(), partitionText.end(), [](unsigned char ch) { return std::isdigit(ch); })) {
+        const auto isDigits = [](const std::string& value) {
+            return std::all_of(value.begin(), value.end(), [](unsigned char ch) { return std::isdigit(ch); });
+        };
+        if (!isDigits(graphText) || !isDigits(partitionText)) {
             return false;
         }
 

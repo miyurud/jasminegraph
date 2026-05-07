@@ -60,7 +60,7 @@ class StreamHandler {
     std::string stream_topic_name;
     std::vector<DataPublisher *> &workerClients;
     int numberOfPartitions;
-   bool csvInputMode;
+    bool csvInputMode;
 
     // Batch publishing optimization
     static constexpr size_t BATCH_SIZE = 1000;

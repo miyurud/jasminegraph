@@ -38,7 +38,7 @@ InstanceStreamHandler::InstanceStreamHandler(std::map<std::string,
     }
     instance_stream_logger.info("InstanceStreamHandler queue cap per partition = " +
                                 std::to_string(maxQueueSizePerPartition));
- }
+}
 
 InstanceStreamHandler::~InstanceStreamHandler() {
     terminateThreads = true;

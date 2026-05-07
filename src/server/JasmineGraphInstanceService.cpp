@@ -3431,7 +3431,7 @@ static void history_triangles_command(int connFd, bool *loop_exit_p) {
 
                 if (batch.size() >= HISTORY_TRIANGLE_BATCH_SIZE) {
                     if (!flushHistoryTriangleBatch(connFd, batch)) {
-                        return false; // Stop iteration early on network error
+                        return false;  // Stop iteration early on network error
                     }
                     batch.clear();
                 }
@@ -3584,7 +3584,7 @@ static void history_pagerank_command(int connFd, bool *loop_exit_p) {
             *loop_exit_p = true;
             return;
         }
-        instance_logger.warn("No nodes found in partition " + partitionId + " for snapshot " + 
+        instance_logger.warn("No nodes found in partition " + partitionId + " for snapshot " +
                            snapshotIdText);
         return;
     }
@@ -3594,7 +3594,7 @@ static void history_pagerank_command(int connFd, bool *loop_exit_p) {
     for (uint64_t encoded : seenEdges) {
         uint32_t u = encoded >> 32;
         uint32_t v = encoded & 0xFFFFFFFFULL;
-        
+
         // Add edges (both directions for undirected graph or just u->v for directed)
         adjacency[u].push_back(v);
     }

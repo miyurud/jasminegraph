@@ -5714,7 +5714,8 @@ static void history_triangle_command(int connFd, SQLiteDBInterface *sqlite, bool
                 std::string error = "Error: History triangle count failed for graph " +
                                     std::to_string(graphId) + " at snapshot " +
                                     std::to_string(snapshotId) +
-                                    " (no partitions responded — check worker connectivity, htria protocol, and snapshot availability)";
+                                    " (no partitions responded — check worker connectivity, " +
+                                    "htria protocol, and snapshot availability)";
                 resultWr = write(connFd, error.c_str(), error.length());
                 resultWr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
                 frontend_logger.error(error);
@@ -5896,7 +5897,8 @@ static void history_triangle_timestamp_command(int connFd, SQLiteDBInterface *sq
             if (!allowStagedFallback) {
                 std::string error = "Error: Failed to process snapshot " +
                                     std::to_string(closestSnapshotId) +
-                                    " (no partitions responded — check worker connectivity, htria protocol, and snapshot availability)";
+                                    " (no partitions responded — check worker connectivity, " +
+                                    "htria protocol, and snapshot availability)";
                 resultWr = write(connFd, error.c_str(), error.length());
                 resultWr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
                 return;
@@ -6204,7 +6206,7 @@ static HistoryPageRankResult countHistoryPageRankDistributed(SQLiteDBInterface* 
             WorkerTask& task = tasks.back();
             task.fut = std::async(
                 std::launch::async,
-                [graphId, snapshotId, w, pid, topK, maxIterations, dampingFactor, 
+                [graphId, snapshotId, w, pid, topK, maxIterations, dampingFactor,
                  &masterIP, &task]() mutable -> bool {
                     long dur = 0;
                     uint64_t raw = 0;
@@ -6232,8 +6234,7 @@ static HistoryPageRankResult countHistoryPageRankDistributed(SQLiteDBInterface* 
     int partitionsFailed = 0;
     uint64_t totalRawEdges = 0;
     long maxWorkerDuration = 0;
-    std::unordered_map<std::string, double> aggregatedNodeScores; // node -> highest score
-
+    std::unordered_map<std::string, double> aggregatedNodeScores;  // node -> highest score
     for (auto& task : tasks) {
         bool ok = task.fut.get();
         if (ok) {

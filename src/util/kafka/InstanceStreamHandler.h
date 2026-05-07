@@ -59,7 +59,7 @@ class InstanceStreamHandler {
     std::map<std::string, std::condition_variable> producer_cond_vars;
     std::map<std::string, std::mutex> queue_mutexes;
     std::atomic<bool> terminateThreads{false};
-   std::set<std::string> ownedStoreKeys_;
+    std::set<std::string> ownedStoreKeys_;
     size_t maxQueueSizePerPartition = 50000;
 
     // Protects all map structures from concurrent modification.

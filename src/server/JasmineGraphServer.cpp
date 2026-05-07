@@ -260,7 +260,7 @@ void JasmineGraphServer::start_workers() {
     }
 
     this->sqlite->runUpdate("DELETE FROM worker");
-    
+
     // Use this->numberOfWorkers directly since it's already set
     if (numberOfWorkers <= 0) {
         numberOfWorkers = this->numberOfWorkers;

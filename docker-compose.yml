@@ -2,8 +2,8 @@ services:
   jasminegraph:
     image: jasminegraph:latest
     ports:
-      - '8777:8777'
-      - '8778:8778'
+      - '7777:7777'
+      - '7778:7778'
     volumes:
       - "/var/run/docker.sock:/var/run/docker.sock:rw"
       - "/root/.ssh:/root/.ssh"
