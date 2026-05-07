@@ -15,8 +15,11 @@ limitations under the License.
 
 #include <stdlib.h>
 
+#include <chrono>
 #include <stdexcept>
+#include <thread>
 #include <utility>
+#include <vector>
 
 Logger controller_logger;
 
@@ -65,9 +68,9 @@ K8sWorkerController *K8sWorkerController::getInstance(std::string masterIp, int 
         if (instance == nullptr) {  // double-checking lock
             instance = new K8sWorkerController(masterIp, numberOfWorkers, metadb);
             try {
-                instance->maxWorkers = stoi(instance->interface->getJasmineGraphConfig("max_worker_count"));
+                instance->maxWorkers = stoi(instance->interface->getJasmineGraphConfig("MAX_WORKER_COUNT"));
             } catch (std::invalid_argument &e) {
-                controller_logger.error("Invalid max_worker_count value. Defaulted to 4");
+                controller_logger.error("Invalid MAX_WORKER_COUNT value. Defaulted to 4");
                 instance->maxWorkers = 4;
             }
 
@@ -86,11 +89,26 @@ K8sWorkerController *K8sWorkerController::getInstance(std::string masterIp, int 
 std::string K8sWorkerController::spawnWorker(int workerId) {
     k8sSpawnMutex.lock();
     controller_logger.info("Spawning worker " + to_string(workerId));
+
+    // Clean up any stale resources from previous failed attempts
+    try {
+        this->interface->deleteJasmineGraphPersistentVolume(workerId);
+        this->interface->deleteJasmineGraphPersistentVolumeClaim(workerId);
+        std::this_thread::sleep_for(std::chrono::milliseconds(500));
+    } catch (const std::invalid_argument &e) {
+        controller_logger.info("Ignoring stale worker resource cleanup error for worker " + std::to_string(workerId) +
+                               ": " + e.what());
+    } catch (const std::out_of_range &e) {
+        controller_logger.info("Ignoring stale worker resource cleanup error for worker " + std::to_string(workerId) +
+                               ": " + e.what());
+    }
+
     auto volume = this->interface->createJasmineGraphPersistentVolume(workerId);
     if (volume != nullptr && volume->metadata != nullptr && volume->metadata->name != nullptr) {
         controller_logger.info("Worker " + std::to_string(workerId) + " persistent volume created successfully");
     } else {
-        controller_logger.error("Worker " + std::to_string(workerId) + " persistent volume creation failed");
+        controller_logger.error("Worker " + std::to_string(workerId) + " persistent volume creation failed. "
+                               "API response code: " + std::to_string(this->interface->apiClient->response_code));
         throw std::runtime_error("Worker " + std::to_string(workerId) + " persistent volume creation failed");
     }
 
@@ -98,7 +116,8 @@ std::string K8sWorkerController::spawnWorker(int workerId) {
     if (claim != nullptr && claim->metadata != nullptr && claim->metadata->name != nullptr) {
         controller_logger.info("Worker " + std::to_string(workerId) + " persistent volume claim created successfully");
     } else {
-        controller_logger.error("Worker " + std::to_string(workerId) + " persistent volume claim creation failed");
+        controller_logger.error("Worker " + std::to_string(workerId) + " persistent volume claim creation failed. "
+                               "API response code: " + std::to_string(this->interface->apiClient->response_code));
         throw std::runtime_error("Worker " + std::to_string(workerId) + " persistent volume claim creation failed");
     }
 
@@ -137,9 +156,9 @@ std::string K8sWorkerController::spawnWorker(int workerId) {
             controller_logger.error("ERROR, no host named " + ip);
         }
 
-        bzero((char *)&serv_addr, sizeof(serv_addr));
+        memset((char *)&serv_addr, 0, sizeof(serv_addr));
         serv_addr.sin_family = AF_INET;
-        bcopy((char *)server->h_addr, (char *)&serv_addr.sin_addr.s_addr, server->h_length);
+        memcpy(&serv_addr.sin_addr.s_addr, server->h_addr, server->h_length);
         serv_addr.sin_port = htons(Conts::JASMINEGRAPH_INSTANCE_PORT);
 
         if (Utils::connect_wrapper(sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
@@ -273,6 +292,7 @@ int K8sWorkerController::attachExistingWorkers() {
                         controller_logger.error("Worker " + std::to_string(workerId) + " database insertion failed");
                     }
                     activeWorkerIds.push_back(workerId);
+                    this->numberOfWorkers++;
                     break;
                 }
             }
@@ -310,15 +330,21 @@ std::map<string, string> K8sWorkerController::scaleUp(int count) {
     std::map<string, string> workers;
     if (count <= 0) return workers;
     controller_logger.info("Scale up with " + to_string(count) + " new workers");
-    std::future<string> asyncCalls[count];
+
+    std::vector<std::string> spawnResults(static_cast<size_t>(count));
+    std::vector<std::thread> threads(static_cast<size_t>(count));
     int nextWorkerId = getNextWorkerId(count);
+
     for (int i = 0; i < count; i++) {
-        asyncCalls[i] = std::async(&K8sWorkerController::spawnWorker, this, nextWorkerId + i);
+        threads[i] = std::thread([this, i, nextWorkerId, &spawnResults]() {
+            spawnResults[i] = this->spawnWorker(nextWorkerId + i);
+        });
     }
 
     int success = 0;
     for (int i = 0; i < count; i++) {
-        std::string result = asyncCalls[i].get();
+        threads[i].join();
+        std::string result = spawnResults[i];
         if (!result.empty()) {
             success++;
             workers.insert(std::make_pair(to_string(nextWorkerId + i), result));
@@ -331,10 +357,11 @@ std::map<string, string> K8sWorkerController::scaleUp(int count) {
 void K8sWorkerController::scaleDown(const set<int> workerIds) {
     size_t count = workerIds.size();
     controller_logger.info("Scale down with " + to_string(count) + " workers");
-    std::thread threads[count];
+    std::vector<std::thread> threads(count);
     int ind = 0;
     for (auto it = workerIds.begin(); it != workerIds.end(); it++) {
-        threads[ind++] = std::thread(&K8sWorkerController::deleteWorker, this, *it);
+        threads[ind] = std::thread(&K8sWorkerController::deleteWorker, this, *it);
+        ind++;
     }
 
     for (int i = 0; i < count; i++) {

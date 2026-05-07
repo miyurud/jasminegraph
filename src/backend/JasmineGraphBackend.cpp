@@ -316,7 +316,7 @@ int JasmineGraphBackend::run() {
         return 0;
     }
 
-    bzero((char *)&svrAdd, sizeof(svrAdd));
+    memset((char *)&svrAdd, 0, sizeof(svrAdd));
 
     svrAdd.sin_family = AF_INET;
     svrAdd.sin_addr.s_addr = INADDR_ANY;

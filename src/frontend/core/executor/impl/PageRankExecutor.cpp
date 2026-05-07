@@ -75,8 +75,7 @@ void PageRankExecutor::execute() {
 
     int partitionCount = 0;
     std::vector<std::thread> intermThreads;
-    std::thread statThread;
-    bool hasStatThread = false;
+    std::vector<std::thread> statThreads;
 
     auto begin = chrono::high_resolution_clock::now();
 
@@ -138,16 +137,15 @@ void PageRankExecutor::execute() {
     } else {
         pageRank_logger.info("###PAGERANK-EXECUTOR### Inserting initial record for SLA ");
         Utils::updateSLAInformation(perfDB, graphId, partitionCount, 0, PAGE_RANK, Conts::SLA_CATEGORY::LATENCY);
-        statThread = std::thread(AbstractExecutor::collectPerformaceData, perfDB,
-                                 graphId.c_str(), PAGE_RANK, Conts::SLA_CATEGORY::LATENCY, partitionCount,
-                                 masterIP, autoCalibrate);
-        hasStatThread = true;
+        statThreads.push_back(std::thread(AbstractExecutor::collectPerformaceData, perfDB,
+                                          graphId, PAGE_RANK, Conts::SLA_CATEGORY::LATENCY, partitionCount,
+                                          masterIP, autoCalibrate));
         isStatCollect = true;
     }
 
-    for (auto &threadCall : intermThreads) {
-        if (threadCall.joinable()) {
-            threadCall.join();
+    for (auto &thread : intermThreads) {
+        if (thread.joinable()) {
+            thread.join();
         }
     }
 
@@ -189,6 +187,12 @@ void PageRankExecutor::execute() {
         }
     }
     processStatusMutex.unlock();
+
+    for (auto &thread : statThreads) {
+        if (thread.joinable()) {
+            thread.join();
+        }
+    }
 }
 
 int PageRankExecutor::getUid() {
@@ -219,9 +223,9 @@ void PageRankExecutor::doPageRank(std::string graphID, double alpha, int iterati
         return;
     }
 
-    bzero((char *)&serv_addr, sizeof(serv_addr));
+    memset((char *)&serv_addr, 0, sizeof(serv_addr));
     serv_addr.sin_family = AF_INET;
-    bcopy((char *)server->h_addr, (char *)&serv_addr.sin_addr.s_addr, server->h_length);
+    memcpy(&serv_addr.sin_addr.s_addr, server->h_addr, server->h_length);
     serv_addr.sin_port = htons(port);
     if (Utils::connect_wrapper(sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
         pageRank_logger.error("Error connecting to socket");

@@ -718,7 +718,7 @@ any ASTBuilder::visitOC_RelationshipDetail(CypherParser::OC_RelationshipDetailCo
   if (ctx->oC_Properties()) {
     node->addElements(any_cast<ASTNode*>(visitOC_Properties(ctx->oC_Properties())));
   }
-  return static_cast<ASTNode*>(node);;
+  return static_cast<ASTNode*>(node);
 }
 
 any ASTBuilder::visitOC_Properties(CypherParser::OC_PropertiesContext *ctx) {
@@ -1426,5 +1426,5 @@ any ASTBuilder::visitOC_LeftArrowHead(CypherParser::OC_LeftArrowHeadContext *ctx
 }
 
 any ASTBuilder::visitOC_RightArrowHead(CypherParser::OC_RightArrowHeadContext *ctx) {
-  return static_cast<ASTNode*>(new ASTLeafNoValue(Const::RIGHT_ARROW));;
+  return static_cast<ASTNode*>(new ASTLeafNoValue(Const::RIGHT_ARROW));
 }

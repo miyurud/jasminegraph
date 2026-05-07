@@ -230,7 +230,7 @@ int JasmineGraphFrontEndUI::run() {
         return 0;
     }
 
-    bzero((char *)&svrAdd, sizeof(svrAdd));
+    memset((char *)&svrAdd, 0, sizeof(svrAdd));
 
     svrAdd.sin_family = AF_INET;
     svrAdd.sin_addr.s_addr = INADDR_ANY;
@@ -367,7 +367,7 @@ static void list_command(int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_
                             entry["status"] = "loading";
                         } else if (std::stoi(column.second) == Conts::GRAPH_STATUS::DELETING) {
                             entry["status"] = "deleting";
-                        } else if (std::stoi(column.second) == Conts::GRAPH_STATUS::NONOPERATIONAL) {
+                        } else if (std::stoi(column.second) == Conts::GRAPH_STATUS::NON_OPERATIONAL) {
                             entry["status"] = "nop";
                         } else if (std::stoi(column.second) == Conts::GRAPH_STATUS::OPERATIONAL) {
                             entry["status"] = "op";

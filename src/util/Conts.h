@@ -116,7 +116,7 @@ class Conts {
         static const int
             OPERATIONAL;  // Graph is uploaded and all its partitions are accessible in the current hosts setting
         static const int DELETING;        // Graph partitions are being deleted
-        static const int NONOPERATIONAL;  // Graph is uploaded but some partitions of it are not accessible with the
+        static const int NON_OPERATIONAL;  // Graph is uploaded but some partitions of it are not accessible with the
                                           // current set of active hosts
     };
 
