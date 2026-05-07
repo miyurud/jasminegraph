@@ -4279,8 +4279,10 @@ static void triangles_command(std::string masterIP, int connFd, SQLiteDBInterfac
 
         priority = Utils::trim_copy(priority);
 
-        if (!(std::find_if(priority.begin(), priority.end(), [](unsigned char c) { return !std::isdigit(c); }) ==
-              priority.end())) {
+        bool hasNonNumericPriority =
+            std::find_if(priority.begin(), priority.end(), [](unsigned char c) { return !std::isdigit(c); }) !=
+            priority.end();
+        if (hasNonNumericPriority) {
             *loop_exit_p = true;
             string error_message = "Priority should be numeric and > 1 or empty";
             result_wr = write(connFd, error_message.c_str(), error_message.length());
@@ -5711,13 +5713,15 @@ static void history_triangle_command(int connFd, SQLiteDBInterface *sqlite, bool
             bool allowStagedFallback = Utils::parseBoolean(
                 Utils::getJasmineGraphProperty("org.jasminegraph.histrian.allow.staged.fallback"));
             if (!allowStagedFallback) {
-                std::string error = "Error: History triangle count failed for graph " +
-                                    std::to_string(graphId) + " at snapshot " +
-                                    std::to_string(snapshotId) +
-                                    " (no partitions responded — check worker connectivity, " +
-                                    "htria protocol, and snapshot availability)";
+                std::string error =
+                    "Error: History triangle count failed for graph " +
+                    std::to_string(graphId) + " at snapshot " +
+                    std::to_string(snapshotId) +
+                    " (no partitions responded — check worker connectivity, " +
+                    "htria protocol, and snapshot availability)";
                 resultWr = write(connFd, error.c_str(), error.length());
-                resultWr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
+                resultWr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(),
+                                  Conts::CARRIAGE_RETURN_NEW_LINE.size());
                 frontend_logger.error(error);
                 return;
             }
@@ -5730,12 +5734,14 @@ static void history_triangle_command(int connFd, SQLiteDBInterface *sqlite, bool
             std::string stagedError;
             if (!countHistoryTrianglesFromStagedBitmaps(sqlite, graphId, snapshotId,
                                                         result, stagedError, dataSourceInfo)) {
-                std::string error = "Error: History triangle count failed for graph " +
-                                    std::to_string(graphId) + " at snapshot " +
-                                    std::to_string(snapshotId) +
-                                    " (distributed-direct failed; staged failed: " + stagedError + ")";
+                std::string error =
+                    "Error: History triangle count failed for graph " +
+                    std::to_string(graphId) + " at snapshot " +
+                    std::to_string(snapshotId) +
+                    " (distributed-direct failed; staged failed: " + stagedError + ")";
                 resultWr = write(connFd, error.c_str(), error.length());
-                resultWr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
+                resultWr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(),
+                                  Conts::CARRIAGE_RETURN_NEW_LINE.size());
                 frontend_logger.error(error);
                 return;
             }
@@ -5895,12 +5901,14 @@ static void history_triangle_timestamp_command(int connFd, SQLiteDBInterface *sq
             bool allowStagedFallback = Utils::parseBoolean(
                 Utils::getJasmineGraphProperty("org.jasminegraph.histrian.allow.staged.fallback"));
             if (!allowStagedFallback) {
-                std::string error = "Error: Failed to process snapshot " +
-                                    std::to_string(closestSnapshotId) +
-                                    " (no partitions responded — check worker connectivity, " +
-                                    "htria protocol, and snapshot availability)";
+                std::string error =
+                    "Error: Failed to process snapshot " +
+                    std::to_string(closestSnapshotId) +
+                    " (no partitions responded — check worker connectivity, " +
+                    "htria protocol, and snapshot availability)";
                 resultWr = write(connFd, error.c_str(), error.length());
-                resultWr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
+                resultWr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(),
+                                  Conts::CARRIAGE_RETURN_NEW_LINE.size());
                 return;
             }
 
@@ -5912,11 +5920,13 @@ static void history_triangle_timestamp_command(int connFd, SQLiteDBInterface *sq
             std::string stagedError;
             if (!countHistoryTrianglesFromStagedBitmaps(sqlite, graphId, closestSnapshotId,
                                                         result, stagedError, dataSourceInfo)) {
-                std::string error = "Error: Failed to process snapshot " +
-                                    std::to_string(closestSnapshotId) +
-                                    " (distributed-direct failed; staged failed: " + stagedError + ")";
+                std::string error =
+                    "Error: Failed to process snapshot " +
+                    std::to_string(closestSnapshotId) +
+                    " (distributed-direct failed; staged failed: " + stagedError + ")";
                 resultWr = write(connFd, error.c_str(), error.length());
-                resultWr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
+                resultWr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(),
+                                  Conts::CARRIAGE_RETURN_NEW_LINE.size());
                 return;
             }
         }

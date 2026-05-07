@@ -301,8 +301,9 @@ void WorkerKafkaConsumer::initTemporalStores() {
                         "Restored central temporal snapshot for graph=" + std::to_string(cfg.graphId) +
                         " snapshotId=" + std::to_string(maxCentral));
                 } else {
-                    workerKafkaLogger().warn("[TEMPORAL INIT] Unable to load central legacy bitmap index: " + bitmapPath +
-                                             " ; continuing with delta-only snapshots");
+                    workerKafkaLogger().warn(
+                    "[TEMPORAL INIT] Unable to load central legacy bitmap index: " + bitmapPath +
+                    " ; continuing with delta-only snapshots");
                 }
             } else {
                 workerKafkaLogger().info("[TEMPORAL INIT] No central legacy bitmap index found; "
@@ -588,7 +589,6 @@ void WorkerKafkaConsumer::consumerThreadFunc(
             workerKafkaLogger().warn("Worker thread " + std::to_string(threadId) +
                                      " unsubscribe failed with unknown error");
         }
-
     };
     try {
         consumer->subscribe({cfg.topic});
@@ -797,7 +797,8 @@ void WorkerKafkaConsumer::consumerThreadFunc(
     }  // end while
 
     workerKafkaLogger().info("Worker consumer thread " + std::to_string(threadId) +
-                             " finished. Messages processed: " + std::to_string(threadMsgs));
+                             " finished. Messages processed: " +
+                             std::to_string(threadMsgs));
     closeConsumer();
     } catch (const std::exception& e) {
         workerKafkaLogger().error("[CRASH] consumerThreadFunc thread " + std::to_string(threadId) +
