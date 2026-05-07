@@ -2050,7 +2050,7 @@ static void list_command(int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_
     }
     string result = ss.str();
     writeSocketResultOrEmpty(connFd, result, loop_exit_p);
-    return NULL;
+    return;
 }
 
 static void cypherCommand(std::string masterIP, int connFd, vector<DataPublisher *> &workerClients,
@@ -2863,6 +2863,7 @@ static void add_stream_kafka_command(int connFd, std::string &kafka_server_IP, c
     string graphId;
     string partitionAlgo;
     string direction;
+    string kafka_server_IP_from_file;
 
     if (existingGraph == "y") {
         string existingGraphIdMsg = "Send the existing graph ID ? ";

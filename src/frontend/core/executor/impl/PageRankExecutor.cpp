@@ -152,9 +152,7 @@ void PageRankExecutor::execute() {
     pageRank_logger.info("###PAGERANK-EXECUTOR### Getting PageRank : Completed");
 
     workerResponded = true;
-    if (hasStatThread && statThread.joinable()) {
-        statThread.join();
-    }
+    // statThreads are joined below; no single statThread remains.
 
     JobResponse jobResponse;
     jobResponse.setJobId(request.getJobId());
