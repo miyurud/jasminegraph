@@ -15,6 +15,7 @@ limitations under the License.
 #define JASMINEGRAPH_STREAM_REGISTRY_H
 
 #include <atomic>
+#include <chrono>
 #include <map>
 #include <memory>
 #include <mutex>
