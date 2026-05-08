@@ -1621,8 +1621,6 @@ static void add_stream_kafka_command(int connFd, std::string &kafka_server_IP, c
         return;
     }
 
-    // create kafka consumer and graph partitioner
-    kstream = new KafkaConnector(configs);
     // Create the KafkaConnector object.
     kstream = new KafkaConnector(configs);
     // Subscribe to the Kafka topic.
