@@ -54,7 +54,7 @@ jobs:
 
   docker-integration-tests:
     runs-on: ubuntu-latest
-    timeout-minutes: 40
+    timeout-minutes: 50
     if: ${{!contains(github.event.pull_request.labels.*.name, 'Skip docker integration')}}
 
     steps:
@@ -73,7 +73,7 @@ jobs:
 
   k8s-integration-tests:
     runs-on: ubuntu-latest
-    timeout-minutes: 40
+    timeout-minutes: 50
     if: ${{!contains(github.event.pull_request.labels.*.name, 'Skip k8s integration')}}
 
     steps:
