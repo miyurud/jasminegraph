@@ -1679,6 +1679,10 @@ static void add_stream_kafka_command(int connFd, std::string &kafka_server_IP, c
         sqlite->runUpdate(sqlStatement);
     }
     frontend_logger.info("Start listening to " + topic_name_s);
+    if (input_stream_handler_thread.joinable()) {
+        frontend_logger.warn("Detaching existing Kafka input stream handler thread before starting a new one");
+        input_stream_handler_thread.detach();
+    }
     input_stream_handler_thread = thread(&StreamHandler::listen_to_kafka_topic, stream_handler);
 
     // Update the stream registry with the new thread ID
@@ -2672,14 +2676,25 @@ static void stop_stream_kafka_command(int connFd, const std::string &topicName, 
     StreamRegistry &registry = StreamRegistry::getInstance();
 
     // Get stream metadata by topic
-    auto streamMetadata = registry.getStreamByTopic(topicName);
-    if (!streamMetadata) {
+    auto streamMatches = registry.getStreamsByTopic(topicName);
+    if (streamMatches.empty()) {
         string errorMsg = "Error: No active stream found for topic `" + topicName + "`";
         frontend_logger.error(errorMsg);
         write(connFd, errorMsg.c_str(), errorMsg.length());
         write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
         return;
     }
+
+    if (streamMatches.size() > 1) {
+        string errorMsg =
+            "Error: Multiple active streams found for topic `" + topicName + "`. Use a unique graph ID.";
+        frontend_logger.error(errorMsg);
+        write(connFd, errorMsg.c_str(), errorMsg.length());
+        write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
+        return;
+    }
+
+    auto streamMetadata = streamMatches.front();
 
     int graphId = streamMetadata->graphId;
 
