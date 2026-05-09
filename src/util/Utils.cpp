@@ -634,6 +634,7 @@ int Utils::connect_wrapper(int sock, const sockaddr* addr, socklen_t slen) {
                       std::to_string(ntohs(((const struct sockaddr_in *)addr)->sin_port)));
     return -1;
 }
+
 std::string Utils::read_str_wrapper(int connFd, char *buf, size_t len, bool allowEmpty) {
     ssize_t result = recv(connFd, buf, len, 0);
     if (result < 0) {
@@ -902,7 +903,7 @@ std::string Utils::send_job(std::string job_group_name, std::string metric_name,
     std::string pushGatewayJobAddr;
     if (jasminegraph_profile == PROFILE_K8S) {
         std::unique_ptr<K8sInterface> interface(new K8sInterface());
-        pushGatewayJobAddr = interface->getJasmineGraphConfig("pushgateway_address");
+        pushGatewayJobAddr = interface->getJasmineGraphConfig("PUSHGATEWAY_ADDRESS");
     } else {
         pushGatewayJobAddr = getJasmineGraphProperty("org.jasminegraph.collector.pushgateway");
     }
@@ -960,7 +961,7 @@ std::map<std::string, std::string> Utils::getMetricMap(std::string metricName) {
     std::string prometheusAddr;
     if (jasminegraph_profile == PROFILE_K8S) {
         std::unique_ptr<K8sInterface> interface(new K8sInterface());
-        prometheusAddr = interface->getJasmineGraphConfig("prometheus_address");
+        prometheusAddr = interface->getJasmineGraphConfig("PROMETHEUS_ADDRESS");
     } else {
         prometheusAddr = getJasmineGraphProperty("org.jasminegraph.collector.prometheus");
     }
@@ -1009,7 +1010,7 @@ std::unordered_map<std::string, Utils::MetricHistory> Utils::getMetricsForHosts(
     std::string prometheusAddr;
     if (jasminegraph_profile == PROFILE_K8S) {
         std::unique_ptr<K8sInterface> interface(new K8sInterface());
-        prometheusAddr = interface->getJasmineGraphConfig("prometheus_address");
+        prometheusAddr = interface->getJasmineGraphConfig("PROMETHEUS_ADDRESS");
     } else {
         prometheusAddr = getJasmineGraphProperty("org.jasminegraph.collector.prometheus");
     }
@@ -1405,9 +1406,9 @@ bool Utils::sendFileThroughService(std::string host, int dataPort, std::string f
         return false;
     }
 
-    bzero((char*)&serv_addr, sizeof(serv_addr));
+    memset((char *)&serv_addr, 0, sizeof(serv_addr));
     serv_addr.sin_family = AF_INET;
-    bcopy((char*)server->h_addr, (char*)&serv_addr.sin_addr.s_addr, server->h_length);
+    memcpy(&serv_addr.sin_addr.s_addr, server->h_addr, server->h_length);
     serv_addr.sin_port = htons(dataPort);
     if (Utils::connect_wrapper(sockfd, (struct sockaddr*)&serv_addr, sizeof(serv_addr)) < 0) {
         return false;
@@ -1598,9 +1599,9 @@ bool Utils::sendQueryPlanToWorker(const std::string& host, int port, const std::
         return false;
     }
 
-    bzero((char *)&serv_addr, sizeof(serv_addr));
+    memset((char *)&serv_addr, 0, sizeof(serv_addr));
     serv_addr.sin_family = AF_INET;
-    bcopy((char *)server->h_addr, (char *)&serv_addr.sin_addr.s_addr, server->h_length);
+    memcpy(&serv_addr.sin_addr.s_addr, server->h_addr, server->h_length);
     serv_addr.sin_port = htons(port);
     if (Utils::connect_wrapper(sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
         return false;
@@ -1911,7 +1912,7 @@ bool Utils::sendSbsQueryPlanToWorker(std::string host, int port, std::string mas
     close(sockfd);
     return false;
   }
-    
+
   util_logger.debug("semantic beam search" + workerListString);
   length = htonl(workerListString.size());
   util_logger.debug("Sending workers length: " +
@@ -2092,6 +2093,7 @@ std::optional<std::tuple<std::string, int, int>> Utils::getWorker(string partiti
     return make_tuple(ip, stoi(portNumber), stoi(dataPort));
 }
 
+
 string Utils::getPartitionAlgorithm(std::string graphID, std::string host) {
     util_logger.debug("Host:" + host + " Port:" + to_string(Conts::JASMINEGRAPH_BACKEND_PORT));
     bool result = true;
@@ -2099,7 +2101,10 @@ string Utils::getPartitionAlgorithm(std::string graphID, std::string host) {
     char data[FED_DATA_LENGTH + 1];
     static const int ACK_MESSAGE_SIZE = 1024;
     struct sockaddr_in serv_addr;
-    struct hostent* server;
+    struct hostent hostEntry;
+    struct hostent *server = nullptr;
+    std::vector<char> hostBuffer(1024);
+    std::string actualHost = host;
 
     sockfd = socket(AF_INET, SOCK_STREAM, 0);
 
@@ -2108,19 +2113,20 @@ string Utils::getPartitionAlgorithm(std::string graphID, std::string host) {
         return "";
     }
 
-    if (host.find('@') != std::string::npos) {
-        host = Utils::split(host, '@')[1];
+    if (actualHost.find('@') != std::string::npos) {
+        actualHost = Utils::split(actualHost, '@')[1];
     }
 
-    server = gethostbyname(host.c_str());
-    if (server == NULL) {
-        util_logger.error("ERROR, no host named " + host);
+    if (int hostError = 0;
+        gethostbyname_r(actualHost.c_str(), &hostEntry, hostBuffer.data(), hostBuffer.size(), &server, &hostError) != 0
+            || server == nullptr) {
+        util_logger.error("ERROR, no host named " + actualHost);
         return "";
     }
 
-    bzero((char*)&serv_addr, sizeof(serv_addr));
+    memset((char *)&serv_addr, 0, sizeof(serv_addr));
     serv_addr.sin_family = AF_INET;
-    bcopy((char*)server->h_addr, (char*)&serv_addr.sin_addr.s_addr, server->h_length);
+    memcpy(&serv_addr.sin_addr.s_addr, server->h_addr, server->h_length);
     serv_addr.sin_port = htons(Conts::JASMINEGRAPH_BACKEND_PORT);
     if (Utils::connect_wrapper(sockfd, (struct sockaddr*)&serv_addr, sizeof(serv_addr)) < 0) {
         return "";
@@ -2171,37 +2177,16 @@ string Utils::getPartitionAlgorithm(std::string graphID, std::string host) {
     }
 }
 
-string Utils::getGraphDirection(std::string graphID, std::string host) {
-    util_logger.debug("Host:" + host + " Port:" + to_string(Conts::JASMINEGRAPH_BACKEND_PORT));
+
+string Utils::getGraphDirection(const std::string &graphID, const std::string &host) {
+    util_logger.info("Host:" + host + " Port:" + to_string(Conts::JASMINEGRAPH_BACKEND_PORT));
     bool result = true;
     int sockfd;
     char data[FED_DATA_LENGTH + 1];
     static const int ACK_MESSAGE_SIZE = 1024;
-    struct sockaddr_in serv_addr;
-    struct hostent* server;
 
-    sockfd = socket(AF_INET, SOCK_STREAM, 0);
-
+    sockfd = Utils::createAndConnectToWorker(host, Conts::JASMINEGRAPH_BACKEND_PORT, "", data, FED_DATA_LENGTH, false);
     if (sockfd < 0) {
-        util_logger.error("Cannot create socket");
-        return "";
-    }
-
-    if (host.find('@') != std::string::npos) {
-        host = Utils::split(host, '@')[1];
-    }
-
-    server = gethostbyname(host.c_str());
-    if (server == NULL) {
-        util_logger.error("ERROR, no host named " + host);
-        return "";
-    }
-
-    bzero((char*)&serv_addr, sizeof(serv_addr));
-    serv_addr.sin_family = AF_INET;
-    bcopy((char*)server->h_addr, (char*)&serv_addr.sin_addr.s_addr, server->h_length);
-    serv_addr.sin_port = htons(Conts::JASMINEGRAPH_BACKEND_PORT);
-    if (Utils::connect_wrapper(sockfd, (struct sockaddr*)&serv_addr, sizeof(serv_addr)) < 0) {
         return "";
     }
 
@@ -2252,7 +2237,7 @@ string Utils::getGraphDirection(std::string graphID, std::string host) {
 
 string Utils::getFrontendInput(int connFd) {
     char frontendInput[FRONTEND_DATA_LENGTH + 1];
-    bzero(frontendInput, FRONTEND_DATA_LENGTH + 1);
+    memset(frontendInput, 0, FRONTEND_DATA_LENGTH + 1);
     read(connFd, frontendInput, FRONTEND_DATA_LENGTH);
     std::string input(frontendInput);
     input = Utils::trim_copy(input);

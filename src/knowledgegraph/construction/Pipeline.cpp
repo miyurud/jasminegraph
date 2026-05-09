@@ -668,10 +668,10 @@ void Pipeline::extractTuples(std::string host, int port, std::string masterIP, i
         }
         kg_pipeline_stream_handler_logger.debug("Host resolved: " + host);
 
-        bzero((char*)&serv_addr, sizeof(serv_addr));
-        serv_addr.sin_family = AF_INET;
-        bcopy((char*)server->h_addr, (char*)&serv_addr.sin_addr.s_addr, server->h_length);
-        serv_addr.sin_port = htons(port);
+    memset((char*)&serv_addr, 0, sizeof(serv_addr));
+    serv_addr.sin_family = AF_INET;
+    memcpy((char*)&serv_addr.sin_addr.s_addr, (char*)server->h_addr, server->h_length);
+    serv_addr.sin_port = htons(port);
 
         if (Utils::connect_wrapper(sockfd, (struct sockaddr*)&serv_addr, sizeof(serv_addr)) < 0) {
             kg_pipeline_stream_handler_logger.error("Failed to connect to host: " + host +
@@ -981,9 +981,9 @@ bool Pipeline::streamGraphToDesignatedWorker(std::string host, int port, std::st
         return false;
     }
 
-    bzero((char*)&serv_addr, sizeof(serv_addr));
+    memset((char*)&serv_addr, 0, sizeof(serv_addr));
     serv_addr.sin_family = AF_INET;
-    bcopy((char*)server->h_addr, (char*)&serv_addr.sin_addr.s_addr, server->h_length);
+    memcpy((char*)&serv_addr.sin_addr.s_addr, (char*)server->h_addr, server->h_length);
     serv_addr.sin_port = htons(port);
 
     if (Utils::connect_wrapper(sockfd, (struct sockaddr*)&serv_addr, sizeof(serv_addr)) < 0) {
@@ -1183,8 +1183,8 @@ bool Pipeline::streamGraphToDesignatedWorker(std::string host, int port, std::st
 
     int totalReceivedBytes = 0;
     while (true) {
-        kg_pipeline_stream_handler_logger.debug("Waiting for data...");
-        bzero(buffer, sizeof(buffer));
+        kg_pipeline_stream_handler_logger.info("Waiting for data...");
+        memset(buffer, 0, sizeof(buffer));
         int bytes = recv(sockfd, buffer, sizeof(buffer), 0);
         if (bytes <= 0) break;
 

@@ -21,6 +21,7 @@ limitations under the License.
 #include <cctype>
 #include <cmath>
 #include <mutex>
+#include <functional>
 #include <string>
 #include <thread>
 
@@ -353,7 +354,7 @@ void JasmineGraphInstanceService::run(string masterHost, string host, int server
         return;
     }
 
-    bzero((char*)&svrAdd, sizeof(svrAdd));
+    memset((char *)&svrAdd, 0, sizeof(svrAdd));
 
     svrAdd.sin_family = AF_INET;
     svrAdd.sin_addr.s_addr = INADDR_ANY;
@@ -827,9 +828,9 @@ int JasmineGraphInstanceService::collectTrainedModelThreadFunction(instanceservi
         return 0;
     }
 
-    bzero((char*)&serv_addr, sizeof(serv_addr));
+    memset((char *)&serv_addr, 0, sizeof(serv_addr));
     serv_addr.sin_family = AF_INET;
-    bcopy((char*)server->h_addr, (char*)&serv_addr.sin_addr.s_addr, server->h_length);
+    memcpy(&serv_addr.sin_addr.s_addr, server->h_addr, server->h_length);
     serv_addr.sin_port = htons(port);
     if (Utils::connect_wrapper(sockfd, (struct sockaddr*)&serv_addr, sizeof(serv_addr)) < 0) {
         return 0;
@@ -1125,9 +1126,9 @@ bool JasmineGraphInstanceService::duplicateCentralStore(int thisWorkerPort, int 
             return false;
         }
 
-        bzero((char*)&serv_addr, sizeof(serv_addr));
+        memset((char *)&serv_addr, 0, sizeof(serv_addr));
         serv_addr.sin_family = AF_INET;
-        bcopy((char*)server->h_addr, (char*)&serv_addr.sin_addr.s_addr, server->h_length);
+        memcpy(&serv_addr.sin_addr.s_addr, server->h_addr, server->h_length);
         serv_addr.sin_port = htons(port);
         if (Utils::connect_wrapper(sockfd, (struct sockaddr*)&serv_addr, sizeof(serv_addr)) < 0) {
             return false;
@@ -1605,9 +1606,9 @@ void calculateEgoNet(string graphID, string partitionID, int serverPort, Jasmine
             return;
         }
 
-        bzero((char*)&serv_addr, sizeof(serv_addr));
+        memset((char *)&serv_addr, 0, sizeof(serv_addr));
         serv_addr.sin_family = AF_INET;
-        bcopy((char*)server->h_addr, (char*)&serv_addr.sin_addr.s_addr, server->h_length);
+        memcpy(&serv_addr.sin_addr.s_addr, server->h_addr, server->h_length);
         serv_addr.sin_port = htons(port);
         if (Utils::connect_wrapper(sockfd, (struct sockaddr*)&serv_addr, sizeof(serv_addr)) < 0) {
             return;
@@ -2247,8 +2248,8 @@ static void delete_graph_command(int connFd, bool* loop_exit_p) {
     }
     instance_logger.info("Sent : " + JasmineGraphInstanceProtocol::OK);
 
-    char data[DATA_BUFFER_SIZE];
-    string graphID = Utils::read_str_trim_wrapper(connFd, data, INSTANCE_DATA_LENGTH);
+    std::string data(DATA_BUFFER_SIZE, '\0');
+    string graphID = Utils::read_str_trim_wrapper(connFd, data.data(), INSTANCE_DATA_LENGTH);
     instance_logger.info("Received Graph ID: " + graphID);
 
     if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::SEND_PARTITION_ID)) {
@@ -2257,7 +2258,7 @@ static void delete_graph_command(int connFd, bool* loop_exit_p) {
     }
     instance_logger.info("Sent : " + JasmineGraphInstanceProtocol::SEND_PARTITION_ID);
 
-    string partitionID = Utils::read_str_wrapper(connFd, data, INSTANCE_DATA_LENGTH, false);
+    string partitionID = Utils::read_str_wrapper(connFd, data.data(), INSTANCE_DATA_LENGTH, false);
     instance_logger.info("Received partition ID: " + partitionID);
     deleteGraphPartition(graphID, partitionID);
     deleteStreamingGraphPartition(graphID, partitionID);
@@ -6070,3 +6071,5 @@ static void processFile(string fileName, bool isLocal, InstanceStreamHandler& ha
     file.close();
     instance_logger.info("Finished processing file: " + filePath);
 }
+
+

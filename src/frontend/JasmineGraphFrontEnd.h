@@ -33,6 +33,7 @@ limitations under the License.
 #include <iostream>
 #include <map>
 #include <string>
+#include <string_view>
 #include <thread>
 
 #include "../metadb/SQLiteDBInterface.h"
@@ -59,7 +60,7 @@ class JasmineGraphFrontEnd {
 
     static int getRunningHighPriorityTaskCount();
     static bool areRunningJobsForSameGraph();
-    static bool constructKGStreamHDFSCommand(std::string masterIP, int connFd, int numberOfPartitions,
+    static bool constructKGStreamHDFSCommand(const std::string &masterIP, int connectionFd, int numberOfPartitions,
                                              SQLiteDBInterface *sqlite, bool *loop_exit_p);
     static bool constructKGStreamLocalTXTCommand(std::string masterIP, int connFd, int numberOfPartitions,
                                           SQLiteDBInterface *sqlite, bool *loop_exit_p);

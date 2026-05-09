@@ -687,11 +687,10 @@ json SemanticBeamSearch::callRemoteExpansion(
     return json();
   }
 
-  semantic_beam_search_logger.debug("Setting up server address struct");
-  bzero((char*)&serv_addr, sizeof(serv_addr));
+  semantic_beam_search_logger.info("Setting up server address struct");
+  memset((char*)&serv_addr, 0, sizeof(serv_addr));
   serv_addr.sin_family = AF_INET;
-  bcopy((char*)server->h_addr, (char*)&serv_addr.sin_addr.s_addr,
-        server->h_length);
+  memcpy((char*)&serv_addr.sin_addr.s_addr, (char*)server->h_addr, server->h_length);
   serv_addr.sin_port = htons(port);
 
   semantic_beam_search_logger.debug("Attempting to connect to " + host + ":" +

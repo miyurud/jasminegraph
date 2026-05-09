@@ -61,8 +61,8 @@ class StreamingTriangles {
                       const std::map<long, std::unordered_set<long>>& g2,
                       const std::vector<std::pair<long, long>>& edges);
     static long totalCount(const std::map<long, std::unordered_set<long>>& g1,
-                    std::map<long, std::unordered_set<long>>& g2,
-                    std::vector<std::pair<long, long>>& edges);
+                    const std::map<long, std::unordered_set<long>>& g2,
+                    const std::vector<std::pair<long, long>>& edges);
 };
 
 #endif  // JASMINEGRAPH_STRAMINGTRIANGLES_H

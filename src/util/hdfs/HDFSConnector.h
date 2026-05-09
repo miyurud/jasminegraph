@@ -15,6 +15,7 @@
 #define HDFSCONNECTOR_H
 
 #include <string>
+#include <vector>
 #include "../logger/Logger.h"
 #include "hdfs.h"
 
@@ -22,11 +23,22 @@ class HDFSConnector {
  public:
     HDFSConnector(const std::string &hdfsServerIP, const std::string &hdfsServerPort);
     bool isPathValid(const std::string &hdfsPath);
+    bool createDirectory(const std::string &hdfsPath);
+    bool writeGraphToHDFS(const std::string &hdfsPath, const std::string &graphData);
+    bool concatenateFiles(const std::vector<std::string> &sourcePaths, const std::string &destinationPath);
+    bool deletePath(const std::string &hdfsPath, bool recursive = false);
+
+    // Streaming write API for large graphs
+    bool openFileForWrite(const std::string &hdfsPath);
+    bool appendData(const char *data, size_t length);
+    bool closeWriteFile();
+
     ~HDFSConnector();
     hdfsFS getFileSystem();
 
  private:
     hdfsFS fileSystem;
+    hdfsFile currentWriteFile = nullptr;
     Logger frontend_logger;
 };
 
