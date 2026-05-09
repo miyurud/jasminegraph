@@ -1642,8 +1642,8 @@ static void add_stream_kafka_command(int connFd, std::string &kafka_server_IP, c
         return;
     }
 
-    // Get the stop flag from the registry (lookup by topic)
-    auto streamMetadata = registry.getStreamByTopic(topic_name_s);
+    // Get the stop flag for this graph's stream. A topic can have multiple active streams.
+    auto streamMetadata = registry.getStreamByGraphId(graphIdInt);
     if (!streamMetadata) {
         frontend_logger.error("Failed to retrieve stream metadata for topic " + topic_name_s);
         string errorMsg = "Error: Failed to initialize stream metadata";
@@ -4028,4 +4028,3 @@ void JasmineGraphFrontEnd::stop_graph_streaming(int connFd, bool *loop_exit_p) {
         int resultWr = write(connFd, message2.c_str(), message2.length());
     }
 }
-
