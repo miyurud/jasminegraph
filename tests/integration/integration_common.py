@@ -180,8 +180,8 @@ def expect_response_file(conn: socket.socket, expected: bytes, timeout=5000):
     return True
 
 
-def expect_response_contains(conn: socket.socket, expected: bytes, timeout: float = 30000.0):
-    """Check if the response contains expected bytes within a timeout."""
+def receive_response_contains(conn: socket.socket, expected: bytes, timeout: float = 30000.0):
+    """Return response bytes containing expected bytes within a timeout."""
     global passed_all
     buffer = bytearray()
     deadline = time.time() + timeout
@@ -197,25 +197,31 @@ def expect_response_contains(conn: socket.socket, expected: bytes, timeout: floa
             except socket.error as exc:
                 logging.warning('Socket error: %s', exc)
                 passed_all = False
-                return False
+                return None
 
             if not received:
                 logging.warning(
                     'Connection closed before expected response was received'
                 )
                 passed_all = False
-                return False
+                return None
 
             buffer.extend(received)
             if expected in buffer:
-                print(buffer.decode('utf-8', errors='replace'), end='')
-                return True
+                data = bytes(buffer)
+                print(data.decode('utf-8', errors='replace'), end='')
+                return data
 
         logging.warning('Timed out waiting for response containing expected data')
         passed_all = False
-        return False
+        return None
     finally:
         conn.settimeout(previous_timeout)
+
+
+def expect_response_contains(conn: socket.socket, expected: bytes, timeout: float = 30000.0):
+    """Check if the response contains expected bytes within a timeout."""
+    return receive_response_contains(conn, expected, timeout) is not None
 
 
 def send_and_expect_response(conn, test_name, send, expected, exit_on_failure=False):
