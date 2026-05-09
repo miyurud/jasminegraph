@@ -2685,16 +2685,55 @@ static void stop_stream_kafka_command(int connFd, const std::string &topicName, 
         return;
     }
 
+    std::shared_ptr<StreamMetadata> streamMetadata;
     if (streamMatches.size() > 1) {
-        string errorMsg =
-            "Error: Multiple active streams found for topic `" + topicName + "`. Use a unique graph ID.";
-        frontend_logger.error(errorMsg);
-        write(connFd, errorMsg.c_str(), errorMsg.length());
-        write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
-        return;
-    }
+        string prompt =
+            "Multiple active streams found for topic `" + topicName + "`. Send graph ID:";
+        if (!writeSocketLine(connFd, prompt, loop_exit_p)) {
+            return;
+        }
 
-    auto streamMetadata = streamMatches.front();
+        string graphIdInput = readTrimmedSocketInput(connFd);
+        if (graphIdInput.empty()) {
+            string errorMsg = "Error: Graph ID is required to stop a specific stream";
+            frontend_logger.error(errorMsg);
+            write(connFd, errorMsg.c_str(), errorMsg.length());
+            write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
+            return;
+        }
+
+        int graphIdValue = -1;
+        try {
+            graphIdValue = std::stoi(graphIdInput);
+        } catch (const std::exception &ex) {
+            string errorMsg = "Error: Invalid graph ID `" + graphIdInput + "`";
+            frontend_logger.error(errorMsg);
+            write(connFd, errorMsg.c_str(), errorMsg.length());
+            write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
+            return;
+        }
+
+        auto matchIt = std::find_if(
+            streamMatches.begin(),
+            streamMatches.end(),
+            [graphIdValue](const std::shared_ptr<StreamMetadata> &metadata) {
+                return metadata && metadata->graphId == graphIdValue;
+            });
+
+        if (matchIt == streamMatches.end()) {
+            string errorMsg =
+                "Error: No active stream found for graph ID `" + std::to_string(graphIdValue) +
+                "` on topic `" + topicName + "`";
+            frontend_logger.error(errorMsg);
+            write(connFd, errorMsg.c_str(), errorMsg.length());
+            write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
+            return;
+        }
+
+        streamMetadata = *matchIt;
+    } else {
+        streamMetadata = streamMatches.front();
+    }
 
     int graphId = streamMetadata->graphId;
 
