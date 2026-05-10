@@ -28,6 +28,7 @@ limitations under the License.
 #include "../knowledgegraph/construction/VLLMTupleStreamer.h"
 #include "../query/algorithms/triangles/StreamingTriangles.h"
 #include "../query/algorithms/triangles/SheepTriangles.h"
+#include "../query/algorithms/triangles/SheepTriangles.h"
 #include "../query/processor/cypher/runtime/InstanceHandler.h"
 #include "../query/processor/nlp/semanticbeamsearch/SemanticBeamSearch.h"
 #include "../server/JasmineGraphServer.h"
@@ -499,6 +500,56 @@ long countLocalTriangles(
 
     instance_logger.info("###INSTANCE### Using standard Triangles algorithm");
     result = Triangles::run(graphDB, centralGraphDB, duplicateCentralGraphDB, graphId, partitionId, threadPriority);
+
+    instance_logger.info("###INSTANCE### Local Triangle Count : Completed: Triangles: " + to_string(result));
+
+    return result;
+}
+
+long countLocalSheepTriangles(
+    std::string graphId, std::string partitionId,
+    std::map<std::string, JasmineGraphHashMapLocalStore> &graphDBMapLocalStores,
+    std::map<std::string, JasmineGraphHashMapCentralStore> &graphDBMapCentralStores,
+    std::map<std::string, JasmineGraphHashMapDuplicateCentralStore> &graphDBMapDuplicateCentralStores,
+    int threadPriority) {
+
+    OTEL_TRACE_FUNCTION();
+
+    long result;
+
+    instance_logger.info("###INSTANCE### Local Triangle Count : Started: Graph ID " + graphId +
+                         " Partition " + partitionId);
+
+    std::string graphIdentifier = graphId + "_" + partitionId;
+    std::string centralGraphIdentifier = graphId + "_centralstore_" + partitionId;
+    std::string duplicateCentralGraphIdentifier = graphId + "_centralstore_dp_" + partitionId;
+
+    auto localMapIterator = graphDBMapLocalStores.find(graphIdentifier);
+    auto centralStoreIterator = graphDBMapCentralStores.find(centralGraphIdentifier);
+    auto duplicateCentralStoreIterator = graphDBMapDuplicateCentralStores.find(duplicateCentralGraphIdentifier);
+
+    if (localMapIterator == graphDBMapLocalStores.end() &&
+        JasmineGraphInstanceService::isGraphDBExists(graphId, partitionId)) {
+        JasmineGraphInstanceService::loadLocalStore(graphId, partitionId, graphDBMapLocalStores);
+    }
+    JasmineGraphHashMapLocalStore graphDB = graphDBMapLocalStores[graphIdentifier];
+
+    if (centralStoreIterator == graphDBMapCentralStores.end() &&
+        JasmineGraphInstanceService::isInstanceCentralStoreExists(graphId, partitionId)) {
+        JasmineGraphInstanceService::loadInstanceCentralStore(graphId, partitionId, graphDBMapCentralStores);
+    }
+    JasmineGraphHashMapCentralStore centralGraphDB = graphDBMapCentralStores[centralGraphIdentifier];
+
+    if (duplicateCentralStoreIterator == graphDBMapDuplicateCentralStores.end() &&
+        JasmineGraphInstanceService::isInstanceDuplicateCentralStoreExists(graphId, partitionId)) {
+        JasmineGraphInstanceService::loadInstanceDuplicateCentralStore(graphId, partitionId,
+                                                                       graphDBMapDuplicateCentralStores);
+    }
+    JasmineGraphHashMapDuplicateCentralStore duplicateCentralGraphDB =
+        graphDBMapDuplicateCentralStores[duplicateCentralGraphIdentifier];
+
+    instance_logger.info("###INSTANCE### Using standard Triangles algorithm");
+    result = SheepTriangles::run(graphDB, centralGraphDB, duplicateCentralGraphDB, graphId, partitionId, threadPriority);
 
     instance_logger.info("###INSTANCE### Local Triangle Count : Completed: Triangles: " + to_string(result));
 
@@ -2968,6 +3019,91 @@ static void triangles_command(
     perfThread.detach();
 
     long localCount = countLocalTriangles(graphID, partitionId, graphDBMapLocalStores, graphDBMapCentralStores,
+                                          graphDBMapDuplicateCentralStores, threadPriority);
+
+
+
+    if (threadPriority > Conts::DEFAULT_THREAD_PRIORITY) {
+        threadPriorityMutex.lock();
+        workerHighPriorityTaskCount--;
+
+        if (workerHighPriorityTaskCount == 0) {
+            highestPriority = Conts::DEFAULT_THREAD_PRIORITY;
+        }
+        threadPriorityMutex.unlock();
+    }
+
+    std::string result = to_string(localCount);
+    if (!Utils::send_str_wrapper(connFd, result)) {
+        *loop_exit_p = true;
+    }
+}
+
+static void sheep_triangles_command(
+    int connFd, int serverPort, std::map<std::string, JasmineGraphHashMapLocalStore> &graphDBMapLocalStores,
+    std::map<std::string, JasmineGraphHashMapCentralStore> &graphDBMapCentralStores,
+    std::map<std::string, JasmineGraphHashMapDuplicateCentralStore> &graphDBMapDuplicateCentralStores,
+    bool *loop_exit_p) {
+    if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::OK)) {
+        *loop_exit_p = true;
+        return;
+    }
+    instance_logger.info("Sent : " + JasmineGraphInstanceProtocol::OK);
+
+    char data[DATA_BUFFER_SIZE];
+    string graphID = Utils::read_str_trim_wrapper(connFd, data, INSTANCE_DATA_LENGTH);
+    instance_logger.info("Received Graph ID: " + graphID);
+
+    if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::OK)) {
+        *loop_exit_p = true;
+        return;
+    }
+
+    string partitionId = Utils::read_str_trim_wrapper(connFd, data, INSTANCE_DATA_LENGTH);
+    instance_logger.info("Received Partition ID: " + partitionId);
+
+    if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::OK)) {
+        *loop_exit_p = true;
+        return;
+    }
+
+    string priority = Utils::read_str_trim_wrapper(connFd, data, INSTANCE_DATA_LENGTH);
+    instance_logger.info("Received Priority : " + priority);
+
+    if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::OK)) {
+        *loop_exit_p = true;
+        return;
+    }
+
+    // Receive trace context from master
+    string traceContext = Utils::read_str_trim_wrapper(connFd, data, INSTANCE_DATA_LENGTH);
+
+    // Use utility function to validate and set trace context
+    OpenTelemetryUtil::receiveAndSetTraceContext(traceContext, "triangle counting");
+
+    // Start tracing AFTER trace context is set to ensure proper parent-child relationship
+    OTEL_TRACE_FUNCTION();
+
+    // Add worker identification attributes to distinguish workers in traces
+    OpenTelemetryUtil::addSpanAttribute("worker.id", "worker_" + std::to_string(serverPort));
+    OpenTelemetryUtil::addSpanAttribute("worker.port", std::to_string(serverPort));
+    OpenTelemetryUtil::addSpanAttribute("partition.id", partitionId);
+    OpenTelemetryUtil::addSpanAttribute("graph.id", graphID);
+    OpenTelemetryUtil::addSpanAttribute("operation.type", "triangle_counting");
+
+    int threadPriority = stoi(priority);
+
+    if (threadPriority > Conts::DEFAULT_THREAD_PRIORITY) {
+        threadPriorityMutex.lock();
+        workerHighPriorityTaskCount++;
+        highestPriority = threadPriority;
+        threadPriorityMutex.unlock();
+    }
+
+    std::thread perfThread = std::thread(&PerformanceUtil::collectPerformanceStatistics);
+    perfThread.detach();
+
+    long localCount = countLocalSheepTriangles(graphID, partitionId, graphDBMapLocalStores, graphDBMapCentralStores,
                                           graphDBMapDuplicateCentralStores, threadPriority);
 
 
