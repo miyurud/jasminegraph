@@ -434,7 +434,7 @@ string Intersection::execute() {
 CacheProperty::CacheProperty(Operator* input, vector<ASTNode*> property) : property(property), input(input) {}
 
 string CacheProperty::execute() {
-    return input->execute();;
+    return input->execute();
 }
 
 UndirectedRelationshipTypeScan::UndirectedRelationshipTypeScan(string relType, string relvar, string startVar,

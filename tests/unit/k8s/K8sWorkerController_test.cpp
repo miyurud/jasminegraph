@@ -12,11 +12,53 @@ limitations under the License.
  */
 
 #include "../../../src/k8s/K8sWorkerController.h"
+#include "../../../src/util/logger/Logger.h"
 
 #include <fstream>
+#include <iostream>
+#include <memory>
 #include <vector>
 
 #include "gtest/gtest.h"
+
+Logger k8s_worker_controller_logger;
+
+namespace {
+constexpr const char *kWorkerName = "jasminegraph-worker";
+const std::string kDeploymentLabel = std::string("deployment=") + kWorkerName;
+const std::string kServiceLabel = std::string("service=") + kWorkerName;
+
+bool extractWorkerIdFromLabels(list_t *labels, int &workerId) {
+    if (!labels) {
+        return false;
+    }
+
+    listEntry_t *label = NULL;
+    list_ForEach(label, labels) {
+        auto *pair = static_cast<keyValuePair_t *>(label->data);
+        if (!pair || !pair->key || !pair->value) {
+            continue;
+        }
+
+        if (strcmp(pair->key, "workerId") != 0) {
+            continue;
+        }
+
+        try {
+            workerId = std::stoi(static_cast<char *>(pair->value));
+            return true;
+        } catch (const std::invalid_argument &e) {
+            k8s_worker_controller_logger.error("Cleanup: " + std::string(e.what()));
+            return false;
+        } catch (const std::out_of_range &e) {
+            k8s_worker_controller_logger.error("Cleanup: " + std::string(e.what()));
+            return false;
+        }
+    }
+
+    return false;
+}
+}  // namespace
 
 class K8sWorkerControllerTest : public ::testing::Test {
  public:
@@ -24,7 +66,51 @@ class K8sWorkerControllerTest : public ::testing::Test {
     static SQLiteDBInterface *metadb;
     static K8sInterface *interface;
 
+    static void cleanupAllWorkerResources() {
+        auto cleanupInterface = std::make_unique<K8sInterface>();
+        // Delete all jasminegraph-worker deployments, services, PVCs, and PVs
+        v1_deployment_list_t *deployments =
+            cleanupInterface->getDeploymentList(strdup(kDeploymentLabel.c_str()));
+        if (deployments && deployments->items && deployments->items->count > 0) {
+            listEntry_t *entry = NULL;
+            list_ForEach(entry, deployments->items) {
+                auto *dep = static_cast<v1_deployment_t *>(entry->data);
+                if (!dep || !dep->metadata) {
+                    continue;
+                }
+
+                int workerId = 0;
+                if (extractWorkerIdFromLabels(dep->metadata->labels, workerId)) {
+                    cleanupInterface->deleteJasmineGraphWorkerDeployment(workerId);
+                    cleanupInterface->deleteJasmineGraphWorkerService(workerId);
+                    cleanupInterface->deleteJasmineGraphPersistentVolumeClaim(workerId);
+                    cleanupInterface->deleteJasmineGraphPersistentVolume(workerId);
+                }
+            }
+        }
+        // Also clean up services that might exist without deployments
+        v1_service_list_t *services =
+            cleanupInterface->getServiceList(strdup(kServiceLabel.c_str()));
+        if (services && services->items && services->items->count > 0) {
+            listEntry_t *entry = NULL;
+            list_ForEach(entry, services->items) {
+                auto *svc = static_cast<v1_service_t *>(entry->data);
+                if (!svc || !svc->metadata) {
+                    continue;
+                }
+
+                int workerId = 0;
+                if (extractWorkerIdFromLabels(svc->metadata->labels, workerId)) {
+                    cleanupInterface->deleteJasmineGraphWorkerService(workerId);
+                }
+            }
+        }
+    }
+
     static void SetUpTestSuite() {
+        // Clean up any pre-existing jasminegraph-worker resources in the cluster
+        cleanupAllWorkerResources();
+
         metadb = new SQLiteDBInterface(TEST_RESOURCE_DIR "temp/jasminegraph_meta.db");
         metadb->init();
         controller = K8sWorkerController::getInstance("10.43.0.1", 2, metadb);
@@ -32,6 +118,9 @@ class K8sWorkerControllerTest : public ::testing::Test {
     }
 
     static void TearDownTestSuite() {
+        // Clean up all workers created during tests
+        cleanupAllWorkerResources();
+
         delete controller;
         delete metadb;
         delete interface;
@@ -51,7 +140,7 @@ TEST_F(K8sWorkerControllerTest, TestConstructor) {
 
     v1_deployment_list_t *deployment_list = interface->getDeploymentList(strdup("deployment=jasminegraph-worker"));
     ASSERT_EQ(deployment_list->items->count, 2);
-    v1_service_list_t *service_list = interface->getServiceList(strdup("service=jasminegraph-worker"));
+    v1_service_list_t *service_list = interface->getServiceList(strdup(kServiceLabel.c_str()));
     ASSERT_EQ(service_list->items->count, 2);
 }
 
@@ -60,7 +149,7 @@ TEST_F(K8sWorkerControllerTest, TestScaleUp) {
     ASSERT_EQ(result.size(), 2);
     v1_deployment_list_t *deployment_list = interface->getDeploymentList(strdup("deployment=jasminegraph-worker"));
     ASSERT_EQ(deployment_list->items->count, 4);
-    v1_service_list_t *service_list = interface->getServiceList(strdup("service=jasminegraph-worker"));
+    v1_service_list_t *service_list = interface->getServiceList(strdup(kServiceLabel.c_str()));
     ASSERT_EQ(service_list->items->count, 4);
 }
 
@@ -69,6 +158,6 @@ TEST_F(K8sWorkerControllerTest, TestScaleUpBeyondLimit) {
     ASSERT_EQ(result.size(), 0);
     v1_deployment_list_t *deployment_list = interface->getDeploymentList(strdup("deployment=jasminegraph-worker"));
     ASSERT_EQ(deployment_list->items->count, 4);
-    v1_service_list_t *service_list = interface->getServiceList(strdup("service=jasminegraph-worker"));
+    v1_service_list_t *service_list = interface->getServiceList(strdup(kServiceLabel.c_str()));
     ASSERT_EQ(service_list->items->count, 4);
 }

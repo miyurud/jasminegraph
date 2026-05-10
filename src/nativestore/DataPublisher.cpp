@@ -33,7 +33,7 @@ DataPublisher::DataPublisher(int worker_port, std::string worker_address, int wo
         pthread_exit(NULL);
     }
 
-    bcopy((char *)server->h_addr, (char *)&serv_addr.sin_addr.s_addr, server->h_length);
+    memcpy(&serv_addr.sin_addr.s_addr, server->h_addr, server->h_length);
 
     serv_addr.sin_family = AF_INET;
     serv_addr.sin_port = htons(worker_port);

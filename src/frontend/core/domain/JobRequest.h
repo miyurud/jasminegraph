@@ -30,7 +30,7 @@ class JobRequest {
  public:
     int priority;
 
-    std::string getJobId();
+    std::string getJobId() const;
     void setJobId(std::string inputJobId);
     std::string getJobType();
     void setJobType(std::string inputJobType);
