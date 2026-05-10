@@ -88,13 +88,6 @@ class StreamRegistry {
     std::shared_ptr<StreamMetadata> getStreamByTopic(const std::string &topicName);
 
     /**
-     * Get stream metadata by graph ID
-     * @param graphId Graph ID to look up
-     * @return Pointer to StreamMetadata if found, nullptr otherwise
-     */
-    std::shared_ptr<StreamMetadata> getStreamByGraphId(int graphId);
-
-    /**
      * Get all stream metadata entries by Kafka topic name
      * @param topicName Topic name to look up
      * @return Vector of matching StreamMetadata entries

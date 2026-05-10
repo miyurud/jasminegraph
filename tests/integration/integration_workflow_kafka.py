@@ -143,11 +143,13 @@ def run_kafka_workflow(sock):
     second_graph_id = _start_kafka_stream(sock, shared_topic)
 
     stop_command = common.STOPSTRM + b' ' + shared_topic.encode('utf-8')
-    common.send_and_expect_response_contains(
+    common.send_and_expect_response(
         sock,
         'stopstrm multi-stream prompt',
         stop_command,
-        f'Multiple active streams found for topic `{shared_topic}`.'.encode('utf-8'),
+        (
+            f'Multiple active streams found for topic `{shared_topic}`. Send graph ID:'
+        ).encode('utf-8'),
         exit_on_failure=True,
     )
     common.send_and_expect_response(

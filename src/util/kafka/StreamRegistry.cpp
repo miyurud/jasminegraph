@@ -66,17 +66,6 @@ std::shared_ptr<StreamMetadata> StreamRegistry::getStreamByTopic(const std::stri
     return nullptr;
 }
 
-std::shared_ptr<StreamMetadata> StreamRegistry::getStreamByGraphId(int graphId) {
-    std::lock_guard<std::mutex> lock(registryMutex);
-
-    auto it = activeStreams.find(graphId);
-    if (it != activeStreams.end()) {
-        return it->second;
-    }
-
-    return nullptr;
-}
-
 std::vector<std::shared_ptr<StreamMetadata>> StreamRegistry::getStreamsByTopic(const std::string &topicName) {
     std::lock_guard<std::mutex> lock(registryMutex);
     std::vector<std::shared_ptr<StreamMetadata>> matches;
