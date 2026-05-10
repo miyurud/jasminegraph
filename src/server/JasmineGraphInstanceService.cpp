@@ -549,7 +549,7 @@ long countLocalSheepTriangles(
         graphDBMapDuplicateCentralStores[duplicateCentralGraphIdentifier];
 
     instance_logger.info("###INSTANCE### Using standard Triangles algorithm");
-    result = SheepTriangles::run(graphDB, centralGraphDB, duplicateCentralGraphDB, graphId, partitionId, threadPriority);
+    result = SheepTriangles::run(graphDB, centralGraphDB, duplicateCentralGraphDB, graphId, partitionId);
 
     instance_logger.info("###INSTANCE### Local Triangle Count : Completed: Triangles: " + to_string(result));
 
