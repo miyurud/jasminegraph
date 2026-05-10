@@ -467,6 +467,32 @@ void writeCatalogRecord(string record) {
     outfile.close();
 }
 
+static void loadTriangleStores(
+    std::string graphId, std::string partitionId,
+    std::map<std::string, JasmineGraphHashMapLocalStore> &graphDBMapLocalStores,
+    std::map<std::string, JasmineGraphHashMapCentralStore> &graphDBMapCentralStores,
+    std::map<std::string, JasmineGraphHashMapDuplicateCentralStore> &graphDBMapDuplicateCentralStores) {
+    std::string graphIdentifier = graphId + "_" + partitionId;
+    std::string centralGraphIdentifier = graphId + "_centralstore_" + partitionId;
+    std::string duplicateCentralGraphIdentifier = graphId + "_centralstore_dp_" + partitionId;
+
+    if (graphDBMapLocalStores.find(graphIdentifier) == graphDBMapLocalStores.end() &&
+        JasmineGraphInstanceService::isGraphDBExists(graphId, partitionId)) {
+        JasmineGraphInstanceService::loadLocalStore(graphId, partitionId, graphDBMapLocalStores);
+    }
+
+    if (graphDBMapCentralStores.find(centralGraphIdentifier) == graphDBMapCentralStores.end() &&
+        JasmineGraphInstanceService::isInstanceCentralStoreExists(graphId, partitionId)) {
+        JasmineGraphInstanceService::loadInstanceCentralStore(graphId, partitionId, graphDBMapCentralStores);
+    }
+
+    if (graphDBMapDuplicateCentralStores.find(duplicateCentralGraphIdentifier) == graphDBMapDuplicateCentralStores.end() &&
+        JasmineGraphInstanceService::isInstanceDuplicateCentralStoreExists(graphId, partitionId)) {
+        JasmineGraphInstanceService::loadInstanceDuplicateCentralStore(graphId, partitionId,
+                                                                       graphDBMapDuplicateCentralStores);
+    }
+}
+
 long countLocalTriangles(
     std::string graphId, std::string partitionId,
     std::map<std::string, JasmineGraphHashMapLocalStore> &graphDBMapLocalStores,
@@ -531,35 +557,15 @@ long countLocalSheepTriangles(
     instance_logger.info("###INSTANCE### Local Triangle Count : Started: Graph ID " + graphId +
                          " Partition " + partitionId);
 
-    std::string graphIdentifier = graphId + "_" + partitionId;
-    std::string centralGraphIdentifier = graphId + "_centralstore_" + partitionId;
-    std::string duplicateCentralGraphIdentifier = graphId + "_centralstore_dp_" + partitionId;
+    loadTriangleStores(graphId, partitionId, graphDBMapLocalStores, graphDBMapCentralStores,
+                       graphDBMapDuplicateCentralStores);
 
-    auto localMapIterator = graphDBMapLocalStores.find(graphIdentifier);
-    auto centralStoreIterator = graphDBMapCentralStores.find(centralGraphIdentifier);
-    auto duplicateCentralStoreIterator = graphDBMapDuplicateCentralStores.find(duplicateCentralGraphIdentifier);
-
-    if (localMapIterator == graphDBMapLocalStores.end() &&
-        JasmineGraphInstanceService::isGraphDBExists(graphId, partitionId)) {
-        JasmineGraphInstanceService::loadLocalStore(graphId, partitionId, graphDBMapLocalStores);
-    }
-    JasmineGraphHashMapLocalStore graphDB = graphDBMapLocalStores[graphIdentifier];
-
-    if (centralStoreIterator == graphDBMapCentralStores.end() &&
-        JasmineGraphInstanceService::isInstanceCentralStoreExists(graphId, partitionId)) {
-        JasmineGraphInstanceService::loadInstanceCentralStore(graphId, partitionId, graphDBMapCentralStores);
-    }
-    JasmineGraphHashMapCentralStore centralGraphDB = graphDBMapCentralStores[centralGraphIdentifier];
-
-    if (duplicateCentralStoreIterator == graphDBMapDuplicateCentralStores.end() &&
-        JasmineGraphInstanceService::isInstanceDuplicateCentralStoreExists(graphId, partitionId)) {
-        JasmineGraphInstanceService::loadInstanceDuplicateCentralStore(graphId, partitionId,
-                                                                       graphDBMapDuplicateCentralStores);
-    }
+    JasmineGraphHashMapLocalStore graphDB = graphDBMapLocalStores[graphId + "_" + partitionId];
+    JasmineGraphHashMapCentralStore centralGraphDB = graphDBMapCentralStores[graphId + "_centralstore_" + partitionId];
     JasmineGraphHashMapDuplicateCentralStore duplicateCentralGraphDB =
-        graphDBMapDuplicateCentralStores[duplicateCentralGraphIdentifier];
+        graphDBMapDuplicateCentralStores[graphId + "_centralstore_dp_" + partitionId];
 
-    instance_logger.info("###INSTANCE### Using standard Triangles algorithm");
+    instance_logger.info("###INSTANCE### Using SheepTriangles algorithm");
     result = SheepTriangles::run(graphDB, centralGraphDB, duplicateCentralGraphDB, graphId, partitionId);
 
     instance_logger.info("###INSTANCE### Local Triangle Count : Completed: Triangles: " + to_string(result));
