@@ -1157,23 +1157,7 @@ bool Utils::uploadFileToWorker(const std::string &host, int port, int dataPort, 
         return false;
     }
 
-    if (host.find('@') != std::string::npos) {
-        host = Utils::split(host, '@')[1];
-    }
 
-    server = gethostbyname(host.c_str());
-    if (server == NULL) {
-        util_logger.error("ERROR, no host named " + host);
-        return false;
-    }
-
-    bzero((char *)&serv_addr, sizeof(serv_addr));
-    serv_addr.sin_family = AF_INET;
-    bcopy((char *)server->h_addr, (char *)&serv_addr.sin_addr.s_addr, server->h_length);
-    serv_addr.sin_port = htons(port);
-    if (Utils::connect_wrapper(sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
-        return false;
-    }
     
     // Optimize TCP socket for file uploads
     int flag = 1;
@@ -1187,12 +1171,6 @@ bool Utils::uploadFileToWorker(const std::string &host, int port, int dataPort, 
     // Enable address reuse
     int reuse = 1;
     setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, (char *)&reuse, sizeof(reuse));
-
-    if (!Utils::performHandshake(sockfd, data, FED_DATA_LENGTH, masterIP)) {
-        Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::CLOSE);
-        close(sockfd);
-        return false;
-    }
 
     if (!Utils::sendExpectResponse(sockfd, data, INSTANCE_DATA_LENGTH, uploadType, JasmineGraphInstanceProtocol::OK)) {
         Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::CLOSE);
@@ -1409,6 +1387,11 @@ bool Utils::sendFileThroughService(std::string host, int dataPort, std::string f
     struct hostent *server;
 
     util_logger.info("Sending file " + filePath + " through port " + std::to_string(dataPort));
+
+    if (host.find('@') != std::string::npos) {
+        host = Utils::split(host, '@')[1];
+    }
+
     FILE *fp = fopen(filePath.c_str(), "r");
     if (fp == NULL) {
         return false;

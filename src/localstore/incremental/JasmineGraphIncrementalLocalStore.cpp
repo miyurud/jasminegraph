@@ -64,6 +64,7 @@ bool JasmineGraphIncrementalLocalStore::getAndStoreEmbeddings() {
   }
   embedding_requests->clear();
   faissStore->save();
+  return true;
 }
 
 std::pair<std::string, unsigned int> JasmineGraphIncrementalLocalStore::getIDs(
