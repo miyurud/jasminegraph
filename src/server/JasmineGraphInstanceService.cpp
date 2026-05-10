@@ -5406,9 +5406,7 @@ static void send_edges_command(int connFd, bool *loop_exit_p) {
     instance_logger.info("Received Partition ID: " + partitionID);
 
     size_t edgeDataSize = 0;
-    if (!stream_partition_edge_data(graphID, partitionID, [](const std::string &) {
-            return true;
-        }, &edgeDataSize)) {
+    if (!stream_partition_edge_data(graphID, partitionID, [](const std::string &) { return true; }, &edgeDataSize)) {
         instance_logger.error("Failed to scan edge data for graph " + graphID + " partition " + partitionID);
         *loop_exit_p = true;
         return;
@@ -5635,4 +5633,3 @@ static void send_edges_to_hdfs_command(int connFd, bool *loop_exit_p) {
     instance_logger.info("Finished direct HDFS export for graph " + graphID +
                          " partition " + partitionID + " path=" + hdfsPath);
 }
-
