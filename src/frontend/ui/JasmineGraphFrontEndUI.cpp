@@ -94,7 +94,7 @@ static void cypher_ast_command(int connFd, vector<DataPublisher *> &workerClient
 static bool sendResponse(int connFd, const std::string &response, bool *loop_exit_p, size_t length = 0);
 static void processTriangleCount(std::string masterIP, int connFd,
                                  SQLiteDBInterface *sqlite, PerformanceSQLiteDBInterface *perfSqlite,
-                                 JobScheduler *jobScheduler, bool *loop_exit_p, std::string command, int jobType);
+                                 JobScheduler *jobScheduler, bool *loop_exit_p, std::string command, std::string jobType);
 
 static void semantic_beam_search_command(int connFd, std::string command,
                                          int numberOfPartitions, bool *loop_exit_p , JobScheduler *jobScheduler);
@@ -308,7 +308,7 @@ static bool sendResponse(int connFd, const std::string &response, bool *loop_exi
 
 static void processTriangleCount(std::string masterIP, int connFd,
                                  SQLiteDBInterface *sqlite, PerformanceSQLiteDBInterface *perfSqlite,
-                                 JobScheduler *jobScheduler, bool *loop_exit_p, std::string command, int jobType) {
+                                 JobScheduler *jobScheduler, bool *loop_exit_p, std::string command, std::string jobType) {
     char delimiter = '|';
     std::stringstream ss(command);
     std::string token;
