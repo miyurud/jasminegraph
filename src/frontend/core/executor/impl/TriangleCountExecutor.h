@@ -47,7 +47,7 @@ class TriangleCountExecutor : public AbstractExecutor {
 
     void execute();
 
-    int getUid();
+    static int getUid();
 
     // Shared execute method for both regular and sheep executors
     static void executeTriangleCount(SQLiteDBInterface *sqlite, PerformanceSQLiteDBInterface *perfDB,

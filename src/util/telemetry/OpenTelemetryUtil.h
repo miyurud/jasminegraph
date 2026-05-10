@@ -295,6 +295,10 @@ class ScopedTracer {
     std::string operation_name_;
 };
 
+#define CONCAT_INNER(a, b) a ## b
+#define CONCAT(a, b) CONCAT_INNER(a, b)
+#define UNIQUE_VAR(prefix) CONCAT(prefix, __LINE__)
+
 /**
  * Convenience macro for automatic function tracing
  * Creates a scoped tracer that automatically traces the entire function
@@ -308,7 +312,7 @@ class ScopedTracer {
  * @param op_name Name of the operation to trace
  */
 #define OTEL_TRACE_OPERATION(op_name) \
-    ScopedTracer __operation_tracer(op_name)
+    ScopedTracer UNIQUE_VAR(__operation_tracer_)(op_name)
 
 /**
  * Convenience macro for tracing with attributes
@@ -316,4 +320,4 @@ class ScopedTracer {
  * @param attrs Map of attributes
  */
 #define OTEL_TRACE_WITH_ATTRS(op_name, attrs) \
-    ScopedTracer __operation_tracer(op_name, attrs)
+    ScopedTracer UNIQUE_VAR(__operation_tracer_)(op_name, attrs)
