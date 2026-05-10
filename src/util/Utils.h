@@ -208,8 +208,9 @@ class Utils {
     static bool transferPartition(std::string sourceWorker, int sourceWorkerPort, std::string destinationWorker,
                                   int destinationWorkerDataPort, std::string graphID, std::string partitionID,
                                   std::string workerID, SQLiteDBInterface *sqlite);
-    static bool sendQueryPlanToWorker(std::string host, int port, std::string masterIP,
-                                      int graphID, int PartitionId, std::string message, SharedBuffer &sharedBuffer);
+    static bool sendQueryPlanToWorker(const std::string& host, int port, const std::string& masterIP,
+                                      int graphID, int PartitionId, const std::string& message,
+                                      SharedBuffer &sharedBuffer, const std::string& masterTraceContext = "");
     static std::optional<std::tuple<std::string, int, int>> getWorker(string partitionID, std::string host, int port);
     static bool sendDataFromWorkerToWorker(string masterIP, int graphID, string partitionId, std::string message,
                                            SharedBuffer &sharedBuffer);

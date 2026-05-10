@@ -7,7 +7,9 @@ set(SOURCES
         k8s/K8sInterface_test.cpp
         k8s/K8sWorkerController_test.cpp
         metadb/SQLiteDBInterface_test.cpp
-        performancedb/PerformanceSQLiteDBInterface_test.cpp)
+        performancedb/PerformanceSQLiteDBInterface_test.cpp
+        query/ThreadSafeBuffer_test.cpp
+        query/IntraPartitionParallelExecutor_test.cpp)
 
 add_executable(${PROJECT_NAME} ${SOURCES})
 target_link_libraries(${PROJECT_NAME} gtest gtest_main JasmineGraphLib)

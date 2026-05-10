@@ -40,4 +40,4 @@ WORKDIR "${JASMINEGRAPH_HOME}/build"
 RUN cmake -DCMAKE_BUILD_TYPE=DEBUG ..
 RUN make -j4
 
-CMD ["bash", "-c", "LD_LIBRARY_PATH=/usr/local/lib make -j1 coverage && cp coverage.xml ../coverage/"]
+CMD ["bash", "-c", "LD_LIBRARY_PATH=/usr/local/lib make -j1 coverage && mkdir -p ../coverage && cp coverage.xml ../coverage/ && echo 'Coverage file copied successfully' || (echo 'Coverage generation failed' && exit 1)"]

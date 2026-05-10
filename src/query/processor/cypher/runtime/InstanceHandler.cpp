@@ -13,6 +13,7 @@ limitations under the License.
 
 #include "InstanceHandler.h"
 #include "../../../../server/JasmineGraphInstanceProtocol.h"
+#include "../../../../util/telemetry/OpenTelemetryUtil.h"
 
 
 InstanceHandler::InstanceHandler(std::map<std::string,
@@ -21,30 +22,47 @@ InstanceHandler::InstanceHandler(std::map<std::string,
 
 
 void InstanceHandler::handleRequest(int connFd, bool *loop_exit_p,
-                                    GraphConfig gc, string masterIP,
-                                    std::string queryJson) {
-    OperatorExecutor operatorExecutor(gc, queryJson, masterIP);
+                                    GraphConfig gc, std::string_view masterIP,
+                                    const std::string& queryJson, [[maybe_unused]] const std::string& traceContext) {
+    // Start tracing AFTER trace context is set to ensure proper parent-child relationship
+    OTEL_TRACE_FUNCTION();
+
+    // Add worker identification attributes to distinguish workers in traces
+    OpenTelemetryUtil::addSpanAttribute("worker.partition", std::to_string(gc.partitionID));
+    OpenTelemetryUtil::addSpanAttribute("graph.id", std::to_string(gc.graphID));
+    OpenTelemetryUtil::addSpanAttribute("operation.type", "cypher_query");
+
+    OperatorExecutor operatorExecutor(gc, queryJson, std::string(masterIP));
     operatorExecutor.initializeMethodMap();
     SharedBuffer sharedBuffer(operatorExecutor.INTER_OPERATOR_BUFFER_SIZE);
     auto method = OperatorExecutor::methodMap[operatorExecutor.query["Operator"]];
-    // Launch the method in a new thread
-    std::thread result(method, std::ref(operatorExecutor), std::ref(sharedBuffer),
-                       std::string(operatorExecutor.queryPlan), gc);
-    auto startTime = std::chrono::high_resolution_clock::now();
-    int time = 0;
-    while (true) {
-        string raw = sharedBuffer.get();
-        if (raw == "-1") {
-            this->dataPublishToMaster(connFd, loop_exit_p, raw);
-            instance_logger.info("Total time taken for query execution: " + std::to_string(time) + " ms");
-            result.join();
-            break;
+
+    {
+        OTEL_TRACE_OPERATION("execute_operators");
+        // Launch the method in a new thread
+        std::thread result(method, std::ref(operatorExecutor), std::ref(sharedBuffer),
+                           std::string(operatorExecutor.queryPlan), gc);
+        auto startTime = std::chrono::high_resolution_clock::now();
+        int time = 0;
+
+        {
+            OTEL_TRACE_OPERATION("stream_results_to_master");
+            while (true) {
+                string raw = sharedBuffer.get();
+                if (raw == "-1") {
+                    this->dataPublishToMaster(connFd, loop_exit_p, raw);
+                    instance_logger.info("Total time taken for query execution: " + std::to_string(time) + " ms");
+                    OpenTelemetryUtil::addSpanAttribute("execution.time_ms", std::to_string(time));
+                    result.join();
+                    break;
+                }
+                auto endTime = std::chrono::high_resolution_clock::now();
+                auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime);
+                time += duration.count();
+                this->dataPublishToMaster(connFd, loop_exit_p, raw);
+                startTime = std::chrono::high_resolution_clock::now();
+            }
         }
-        auto endTime = std::chrono::high_resolution_clock::now();
-        auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime);
-        time += duration.count();
-        this->dataPublishToMaster(connFd, loop_exit_p, raw);
-        startTime = std::chrono::high_resolution_clock::now();
     }
 }
 
