@@ -31,6 +31,8 @@ limitations under the License.
  * Dedicated executor for sheep-partitioned graph triangle counting.
  * This executor is specialized for graphs partitioned using the sheep algorithm
  * and uses optimized triangle counting methods.
+ * 
+ * Uses async-based threading strategy and delegates to TriangleCountExecutor's shared logic.
  */
 class SheepTriangleCountExecutor : public AbstractExecutor {
  public:
@@ -41,27 +43,6 @@ class SheepTriangleCountExecutor : public AbstractExecutor {
     void execute();
 
     int getUid();
-
-    static long getSheepTriangleCount(
-        int graphId, std::string host, int port, int dataPort, int partitionId, std::string masterIP, int uniqueId,
-        bool isCompositeAggregation, int threadPriority, std::vector<std::vector<string>> fileCombinations,
-        std::map<std::string, std::string> *combinationWorkerMap_p,
-        std::unordered_map<long, std::unordered_map<long, std::unordered_set<long>>> *triangleTree_p,
-        std::mutex *triangleTreeMutex_p, const std::string& masterTraceContext);
-
-    static std::string copyCompositeCentralStoreToAggregator(std::string aggregatorHostName, std::string aggregatorPort,
-                                                             std::string aggregatorDataPort, std::string fileName,
-                                                             std::string masterIP);
-
-    static std::vector<string> countCompositeCentralStoreTriangles(std::string aggregatorHostName,
-                                                                   std::string aggregatorPort,
-                                                                   std::string compositeCentralStoreFileList,
-                                                                   std::string masterIP, std::string availableFileList,
-                                                                   int threadPriority);
-
-    static std::string copyCentralStoreToAggregator(std::string aggregatorHostName, std::string aggregatorPort,
-                                                    std::string aggregatorDataPort, int graphId, int partitionId,
-                                                    std::string masterIP);
 
  private:
     SQLiteDBInterface *sqlite;

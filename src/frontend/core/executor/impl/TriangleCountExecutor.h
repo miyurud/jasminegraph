@@ -27,6 +27,18 @@ limitations under the License.
 #include "../../CoreConstants.h"
 #include "../AbstractExecutor.h"
 
+// Enum for command types (used in logging and SLA tracking)
+enum class TriangleCountCommandType {
+    TRIANGLES,
+    SHEEP_TRIANGLES
+};
+
+// Enum for threading strategy
+enum class ThreadingStrategy {
+    THREAD_BASED,  // Uses std::thread
+    ASYNC_BASED    // Uses std::async
+};
+
 class TriangleCountExecutor : public AbstractExecutor {
  public:
     TriangleCountExecutor();
@@ -36,6 +48,11 @@ class TriangleCountExecutor : public AbstractExecutor {
     void execute();
 
     int getUid();
+
+    // Shared execute method for both regular and sheep executors
+    static void executeTriangleCount(SQLiteDBInterface *sqlite, PerformanceSQLiteDBInterface *perfDB,
+                                     const JobRequest &request, TriangleCountCommandType commandType,
+                                     ThreadingStrategy strategy, Logger &logger);
 
     static long getTriangleCount(
         int graphId, std::string host, int port, int dataPort, int partitionId, std::string masterIP, int uniqueId,
