@@ -3893,60 +3893,37 @@ void JasmineGraphFrontEnd::stop_graph_streaming(int connFd, bool *loop_exit_p) {
 
 static void sheep_command(std::string masterIP, int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_p) {
     frontend_logger.info("Starting sheep partitioning command");
-    
-    // Request graph name
-    int result_wr = write(connFd, "send graph name\r\n", 17);
-    if (result_wr < 0) {
-        frontend_logger.error("Error writing to socket");
-        *loop_exit_p = true;
+    if (!writeSocketLine(connFd, "send graph name", loop_exit_p)) {
         return;
     }
-    
-    char graph_name[FRONTEND_DATA_LENGTH + 1];
-    bzero(graph_name, FRONTEND_DATA_LENGTH + 1);
-    read(connFd, graph_name, FRONTEND_DATA_LENGTH);
-    string graphName(graph_name);
-    graphName = Utils::trim_copy(graphName);
+    string graphName = readTrimmedSocketInput(connFd);
     frontend_logger.info("Graph name received: " + graphName);
-    
-    // Request graph path
-    result_wr = write(connFd, "send graph path\r\n", 17);
-    if (result_wr < 0) {
-        frontend_logger.error("Error writing to socket");
-        *loop_exit_p = true;
+
+    if (!writeSocketLine(connFd, "send graph path", loop_exit_p)) {
         return;
     }
-    
-    char graph_path[FRONTEND_DATA_LENGTH + 1];
-    bzero(graph_path, FRONTEND_DATA_LENGTH + 1);
-    read(connFd, graph_path, FRONTEND_DATA_LENGTH);
-    string graphPath(graph_path);
-    graphPath = Utils::trim_copy(graphPath);
+    string graphPath = readTrimmedSocketInput(connFd);
     frontend_logger.info("Graph path received: " + graphPath);
-    
-    // Request number of partitions
-    result_wr = write(connFd, "send number of partitions\r\n", 27);
-    if (result_wr < 0) {
-        frontend_logger.error("Error writing to socket");
-        *loop_exit_p = true;
+
+    if (!writeSocketLine(connFd, "send number of partitions", loop_exit_p)) {
         return;
     }
-    
-    char partition_count[FRONTEND_DATA_LENGTH + 1];
-    bzero(partition_count, FRONTEND_DATA_LENGTH + 1);
-    read(connFd, partition_count, FRONTEND_DATA_LENGTH);
-    string partitionCount(partition_count);
-    partitionCount = Utils::trim_copy(partitionCount);
-    int numPartitions = std::stoi(partitionCount);
+    string partitionCount = readTrimmedSocketInput(connFd);
+    int numPartitions = 0;
+    try {
+        numPartitions = std::stoi(partitionCount);
+    } catch (...) {
+        frontend_logger.error("Invalid partition count received: " + partitionCount);
+        *loop_exit_p = true;
+        writeSocketLine(connFd, "error: invalid partition count", loop_exit_p);
+        return;
+    }
     frontend_logger.info("Number of partitions: " + to_string(numPartitions));
     
     // Check if graph file exists
     if (!Utils::fileExists(graphPath)) {
         frontend_logger.error("Graph file does not exist: " + graphPath);
-        result_wr = write(connFd, "error: graph file not found\r\n", 29);
-        if (result_wr < 0) {
-            frontend_logger.error("Error writing to socket");
-        }
+        writeSocketLine(connFd, "error: graph file not found", loop_exit_p);
         *loop_exit_p = true;
         return;
     }
@@ -3965,10 +3942,7 @@ static void sheep_command(std::string masterIP, int connFd, SQLiteDBInterface *s
     
     if (graphID < 0) {
         frontend_logger.error("Failed to insert graph into database");
-        result_wr = write(connFd, "error: database insertion failed\r\n", 35);
-        if (result_wr < 0) {
-            frontend_logger.error("Error writing to socket");
-        }
+        writeSocketLine(connFd, "error: database insertion failed", loop_exit_p);
         *loop_exit_p = true;
         return;
     }
@@ -4000,24 +3974,13 @@ static void sheep_command(std::string masterIP, int connFd, SQLiteDBInterface *s
         JasmineGraphFrontEndCommon::getAndUpdateUploadTime(to_string(graphID), sqlite);
         
         string message = "sheep partitioning completed for graph ID: " + to_string(graphID);
-        result_wr = write(connFd, message.c_str(), message.size());
-        if (result_wr < 0) {
-            frontend_logger.error("Error writing to socket");
-            *loop_exit_p = true;
-            return;
-        }
-        result_wr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
-        if (result_wr < 0) {
-            frontend_logger.error("Error writing to socket");
-            *loop_exit_p = true;
+        writeSocketLine(connFd, message, loop_exit_p);
+        if (*loop_exit_p) {
             return;
         }
     } else {
         frontend_logger.error("Sheep partitioning failed");
-        result_wr = write(connFd, "error: sheep partitioning failed\r\n", 34);
-        if (result_wr < 0) {
-            frontend_logger.error("Error writing to socket");
-        }
+        writeSocketLine(connFd, "error: sheep partitioning failed", loop_exit_p);
         *loop_exit_p = true;
     }
 }
@@ -4027,80 +3990,28 @@ static void sheep_triangles_command(std::string masterIP, int connFd, SQLiteDBIn
     frontend_logger.info("Starting sheep triangle counting command");
     
     int uniqueId = JasmineGraphFrontEndCommon::getUid();
-    int result_wr = write(connFd, GRAPHID_SEND.c_str(), GRAPHID_SEND.size());
-    if (result_wr < 0) {
-        frontend_logger.error("Error writing to socket");
-        *loop_exit_p = true;
+    if (!writeSocketLine(connFd, GRAPHID_SEND, loop_exit_p)) {
         return;
     }
-    result_wr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
-    if (result_wr < 0) {
-        frontend_logger.error("Error writing to socket");
-        *loop_exit_p = true;
-        return;
-    }
-
-    char graph_id_data[301];
-    bzero(graph_id_data, 301);
-
-    read(connFd, graph_id_data, 300);
-
-    string graph_id(graph_id_data);
-    graph_id.erase(std::remove(graph_id.begin(), graph_id.end(), '\n'), graph_id.end());
-    graph_id.erase(std::remove(graph_id.begin(), graph_id.end(), '\r'), graph_id.end());
+    string graph_id = readTrimmedSocketInput(connFd);
 
     if (!JasmineGraphFrontEndCommon::graphExistsByID(graph_id, sqlite)) {
         string error_message = "The specified graph id does not exist";
-        result_wr = write(connFd, error_message.c_str(), FRONTEND_COMMAND_LENGTH);
-        if (result_wr < 0) {
-            frontend_logger.error("Error writing to socket");
-            *loop_exit_p = true;
-            return;
-        }
-
-        result_wr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
-        if (result_wr < 0) {
-            frontend_logger.error("Error writing to socket");
-            *loop_exit_p = true;
-        }
-        return;
-    }
-
-    result_wr = write(connFd, PRIORITY.c_str(), PRIORITY.length());
-    if (result_wr < 0) {
-        frontend_logger.error("Error writing to socket");
-        *loop_exit_p = true;
-        return;
-    }
-    result_wr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
-    if (result_wr < 0) {
-        frontend_logger.error("Error writing to socket");
+        writeSocketLine(connFd, error_message, loop_exit_p);
         *loop_exit_p = true;
         return;
     }
 
-    char priority_data[FRONTEND_DATA_LENGTH + 1];
-    bzero(priority_data, FRONTEND_DATA_LENGTH + 1);
-
-    read(connFd, priority_data, FRONTEND_DATA_LENGTH);
-
-    string priority(priority_data);
-    priority = Utils::trim_copy(priority);
+    if (!writeSocketLine(connFd, PRIORITY, loop_exit_p)) {
+        return;
+    }
+    string priority = readTrimmedSocketInput(connFd);
 
     if (!(std::find_if(priority.begin(), priority.end(), [](unsigned char c) { return !std::isdigit(c); }) ==
           priority.end())) {
         *loop_exit_p = true;
         string error_message = "Priority should be numeric and > 1 or empty";
-        result_wr = write(connFd, error_message.c_str(), error_message.length());
-        if (result_wr < 0) {
-            frontend_logger.error("Error writing to socket");
-            return;
-        }
-
-        result_wr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
-        if (result_wr < 0) {
-            frontend_logger.error("Error writing to socket");
-        }
+        writeSocketLine(connFd, error_message, loop_exit_p);
         return;
     }
 
@@ -4150,16 +4061,7 @@ static void sheep_triangles_command(std::string masterIP, int connFd, SQLiteDBIn
 
     if (!errorMessage.empty()) {
         *loop_exit_p = true;
-        result_wr = write(connFd, errorMessage.c_str(), errorMessage.length());
-
-        if (result_wr < 0) {
-            frontend_logger.error("Error writing to socket");
-            return;
-        }
-        result_wr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
-        if (result_wr < 0) {
-            frontend_logger.error("Error writing to socket");
-        }
+        writeSocketLine(connFd, errorMessage, loop_exit_p);
         return;
     }
 
@@ -4174,15 +4076,8 @@ static void sheep_triangles_command(std::string masterIP, int connFd, SQLiteDBIn
     auto msDuration = std::chrono::duration_cast<std::chrono::milliseconds>(dur).count();
     frontend_logger.info("Req: " + reqId + " Sheep-Partitioned Triangle Count: " + sheepTriangleCount +
                          " Time Taken: " + to_string(msDuration) + " milliseconds");
-    result_wr = write(connFd, sheepTriangleCount.c_str(), sheepTriangleCount.length());
-    if (result_wr < 0) {
-        frontend_logger.error("Error writing to socket");
-        *loop_exit_p = true;
+    writeSocketLine(connFd, sheepTriangleCount, loop_exit_p);
+    if (*loop_exit_p) {
         return;
-    }
-    result_wr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
-    if (result_wr < 0) {
-        frontend_logger.error("Error writing to socket");
-        *loop_exit_p = true;
     }
 }
