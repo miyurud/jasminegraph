@@ -486,7 +486,8 @@ static void loadTriangleStores(
         JasmineGraphInstanceService::loadInstanceCentralStore(graphId, partitionId, graphDBMapCentralStores);
     }
 
-    if (graphDBMapDuplicateCentralStores.find(duplicateCentralGraphIdentifier) == graphDBMapDuplicateCentralStores.end() &&
+    if (graphDBMapDuplicateCentralStores.find(duplicateCentralGraphIdentifier) ==
+        graphDBMapDuplicateCentralStores.end() &&
         JasmineGraphInstanceService::isInstanceDuplicateCentralStoreExists(graphId, partitionId)) {
         JasmineGraphInstanceService::loadInstanceDuplicateCentralStore(graphId, partitionId,
                                                                        graphDBMapDuplicateCentralStores);

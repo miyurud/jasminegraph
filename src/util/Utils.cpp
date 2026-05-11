@@ -1158,16 +1158,16 @@ bool Utils::uploadFileToWorker(const std::string &host, int port, int dataPort, 
     }
 
 
-    
+
     // Optimize TCP socket for file uploads
     int flag = 1;
     setsockopt(sockfd, IPPROTO_TCP, TCP_NODELAY, (char *)&flag, sizeof(int));
-    
+
     // Increase send/receive buffer sizes for better throughput (1MB)
     int bufsize = 1024 * 1024;
     setsockopt(sockfd, SOL_SOCKET, SO_SNDBUF, (char *)&bufsize, sizeof(bufsize));
     setsockopt(sockfd, SOL_SOCKET, SO_RCVBUF, (char *)&bufsize, sizeof(bufsize));
-    
+
     // Enable address reuse
     int reuse = 1;
     setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, (char *)&reuse, sizeof(reuse));
@@ -1208,9 +1208,9 @@ bool Utils::uploadFileToWorker(const std::string &host, int port, int dataPort, 
 
     string response;
     int count = 0;
-    int maxRetries = 300; // 5 minutes max with exponential backoff
-    int sleepMs = 50; // Start with 50ms
-    
+    int maxRetries = 300;  // 5 minutes max with exponential backoff
+    int sleepMs = 50;  // Start with 50ms
+
     // Wait for file reception with exponential backoff
     while (count < maxRetries) {
         if (!Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::FILE_RECV_CHK)) {
@@ -1233,14 +1233,14 @@ bool Utils::uploadFileToWorker(const std::string &host, int port, int dataPort, 
             break;
         }
     }
-    
+
     if (count >= maxRetries) {
         util_logger.error("File reception timeout for: " + fileName);
         Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::CLOSE);
         close(sockfd);
         return false;
     }
-    
+
     // Wait for batch upload completion with exponential backoff
     count = 0;
     sleepMs = 50;
@@ -1264,7 +1264,7 @@ bool Utils::uploadFileToWorker(const std::string &host, int port, int dataPort, 
             break;
         }
     }
-    
+
     if (count >= maxRetries) {
         util_logger.error("Batch upload timeout for: " + fileName);
         Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::CLOSE);
@@ -1416,16 +1416,16 @@ bool Utils::sendFileThroughService(std::string host, int dataPort, std::string f
     if (Utils::connect_wrapper(sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
         return false;
     }
-    
+
     // Optimize TCP socket for high-throughput file transfers
     int flag = 1;
     setsockopt(sockfd, IPPROTO_TCP, TCP_NODELAY, (char *)&flag, sizeof(int));
-    
+
     // Increase send/receive buffer sizes for better throughput (1MB)
     int bufsize = 1024 * 1024;
     setsockopt(sockfd, SOL_SOCKET, SO_SNDBUF, (char *)&bufsize, sizeof(bufsize));
     setsockopt(sockfd, SOL_SOCKET, SO_RCVBUF, (char *)&bufsize, sizeof(bufsize));
-    
+
     // Enable address reuse
     int reuse = 1;
     setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, (char *)&reuse, sizeof(reuse));
@@ -1447,7 +1447,7 @@ bool Utils::sendFileThroughService(std::string host, int dataPort, std::string f
     // Use larger buffer for better throughput (64KB)
     const int BUFFER_SIZE = 65536;
     unsigned char *buff = new unsigned char[BUFFER_SIZE];
-    
+
     while (true) {
         int nread = fread(buff, 1, BUFFER_SIZE, fp);
 

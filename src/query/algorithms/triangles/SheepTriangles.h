@@ -45,9 +45,9 @@ class SheepTriangles {
      * @param partitionId Partition identifier
      * @return Triangle count
      */
-    static long run(JasmineGraphHashMapLocalStore &graphDB, 
+    static long run(JasmineGraphHashMapLocalStore &graphDB,
                    JasmineGraphHashMapCentralStore &centralStore,
-                   JasmineGraphHashMapDuplicateCentralStore &duplicateCentralStore, 
+                   JasmineGraphHashMapDuplicateCentralStore &duplicateCentralStore,
                    std::string graphId,
                    std::string partitionId);
 
@@ -59,7 +59,7 @@ class SheepTriangles {
     static SheepTriangleResult countTriangles(
         std::map<long, std::unordered_set<long>> &edgeMap,
         bool returnTriangles = false);
-    
+
     /**
      * Merge stores efficiently for sheep format
      */

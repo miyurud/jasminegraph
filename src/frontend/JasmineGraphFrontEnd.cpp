@@ -3965,27 +3965,28 @@ static void sheep_command(std::string masterIP, int connFd, SQLiteDBInterface *s
     // Prepare output path in format: datafolder/graphID_
     // The partitioner will append partition number and create central/local store files
     string outputPath = Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder") +
-                       "/" + to_string(graphID) + "_";
-    
+                        "/" + to_string(graphID) + "_";
+
     // Create SheepPartitioner instance and partition the graph
     SheepPartitioner sheepPartitioner(sqlite);
-    vector<std::map<int, string>> fullFileList = sheepPartitioner.partitionGraph(graphID, graphPath, outputPath, numPartitions);
-    
+    vector<std::map<int, string>> fullFileList =
+        sheepPartitioner.partitionGraph(graphID, graphPath, outputPath, numPartitions);
+
     if (!fullFileList.empty()) {
         frontend_logger.info("Sheep partitioning completed successfully for graph ID: " + to_string(graphID));
-        
+
         // Upload partition files to workers
         JasmineGraphServer *server = JasmineGraphServer::getInstance();
         server->uploadGraphLocally(graphID, Conts::GRAPH_TYPE_NORMAL, fullFileList, masterIP);
-        
+
         // Clean up temporary directory if it exists
         string tempDir = Utils::getHomeDir() + "/.jasminegraph/tmp/" + to_string(graphID);
         if (Utils::fileExists(tempDir)) {
             Utils::deleteDirectory(tempDir);
         }
-        
+
         JasmineGraphFrontEndCommon::getAndUpdateUploadTime(to_string(graphID), sqlite);
-        
+
         string message = "sheep partitioning completed for graph ID: " + to_string(graphID);
         writeSocketLine(connFd, message, loop_exit_p);
         if (*loop_exit_p) {
@@ -3999,9 +4000,10 @@ static void sheep_command(std::string masterIP, int connFd, SQLiteDBInterface *s
 }
 
 static void sheep_triangles_command(std::string masterIP, int connFd, SQLiteDBInterface *sqlite,
-                                    PerformanceSQLiteDBInterface *perfSqlite, JobScheduler *jobScheduler, bool *loop_exit_p) {
+                                    PerformanceSQLiteDBInterface *perfSqlite, JobScheduler *jobScheduler,
+                                    bool *loop_exit_p) {
     frontend_logger.info("Starting sheep triangle counting command");
-    
+
     int uniqueId = JasmineGraphFrontEndCommon::getUid();
     if (!writeSocketLine(connFd, GRAPHID_SEND, loop_exit_p)) {
         return;

@@ -1000,21 +1000,21 @@ void JasmineGraphServer::uploadGraphLocally(int graphID, const string graphType,
     }
     int count = 0;
     int file_count = 0;
-    
+
     // Increase concurrent thread limit for I/O-bound operations
     // File uploads are I/O-bound, not CPU-bound, so we can handle more concurrent operations
     const int MAX_CONCURRENT_THREADS = std::min(total_threads, 200);
     std::thread *workerThreads = new std::thread[total_threads];
     std::vector<std::tuple<std::string, int, std::string, int>> partitionWorkerAssignments;
     partitionWorkerAssignments.reserve(partitionFileMap.size());
-    
+
     while (count < total_threads) {
         const auto &workerList = getWorkers(partitionFileMap.size());
         while (true) {
             if (count >= total_threads) {
                 break;
             }
-            
+
             // Wait if we've hit the concurrent thread limit - join completed threads
             while (count >= MAX_CONCURRENT_THREADS && count - file_count >= MAX_CONCURRENT_THREADS) {
                 // Join the oldest threads in batches for efficiency
@@ -1027,16 +1027,16 @@ void JasmineGraphServer::uploadGraphLocally(int graphID, const string graphType,
                 }
                 break;
             }
-            
+
             worker worker = workerList[graphUploadWorkerTracker];
             std::string partitionFileName = partitionFileMap[file_count];
             std::string centralFile = centralStoreFileMap[file_count];
             std::string centralDuplFile = centralStoreDuplFileMap[file_count];
-            
+
             // Launch partition file upload thread
             workerThreads[count++] = std::thread(batchUploadFile, worker.hostname, worker.port, worker.dataPort,
                                                  graphID, partitionFileName, masterHost);
-            
+
             // Launch central store upload thread (includes aggregator copy)
             workerThreads[count++] = std::thread([=]() {
                 copyCentralStoreToAggregateLocation(centralFile);
@@ -1063,7 +1063,7 @@ void JasmineGraphServer::uploadGraphLocally(int graphID, const string graphType,
                     std::thread(batchUploadCentralAttributeFile, worker.hostname, worker.port, worker.dataPort, graphID,
                                 centralStoreAttributeFileMap[file_count], masterHost);
             }
-            
+
             // Defer database operations to reduce blocking
             partitionWorkerAssignments.emplace_back(partitionFileName, graphID, worker.hostname, worker.port);
             file_count++;
@@ -1081,11 +1081,11 @@ void JasmineGraphServer::uploadGraphLocally(int graphID, const string graphType,
         }
     }
     server_logger.info("All upload threads completed");
-    
+
     // Now perform database operations in batch after all uploads complete
     server_logger.info("Assigning partitions to workers in database...");
     for (const auto& assignment : partitionWorkerAssignments) {
-        assignPartitionToWorker(std::get<0>(assignment), std::get<1>(assignment), 
+        assignPartitionToWorker(std::get<0>(assignment), std::get<1>(assignment),
                                std::get<2>(assignment), std::get<3>(assignment));
     }
     server_logger.info("Database assignments completed");
@@ -1166,7 +1166,7 @@ void JasmineGraphServer::copyCentralStoreToAggregateLocation(std::string filePat
     try {
         std::filesystem::path source(filePath);
         std::filesystem::path dest = std::filesystem::path(aggregatorDirPath) / source.filename();
-        
+
         // Use copy_options::overwrite_existing for idempotency
         std::filesystem::copy_file(source, dest, std::filesystem::copy_options::overwrite_existing);
     } catch (const std::filesystem::filesystem_error& e) {

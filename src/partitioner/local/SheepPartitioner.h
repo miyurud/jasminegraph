@@ -49,7 +49,7 @@ class SheepPartitioner {
      * @param numPartitions Number of partitions to create
      * @return vector of file maps for distribution to workers
      */
-    std::vector<std::map<int, std::string>> partitionGraph(int graphID, const string &graphPath, 
+    std::vector<std::map<int, std::string>> partitionGraph(int graphID, const string &graphPath,
                                                             const string &outputPath, int numPartitions);
 
     /**
@@ -59,54 +59,54 @@ class SheepPartitioner {
 
  private:
     SQLiteDBInterface *sqlite;
-    
+
     // Graph structure
     std::unordered_map<vertex_id, std::vector<vertex_id>> adjacencyList;
     std::unordered_map<vertex_id, partition_id> vertexToPartition;
     std::vector<size_t> partitionSizes;
-    
+
     // Statistics
     size_t totalEdges;
     size_t edgeCuts;
     size_t numPartitions;
     std::vector<size_t> partitionVertexCounts;
     std::vector<size_t> partitionEdgeCountsVec;
-    
+
     // File lists for worker distribution
     std::map<int, std::string> partitionFileMap;
     std::map<int, std::string> centralStoreFileList;
     std::map<int, std::string> centralStoreDuplicateFileList;
     std::vector<std::map<int, std::string>> fullFileList;
-    
+
     /**
      * Load graph from edge list file
      * Expected format: source_vertex target_vertex (per line)
      */
     bool loadGraph(const string &graphPath);
-    
+
     /**
      * Sort vertices by degree (descending order)
      */
     std::vector<vertex_id> getDegreeSequence();
-    
+
     /**
      * Assign vertices to partitions using streaming algorithm
      * Based on elimination tree partitioning with balance constraints
      */
     void assignPartitions();
-    
+
     /**
      * Calculate partition score for a vertex
      * Score favors partitions with more neighbors and less load
      */
-    double calculatePartitionScore(vertex_id vertex, partition_id partition, 
+    double calculatePartitionScore(vertex_id vertex, partition_id partition,
                                    size_t maxPartitionSize);
-    
+
     /**
      * Write partitions to output files
      */
     bool writePartitions(const string &outputPath);
-    
+
     /**
      * Calculate edge cut statistics
      */
