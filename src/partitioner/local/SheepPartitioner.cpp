@@ -307,7 +307,7 @@ bool SheepPartitioner::writePartitions(const string &outputPath) {
             centralStoreFileList[i] = centralFilename + ".gz";
             
             // Store duplicate central store using FlatBuffers
-            if (!JasmineGraphHashMapCentralStore::storePartEdgeMap(duplicateCentralStoreSets[i],
+            if (!JasmineGraphHashMapCentralStore::storePartEdgeMap(duplicateCentralStoreMaps[i],
                                                                    duplicateCentralFilename)) {
                 sheep_partitioner_logger.error("Failed to serialize duplicate central store for partition " + 
                                              to_string(i));
