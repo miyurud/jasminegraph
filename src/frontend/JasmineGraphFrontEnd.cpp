@@ -2679,6 +2679,69 @@ static void process_dataset_command(int connFd, bool *loop_exit_p) {
     frontend_logger.info("Reformatted files created on /home/.jasminegraph/tmp/JSONParser/output");
 }
 
+static bool executeTriangleCountJob(const std::string &masterIP, SQLiteDBInterface *sqlite,
+                                    PerformanceSQLiteDBInterface *perfSqlite, JobScheduler *jobScheduler,
+                                    const std::string &graphId, int uniqueId, int &threadPriority, int jobType,
+                                    const std::string &requestId, const std::string &resultLabel,
+                                    std::string &triangleCount, std::string &errorMessage) {
+    auto begin = chrono::high_resolution_clock::now();
+    JobRequest jobDetails;
+    jobDetails.setJobId(std::to_string(uniqueId));
+    jobDetails.setJobType(jobType);
+
+    long graphSLA = -1;
+    if (threadPriority > Conts::DEFAULT_THREAD_PRIORITY) {
+        threadPriority = Conts::HIGH_PRIORITY_DEFAULT_VALUE;
+        graphSLA = JasmineGraphFrontEndCommon::getSLAForGraphId(sqlite, perfSqlite, graphId, jobType,
+                                                                Conts::SLA_CATEGORY::LATENCY);
+        jobDetails.addParameter(Conts::PARAM_KEYS::GRAPH_SLA, std::to_string(graphSLA));
+    }
+
+    if (graphSLA == 0) {
+        if (JasmineGraphFrontEnd::areRunningJobsForSameGraph()) {
+            if (canCalibrate) {
+                jobDetails.addParameter(Conts::PARAM_KEYS::AUTO_CALIBRATION, "false");
+            } else {
+                jobDetails.addParameter(Conts::PARAM_KEYS::AUTO_CALIBRATION, "true");
+            }
+        } else {
+            frontend_logger.error("Can't calibrate the graph now");
+        }
+    }
+
+    jobDetails.setPriority(threadPriority);
+    jobDetails.setMasterIP(masterIP);
+    jobDetails.addParameter(Conts::PARAM_KEYS::GRAPH_ID, graphId);
+    jobDetails.addParameter(Conts::PARAM_KEYS::CATEGORY, Conts::SLA_CATEGORY::LATENCY);
+    if (canCalibrate) {
+        jobDetails.addParameter(Conts::PARAM_KEYS::CAN_CALIBRATE, "true");
+    } else {
+        jobDetails.addParameter(Conts::PARAM_KEYS::CAN_CALIBRATE, "false");
+    }
+
+    jobScheduler->pushJob(jobDetails);
+    JobResponse jobResponse = jobScheduler->getResult(jobDetails);
+    errorMessage = jobResponse.getParameter(Conts::PARAM_KEYS::ERROR_MESSAGE);
+
+    if (!errorMessage.empty()) {
+        return false;
+    }
+
+    triangleCount = jobResponse.getParameter(Conts::PARAM_KEYS::TRIANGLE_COUNT);
+
+    if (threadPriority == Conts::HIGH_PRIORITY_DEFAULT_VALUE) {
+        highPriorityTaskCount--;
+    }
+
+    auto end = chrono::high_resolution_clock::now();
+    auto dur = end - begin;
+    auto msDuration = std::chrono::duration_cast<std::chrono::milliseconds>(dur).count();
+    frontend_logger.info("Req: " + requestId + " " + resultLabel + triangleCount +
+                         " Time Taken: " + to_string(msDuration) + " milliseconds");
+
+    return true;
+}
+
 static void triangles_command(std::string masterIP, int connFd, SQLiteDBInterface *sqlite,
                               PerformanceSQLiteDBInterface *perfSqlite, JobScheduler *jobScheduler, bool *loop_exit_p) {
     // add RDF graph
@@ -2767,50 +2830,10 @@ static void triangles_command(std::string masterIP, int connFd, SQLiteDBInterfac
         static volatile int reqCounter = 0;
         string reqId = to_string(reqCounter++);
         frontend_logger.info("Started processing request " + reqId);
-        auto begin = chrono::high_resolution_clock::now();
-        JobRequest jobDetails;
-        jobDetails.setJobId(std::to_string(uniqueId));
-        jobDetails.setJobType(TRIANGLES);
-
-        long graphSLA = -1;  // This prevents auto calibration for priority=1 (=default priority)
-        if (threadPriority > Conts::DEFAULT_THREAD_PRIORITY) {
-            // All high priority threads will be set the same high priority level
-            threadPriority = Conts::HIGH_PRIORITY_DEFAULT_VALUE;
-            graphSLA = JasmineGraphFrontEndCommon::getSLAForGraphId(sqlite, perfSqlite, graph_id, TRIANGLES,
-                                                                    Conts::SLA_CATEGORY::LATENCY);
-            jobDetails.addParameter(Conts::PARAM_KEYS::GRAPH_SLA, std::to_string(graphSLA));
-        }
-
-        if (graphSLA == 0) {
-            if (JasmineGraphFrontEnd::areRunningJobsForSameGraph()) {
-                if (canCalibrate) {
-                    // initial calibration
-                    jobDetails.addParameter(Conts::PARAM_KEYS::AUTO_CALIBRATION, "false");
-                } else {
-                    // auto calibration
-                    jobDetails.addParameter(Conts::PARAM_KEYS::AUTO_CALIBRATION, "true");
-                }
-            } else {
-                // TODO(ASHOK12011234): Need to investigate for multiple graphs
-                frontend_logger.error("Can't calibrate the graph now");
-            }
-        }
-
-        jobDetails.setPriority(threadPriority);
-        jobDetails.setMasterIP(masterIP);
-        jobDetails.addParameter(Conts::PARAM_KEYS::GRAPH_ID, graph_id);
-        jobDetails.addParameter(Conts::PARAM_KEYS::CATEGORY, Conts::SLA_CATEGORY::LATENCY);
-        if (canCalibrate) {
-            jobDetails.addParameter(Conts::PARAM_KEYS::CAN_CALIBRATE, "true");
-        } else {
-            jobDetails.addParameter(Conts::PARAM_KEYS::CAN_CALIBRATE, "false");
-        }
-
-        jobScheduler->pushJob(jobDetails);
-        JobResponse jobResponse = jobScheduler->getResult(jobDetails);
-        std::string errorMessage = jobResponse.getParameter(Conts::PARAM_KEYS::ERROR_MESSAGE);
-
-        if (!errorMessage.empty()) {
+        std::string triangleCount;
+        std::string errorMessage;
+        if (!executeTriangleCountJob(masterIP, sqlite, perfSqlite, jobScheduler, graph_id, uniqueId, threadPriority,
+                                     TRIANGLES, reqId, "Triangle Count: ", triangleCount, errorMessage)) {
             *loop_exit_p = true;
             result_wr = write(connFd, errorMessage.c_str(), errorMessage.length());
 
@@ -2824,18 +2847,6 @@ static void triangles_command(std::string masterIP, int connFd, SQLiteDBInterfac
             }
             return;
         }
-
-        std::string triangleCount = jobResponse.getParameter(Conts::PARAM_KEYS::TRIANGLE_COUNT);
-
-        if (threadPriority == Conts::HIGH_PRIORITY_DEFAULT_VALUE) {
-            highPriorityTaskCount--;
-        }
-
-        auto end = chrono::high_resolution_clock::now();
-        auto dur = end - begin;
-        auto msDuration = std::chrono::duration_cast<std::chrono::milliseconds>(dur).count();
-        frontend_logger.info("Req: " + reqId + " Triangle Count: " + triangleCount +
-                             " Time Taken: " + to_string(msDuration) + " milliseconds");
         result_wr = write(connFd, triangleCount.c_str(), triangleCount.length());
         if (result_wr < 0) {
             frontend_logger.error("Error writing to socket");
@@ -4020,62 +4031,16 @@ static void sheep_triangles_command(std::string masterIP, int connFd, SQLiteDBIn
     static volatile int reqCounter = 0;
     string reqId = to_string(reqCounter++);
     frontend_logger.info("Started processing sheep triangle counting request " + reqId);
-    auto begin = chrono::high_resolution_clock::now();
-    JobRequest jobDetails;
-    jobDetails.setJobId(std::to_string(uniqueId));
-    jobDetails.setJobType(SHEEP_TRIANGLES);  // Dedicated job type for sheep triangle counting
-
-    long graphSLA = -1;
-    if (threadPriority > Conts::DEFAULT_THREAD_PRIORITY) {
-        threadPriority = Conts::HIGH_PRIORITY_DEFAULT_VALUE;
-        graphSLA = JasmineGraphFrontEndCommon::getSLAForGraphId(sqlite, perfSqlite, graph_id, SHEEP_TRIANGLES,
-                                                                Conts::SLA_CATEGORY::LATENCY);
-        jobDetails.addParameter(Conts::PARAM_KEYS::GRAPH_SLA, std::to_string(graphSLA));
-    }
-
-    if (graphSLA == 0) {
-        if (JasmineGraphFrontEnd::areRunningJobsForSameGraph()) {
-            if (canCalibrate) {
-                jobDetails.addParameter(Conts::PARAM_KEYS::AUTO_CALIBRATION, "false");
-            } else {
-                jobDetails.addParameter(Conts::PARAM_KEYS::AUTO_CALIBRATION, "true");
-            }
-        } else {
-            frontend_logger.error("Can't calibrate the graph now");
-        }
-    }
-
-    jobDetails.setPriority(threadPriority);
-    jobDetails.setMasterIP(masterIP);
-    jobDetails.addParameter(Conts::PARAM_KEYS::GRAPH_ID, graph_id);
-    jobDetails.addParameter(Conts::PARAM_KEYS::CATEGORY, Conts::SLA_CATEGORY::LATENCY);
-    if (canCalibrate) {
-        jobDetails.addParameter(Conts::PARAM_KEYS::CAN_CALIBRATE, "true");
-    } else {
-        jobDetails.addParameter(Conts::PARAM_KEYS::CAN_CALIBRATE, "false");
-    }
-
-    jobScheduler->pushJob(jobDetails);
-    JobResponse jobResponse = jobScheduler->getResult(jobDetails);
-    std::string errorMessage = jobResponse.getParameter(Conts::PARAM_KEYS::ERROR_MESSAGE);
-
-    if (!errorMessage.empty()) {
+    std::string sheepTriangleCount;
+    std::string errorMessage;
+    if (!executeTriangleCountJob(masterIP, sqlite, perfSqlite, jobScheduler, graph_id, uniqueId, threadPriority,
+                                 SHEEP_TRIANGLES, reqId, "Sheep-Partitioned Triangle Count: ", sheepTriangleCount,
+                                 errorMessage)) {
         *loop_exit_p = true;
         writeSocketLine(connFd, errorMessage, loop_exit_p);
         return;
     }
 
-    std::string sheepTriangleCount = jobResponse.getParameter(Conts::PARAM_KEYS::TRIANGLE_COUNT);
-
-    if (threadPriority == Conts::HIGH_PRIORITY_DEFAULT_VALUE) {
-        highPriorityTaskCount--;
-    }
-
-    auto end = chrono::high_resolution_clock::now();
-    auto dur = end - begin;
-    auto msDuration = std::chrono::duration_cast<std::chrono::milliseconds>(dur).count();
-    frontend_logger.info("Req: " + reqId + " Sheep-Partitioned Triangle Count: " + sheepTriangleCount +
-                         " Time Taken: " + to_string(msDuration) + " milliseconds");
     writeSocketLine(connFd, sheepTriangleCount, loop_exit_p);
     if (*loop_exit_p) {
         return;
