@@ -2681,7 +2681,8 @@ static void process_dataset_command(int connFd, bool *loop_exit_p) {
 
 static bool executeTriangleCountJob(const std::string &masterIP, SQLiteDBInterface *sqlite,
                                     PerformanceSQLiteDBInterface *perfSqlite, JobScheduler *jobScheduler,
-                                    const std::string &graphId, int uniqueId, int &threadPriority, int jobType,
+                                    const std::string &graphId, int uniqueId, int &threadPriority,
+                                    const std::string &jobType,
                                     const std::string &requestId, const std::string &resultLabel,
                                     std::string &triangleCount, std::string &errorMessage) {
     auto begin = chrono::high_resolution_clock::now();
