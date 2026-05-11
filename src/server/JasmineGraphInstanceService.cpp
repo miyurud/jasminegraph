@@ -2954,11 +2954,12 @@ static void worker_egonet_command(int connFd, int serverPort,
     instance_logger.info("Egonet calculation completed");
 }
 
-static void triangles_command(
+template <typename TriangleCountFn>
+static void triangle_counting_command_common(
     int connFd, int serverPort, std::map<std::string, JasmineGraphHashMapLocalStore> &graphDBMapLocalStores,
     std::map<std::string, JasmineGraphHashMapCentralStore> &graphDBMapCentralStores,
     std::map<std::string, JasmineGraphHashMapDuplicateCentralStore> &graphDBMapDuplicateCentralStores,
-    bool *loop_exit_p) {
+    bool *loop_exit_p, TriangleCountFn countFn) {
     if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::OK)) {
         *loop_exit_p = true;
         return;
@@ -2990,16 +2991,10 @@ static void triangles_command(
         return;
     }
 
-    // Receive trace context from master
     string traceContext = Utils::read_str_trim_wrapper(connFd, data, INSTANCE_DATA_LENGTH);
-
-    // Use utility function to validate and set trace context
     OpenTelemetryUtil::receiveAndSetTraceContext(traceContext, "triangle counting");
-
-    // Start tracing AFTER trace context is set to ensure proper parent-child relationship
     OTEL_TRACE_FUNCTION();
 
-    // Add worker identification attributes to distinguish workers in traces
     OpenTelemetryUtil::addSpanAttribute("worker.id", "worker_" + std::to_string(serverPort));
     OpenTelemetryUtil::addSpanAttribute("worker.port", std::to_string(serverPort));
     OpenTelemetryUtil::addSpanAttribute("partition.id", partitionId);
@@ -3018,10 +3013,8 @@ static void triangles_command(
     std::thread perfThread = std::thread(&PerformanceUtil::collectPerformanceStatistics);
     perfThread.detach();
 
-    long localCount = countLocalTriangles(graphID, partitionId, graphDBMapLocalStores, graphDBMapCentralStores,
-                                          graphDBMapDuplicateCentralStores, threadPriority);
-
-
+    long localCount = countFn(graphID, partitionId, graphDBMapLocalStores, graphDBMapCentralStores,
+                              graphDBMapDuplicateCentralStores, threadPriority);
 
     if (threadPriority > Conts::DEFAULT_THREAD_PRIORITY) {
         threadPriorityMutex.lock();
@@ -3039,81 +3032,22 @@ static void triangles_command(
     }
 }
 
+static void triangles_command(
+    int connFd, int serverPort, std::map<std::string, JasmineGraphHashMapLocalStore> &graphDBMapLocalStores,
+    std::map<std::string, JasmineGraphHashMapCentralStore> &graphDBMapCentralStores,
+    std::map<std::string, JasmineGraphHashMapDuplicateCentralStore> &graphDBMapDuplicateCentralStores,
+    bool *loop_exit_p) {
+    triangle_counting_command_common(connFd, serverPort, graphDBMapLocalStores, graphDBMapCentralStores,
+                                     graphDBMapDuplicateCentralStores, loop_exit_p, countLocalTriangles);
+}
+
 static void sheep_triangles_command(
     int connFd, int serverPort, std::map<std::string, JasmineGraphHashMapLocalStore> &graphDBMapLocalStores,
     std::map<std::string, JasmineGraphHashMapCentralStore> &graphDBMapCentralStores,
     std::map<std::string, JasmineGraphHashMapDuplicateCentralStore> &graphDBMapDuplicateCentralStores,
     bool *loop_exit_p) {
-    if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::OK)) {
-        *loop_exit_p = true;
-        return;
-    }
-    instance_logger.info("Sent : " + JasmineGraphInstanceProtocol::OK);
-
-    char data[DATA_BUFFER_SIZE];
-    string graphID = Utils::read_str_trim_wrapper(connFd, data, INSTANCE_DATA_LENGTH);
-    instance_logger.info("Received Graph ID: " + graphID);
-
-    if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::OK)) {
-        *loop_exit_p = true;
-        return;
-    }
-
-    string partitionId = Utils::read_str_trim_wrapper(connFd, data, INSTANCE_DATA_LENGTH);
-    instance_logger.info("Received Partition ID: " + partitionId);
-
-    if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::OK)) {
-        *loop_exit_p = true;
-        return;
-    }
-
-    string priority = Utils::read_str_trim_wrapper(connFd, data, INSTANCE_DATA_LENGTH);
-    instance_logger.info("Received Priority : " + priority);
-
-    if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::OK)) {
-        *loop_exit_p = true;
-        return;
-    }
-
-    string traceContext = Utils::read_str_trim_wrapper(connFd, data, INSTANCE_DATA_LENGTH);
-    OpenTelemetryUtil::receiveAndSetTraceContext(traceContext, "triangle counting");
-    OTEL_TRACE_FUNCTION();
-
-    OpenTelemetryUtil::addSpanAttribute("worker.id", "worker_" + std::to_string(serverPort));
-    OpenTelemetryUtil::addSpanAttribute("worker.port", std::to_string(serverPort));
-    OpenTelemetryUtil::addSpanAttribute("partition.id", partitionId);
-    OpenTelemetryUtil::addSpanAttribute("graph.id", graphID);
-    OpenTelemetryUtil::addSpanAttribute("operation.type", "triangle_counting");
-
-    int threadPriority = stoi(priority);
-
-    if (threadPriority > Conts::DEFAULT_THREAD_PRIORITY) {
-        threadPriorityMutex.lock();
-        workerHighPriorityTaskCount++;
-        highestPriority = threadPriority;
-        threadPriorityMutex.unlock();
-    }
-
-    std::thread perfThread = std::thread(&PerformanceUtil::collectPerformanceStatistics);
-    perfThread.detach();
-
-    long localCount = countLocalSheepTriangles(graphID, partitionId, graphDBMapLocalStores, graphDBMapCentralStores,
-                                               graphDBMapDuplicateCentralStores, threadPriority);
-
-    if (threadPriority > Conts::DEFAULT_THREAD_PRIORITY) {
-        threadPriorityMutex.lock();
-        workerHighPriorityTaskCount--;
-
-        if (workerHighPriorityTaskCount == 0) {
-            highestPriority = Conts::DEFAULT_THREAD_PRIORITY;
-        }
-        threadPriorityMutex.unlock();
-    }
-
-    std::string result = to_string(localCount);
-    if (!Utils::send_str_wrapper(connFd, result)) {
-        *loop_exit_p = true;
-    }
+    triangle_counting_command_common(connFd, serverPort, graphDBMapLocalStores, graphDBMapCentralStores,
+                                     graphDBMapDuplicateCentralStores, loop_exit_p, countLocalSheepTriangles);
 }
 
 static void streaming_triangles_command(
