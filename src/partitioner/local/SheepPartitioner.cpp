@@ -50,9 +50,8 @@ bool SheepPartitioner::loadGraph(const string &graphPath) {
             continue;
         }
 
-        istringstream iss(line);
         vertex_id source, target;
-        
+
         if (iss >> source >> target) {
             // Add edge to adjacency list
             adjacencyList[source].push_back(target);
@@ -202,17 +201,17 @@ bool SheepPartitioner::writePartitions(const string &outputPath) {
         if (!parentDir.empty() && !std::filesystem::exists(parentDir)) {
             std::filesystem::create_directories(parentDir);
         }
-        
+
         // Track vertices and edges per partition
         std::vector<std::set<vertex_id>> partitionVertices(numPartitions);
         std::vector<size_t> localEdgeCounts(numPartitions, 0);
         std::vector<size_t> centralEdgeCounts(numPartitions, 0);
-        
+
         // Use sets for automatic deduplication during construction, then convert to vectors
         std::vector<std::map<int, std::unordered_set<int>>> localStoreSets(numPartitions);
         std::vector<std::map<int, std::unordered_set<int>>> centralStoreSets(numPartitions);
         std::vector<std::map<int, std::unordered_set<int>>> duplicateCentralStoreSets(numPartitions);
-        
+
         // Extract graphID from outputPath (format: path/graphID_)
         string graphID = "0";
         size_t lastSlash = outputPath.find_last_of("/\\");
@@ -223,7 +222,7 @@ bool SheepPartitioner::writePartitions(const string &outputPath) {
                 graphID = filename.substr(0, firstUnderscore);
             }
         }
-        
+
         // Build edge maps from adjacency list
         // Key insight: adjacencyList has both A->B and B->A for each edge
         // We process ALL edges where source vertex is in each partition (like Metis)
@@ -231,7 +230,7 @@ bool SheepPartitioner::writePartitions(const string &outputPath) {
         for (const auto &entry : adjacencyList) {
             vertex_id source = entry.first;
             partition_id sourcePart = vertexToPartition[source];
-            
+
             // Track vertex in its partition
             partitionVertices[sourcePart].insert(source);
 
@@ -260,12 +259,12 @@ bool SheepPartitioner::writePartitions(const string &outputPath) {
                 }
             }
         }
-        
+
         // Convert sets to vectors for serialization
         std::vector<std::map<int, std::vector<int>>> localStoreMaps(numPartitions);
         std::vector<std::map<int, std::vector<int>>> centralStoreMaps(numPartitions);
         std::vector<std::map<int, std::vector<int>>> duplicateCentralStoreMaps(numPartitions);
-        
+
         for (size_t i = 0; i < numPartitions; i++) {
             for (const auto &entry : localStoreSets[i]) {
                 localStoreMaps[i][entry.first] = std::vector<int>(entry.second.begin(), entry.second.end());
@@ -277,7 +276,7 @@ bool SheepPartitioner::writePartitions(const string &outputPath) {
                 duplicateCentralStoreMaps[i][entry.first] = std::vector<int>(entry.second.begin(), entry.second.end());
             }
         }
-        
+
         // Serialize and compress files using FlatBuffers format
         for (size_t i = 0; i < numPartitions; i++) {
             string localFilename = outputPath + to_string(i);
@@ -285,13 +284,13 @@ bool SheepPartitioner::writePartitions(const string &outputPath) {
                                    graphID + "_centralstore_" + to_string(i);
             string duplicateCentralFilename = outputPath.substr(0, outputPath.find_last_of("/\\") + 1) +
                                             graphID + "_centralstore_dp_" + to_string(i);
-            
+
             // Store local store using FlatBuffers
             if (!JasmineGraphHashMapLocalStore::storePartEdgeMap(localStoreMaps[i], localFilename)) {
                 sheep_partitioner_logger.error("Failed to serialize local store for partition " + to_string(i));
                 return false;
             }
-            
+
             // Compress local store file
             Utils::compressFile(localFilename);
             partitionFileMap[i] = localFilename + ".gz";
@@ -309,7 +308,8 @@ bool SheepPartitioner::writePartitions(const string &outputPath) {
             // Store duplicate central store using FlatBuffers
             if (!JasmineGraphHashMapCentralStore::storePartEdgeMap(duplicateCentralStoreMaps[i],
                                                                    duplicateCentralFilename)) {
-                sheep_partitioner_logger.error("Failed to serialize duplicate central store for partition " + to_string(i));
+                sheep_partitioner_logger.error(
+                    "Failed to serialize duplicate central store for partition " + to_string(i));
                 return false;
             }
 
@@ -338,9 +338,8 @@ bool SheepPartitioner::writePartitions(const string &outputPath) {
                                         ": local edges=" + to_string(localEdgeCounts[i]) +
                                         ", central edges=" + to_string(centralEdgeCounts[i]));
         }
-        
-        return true;
 
+        return true;
     } catch (const std::exception &e) {
         sheep_partitioner_logger.error("Error writing partitions: " + string(e.what()));
         return false;
@@ -386,9 +385,9 @@ std::vector<std::map<int, std::string>> SheepPartitioner::partitionGraph(int gra
                             "', edgecount = '" + to_string(totalEdges) +
                             "', id_algorithm = 'sheep' WHERE idgraph = '" + to_string(graphID) + "'";
         sqlite->runUpdate(sqlStatement);
-        
+
         sheep_partitioner_logger.info("Updated graph table with statistics");
-        
+
         // Insert partition records
         for (size_t i = 0; i < numPartitions; i++) {
             string partitionInsert =
@@ -398,7 +397,7 @@ std::vector<std::map<int, std::string>> SheepPartitioner::partitionGraph(int gra
                 to_string(partitionEdgeCountsVec[i]) + "')";
             sqlite->runUpdate(partitionInsert);
         }
-        
+
         sheep_partitioner_logger.info("Successfully partitioned graph " + to_string(graphID) +
                                      " using sheep algorithm with " + to_string(numPartitions) + " partitions");
     } catch (const std::exception &e) {

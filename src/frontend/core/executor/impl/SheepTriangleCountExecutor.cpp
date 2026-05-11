@@ -35,4 +35,3 @@ void SheepTriangleCountExecutor::execute() {
                                                  TriangleCountCommandType::SHEEP_TRIANGLES,
                                                  ThreadingStrategy::ASYNC_BASED, sheepTriangleCount_logger);
 }
-
