@@ -499,44 +499,26 @@ long countLocalTriangles(
     std::map<std::string, JasmineGraphHashMapCentralStore> &graphDBMapCentralStores,
     std::map<std::string, JasmineGraphHashMapDuplicateCentralStore> &graphDBMapDuplicateCentralStores,
     int threadPriority) {
-
     OTEL_TRACE_FUNCTION();
-
-    long result;
 
     instance_logger.info("###INSTANCE### Local Triangle Count : Started: Graph ID " + graphId +
                          " Partition " + partitionId);
+
+    loadTriangleStores(graphId, partitionId, graphDBMapLocalStores, graphDBMapCentralStores,
+                       graphDBMapDuplicateCentralStores);
 
     std::string graphIdentifier = graphId + "_" + partitionId;
     std::string centralGraphIdentifier = graphId + "_centralstore_" + partitionId;
     std::string duplicateCentralGraphIdentifier = graphId + "_centralstore_dp_" + partitionId;
 
-    auto localMapIterator = graphDBMapLocalStores.find(graphIdentifier);
-    auto centralStoreIterator = graphDBMapCentralStores.find(centralGraphIdentifier);
-    auto duplicateCentralStoreIterator = graphDBMapDuplicateCentralStores.find(duplicateCentralGraphIdentifier);
-
-    if (localMapIterator == graphDBMapLocalStores.end() &&
-        JasmineGraphInstanceService::isGraphDBExists(graphId, partitionId)) {
-        JasmineGraphInstanceService::loadLocalStore(graphId, partitionId, graphDBMapLocalStores);
-    }
     JasmineGraphHashMapLocalStore graphDB = graphDBMapLocalStores[graphIdentifier];
-
-    if (centralStoreIterator == graphDBMapCentralStores.end() &&
-        JasmineGraphInstanceService::isInstanceCentralStoreExists(graphId, partitionId)) {
-        JasmineGraphInstanceService::loadInstanceCentralStore(graphId, partitionId, graphDBMapCentralStores);
-    }
     JasmineGraphHashMapCentralStore centralGraphDB = graphDBMapCentralStores[centralGraphIdentifier];
-
-    if (duplicateCentralStoreIterator == graphDBMapDuplicateCentralStores.end() &&
-        JasmineGraphInstanceService::isInstanceDuplicateCentralStoreExists(graphId, partitionId)) {
-        JasmineGraphInstanceService::loadInstanceDuplicateCentralStore(graphId, partitionId,
-                                                                       graphDBMapDuplicateCentralStores);
-    }
     JasmineGraphHashMapDuplicateCentralStore duplicateCentralGraphDB =
         graphDBMapDuplicateCentralStores[duplicateCentralGraphIdentifier];
 
     instance_logger.info("###INSTANCE### Using standard Triangles algorithm");
-    result = Triangles::run(graphDB, centralGraphDB, duplicateCentralGraphDB, graphId, partitionId, threadPriority);
+    long result = Triangles::run(graphDB, centralGraphDB, duplicateCentralGraphDB, graphId, partitionId,
+                                 threadPriority);
 
     instance_logger.info("###INSTANCE### Local Triangle Count : Completed: Triangles: " + to_string(result));
 
@@ -549,10 +531,7 @@ long countLocalSheepTriangles(
     std::map<std::string, JasmineGraphHashMapCentralStore> &graphDBMapCentralStores,
     std::map<std::string, JasmineGraphHashMapDuplicateCentralStore> &graphDBMapDuplicateCentralStores,
     int threadPriority) {
-
     OTEL_TRACE_FUNCTION();
-
-    long result;
 
     instance_logger.info("###INSTANCE### Local Triangle Count : Started: Graph ID " + graphId +
                          " Partition " + partitionId);
@@ -560,13 +539,17 @@ long countLocalSheepTriangles(
     loadTriangleStores(graphId, partitionId, graphDBMapLocalStores, graphDBMapCentralStores,
                        graphDBMapDuplicateCentralStores);
 
-    JasmineGraphHashMapLocalStore graphDB = graphDBMapLocalStores[graphId + "_" + partitionId];
-    JasmineGraphHashMapCentralStore centralGraphDB = graphDBMapCentralStores[graphId + "_centralstore_" + partitionId];
+    std::string graphIdentifier = graphId + "_" + partitionId;
+    std::string centralGraphIdentifier = graphId + "_centralstore_" + partitionId;
+    std::string duplicateCentralGraphIdentifier = graphId + "_centralstore_dp_" + partitionId;
+
+    JasmineGraphHashMapLocalStore graphDB = graphDBMapLocalStores[graphIdentifier];
+    JasmineGraphHashMapCentralStore centralGraphDB = graphDBMapCentralStores[centralGraphIdentifier];
     JasmineGraphHashMapDuplicateCentralStore duplicateCentralGraphDB =
-        graphDBMapDuplicateCentralStores[graphId + "_centralstore_dp_" + partitionId];
+        graphDBMapDuplicateCentralStores[duplicateCentralGraphIdentifier];
 
     instance_logger.info("###INSTANCE### Using SheepTriangles algorithm");
-    result = SheepTriangles::run(graphDB, centralGraphDB, duplicateCentralGraphDB, graphId, partitionId);
+    long result = SheepTriangles::run(graphDB, centralGraphDB, duplicateCentralGraphDB, graphId, partitionId);
 
     instance_logger.info("###INSTANCE### Local Triangle Count : Completed: Triangles: " + to_string(result));
 
@@ -3092,16 +3075,10 @@ static void sheep_triangles_command(
         return;
     }
 
-    // Receive trace context from master
     string traceContext = Utils::read_str_trim_wrapper(connFd, data, INSTANCE_DATA_LENGTH);
-
-    // Use utility function to validate and set trace context
     OpenTelemetryUtil::receiveAndSetTraceContext(traceContext, "triangle counting");
-
-    // Start tracing AFTER trace context is set to ensure proper parent-child relationship
     OTEL_TRACE_FUNCTION();
 
-    // Add worker identification attributes to distinguish workers in traces
     OpenTelemetryUtil::addSpanAttribute("worker.id", "worker_" + std::to_string(serverPort));
     OpenTelemetryUtil::addSpanAttribute("worker.port", std::to_string(serverPort));
     OpenTelemetryUtil::addSpanAttribute("partition.id", partitionId);
@@ -3121,9 +3098,7 @@ static void sheep_triangles_command(
     perfThread.detach();
 
     long localCount = countLocalSheepTriangles(graphID, partitionId, graphDBMapLocalStores, graphDBMapCentralStores,
-                                          graphDBMapDuplicateCentralStores, threadPriority);
-
-
+                                               graphDBMapDuplicateCentralStores, threadPriority);
 
     if (threadPriority > Conts::DEFAULT_THREAD_PRIORITY) {
         threadPriorityMutex.lock();
