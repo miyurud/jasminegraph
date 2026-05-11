@@ -34,4 +34,4 @@ void SheepTriangleCountExecutor::execute() {
     TriangleCountExecutor::executeTriangleCount(sqlite, perfDB, request,
                                                  TriangleCountCommandType::SHEEP_TRIANGLES,
                                                  ThreadingStrategy::ASYNC_BASED, sheepTriangleCount_logger);
-}
+}

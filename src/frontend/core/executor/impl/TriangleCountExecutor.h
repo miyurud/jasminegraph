@@ -96,7 +96,7 @@ class TriangleCountExecutor : public AbstractExecutor {
 void allocate(int p, std::string w, std::map<int, std::string> &alloc, std::set<int> &remain,
              std::map<int, std::vector<std::string>> &p_avail, std::map<std::string, int> &loads);
 
-int alloc_plan(std::map<int, std::string> &alloc, std::set<int> &remain, 
+int alloc_plan(std::map<int, std::string> &alloc, std::set<int> &remain,
                std::map<int, std::vector<std::string>> &p_avail, std::map<std::string, int> &loads);
 
 std::vector<int> reallocate_parts(std::map<int, std::string> &alloc, std::set<int> &remain,

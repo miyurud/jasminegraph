@@ -32,7 +32,7 @@ SheepPartitioner::SheepPartitioner(SQLiteDBInterface *sqlite) {
 
 bool SheepPartitioner::loadGraph(const string &graphPath) {
     sheep_partitioner_logger.info("Loading graph from: " + graphPath);
-    
+
     ifstream inputFile(graphPath);
     if (!inputFile.is_open()) {
         sheep_partitioner_logger.error("Failed to open graph file: " + graphPath);
@@ -63,7 +63,7 @@ bool SheepPartitioner::loadGraph(const string &graphPath) {
     
     inputFile.close();
     
-    sheep_partitioner_logger.info("Loaded " + to_string(adjacencyList.size()) + 
+    sheep_partitioner_logger.info("Loaded " + to_string(adjacencyList.size()) +
                                  " vertices and " + to_string(totalEdges) + " edges");
     return true;
 }
@@ -91,12 +91,12 @@ std::vector<vertex_id> SheepPartitioner::getDegreeSequence() {
         sequence.push_back(pair.first);
     }
     
-    sheep_partitioner_logger.info("Degree sequence computed with " + 
+    sheep_partitioner_logger.info("Degree sequence computed with " +
                                  to_string(sequence.size()) + " vertices");
     return sequence;
 }
 
-double SheepPartitioner::calculatePartitionScore(vertex_id vertex, partition_id partition, 
+double SheepPartitioner::calculatePartitionScore(vertex_id vertex, partition_id partition,
                                                  size_t maxPartitionSize) {
     // Count neighbors in this partition
     size_t neighborsInPartition = 0;
@@ -166,7 +166,7 @@ void SheepPartitioner::assignPartitions() {
     
     // Log partition sizes
     for (size_t i = 0; i < numPartitions; i++) {
-        sheep_partitioner_logger.info("Partition " + to_string(i) + " size: " + 
+        sheep_partitioner_logger.info("Partition " + to_string(i) + " size: " +
                                      to_string(partitionSizes[i]));
     }
 }
@@ -188,7 +188,7 @@ void SheepPartitioner::calculateEdgeCuts() {
         }
     }
     
-    sheep_partitioner_logger.info("Edge cuts: " + to_string(edgeCuts) + 
+    sheep_partitioner_logger.info("Edge cuts: " + to_string(edgeCuts) +
                                  " (" + to_string((edgeCuts * 100.0) / totalEdges) + "%)");
 }
 
@@ -281,9 +281,9 @@ bool SheepPartitioner::writePartitions(const string &outputPath) {
         // Serialize and compress files using FlatBuffers format
         for (size_t i = 0; i < numPartitions; i++) {
             string localFilename = outputPath + to_string(i);
-            string centralFilename = outputPath.substr(0, outputPath.find_last_of("/\\") + 1) + 
+            string centralFilename = outputPath.substr(0, outputPath.find_last_of("/\\") + 1) +
                                    graphID + "_centralstore_" + to_string(i);
-            string duplicateCentralFilename = outputPath.substr(0, outputPath.find_last_of("/\\") + 1) + 
+            string duplicateCentralFilename = outputPath.substr(0, outputPath.find_last_of("/\\") + 1) +
                                             graphID + "_centralstore_dp_" + to_string(i);
             
             // Store local store using FlatBuffers
@@ -307,7 +307,7 @@ bool SheepPartitioner::writePartitions(const string &outputPath) {
             centralStoreFileList[i] = centralFilename + ".gz";
             
             // Store duplicate central store using FlatBuffers
-            if (!JasmineGraphHashMapCentralStore::storePartEdgeMap(duplicateCentralStoreMaps[i], 
+            if (!JasmineGraphHashMapCentralStore::storePartEdgeMap(duplicateCentralStoreSets[i],
                                                                    duplicateCentralFilename)) {
                 sheep_partitioner_logger.error("Failed to serialize duplicate central store for partition " + 
                                              to_string(i));
@@ -330,13 +330,13 @@ bool SheepPartitioner::writePartitions(const string &outputPath) {
             partitionEdgeCountsVec.push_back(localEdgeCounts[i] + centralEdgeCounts[i]);
         }
         
-        sheep_partitioner_logger.info("Successfully wrote " + to_string(numPartitions) + 
+        sheep_partitioner_logger.info("Successfully wrote " + to_string(numPartitions) +
                                      " partition files (local store, central store, and duplicate central store)");
         
         // Log statistics for each partition
         for (size_t i = 0; i < numPartitions; i++) {
-            sheep_partitioner_logger.info("Partition " + to_string(i) + 
-                                        ": local edges=" + to_string(localEdgeCounts[i]) + 
+            sheep_partitioner_logger.info("Partition " + to_string(i) +
+                                        ": local edges=" + to_string(localEdgeCounts[i]) +
                                         ", central edges=" + to_string(centralEdgeCounts[i]));
         }
         
@@ -348,7 +348,7 @@ bool SheepPartitioner::writePartitions(const string &outputPath) {
     }
 }
 
-std::vector<std::map<int, std::string>> SheepPartitioner::partitionGraph(int graphID, const string &graphPath, 
+std::vector<std::map<int, std::string>> SheepPartitioner::partitionGraph(int graphID, const string &graphPath,
                                                                           const string &outputPath, int numPartitions) {
     sheep_partitioner_logger.info("Starting sheep partitioning for graph ID: " + to_string(graphID));
     sheep_partitioner_logger.info("Input graph: " + graphPath);
@@ -400,7 +400,7 @@ std::vector<std::map<int, std::string>> SheepPartitioner::partitionGraph(int gra
             sqlite->runUpdate(partitionInsert);
         }
         
-        sheep_partitioner_logger.info("Successfully partitioned graph " + to_string(graphID) + 
+        sheep_partitioner_logger.info("Successfully partitioned graph " + to_string(graphID) +
                                      " using sheep algorithm with " + to_string(numPartitions) + " partitions");
     } catch (const std::exception &e) {
         sheep_partitioner_logger.error("Error updating database: " + string(e.what()));
@@ -424,11 +424,11 @@ void SheepPartitioner::getPartitioningStats() {
     sheep_partitioner_logger.info("Total edges: " + to_string(totalEdges));
     sheep_partitioner_logger.info("Number of partitions: " + to_string(numPartitions));
     sheep_partitioner_logger.info("Edge cuts: " + to_string(edgeCuts));
-    sheep_partitioner_logger.info("Edge cut ratio: " + 
+    sheep_partitioner_logger.info("Edge cut ratio: " +
                                  to_string((edgeCuts * 100.0) / totalEdges) + "%");
     
     for (size_t i = 0; i < numPartitions; i++) {
-        sheep_partitioner_logger.info("Partition " + to_string(i) + " size: " + 
+        sheep_partitioner_logger.info("Partition " + to_string(i) + " size: " +
                                      to_string(partitionSizes[i]));
     }
 }

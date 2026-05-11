@@ -452,7 +452,7 @@ void filter_partitions(std::map<string, std::vector<string>> &partitionMap, SQLi
 
 
 void TriangleCountExecutor::execute() {
-    executeTriangleCount(sqlite, perfDB, request, TriangleCountCommandType::TRIANGLES, 
+    executeTriangleCount(sqlite, perfDB, request, TriangleCountCommandType::TRIANGLES,
                         ThreadingStrategy::THREAD_BASED, triangleCount_logger);
 }
 
@@ -807,9 +807,9 @@ static int updateTriangleTreeAndGetTriangleCount(
     return aggregateCount;
 }
 
-long TriangleCountExecutor::aggregateCentralStoreTriangles(SQLiteDBInterface *sqlite, std::string graphId, std::string masterIP,
-                                           int threadPriority,
-                                           const std::map<string, std::vector<string>> &partitionMap) {
+long TriangleCountExecutor::aggregateCentralStoreTriangles(SQLiteDBInterface *sqlite, std::string graphId,
+                                                           std::string masterIP, int threadPriority,
+                                                           const std::map<string, std::vector<string>> &partitionMap) {
     OTEL_TRACE_FUNCTION();
 
     vector<string> partitionsVector;
@@ -1789,12 +1789,15 @@ void TriangleCountExecutor::executeTriangleCount(SQLiteDBInterface *sqlite, Perf
 
     std::vector<std::vector<string>> fileCombinations;
     if (isCompositeAggregation) {
-        std::string aggregatorFilePath = Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.aggregatefolder");
+        std::string aggregatorFilePath = Utils::getJasmineGraphProperty(
+            "org.jasminegraph.server.instance.aggregatefolder");
         std::vector<std::string> graphFiles = Utils::getListOfFilesInDirectory(aggregatorFilePath);
         std::string compositeFileNameFormat = graphId + "_compositecentralstore_";
-        for (auto graphFilesIterator = graphFiles.begin(); graphFilesIterator != graphFiles.end(); ++graphFilesIterator) {
+        for (auto graphFilesIterator = graphFiles.begin(); graphFilesIterator != graphFiles.end();
+             ++graphFilesIterator) {
             std::string graphFileName = *graphFilesIterator;
-            if ((graphFileName.find(compositeFileNameFormat) == 0) && (graphFileName.find(".gz") != std::string::npos)) {
+            if ((graphFileName.find(compositeFileNameFormat) == 0) &&
+                (graphFileName.find(".gz") != std::string::npos)) {
                 compositeCentralStoreFiles.push_back(graphFileName);
             }
         }
@@ -1828,10 +1831,12 @@ void TriangleCountExecutor::executeTriangleCount(SQLiteDBInterface *sqlite, Perf
         string workerID = currentWorker.workerID;
         int workerPort = atoi(string(currentWorker.port).c_str());
         int workerDataPort = atoi(string(currentWorker.dataPort).c_str());
-        logger.info("worker_" + workerID + " host=" + host + ":" + to_string(workerPort) + ":" + to_string(workerDataPort));
+        logger.info("worker_" + workerID + " host=" + host + ":" + to_string(workerPort) + ":" +
+                    to_string(workerDataPort));
 
         const std::vector<string> &partitionList = partitionMap[workerID];
-        for (auto partitionIterator = partitionList.begin(); partitionIterator != partitionList.end(); ++partitionIterator) {
+        for (auto partitionIterator = partitionList.begin(); partitionIterator != partitionList.end();
+             ++partitionIterator) {
             string partitionId = *partitionIterator;
             logger.info("> partition" + partitionId);
             workerTaskInfo.push_back(std::make_tuple(workerID, partitionId, host));
@@ -1861,9 +1866,11 @@ void TriangleCountExecutor::executeTriangleCount(SQLiteDBInterface *sqlite, Perf
     }
 
     PerformanceUtil::init();
-    std::string query = "SELECT attempt from graph_sla INNER JOIN sla_category where graph_sla.id_sla_category=sla_category.id and "
-        "graph_sla.graph_id='" + graphId + "' and graph_sla.partition_count='" + std::to_string(partitionCount) +
-        "' and sla_category.category='" + Conts::SLA_CATEGORY::LATENCY + "' and sla_category.command='" + commandName + "';";
+    std::string query = "SELECT attempt from graph_sla INNER JOIN sla_category where "
+                        "graph_sla.id_sla_category=sla_category.id and graph_sla.graph_id='" + graphId +
+                        "' and graph_sla.partition_count='" + std::to_string(partitionCount) +
+                        "' and sla_category.category='" + Conts::SLA_CATEGORY::LATENCY +
+                        "' and sla_category.command='" + commandName + "';";
     const std::vector<vector<pair<string, string>>> &queryResults = perfDB->runSelect(query);
     std::vector<std::thread> statThreads;
 
@@ -1877,7 +1884,8 @@ void TriangleCountExecutor::executeTriangleCount(SQLiteDBInterface *sqlite, Perf
         logger.log(logPrefix + " Inserting initial record for SLA ", "info");
         Utils::updateSLAInformation(perfDB, graphId, partitionCount, 0, commandName, Conts::SLA_CATEGORY::LATENCY);
         statThreads.push_back(std::thread([perfDB, graphId, commandName, partitionCount, masterIP, autoCalibrate]() {
-            AbstractExecutor::collectPerformaceData(perfDB, graphId, commandName, Conts::SLA_CATEGORY::LATENCY, partitionCount, masterIP, autoCalibrate);
+            AbstractExecutor::collectPerformaceData(perfDB, graphId, commandName, Conts::SLA_CATEGORY::LATENCY,
+                                                   partitionCount, masterIP, autoCalibrate);
         }));
         isStatCollect = true;
     }
@@ -1895,10 +1903,12 @@ void TriangleCountExecutor::executeTriangleCount(SQLiteDBInterface *sqlite, Perf
                 string partitionId = std::get<1>(taskInfo);
                 string host = std::get<2>(taskInfo);
                 OTEL_TRACE_OPERATION("wait_for_worker_" + workerID + "_partition_" + partitionId + "_on_" + host);
-                logger.info("Waiting for result from worker_" + workerID + " partition_" + partitionId + " host_" + host + " uuid=" + to_string(uniqueId));
+                logger.info("Waiting for result from worker_" + workerID + " partition_" + partitionId +
+                            " host_" + host + " uuid=" + to_string(uniqueId));
                 if (intermThread.joinable()) { intermThread.join(); }
                 long worker_result = intermResThread[taskIndex];
-                logger.info("Received result " + std::to_string(worker_result) + " from worker_" + workerID + " partition_" + partitionId);
+                logger.info("Received result " + std::to_string(worker_result) + " from worker_" +
+                            workerID + " partition_" + partitionId);
                 OTEL_TRACE_OPERATION("aggregate_result_worker_" + workerID + "_partition_" + partitionId);
                 result += worker_result;
                 taskIndex++;
@@ -1910,9 +1920,11 @@ void TriangleCountExecutor::executeTriangleCount(SQLiteDBInterface *sqlite, Perf
                 string partitionId = std::get<1>(taskInfo);
                 string host = std::get<2>(taskInfo);
                 OTEL_TRACE_OPERATION("wait_for_worker_" + workerID + "_partition_" + partitionId + "_on_" + host);
-                logger.info("Waiting for result from worker_" + workerID + " partition_" + partitionId + " host_" + host + " uuid=" + to_string(uniqueId));
+                logger.info("Waiting for result from worker_" + workerID + " partition_" + partitionId +
+                            " host_" + host + " uuid=" + to_string(uniqueId));
                 long worker_result = futureCall.get();
-                logger.info("Received result " + std::to_string(worker_result) + " from worker_" + workerID + " partition_" + partitionId);
+                logger.info("Received result " + std::to_string(worker_result) + " from worker_" +
+                            workerID + " partition_" + partitionId);
                 OTEL_TRACE_OPERATION("aggregate_result_worker_" + workerID + "_partition_" + partitionId);
                 result += worker_result;
                 taskIndex++;
@@ -1926,7 +1938,8 @@ void TriangleCountExecutor::executeTriangleCount(SQLiteDBInterface *sqlite, Perf
     if (!isCompositeAggregation) {
         OpenTelemetryUtil::receiveAndSetTraceContext(masterTraceContext, "central store aggregation");
         OTEL_TRACE_OPERATION("central_store_aggregation");
-        long aggregatedTriangleCount = aggregateCentralStoreTriangles(sqlite, graphId, masterIP, threadPriority, partitionMap);
+        long aggregatedTriangleCount = aggregateCentralStoreTriangles(sqlite, graphId, masterIP,
+                                                                      threadPriority, partitionMap);
         result += aggregatedTriangleCount;
         workerResponded = true;
         logger.log(logPrefix + " Getting Triangle Count : Completed: Triangles " + to_string(result), "info");
@@ -1959,7 +1972,8 @@ void TriangleCountExecutor::executeTriangleCount(SQLiteDBInterface *sqlite, Perf
     auto dur = end - begin;
     auto msDuration = std::chrono::duration_cast<std::chrono::milliseconds>(dur).count();
     if (canCalibrate || autoCalibrate) {
-        Utils::updateSLAInformation(perfDB, graphId, partitionCount, msDuration, commandName, Conts::SLA_CATEGORY::LATENCY);
+        Utils::updateSLAInformation(perfDB, graphId, partitionCount, msDuration, commandName,
+                                   Conts::SLA_CATEGORY::LATENCY);
         isStatCollect = false;
     }
     removeProcessInfoById(uniqueId);

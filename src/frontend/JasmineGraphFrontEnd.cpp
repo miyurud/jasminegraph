@@ -155,7 +155,8 @@ static void sla_command(int connFd, SQLiteDBInterface *sqlite, PerformanceSQLite
                         bool *loop_exit_p);
 static void sheep_command(std::string masterIP, int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_p);
 static void sheep_triangles_command(std::string masterIP, int connFd, SQLiteDBInterface *sqlite,
-                                    PerformanceSQLiteDBInterface *perfSqlite, JobScheduler *jobScheduler, bool *loop_exit_p);
+                                    PerformanceSQLiteDBInterface *perfSqlite,
+                                    JobScheduler *jobScheduler, bool *loop_exit_p);
 std::map<int, std::shared_ptr<::KGConstructionRate>> JasmineGraphFrontEnd::kgConstructionRates = {};
 static vector<DataPublisher *> getWorkerClients(SQLiteDBInterface *sqlite) {
     const vector<Utils::worker> &workerList = Utils::getWorkerList(sqlite);
@@ -3931,7 +3932,7 @@ static void sheep_command(std::string masterIP, int connFd, SQLiteDBInterface *s
         return;
     }
     frontend_logger.info("Number of partitions: " + to_string(numPartitions));
-    
+
     // Check if graph file exists
     if (!Utils::fileExists(graphPath)) {
         frontend_logger.error("Graph file does not exist: " + graphPath);
@@ -3939,31 +3940,31 @@ static void sheep_command(std::string masterIP, int connFd, SQLiteDBInterface *s
         *loop_exit_p = true;
         return;
     }
-    
+
     // Insert graph record into metadb
     std::time_t time = chrono::system_clock::to_time_t(chrono::system_clock::now());
     string uploadStartTime = ctime(&time);
     uploadStartTime = Utils::trim_copy(uploadStartTime);
-    
+
     string sqlStatement =
         "INSERT INTO graph (name,upload_path,upload_start_time,upload_end_time,graph_status_idgraph_status,"
         "vertexcount,centralpartitioncount,edgecount) VALUES(\"" +
         graphName + "\", \"" + graphPath + "\", \"" + uploadStartTime + "\", \"\",\"" +
         to_string(Conts::GRAPH_STATUS::LOADING) + "\", \"\", \"\", \"\")";
     int graphID = sqlite->runInsert(sqlStatement);
-    
+
     if (graphID < 0) {
         frontend_logger.error("Failed to insert graph into database");
         writeSocketLine(connFd, "error: database insertion failed", loop_exit_p);
         *loop_exit_p = true;
         return;
     }
-    
+
     frontend_logger.info("Graph record created with ID: " + to_string(graphID));
-    
+
     // Prepare output path in format: datafolder/graphID_
     // The partitioner will append partition number and create central/local store files
-    string outputPath = Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder") + 
+    string outputPath = Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder") +
                        "/" + to_string(graphID) + "_";
     
     // Create SheepPartitioner instance and partition the graph
