@@ -1,5 +1,5 @@
 /**
-Copyright 2024 JasminGraph Team
+Copyright 2026 JasminGraph Team
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
@@ -51,6 +51,7 @@ bool SheepPartitioner::loadGraph(const string &graphPath) {
         }
 
         vertex_id source, target;
+        std::istringstream iss(line);
 
         if (iss >> source >> target) {
             // Add edge to adjacency list
