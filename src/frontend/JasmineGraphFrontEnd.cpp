@@ -2706,7 +2706,9 @@ static void stop_stream_kafka_command(int connFd, const std::string &topicName, 
         try {
             graphIdValue = std::stoi(graphIdInput);
         } catch (const std::exception &ex) {
-            string errorMsg = "Error: Invalid graph ID `" + graphIdInput + "`";
+            string errorMsg =
+        "Error: Invalid graph ID `" + graphIdInput +
+        "`. Reason: " + ex.what();
             frontend_logger.error(errorMsg);
             write(connFd, errorMsg.c_str(), errorMsg.length());
             write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
