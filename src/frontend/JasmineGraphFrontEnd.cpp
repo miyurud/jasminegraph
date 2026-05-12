@@ -1638,7 +1638,6 @@ static void add_stream_kafka_command(int connFd, std::string &kafka_server_IP, c
         write(connFd, errorMsg.c_str(), errorMsg.length());
         write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
         delete kstream;
-        *loop_exit_p = true;
         return;
     }
 
