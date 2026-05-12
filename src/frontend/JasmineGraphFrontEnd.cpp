@@ -1657,9 +1657,9 @@ static void add_stream_kafka_command(int connFd, std::string &kafka_server_IP, c
     auto stopFlag = streamMetadata->stopFlag;
 
     // Create the StreamHandler object with the stop flag
-    StreamHandler *stream_handler = new StreamHandler(kstream, numberOfPartitions, workerClients, sqlite, graphIdInt,
-                                                      direction == Conts::DIRECTED, spt::getPartitioner(partitionAlgo),
-                                                      stopFlag);
+    auto stream_handler = std::make_shared<StreamHandler>(
+        kstream, numberOfPartitions, workerClients, sqlite, graphIdInt, direction == Conts::DIRECTED,
+        spt::getPartitioner(partitionAlgo), stopFlag);
 
     if (existingGraph != "y") {
         string path = "kafka:\\" + topic_name_s + ":" + group_id;
