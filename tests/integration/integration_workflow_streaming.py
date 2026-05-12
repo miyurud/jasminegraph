@@ -78,7 +78,8 @@ def wait_for_kafka(timeout=60):
                 '--list'
             ])
             return
-        except Exception:
+        except Exception as kafka_error:
+            common.logging.warning('[Streaming][Kafka] readiness check failed: %s', str(kafka_error))
             time.sleep(2)
     raise TimeoutError('Kafka broker did not become ready in time')
 
@@ -247,8 +248,8 @@ def query_streaming_triangle_count(host, port, graph_id, mode='0', result_timeou
     finally:
         try:
             send_stopstrian(host, port)
-        except Exception:
-            pass
+        except Exception as stop_error:
+            common.logging.warning('[Streaming][Strian] stopstrian failed: %s', str(stop_error))
 
     decoded_response = response.decode(errors='ignore')
     marker = 'Time Taken:'
@@ -375,8 +376,8 @@ def test_streaming_triangle_count_with_kafka(host, port):  # pylint: disable=too
         stop_consumer.set()
         try:
             send_stopstrian(host, port)
-        except Exception:
-            pass
+        except Exception as stop_error:
+            common.logging.warning('[Streaming] stopstrian failed: %s', str(stop_error))
         try:
             cleanup_streaming_graph(host, port, graph_id)
         except Exception as cleanup_error:
