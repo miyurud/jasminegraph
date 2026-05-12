@@ -82,7 +82,10 @@ def wait_for_kafka(timeout=60):
             ])
             return
         except Exception as kafka_error:
-            common.logging.warning('[Streaming][Kafka] readiness check failed: %s', str(kafka_error))
+            common.logging.warning(
+                '[Streaming][Kafka] readiness check failed: %s',
+                str(kafka_error)
+            )
             time.sleep(2)
     raise TimeoutError('Kafka broker did not become ready in time')
 
