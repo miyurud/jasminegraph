@@ -59,6 +59,7 @@ STOPSTRM = b'stopstrm'
 
 passed_all = True
 failed_tests = []
+FAILED_TESTS_MESSAGE = 'Failed some tests,'
 
 
 def _append_length_mismatch_details(received_lines, expected_lines, mismatches):
@@ -232,7 +233,7 @@ def send_and_expect_response(conn, test_name, send, expected, exit_on_failure=Fa
         failed_tests.append(test_name)
         if exit_on_failure:
             print()
-            logging.fatal('Failed some tests,')
+            logging.fatal(FAILED_TESTS_MESSAGE)
             print(*failed_tests, sep='\n', file=sys.stderr)
             sys.exit(1)
 
@@ -248,7 +249,7 @@ def expect_response_contains_and_record(
         failed_tests.append(test_name)
         if exit_on_failure:
             print()
-            logging.fatal('Failed some tests,')
+            logging.fatal(FAILED_TESTS_MESSAGE)
             print(*failed_tests, sep='\n', file=sys.stderr)
             sys.exit(1)
 
@@ -261,7 +262,7 @@ def send_and_expect_response_contains(conn, test_name, send, expected, exit_on_f
         failed_tests.append(test_name)
         if exit_on_failure:
             print()
-            logging.fatal('Failed some tests,')
+            logging.fatal(FAILED_TESTS_MESSAGE)
             print(*failed_tests, sep='\n', file=sys.stderr)
             sys.exit(1)
 
@@ -277,6 +278,6 @@ def send_and_expect_response_file(conn, test_name, send, expected_file, exit_on_
         failed_tests.append(test_name)
         if exit_on_failure:
             print()
-            logging.fatal('Failed some tests,')
+            logging.fatal(FAILED_TESTS_MESSAGE)
             print(*failed_tests, sep='\n', file=sys.stderr)
             sys.exit(1)
