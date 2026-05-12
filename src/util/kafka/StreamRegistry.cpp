@@ -82,6 +82,17 @@ std::vector<std::shared_ptr<StreamMetadata>> StreamRegistry::getStreamsByTopic(c
     return matches;
 }
 
+std::shared_ptr<StreamMetadata> StreamRegistry::getStreamByGraphId(int graphId) {
+    std::lock_guard<std::mutex> lock(registryMutex);
+
+    auto it = activeStreams.find(graphId);
+    if (it != activeStreams.end()) {
+        return it->second;
+    }
+
+    return nullptr;
+}
+
 std::map<int, std::shared_ptr<StreamMetadata>> StreamRegistry::getAllStreams() {
     std::lock_guard<std::mutex> lock(registryMutex);
     return activeStreams;

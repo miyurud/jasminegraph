@@ -95,6 +95,13 @@ class StreamRegistry {
     std::vector<std::shared_ptr<StreamMetadata>> getStreamsByTopic(const std::string &topicName);
 
     /**
+     * Get stream metadata by graph ID
+     * @param graphId Graph ID to look up
+     * @return Pointer to StreamMetadata if found, nullptr otherwise
+     */
+    std::shared_ptr<StreamMetadata> getStreamByGraphId(int graphId);
+
+    /**
      * Get all active streams
      * @return Map of graphId -> StreamMetadata
      */
