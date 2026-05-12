@@ -13,7 +13,9 @@ limitations under the License.
 
 #include "StreamRegistry.h"
 
-#include <iostream>
+#include "../logger/Logger.h"
+
+Logger stream_registry_logger;
 
 StreamRegistry &StreamRegistry::getInstance() {
     static StreamRegistry instance;
@@ -26,7 +28,8 @@ bool StreamRegistry::registerStream(int graphId, const std::string &topicName, i
 
     // Check if stream with this graphId already exists
     if (activeStreams.find(graphId) != activeStreams.end()) {
-        std::cerr << "StreamRegistry: Stream with graphId " << graphId << " already registered" << std::endl;
+        stream_registry_logger.error("StreamRegistry: Stream with graphId " + std::to_string(graphId) +
+                                      " already registered");
         return false;
     }
 
@@ -35,8 +38,8 @@ bool StreamRegistry::registerStream(int graphId, const std::string &topicName, i
                                                      std::this_thread::get_id(), kafkaConnector, userId);
     activeStreams[graphId] = metadata;
 
-    std::cout << "StreamRegistry: Registered stream for graphId=" << graphId << ", topic=" << topicName
-              << ", connectionFd=" << connectionFd << std::endl;
+    stream_registry_logger.info("StreamRegistry: Registered stream for graphId=" + std::to_string(graphId) +
+                                ", topic=" + topicName + ", connectionFd=" + std::to_string(connectionFd));
 
     return true;
 }
@@ -47,10 +50,10 @@ void StreamRegistry::updateStreamThreadId(int graphId, std::thread::id threadId)
     auto it = activeStreams.find(graphId);
     if (it != activeStreams.end()) {
         it->second->threadId = threadId;
-        std::cout << "StreamRegistry: Updated thread ID for graphId=" << graphId << std::endl;
+        stream_registry_logger.info("StreamRegistry: Updated thread ID for graphId=" + std::to_string(graphId));
     } else {
-        std::cerr << "StreamRegistry: Cannot update thread ID - stream graphId " << graphId
-                  << " not found" << std::endl;
+        stream_registry_logger.error("StreamRegistry: Cannot update thread ID - stream graphId " +
+                                      std::to_string(graphId) + " not found");
     }
 }
 
@@ -90,11 +93,13 @@ bool StreamRegistry::unregisterStream(int graphId) {
     auto it = activeStreams.find(graphId);
     if (it != activeStreams.end()) {
         activeStreams.erase(it);
-        std::cout << "StreamRegistry: Unregistered stream for graphId=" << graphId << std::endl;
+        stream_registry_logger.info("StreamRegistry: Unregistered stream for graphId=" +
+                                    std::to_string(graphId));
         return true;
     }
 
-    std::cerr << "StreamRegistry: Cannot unregister - stream graphId " << graphId << " not found" << std::endl;
+    stream_registry_logger.error("StreamRegistry: Cannot unregister - stream graphId " + std::to_string(graphId) +
+                                 " not found");
     return false;
 }
 
@@ -104,11 +109,12 @@ bool StreamRegistry::signalStreamStop(int graphId) {
     auto it = activeStreams.find(graphId);
     if (it != activeStreams.end()) {
         it->second->stopFlag->store(true, std::memory_order_release);
-        std::cout << "StreamRegistry: Signaled stop for graphId=" << graphId << std::endl;
+        stream_registry_logger.info("StreamRegistry: Signaled stop for graphId=" + std::to_string(graphId));
         return true;
     }
 
-    std::cerr << "StreamRegistry: Cannot signal stop - stream graphId " << graphId << " not found" << std::endl;
+    stream_registry_logger.error("StreamRegistry: Cannot signal stop - stream graphId " + std::to_string(graphId) +
+                                 " not found");
     return false;
 }
 
@@ -125,7 +131,8 @@ size_t StreamRegistry::getActiveStreamCount() {
 void StreamRegistry::stopAllStreams() {
     std::lock_guard<std::mutex> lock(registryMutex);
 
-    std::cout << "StreamRegistry: Stopping all " << activeStreams.size() << " active streams" << std::endl;
+    stream_registry_logger.info("StreamRegistry: Stopping all " + std::to_string(activeStreams.size()) +
+                                " active streams");
 
     for (auto &entry : activeStreams) {
         entry.second->stopFlag->store(true, std::memory_order_release);
@@ -135,5 +142,5 @@ void StreamRegistry::stopAllStreams() {
 void StreamRegistry::clear() {
     std::lock_guard<std::mutex> lock(registryMutex);
     activeStreams.clear();
-    std::cout << "StreamRegistry: Cleared all stream entries" << std::endl;
+    stream_registry_logger.info("StreamRegistry: Cleared all stream entries");
 }
