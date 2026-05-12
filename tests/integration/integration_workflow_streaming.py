@@ -25,6 +25,9 @@ ADSTRMK = b'adstrmk'
 STRIAN = b'strian'
 STOPSTRIAN = b'stopstrian'
 KAFKA_TOPIC = 'stream-triangle-test'
+KAFKA_HOST = 'localhost'
+KAFKA_PORT = 9092
+KAFKA_BOOTSTRAP = f'{KAFKA_HOST}:{KAFKA_PORT}'
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DOCKER_COMPOSE_FILE = os.path.join(BASE_DIR, 'docker-compose.yml')
 
@@ -74,7 +77,7 @@ def wait_for_kafka(timeout=60):
         try:
             run_kafka_command([
                 '/opt/kafka/bin/kafka-topics.sh',
-                '--bootstrap-server', 'localhost:9092',
+                '--bootstrap-server', KAFKA_BOOTSTRAP,
                 '--list'
             ])
             return
@@ -88,7 +91,7 @@ def create_topic():
     """Create the Kafka topic used by the streaming test."""
     run_kafka_command([
         '/opt/kafka/bin/kafka-topics.sh',
-        '--bootstrap-server', 'localhost:9092',
+        '--bootstrap-server', KAFKA_BOOTSTRAP,
         '--create',
         '--if-not-exists',
         '--topic', KAFKA_TOPIC,
@@ -109,7 +112,7 @@ def publish_stream(records, delay_sec=0.2):
     payload = '\n'.join(payload_lines) + '\n'
     run_kafka_command([
         '/opt/kafka/bin/kafka-console-producer.sh',
-        '--bootstrap-server', 'localhost:9092',
+        '--bootstrap-server', KAFKA_BOOTSTRAP,
         '--topic', KAFKA_TOPIC
     ], input_data=payload)
 
@@ -123,7 +126,7 @@ def consume_stream(expected_messages, consumed_records, stop_event):
         [
             'docker', 'compose', '-f', DOCKER_COMPOSE_FILE, 'exec', '-T', 'kafka',
             '/opt/kafka/bin/kafka-console-consumer.sh',
-            '--bootstrap-server', 'localhost:9092',
+            '--bootstrap-server', KAFKA_BOOTSTRAP,
             '--topic', KAFKA_TOPIC,
             '--from-beginning',
             '--max-messages', str(expected_messages),
