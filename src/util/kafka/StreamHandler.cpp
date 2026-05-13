@@ -20,6 +20,7 @@ limitations under the License.
 
 #include "../logger/Logger.h"
 #include "../Utils.h"
+#include "StreamRegistry.h"
 #include "../../server/JasmineGraphServer.h"
 
 using json = nlohmann::json;
@@ -29,12 +30,14 @@ Logger stream_handler_logger;
 
 StreamHandler::StreamHandler(KafkaConnector *kstream, int numberOfPartitions,
                              vector<DataPublisher *> &workerClients, SQLiteDBInterface* sqlite,
-                             int graphId, bool isDirected, spt::Algorithms algorithms)
+                             int graphId, bool isDirected, spt::Algorithms algorithms,
+                             std::shared_ptr<std::atomic<bool>> stopFlag)
         : kstream(kstream),
           graphId(graphId),
           workerClients(workerClients),
           graphPartitioner(numberOfPartitions, graphId, algorithms, sqlite, isDirected),
-          stream_topic_name("stream_topic_name") { }
+          stream_topic_name("stream_topic_name"),
+          stopFlag(stopFlag) { }
 
 
 // Polls kafka for a message.
@@ -70,6 +73,17 @@ void StreamHandler::listen_to_kafka_topic() {
     }
 
     while (true) {
+        // Check if external stop signal has been received
+        if (stopFlag && stopFlag->load(std::memory_order_acquire)) {
+            frontend_logger.info("Received stop signal for graphId=" + std::to_string(graphId));
+            for (auto &workerClient : workerClients) {
+                if (workerClient != nullptr) {
+                    workerClient->publish("-1");
+                }
+            }
+            break;
+        }
+
         cppkafka::Message msg = this->pollMessage();
 
         if (this->isEndOfStream(msg)) {
@@ -123,6 +137,8 @@ void StreamHandler::listen_to_kafka_topic() {
             workerClients.at(temp_d)->publish(obj.dump());
         }
     }
+
+    StreamRegistry::getInstance().unregisterStream(graphId);
     graphPartitioner.updateMetaDB();
     graphPartitioner.printStats();
 }
