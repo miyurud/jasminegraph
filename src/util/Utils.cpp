@@ -1446,14 +1446,14 @@ bool Utils::sendFileThroughService(std::string host, int dataPort, std::string f
     bool status = true;
     // Use larger buffer for better throughput (64KB)
     const int BUFFER_SIZE = 65536;
-    unsigned char *buff = new unsigned char[BUFFER_SIZE];
+    std::vector<unsigned char> buff(BUFFER_SIZE);
 
     while (true) {
-        int nread = fread(buff, 1, BUFFER_SIZE, fp);
+        int nread = fread(buff.data(), 1, BUFFER_SIZE, fp);
 
         /* If read was success, send data. */
         if (nread > 0) {
-            write(sockfd, buff, nread);
+            write(sockfd, buff.data(), nread);
         } else {
             if (feof(fp)) util_logger.info("End of file");
             if (ferror(fp)) {
@@ -1464,7 +1464,6 @@ bool Utils::sendFileThroughService(std::string host, int dataPort, std::string f
         }
     }
 
-    delete[] buff;
     fclose(fp);
     close(sockfd);
     return status;
@@ -1526,8 +1525,8 @@ void Utils::assignPartitionToWorker(int graphId, int partitionIndex, string  hos
     util_logger.debug("Assigning graph ID: " + std::to_string(graphId) + "  partition: "
     + std::to_string(partitionIndex) + " to worker");
 
-    auto *sqlite = new SQLiteDBInterface();
-    sqlite->init();
+    SQLiteDBInterface sqlite;
+    sqlite.init();
 
     string workerHost = hostname;
     if (hostname.find('@') != std::string::npos) {
@@ -1541,7 +1540,7 @@ void Utils::assignPartitionToWorker(int graphId, int partitionIndex, string  hos
                 "SELECT idworker FROM worker WHERE ip='" + workerHost +
                 "' AND server_port='" + std::to_string(port) + "'";
 
-        std::vector<std::vector<std::pair<std::string, std::string>>> results = sqlite->runSelect(workerSearchQuery);
+        std::vector<std::vector<std::pair<std::string, std::string>>> results = sqlite.runSelect(workerSearchQuery);
 
         if (results.empty()) {
             util_logger.error("Worker not found : " + workerHost);
@@ -1555,15 +1554,13 @@ void Utils::assignPartitionToWorker(int graphId, int partitionIndex, string  hos
                 "VALUES ('" + std::to_string(partitionIndex) + "','" + std::to_string(graphId)
                 + "','" + workerID + "')";
 
-        sqlite->runInsert(partitionToWorkerQuery);
+        sqlite.runInsert(partitionToWorkerQuery);
     } catch (const std::exception &ex) {
         util_logger.error("Error assigning partition to worker: " + std::string(ex.what()));
     }
 
-    sqlite->finalize();
+    sqlite.finalize();
     sqliteMutex.unlock();
-
-    delete sqlite;
 }
 
 
