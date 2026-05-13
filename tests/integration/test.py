@@ -18,6 +18,7 @@ from integration_workflow_core import run_core_workflow
 from integration_workflow_cypher import run_cypher_workflow
 from integration_workflow_intrapartition import run_intrapartition_workflow
 from integration_workflow_streaming import run_streaming_workflow
+from integration_workflow_kafka import run_kafka_workflow
 
 
 def test(host, port):
@@ -31,6 +32,7 @@ def test(host, port):
         run_cypher_workflow(sock, host, port)
         run_intrapartition_workflow(sock)
         run_streaming_workflow(host, port)
+        run_kafka_workflow(sock)
 
         print()
         logging.info('Shutting down')
