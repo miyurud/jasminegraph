@@ -54,9 +54,12 @@ ADHDFS = b'adhdfs'
 SDHDFS = b'sdhdfs'
 LINE_END = b'\r\n'
 CYPHER = b'cypher'
+ADSTRMK = b'adstrmk'
+STOPSTRM = b'stopstrm'
 
 passed_all = True
 failed_tests = []
+FAILED_TESTS_MESSAGE = 'Failed some tests,'
 
 
 def _append_length_mismatch_details(received_lines, expected_lines, mismatches):
@@ -178,6 +181,50 @@ def expect_response_file(conn: socket.socket, expected: bytes, timeout=5000):
     return True
 
 
+def receive_response_contains(conn: socket.socket, expected: bytes, timeout: float = 30000.0):
+    """Return response bytes containing expected bytes within a timeout."""
+    global passed_all
+    buffer = bytearray()
+    deadline = time.time() + timeout
+    previous_timeout = conn.gettimeout()
+    conn.settimeout(1.0)
+
+    try:
+        while time.time() <= deadline:
+            try:
+                received = conn.recv(4096)
+            except socket.timeout:
+                continue
+            except socket.error as exc:
+                logging.warning('Socket error: %s', exc)
+                passed_all = False
+                return None
+
+            if not received:
+                logging.warning(
+                    'Connection closed before expected response was received'
+                )
+                passed_all = False
+                return None
+
+            buffer.extend(received)
+            if expected in buffer:
+                data = bytes(buffer)
+                print(data.decode('utf-8', errors='replace'), end='')
+                return data
+
+        logging.warning('Timed out waiting for response containing expected data')
+        passed_all = False
+        return None
+    finally:
+        conn.settimeout(previous_timeout)
+
+
+def expect_response_contains(conn: socket.socket, expected: bytes, timeout: float = 30000.0):
+    """Check if the response contains expected bytes within a timeout."""
+    return receive_response_contains(conn, expected, timeout) is not None
+
+
 def send_and_expect_response(conn, test_name, send, expected, exit_on_failure=False):
     """Send a message to server and check if the response matches expected response."""
     conn.sendall(send + LINE_END)
@@ -186,7 +233,36 @@ def send_and_expect_response(conn, test_name, send, expected, exit_on_failure=Fa
         failed_tests.append(test_name)
         if exit_on_failure:
             print()
-            logging.fatal('Failed some tests,')
+            logging.fatal(FAILED_TESTS_MESSAGE)
+            print(*failed_tests, sep='\n', file=sys.stderr)
+            sys.exit(1)
+
+
+def expect_response_contains_and_record(
+    conn,
+    test_name,
+    expected,
+    exit_on_failure=False,
+):
+    """Validate server response contains expected bytes and record failures."""
+    if not expect_response_contains(conn, expected):
+        failed_tests.append(test_name)
+        if exit_on_failure:
+            print()
+            logging.fatal(FAILED_TESTS_MESSAGE)
+            print(*failed_tests, sep='\n', file=sys.stderr)
+            sys.exit(1)
+
+
+def send_and_expect_response_contains(conn, test_name, send, expected, exit_on_failure=False):
+    """Send a message and check the response contains expected bytes."""
+    conn.sendall(send + LINE_END)
+    print(send.decode('utf-8'))
+    if not expect_response_contains(conn, expected):
+        failed_tests.append(test_name)
+        if exit_on_failure:
+            print()
+            logging.fatal(FAILED_TESTS_MESSAGE)
             print(*failed_tests, sep='\n', file=sys.stderr)
             sys.exit(1)
 
@@ -202,6 +278,6 @@ def send_and_expect_response_file(conn, test_name, send, expected_file, exit_on_
         failed_tests.append(test_name)
         if exit_on_failure:
             print()
-            logging.fatal('Failed some tests,')
+            logging.fatal(FAILED_TESTS_MESSAGE)
             print(*failed_tests, sep='\n', file=sys.stderr)
             sys.exit(1)
