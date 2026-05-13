@@ -295,7 +295,7 @@ bool SheepPartitioner::writePartitions(const string &outputPath) {
             // Compress local store file
             Utils::compressFile(localFilename);
             partitionFileMap[i] = localFilename + ".gz";
-            
+
             // Store central store using FlatBuffers
             if (!JasmineGraphHashMapCentralStore::storePartEdgeMap(centralStoreMaps[i], centralFilename)) {
                 sheep_partitioner_logger.error("Failed to serialize central store for partition " + to_string(i));

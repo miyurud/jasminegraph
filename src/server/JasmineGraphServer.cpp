@@ -76,6 +76,7 @@ static void degreeDistributionCommon(std::string graphID, std::string command);
 static int getPortByHost(const std::string &host);
 static int getDataPortByHost(const std::string &host);
 static size_t getWorkerCount();
+static void joinCompletedThreads(std::thread *workerThreads, int file_count, const std::string &graphType, int count);
 
 static std::vector<JasmineGraphServer::worker> hostWorkerList;
 
@@ -1010,23 +1011,12 @@ void JasmineGraphServer::uploadGraphLocally(int graphID, const string graphType,
 
     while (count < total_threads) {
         const auto &workerList = getWorkers(partitionFileMap.size());
-        while (true) {
-            if (count >= total_threads) {
-                break;
+        while (count < total_threads) {
+            // Wait if we've hit the concurrent thread limit - join completed threads
+            if (count >= MAX_CONCURRENT_THREADS && count - file_count >= MAX_CONCURRENT_THREADS) {
+                joinCompletedThreads(workerThreads, file_count, graphType, count);
             }
 
-            // Wait if we've hit the concurrent thread limit - join completed threads
-            while (count >= MAX_CONCURRENT_THREADS && count - file_count >= MAX_CONCURRENT_THREADS) {
-                // Join the oldest threads in batches for efficiency
-                int batch_start = file_count * (graphType == Conts::GRAPH_WITH_ATTRIBUTES ? 6 : 4);
-                int batch_end = std::min(batch_start + 10, count);
-                for (int i = batch_start; i < batch_end; i++) {
-                    if (workerThreads[i].joinable()) {
-                        workerThreads[i].join();
-                    }
-                }
-                break;
-            }
 
             worker worker = workerList[graphUploadWorkerTracker];
             std::string partitionFileName = partitionFileMap[file_count];
@@ -1038,7 +1028,7 @@ void JasmineGraphServer::uploadGraphLocally(int graphID, const string graphType,
                                                  graphID, partitionFileName, masterHost);
 
             // Launch central store upload thread (includes aggregator copy)
-            workerThreads[count++] = std::thread([=]() {
+            workerThreads[count++] = std::thread([this, centralFile, worker, graphID]() {
                 copyCentralStoreToAggregateLocation(centralFile);
                 batchUploadCentralStore(worker.hostname, worker.port, worker.dataPort,
                                        graphID, centralFile, masterHost);
@@ -1046,7 +1036,7 @@ void JasmineGraphServer::uploadGraphLocally(int graphID, const string graphType,
 
             if (compositeCentralStoreFileMap.find(file_count) != compositeCentralStoreFileMap.end()) {
                 std::string compositeFile = compositeCentralStoreFileMap[file_count];
-                workerThreads[count++] = std::thread([=]() {
+                workerThreads[count++] = std::thread([this, compositeFile, worker, graphID]() {
                     copyCentralStoreToAggregateLocation(compositeFile);
                     batchUploadCompositeCentralstoreFile(worker.hostname, worker.port, worker.dataPort,
                                                         graphID, compositeFile, masterHost);
@@ -1084,9 +1074,8 @@ void JasmineGraphServer::uploadGraphLocally(int graphID, const string graphType,
 
     // Now perform database operations in batch after all uploads complete
     server_logger.info("Assigning partitions to workers in database...");
-    for (const auto& assignment : partitionWorkerAssignments) {
-        assignPartitionToWorker(std::get<0>(assignment), std::get<1>(assignment),
-                               std::get<2>(assignment), std::get<3>(assignment));
+    for (const auto& [partitionFileName, graphId, host, port] : partitionWorkerAssignments) {
+        assignPartitionToWorker(partitionFileName, graphId, host, port);
     }
     server_logger.info("Database assignments completed");
 
@@ -1155,7 +1144,18 @@ static bool batchUploadCentralStore(std::string host, int port, int dataPort, in
                                      JasmineGraphInstanceProtocol::BATCH_UPLOAD_CENTRAL);
 }
 
+static void joinCompletedThreads(std::thread *workerThreads, int file_count, const std::string &graphType, int count) {
+    int batch_start = file_count * (graphType == Conts::GRAPH_WITH_ATTRIBUTES ? 6 : 4);
+    int batch_end = std::min(batch_start + 10, count);
+    for (int i = batch_start; i < batch_end; i++) {
+        if (workerThreads[i].joinable()) {
+            workerThreads[i].join();
+        }
+    }
+}
+
 void JasmineGraphServer::copyCentralStoreToAggregateLocation(std::string filePath) {
+
     std::string aggregatorDirPath = Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.aggregatefolder");
 
     if (access(aggregatorDirPath.c_str(), F_OK)) {
