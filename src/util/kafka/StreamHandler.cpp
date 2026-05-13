@@ -20,6 +20,7 @@ limitations under the License.
 
 #include "../logger/Logger.h"
 #include "../Utils.h"
+#include "StreamRegistry.h"
 #include "../../server/JasmineGraphServer.h"
 
 using json = nlohmann::json;
@@ -136,6 +137,8 @@ void StreamHandler::listen_to_kafka_topic() {
             workerClients.at(temp_d)->publish(obj.dump());
         }
     }
+
+    StreamRegistry::getInstance().unregisterStream(graphId);
     graphPartitioner.updateMetaDB();
     graphPartitioner.printStats();
 }

@@ -1642,12 +1642,11 @@ static void add_stream_kafka_command(int connFd, std::string &kafka_server_IP, c
         write(connFd, errorMsg.c_str(), errorMsg.length());
         write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
         delete kstream;
-        *loop_exit_p = true;
         return;
     }
 
-    // Get the stop flag from the registry (lookup by topic)
-    auto streamMetadata = registry.getStreamByTopic(topic_name_s);
+    // Get the stop flag from the registry (lookup by graph ID)
+    auto streamMetadata = registry.getStreamByGraphId(graphIdInt);
     if (!streamMetadata) {
         frontend_logger.error("Failed to retrieve stream metadata for topic " + topic_name_s);
         string errorMsg = "Error: Failed to initialize stream metadata";
@@ -1661,9 +1660,9 @@ static void add_stream_kafka_command(int connFd, std::string &kafka_server_IP, c
     auto stopFlag = streamMetadata->stopFlag;
 
     // Create the StreamHandler object with the stop flag
-    StreamHandler *stream_handler = new StreamHandler(kstream, numberOfPartitions, workerClients, sqlite, graphIdInt,
-                                                      direction == Conts::DIRECTED, spt::getPartitioner(partitionAlgo),
-                                                      stopFlag);
+    auto stream_handler = std::make_shared<StreamHandler>(
+        kstream, numberOfPartitions, workerClients, sqlite, graphIdInt, direction == Conts::DIRECTED,
+        spt::getPartitioner(partitionAlgo), stopFlag);
 
     if (existingGraph != "y") {
         string path = "kafka:\\" + topic_name_s + ":" + group_id;
@@ -1683,6 +1682,10 @@ static void add_stream_kafka_command(int connFd, std::string &kafka_server_IP, c
         sqlite->runUpdate(sqlStatement);
     }
     frontend_logger.info("Start listening to " + topic_name_s);
+    if (input_stream_handler_thread.joinable()) {
+        frontend_logger.warn("Detaching existing Kafka input stream handler thread before starting a new one");
+        input_stream_handler_thread.detach();
+    }
     input_stream_handler_thread = thread(&StreamHandler::listen_to_kafka_topic, stream_handler);
 
     // Update the stream registry with the new thread ID
@@ -2676,13 +2679,65 @@ static void stop_stream_kafka_command(int connFd, const std::string &topicName, 
     StreamRegistry &registry = StreamRegistry::getInstance();
 
     // Get stream metadata by topic
-    auto streamMetadata = registry.getStreamByTopic(topicName);
-    if (!streamMetadata) {
+    auto streamMatches = registry.getStreamsByTopic(topicName);
+    if (streamMatches.empty()) {
         string errorMsg = "Error: No active stream found for topic `" + topicName + "`";
         frontend_logger.error(errorMsg);
         write(connFd, errorMsg.c_str(), errorMsg.length());
         write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
         return;
+    }
+
+    std::shared_ptr<StreamMetadata> streamMetadata;
+    if (streamMatches.size() > 1) {
+        string prompt =
+            "Multiple active streams found for topic `" + topicName + "`. Send graph ID:";
+        if (!writeSocketLine(connFd, prompt, loop_exit_p)) {
+            return;
+        }
+
+        string graphIdInput = readTrimmedSocketInput(connFd);
+        if (graphIdInput.empty()) {
+            string errorMsg = "Error: Graph ID is required to stop a specific stream";
+            frontend_logger.error(errorMsg);
+            write(connFd, errorMsg.c_str(), errorMsg.length());
+            write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
+            return;
+        }
+
+        int graphIdValue = -1;
+        try {
+            graphIdValue = std::stoi(graphIdInput);
+        } catch (const std::exception &ex) {
+            string errorMsg =
+        "Error: Invalid graph ID `" + graphIdInput +
+        "`. Reason: " + ex.what();
+            frontend_logger.error(errorMsg);
+            write(connFd, errorMsg.c_str(), errorMsg.length());
+            write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
+            return;
+        }
+
+        auto matchIt = std::find_if(
+            streamMatches.begin(),
+            streamMatches.end(),
+            [graphIdValue](const std::shared_ptr<StreamMetadata> &metadata) {
+                return metadata && metadata->graphId == graphIdValue;
+            });
+
+        if (matchIt == streamMatches.end()) {
+            string errorMsg =
+                "Error: No active stream found for graph ID `" + std::to_string(graphIdValue) +
+                "` on topic `" + topicName + "`";
+            frontend_logger.error(errorMsg);
+            write(connFd, errorMsg.c_str(), errorMsg.length());
+            write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
+            return;
+        }
+
+        streamMetadata = *matchIt;
+    } else {
+        streamMetadata = streamMatches.front();
     }
 
     int graphId = streamMetadata->graphId;
@@ -2849,9 +2904,8 @@ static void triangles_command(std::string masterIP, int connFd, SQLiteDBInterfac
 
         priority = Utils::trim_copy(priority);
 
-          if (!(std::find_if(priority.begin(), priority.end(), [](unsigned char c) {
-                return !std::isdigit(c);
-              }) == priority.end())) {
+        if (!(std::find_if(priority.begin(), priority.end(), [](unsigned char c) { return !std::isdigit(c); }) ==
+              priority.end())) {
             *loop_exit_p = true;
             string error_message = "Priority should be numeric and > 1 or empty";
             result_wr = write(connFd, error_message.c_str(), error_message.length());
@@ -3551,9 +3605,8 @@ static void page_rank_command(std::string masterIP, int connFd, SQLiteDBInterfac
     string priority(priority_data);
     priority = Utils::trim_copy(priority);
 
-    if (!(std::find_if(priority.begin(), priority.end(), [](unsigned char c) {
-              return !std::isdigit(c);
-          }) == priority.end())) {
+    if (!(std::find_if(priority.begin(), priority.end(), [](unsigned char c) { return !std::isdigit(c); }) ==
+          priority.end())) {
         *loop_exit_p = true;
         string error_message = "Priority should be numeric and > 1 or empty";
         result_wr = write(connFd, error_message.c_str(), error_message.length());
@@ -3996,4 +4049,3 @@ void JasmineGraphFrontEnd::stop_graph_streaming(int connFd, bool *loop_exit_p) {
         int resultWr = write(connFd, message2.c_str(), message2.length());
     }
 }
-

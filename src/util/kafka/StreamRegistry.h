@@ -15,6 +15,7 @@ limitations under the License.
 #define JASMINEGRAPH_STREAM_REGISTRY_H
 
 #include <atomic>
+#include <chrono>
 #include <map>
 #include <memory>
 #include <mutex>
@@ -85,6 +86,20 @@ class StreamRegistry {
      * @return Pointer to StreamMetadata if found, nullptr otherwise
      */
     std::shared_ptr<StreamMetadata> getStreamByTopic(const std::string &topicName);
+
+    /**
+     * Get all stream metadata entries by Kafka topic name
+     * @param topicName Topic name to look up
+     * @return Vector of matching StreamMetadata entries
+     */
+    std::vector<std::shared_ptr<StreamMetadata>> getStreamsByTopic(const std::string &topicName);
+
+    /**
+     * Get stream metadata by graph ID
+     * @param graphId Graph ID to look up
+     * @return Pointer to StreamMetadata if found, nullptr otherwise
+     */
+    std::shared_ptr<StreamMetadata> getStreamByGraphId(int graphId);
 
     /**
      * Get all active streams

@@ -47,9 +47,7 @@ void SharedBuffer::clear() {
 
 std::optional<std::string> SharedBuffer::getWithTimeout(int timeoutSeconds) {
     std::unique_lock<std::mutex> lock(mtx);
-    if (cv.wait_for(lock, std::chrono::seconds(timeoutSeconds), [this]() {
-            return !buffer.empty();
-        })) {
+    if (cv.wait_for(lock, std::chrono::seconds(timeoutSeconds), [this]() { return !buffer.empty(); })) {
         std::string data = buffer.front();
         buffer.pop_front();
         cv.notify_one();
@@ -58,4 +56,3 @@ std::optional<std::string> SharedBuffer::getWithTimeout(int timeoutSeconds) {
         return std::nullopt;  // timeout
     }
 }
-
