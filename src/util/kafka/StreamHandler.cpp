@@ -27,6 +27,7 @@ limitations under the License.
 
 #include "../logger/Logger.h"
 #include "../Utils.h"
+#include "StreamRegistry.h"
 #include "../../server/JasmineGraphServer.h"
 #include "../../server/JasmineGraphInstanceProtocol.h"
 #include "../../temporalstore/TemporalStorePersistence.h"
@@ -291,12 +292,14 @@ static uint32_t discoverLatestSnapshotIdOnWorker(const JasmineGraphServer::worke
 StreamHandler::StreamHandler(KafkaConnector *kstream, int numberOfPartitions,
                              vector<DataPublisher *> &workerClients, SQLiteDBInterface* sqlite,
                              int graphId, bool isDirected, spt::Algorithms algorithms,
+                             std::shared_ptr<std::atomic<bool>> stopFlag,
                                                          bool isNewGraph, bool csvInputMode)
         : kstream(kstream),
           graphId(graphId),
           workerClients(workerClients),
           graphPartitioner(numberOfPartitions, graphId, algorithms, sqlite, isDirected),
           stream_topic_name("stream_topic_name"),
+          stopFlag(stopFlag),
           currentSnapshot(0),
           centralTemporalStore(nullptr),
           numberOfPartitions(numberOfPartitions),
@@ -764,17 +767,26 @@ void StreamHandler::flushWorkerBatch(int workerId, bool force) {
     if (workerBatches[workerId].empty()) return;
     if (!force && workerBatches[workerId].size() < BATCH_SIZE) return;
 
+    // assign partitions to workers (keep existing behavior)
+    {
+        std::vector<JasmineGraphServer::worker> workers = JasmineGraphServer::getInstance()->workers(workerClients.size());
+        for (int i = 0; i < (int)workerClients.size(); i++) {
+            Utils::assignPartitionToWorker(graphId, i, workers.at(i).hostname, workers.at(i).port);
+        }
+    }
+
     // Send all edges individually but asynchronously
     std::vector<std::string> edges = std::move(workerBatches[workerId]);
     workerBatches[workerId].clear();
     lock.unlock();
 
-    // Enqueue ONE task that publishes the entire batch — avoids 1000 heap allocs
-    // and 1000 string copies per flush that the per-edge lambda approach incurred.
+    // Enqueue ONE task that publishes the entire batch — avoids many small allocations
     enqueuePublish([this, workerId, edges = std::move(edges)]() mutable {
         for (const auto& edgeData : edges) {
             try {
-                workerClients[workerId]->publish(edgeData);
+                if (workerClients[workerId] != nullptr) {
+                    workerClients[workerId]->publish(edgeData);
+                }
             } catch (const std::exception& e) {
                 streamHandlerLogger().error("Failed to publish edge to worker " +
                                            std::to_string(workerId) + ": " + e.what());
@@ -788,10 +800,10 @@ long StreamHandler::getCachedPartition(const std::string& nodeId, bool* cacheHit
     std::lock_guard<std::mutex> lock(cacheMutex);
     auto it = partitionCache.find(nodeId);
     if (it != partitionCache.end()) {
-        *cacheHit = true;
+        if (cacheHit) *cacheHit = true;
         return it->second;
     }
-    *cacheHit = false;
+    if (cacheHit) *cacheHit = false;
     return -1;
 }
 
@@ -805,13 +817,9 @@ void StreamHandler::cachePartition(const std::string& nodeId, long partition) {
 }
 
 // ============================================================================
-// PARALLEL CONSUMER THREAD FUNCTION
-// Each thread owns a subset of Kafka topic partitions (Kafka assigns them
-// automatically when multiple consumers join the same consumer group).
-// Shared mutable state is protected by partitionerMutex_, temporalMutex_,
-// and snapshotMutex_.  Per-worker batch vectors are already protected by
-// workerBatchMutexes.
+// COORDINATOR: spawns N parallel consumer threads then handles teardown
 // ============================================================================
+// Per-thread consumer function
 void StreamHandler::consumerThreadFunc(int threadId,
                                        cppkafka::Consumer* consumer,
                                        const std::string& topic,
@@ -835,8 +843,15 @@ void StreamHandler::consumerThreadFunc(int threadId,
     auto total_publish_time    = std::chrono::microseconds(0);
     uint64_t threadMessages    = 0;
 
-    while (!endSignalReceived) {
-        auto messageBatch = consumer->poll_batch(KAFKA_BATCH_SIZE, std::chrono::milliseconds(1000));
+    while (!endSignalReceived.load()) {
+        // Check for external stop signal
+        if (stopFlag && stopFlag->load(std::memory_order_acquire)) {
+            streamHandlerLogger().info("Received stop signal for graphId=" + std::to_string(graphId));
+            break;
+        }
+
+        std::vector<cppkafka::Message> messageBatch = consumer->poll_batch(KAFKA_BATCH_SIZE,
+                                                                           std::chrono::milliseconds(1000));
 
         if (messageBatch.empty()) {
             emptyPolls++;
@@ -852,14 +867,12 @@ void StreamHandler::consumerThreadFunc(int threadId,
         emptyPolls = 0;
 
         for (auto& msg : messageBatch) {
-            if (endSignalReceived) break;
+            if (endSignalReceived.load()) break;
 
+            if (!msg) continue;
             if (isEndOfStream(msg)) {
                 streamHandlerLogger().info("Thread " + std::to_string(threadId) +
                                            " observed termination signal (-1)");
-                // Do not stop on EOS immediately. A thread can momentarily own multiple
-                // Kafka partitions; stopping on first EOS may leave another assigned
-                // partition undrained. Continue consuming until natural idle timeout.
                 continue;
             }
             if (isErrorInMessage(msg)) continue;
@@ -888,10 +901,6 @@ void StreamHandler::consumerThreadFunc(int threadId,
                 std::chrono::high_resolution_clock::now() - parse_start);
 
             // ---- 2. PARTITION ----
-            // HASH partitioning is lock-free: the destination partition is purely
-            // deterministic (hash % n) and each Partition protects its own state
-            // with an internal per-partition mutex.  FENNEL/LDG touch shared
-            // totalVertices/totalEdges counters so still need the global lock.
             auto partition_start = std::chrono::high_resolution_clock::now();
             partitionedEdge partEdge;
             if (graphPartitioner.isHashAlgorithm()) {
@@ -929,7 +938,7 @@ void StreamHandler::consumerThreadFunc(int threadId,
                             continue;
                         }
                         localTemporalStores[part_s]->addEdge(sId, dId, globalSnapshotId);
-                        totalLocal++;
+                        totalLocal.fetch_add(1);
                         if (localTemporalStores[part_s]->shouldCreateSnapshot())
                             shouldCreateGlobalSnapshot = true;
                     } else {
@@ -938,7 +947,7 @@ void StreamHandler::consumerThreadFunc(int threadId,
                             continue;
                         }
                         centralTemporalStore->addEdge(sId, dId, globalSnapshotId);
-                        totalCentral++;
+                        totalCentral.fetch_add(1);
                         if (centralTemporalStore->shouldCreateSnapshot())
                             shouldCreateGlobalSnapshot = true;
                     }
@@ -948,7 +957,6 @@ void StreamHandler::consumerThreadFunc(int threadId,
 
                 if (shouldCreateGlobalSnapshot) {
                     std::lock_guard<std::mutex> slock(snapshotMutex_);
-                    // Re-check inside lock: another thread may have already snapshotted
                     if (localTemporalStores.begin()->second->shouldCreateSnapshot() ||
                         (centralTemporalStore && centralTemporalStore->shouldCreateSnapshot())) {
                         createGlobalSnapshot();
@@ -961,7 +969,6 @@ void StreamHandler::consumerThreadFunc(int threadId,
             // ---- 4. BATCH PUBLISH (workerBatchMutexes already per-worker) ----
             auto publish_start = std::chrono::high_resolution_clock::now();
             if (part_s == part_d) {
-                // Local edge — only one dump() needed
                 obj["EdgeType"] = "Local";
                 obj["PID"] = part_s;
                 std::string localEdgeData = obj.dump();
@@ -974,13 +981,10 @@ void StreamHandler::consumerThreadFunc(int threadId,
                     if (batchSize >= BATCH_SIZE) flushWorkerBatch(temp_s, false);
                 }
             } else {
-                // Central edge — serialize once, patch PID in the string for dst worker
                 obj["EdgeType"] = "Central";
                 obj["PID"] = part_s;
                 std::string centralEdgeData_s = obj.dump();
 
-                // Build dst variant by replacing "PID":part_s with "PID":part_d
-                // (nlohmann dumps without spaces, e.g. "PID":3)
                 std::string centralEdgeData_d = centralEdgeData_s;
                 {
                     std::string pidOld = "\"PID\":" + std::to_string(part_s);
@@ -1009,7 +1013,7 @@ void StreamHandler::consumerThreadFunc(int threadId,
                 std::chrono::high_resolution_clock::now() - publish_start);
 
             threadMessages++;
-            totalMessages++;
+            totalMessages.fetch_add(1);
 
             // Periodic partial flush to ensure timely delivery
             if (threadMessages % 1000 == 0) {
@@ -1043,10 +1047,6 @@ void StreamHandler::consumerThreadFunc(int threadId,
     streamHandlerLogger().info("Consumer thread " + std::to_string(threadId) +
                                " finished. Processed " + std::to_string(threadMessages) + " messages.");
 }
-
-// ============================================================================
-// COORDINATOR: spawns N parallel consumer threads then handles teardown
-// ============================================================================
 void StreamHandler::listen_to_kafka_topic() {
     OTEL_TRACE_FUNCTION();
     OpenTelemetryUtil::addSpanAttribute("graph.id", std::to_string(graphId));
@@ -1428,6 +1428,8 @@ void StreamHandler::listenViaDirectWorkers(
     }
 
     // Update partition metadata DB now (does not require streaming to be complete).
+
+    StreamRegistry::getInstance().unregisterStream(graphId);
     graphPartitioner.updateMetaDB();
     graphPartitioner.printStats();
     kstream->Unsubscribe();

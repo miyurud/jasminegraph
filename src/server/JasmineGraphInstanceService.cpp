@@ -6368,4 +6368,3 @@ static void send_edges_to_hdfs_command(int connFd, bool *loop_exit_p) {
     instance_logger.info("Finished direct HDFS export for graph " + graphID +
                          " partition " + partitionID + " path=" + hdfsPath);
 }
-
