@@ -43,13 +43,13 @@ class NodeManager {
 
 
 
-    void persistNodeIndex();
-    void persistEdgeIndex();
     std::unordered_map<std::string, unsigned int> readNodeIndex();
     std::unordered_map<std::string, unsigned int> readEdgeIndex();
     void addNodeIndex(std::string nodeId, unsigned int nodeIndex);
 
  public:
+    void persistNodeIndex();
+    void persistEdgeIndex();
     unsigned long nextEdgeIndex = 0;
     static unsigned int nextPropertyIndex;  // Next available property block index
     std::unordered_map<std::string, unsigned int> nodeIndex;
