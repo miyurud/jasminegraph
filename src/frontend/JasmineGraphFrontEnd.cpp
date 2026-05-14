@@ -2825,21 +2825,31 @@ static void process_dataset_command(int connFd, bool *loop_exit_p) {
     frontend_logger.info("Reformatted files created on /home/.jasminegraph/tmp/JSONParser/output");
 }
 
-static bool executeTriangleCountJob(const std::string &masterIP, SQLiteDBInterface *sqlite,
-                                    PerformanceSQLiteDBInterface *perfSqlite, JobScheduler *jobScheduler,
-                                    const std::string &graphId, int uniqueId, int &threadPriority,
-                                    const std::string &jobType,
-                                    const std::string &requestId, const std::string &resultLabel,
-                                    std::string &triangleCount, std::string &errorMessage) {
+struct TriangleCountJobArgs {
+    const std::string &masterIP;
+    SQLiteDBInterface *sqlite;
+    PerformanceSQLiteDBInterface *perfSqlite;
+    JobScheduler *jobScheduler;
+    const std::string &graphId;
+    int uniqueId;
+    int &threadPriority;
+    const std::string &jobType;
+    const std::string &requestId;
+    const std::string &resultLabel;
+    std::string &triangleCount;
+    std::string &errorMessage;
+};
+
+static bool executeTriangleCountJob(TriangleCountJobArgs &args) {
     auto begin = chrono::high_resolution_clock::now();
     JobRequest jobDetails;
-    jobDetails.setJobId(std::to_string(uniqueId));
-    jobDetails.setJobType(jobType);
+    jobDetails.setJobId(std::to_string(args.uniqueId));
+    jobDetails.setJobType(args.jobType);
 
     long graphSLA = -1;
-    if (threadPriority > Conts::DEFAULT_THREAD_PRIORITY) {
-        threadPriority = Conts::HIGH_PRIORITY_DEFAULT_VALUE;
-        graphSLA = JasmineGraphFrontEndCommon::getSLAForGraphId(sqlite, perfSqlite, graphId, jobType,
+    if (args.threadPriority > Conts::DEFAULT_THREAD_PRIORITY) {
+        args.threadPriority = Conts::HIGH_PRIORITY_DEFAULT_VALUE;
+        graphSLA = JasmineGraphFrontEndCommon::getSLAForGraphId(args.sqlite, args.perfSqlite, args.graphId, args.jobType,
                                                                 Conts::SLA_CATEGORY::LATENCY);
         jobDetails.addParameter(Conts::PARAM_KEYS::GRAPH_SLA, std::to_string(graphSLA));
     }
@@ -2856,9 +2866,9 @@ static bool executeTriangleCountJob(const std::string &masterIP, SQLiteDBInterfa
         }
     }
 
-    jobDetails.setPriority(threadPriority);
-    jobDetails.setMasterIP(masterIP);
-    jobDetails.addParameter(Conts::PARAM_KEYS::GRAPH_ID, graphId);
+    jobDetails.setPriority(args.threadPriority);
+    jobDetails.setMasterIP(args.masterIP);
+    jobDetails.addParameter(Conts::PARAM_KEYS::GRAPH_ID, args.graphId);
     jobDetails.addParameter(Conts::PARAM_KEYS::CATEGORY, Conts::SLA_CATEGORY::LATENCY);
     if (canCalibrate) {
         jobDetails.addParameter(Conts::PARAM_KEYS::CAN_CALIBRATE, "true");
@@ -2866,24 +2876,24 @@ static bool executeTriangleCountJob(const std::string &masterIP, SQLiteDBInterfa
         jobDetails.addParameter(Conts::PARAM_KEYS::CAN_CALIBRATE, "false");
     }
 
-    jobScheduler->pushJob(jobDetails);
-    JobResponse jobResponse = jobScheduler->getResult(jobDetails);
-    errorMessage = jobResponse.getParameter(Conts::PARAM_KEYS::ERROR_MESSAGE);
+    args.jobScheduler->pushJob(jobDetails);
+    JobResponse jobResponse = args.jobScheduler->getResult(jobDetails);
+    args.errorMessage = jobResponse.getParameter(Conts::PARAM_KEYS::ERROR_MESSAGE);
 
-    if (!errorMessage.empty()) {
+    if (!args.errorMessage.empty()) {
         return false;
     }
 
-    triangleCount = jobResponse.getParameter(Conts::PARAM_KEYS::TRIANGLE_COUNT);
+    args.triangleCount = jobResponse.getParameter(Conts::PARAM_KEYS::TRIANGLE_COUNT);
 
-    if (threadPriority == Conts::HIGH_PRIORITY_DEFAULT_VALUE) {
+    if (args.threadPriority == Conts::HIGH_PRIORITY_DEFAULT_VALUE) {
         highPriorityTaskCount--;
     }
 
     auto end = chrono::high_resolution_clock::now();
     auto dur = end - begin;
     auto msDuration = std::chrono::duration_cast<std::chrono::milliseconds>(dur).count();
-    frontend_logger.info("Req: " + requestId + " " + resultLabel + triangleCount +
+    frontend_logger.info("Req: " + args.requestId + " " + args.resultLabel + args.triangleCount +
                          " Time Taken: " + to_string(msDuration) + " milliseconds");
 
     return true;
@@ -2979,8 +2989,10 @@ static void triangles_command(std::string masterIP, int connFd, SQLiteDBInterfac
         frontend_logger.info("Started processing request " + reqId);
         std::string triangleCount;
         std::string errorMessage;
-        if (!executeTriangleCountJob(masterIP, sqlite, perfSqlite, jobScheduler, graph_id, uniqueId, threadPriority,
-                                     TRIANGLES, reqId, "Triangle Count: ", triangleCount, errorMessage)) {
+        TriangleCountJobArgs args = {masterIP, sqlite, perfSqlite, jobScheduler, graph_id, uniqueId,
+                                     threadPriority, TRIANGLES, reqId, "Triangle Count: ", triangleCount,
+                                     errorMessage};
+        if (!executeTriangleCountJob(args)) {
             *loop_exit_p = true;
             result_wr = write(connFd, errorMessage.c_str(), errorMessage.length());
 
@@ -4182,9 +4194,10 @@ static void sheep_triangles_command(std::string masterIP, int connFd, SQLiteDBIn
     frontend_logger.info("Started processing sheep triangle counting request " + reqId);
     std::string sheepTriangleCount;
     std::string errorMessage;
-    if (!executeTriangleCountJob(masterIP, sqlite, perfSqlite, jobScheduler, graph_id, uniqueId, threadPriority,
-                                 SHEEP_TRIANGLES, reqId, "Sheep-Partitioned Triangle Count: ", sheepTriangleCount,
-                                 errorMessage)) {
+    TriangleCountJobArgs args = {masterIP, sqlite, perfSqlite, jobScheduler, graph_id, uniqueId,
+                                 threadPriority, SHEEP_TRIANGLES, reqId, "Sheep-Partitioned Triangle Count: ",
+                                 sheepTriangleCount, errorMessage};
+    if (!executeTriangleCountJob(args)) {
         *loop_exit_p = true;
         writeSocketLine(connFd, errorMessage, loop_exit_p);
         return;

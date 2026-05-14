@@ -22,6 +22,7 @@ limitations under the License.
 #include <map>
 #include <unordered_map>
 #include <string>
+#include <string_view>
 
 #include "../../globals.h"
 #include "../k8s/K8sWorkerController.h"
@@ -76,7 +77,7 @@ static void degreeDistributionCommon(std::string graphID, std::string command);
 static int getPortByHost(const std::string &host);
 static int getDataPortByHost(const std::string &host);
 static size_t getWorkerCount();
-static void joinCompletedThreads(std::thread *workerThreads, int file_count, const std::string &graphType, int count);
+static void joinCompletedThreads(std::thread *workerThreads, int file_count, std::string_view graphType, int count);
 
 static std::vector<JasmineGraphServer::worker> hostWorkerList;
 
@@ -1144,7 +1145,7 @@ static bool batchUploadCentralStore(std::string host, int port, int dataPort, in
                                      JasmineGraphInstanceProtocol::BATCH_UPLOAD_CENTRAL);
 }
 
-static void joinCompletedThreads(std::thread *workerThreads, int file_count, const std::string &graphType, int count) {
+static void joinCompletedThreads(std::thread *workerThreads, int file_count, std::string_view graphType, int count) {
     int batch_start = file_count * (graphType == Conts::GRAPH_WITH_ATTRIBUTES ? 6 : 4);
     int batch_end = std::min(batch_start + 10, count);
     for (int i = batch_start; i < batch_end; i++) {
@@ -1155,7 +1156,6 @@ static void joinCompletedThreads(std::thread *workerThreads, int file_count, con
 }
 
 void JasmineGraphServer::copyCentralStoreToAggregateLocation(std::string filePath) {
-
     std::string aggregatorDirPath = Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.aggregatefolder");
 
     if (access(aggregatorDirPath.c_str(), F_OK)) {
