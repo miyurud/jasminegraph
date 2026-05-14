@@ -174,6 +174,9 @@ void InstanceStreamHandler::threadFunction(const std::string& graphIdentifier) {
                                             + std::to_string(edgesProcessed) + " edges written to store");
             }
         }
+        // Persist nodeIndex and edgeIndex after processing batch so queries can find the nodes
+        localStore->nm->persistNodeIndex();
+        localStore->nm->persistEdgeIndex();
     }
     instance_stream_logger.info("[PROC THREAD " + graphIdentifier + "] Terminated after "
                                 + std::to_string(edgesProcessed) + " edges");
