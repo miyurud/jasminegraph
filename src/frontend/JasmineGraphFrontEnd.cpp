@@ -2984,15 +2984,15 @@ static void triangles_command(std::string masterIP, int connFd, SQLiteDBInterfac
 
         int threadPriority = std::atoi(priority.c_str());
 
-        static volatile int reqCounter = 0;
+        static std::atomic<int> reqCounter = 0;
         string reqId = to_string(reqCounter++);
         frontend_logger.info("Started processing request " + reqId);
         std::string triangleCount;
         std::string errorMessage;
-        TriangleCountJobArgs args = {masterIP, sqlite, perfSqlite, jobScheduler, graph_id, uniqueId,
-                                     threadPriority, TRIANGLES, reqId, "Triangle Count: ", triangleCount,
-                                     errorMessage};
-        if (!executeTriangleCountJob(args)) {
+        if (TriangleCountJobArgs args = {masterIP, sqlite, perfSqlite, jobScheduler, graph_id, uniqueId,
+                                         threadPriority, TRIANGLES, reqId, "Triangle Count: ", triangleCount,
+                                         errorMessage};
+            !executeTriangleCountJob(args)) {
             *loop_exit_p = true;
             result_wr = write(connFd, errorMessage.c_str(), errorMessage.length());
 
@@ -4189,15 +4189,15 @@ static void sheep_triangles_command(std::string masterIP, int connFd, SQLiteDBIn
 
     int threadPriority = std::atoi(priority.c_str());
 
-    static volatile int reqCounter = 0;
+    static std::atomic<int> reqCounter = 0;
     string reqId = to_string(reqCounter++);
     frontend_logger.info("Started processing sheep triangle counting request " + reqId);
     std::string sheepTriangleCount;
     std::string errorMessage;
-    TriangleCountJobArgs args = {masterIP, sqlite, perfSqlite, jobScheduler, graph_id, uniqueId,
-                                 threadPriority, SHEEP_TRIANGLES, reqId, "Sheep-Partitioned Triangle Count: ",
-                                 sheepTriangleCount, errorMessage};
-    if (!executeTriangleCountJob(args)) {
+    if (TriangleCountJobArgs args = {masterIP, sqlite, perfSqlite, jobScheduler, graph_id, uniqueId,
+                                     threadPriority, SHEEP_TRIANGLES, reqId, "Sheep-Partitioned Triangle Count: ",
+                                     sheepTriangleCount, errorMessage};
+        !executeTriangleCountJob(args)) {
         *loop_exit_p = true;
         writeSocketLine(connFd, errorMessage, loop_exit_p);
         return;
