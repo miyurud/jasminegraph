@@ -2849,8 +2849,8 @@ static bool executeTriangleCountJob(TriangleCountJobArgs &args) {
     long graphSLA = -1;
     if (args.threadPriority > Conts::DEFAULT_THREAD_PRIORITY) {
         args.threadPriority = Conts::HIGH_PRIORITY_DEFAULT_VALUE;
-        graphSLA = JasmineGraphFrontEndCommon::getSLAForGraphId(args.sqlite, args.perfSqlite, args.graphId, args.jobType,
-                                                                Conts::SLA_CATEGORY::LATENCY);
+        graphSLA = JasmineGraphFrontEndCommon::getSLAForGraphId(args.sqlite, args.perfSqlite, args.graphId,
+            args.jobType, Conts::SLA_CATEGORY::LATENCY);
         jobDetails.addParameter(Conts::PARAM_KEYS::GRAPH_SLA, std::to_string(graphSLA));
     }
 
