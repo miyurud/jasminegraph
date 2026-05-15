@@ -1055,8 +1055,20 @@ void StreamHandler::listen_to_kafka_topic() {
 
     // Assign partitions to workers
     JasmineGraphServer *server = JasmineGraphServer::getInstance();
-    std::vector<JasmineGraphServer::worker> workers = server->workers(workerClients.size());
-    for (int i = 0; i < (int)workerClients.size(); i++) {
+    // Use deterministic worker order (idworker) to match how partitions are assigned in meta DB.
+    // server->workers() is a load-balancer that shuffles based on CPU load, which breaks
+    // the stable mapping needed for streaming partition ownership.
+    std::vector<Utils::worker> uWorkers = Utils::getWorkerList(server->sqlite);
+    std::vector<JasmineGraphServer::worker> workers;
+    for (const auto& uw : uWorkers) {
+        workers.push_back({uw.hostname, std::stoi(uw.port), std::stoi(uw.dataPort)});
+    }
+
+    if (workers.size() < workerClients.size()) {
+        streamHandlerLogger().warn("Fewer workers in DB than active worker clients. Using DB worker list.");
+    }
+
+    for (int i = 0; i < (int)std::min(workerClients.size(), workers.size()); i++) {
         Utils::assignPartitionToWorker(graphId, i, workers.at(i).hostname, workers.at(i).port);
     }
 

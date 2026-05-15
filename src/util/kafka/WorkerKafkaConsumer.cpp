@@ -556,8 +556,13 @@ bool WorkerKafkaConsumer::isErrorInMessage(const cppkafka::Message& msg) {
     if (!msg) return true;
     if (msg.get_error()) {
         auto code = msg.get_error().get_error();
-        if (code == RD_KAFKA_RESP_ERR__PARTITION_EOF) return true;
-        if (code == RD_KAFKA_RESP_ERR__TIMED_OUT)    return true;
+        if (code == RD_KAFKA_RESP_ERR__PARTITION_EOF) {
+            // EOF is expected when we reach the end of a partition
+            return true; 
+        }
+        if (code == RD_KAFKA_RESP_ERR__TIMED_OUT) {
+            return true;
+        }
         workerKafkaLogger().error("Kafka error: " + msg.get_error().to_string());
         return true;
     }

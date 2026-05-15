@@ -132,7 +132,7 @@ std::string Utils::getJasmineGraphProperty(std::string key) {
 std::vector<Utils::worker> Utils::getWorkerList(SQLiteDBInterface *sqlite) {
     vector<Utils::worker> workerVector;
     std::vector<vector<pair<string, string>>> v =
-        sqlite->runSelect("SELECT idworker,user,ip,server_port,server_data_port FROM worker;");
+        sqlite->runSelect("SELECT idworker,user,ip,server_port,server_data_port FROM worker ORDER BY idworker;");
     for (int i = 0; i < v.size(); i++) {
         string workerID = v[i][0].second;
         string user = v[i][1].second;
