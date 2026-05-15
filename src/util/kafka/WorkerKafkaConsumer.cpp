@@ -558,7 +558,7 @@ bool WorkerKafkaConsumer::isErrorInMessage(const cppkafka::Message& msg) {
         auto code = msg.get_error().get_error();
         if (code == RD_KAFKA_RESP_ERR__PARTITION_EOF) {
             // EOF is expected when we reach the end of a partition
-            return true; 
+            return true;
         }
         if (code == RD_KAFKA_RESP_ERR__TIMED_OUT) {
             return true;
