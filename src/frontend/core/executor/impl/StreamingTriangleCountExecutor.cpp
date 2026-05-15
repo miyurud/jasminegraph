@@ -76,7 +76,21 @@ void StreamingTriangleCountExecutor::execute() {
         }));
     }
 
-    if (partitionCount > 2) {
+    // Join local-count worker threads FIRST so that saveLocalValues() has written
+    // central_edges counts to streaming_partition before getCentralRelationCount reads them.
+    for (auto &thread : workerThreads) {
+        if (thread.joinable()) {
+            thread.join();
+        }
+    }
+
+    for (long res : intermRes) {
+        result += res;
+    }
+
+    // Central-store aggregation needs >=2 partitions and must run AFTER workers have
+    // committed their central_edges counts to the streaming_partition table.
+    if (partitionCount >= 2) {
         long aggregatedTriangleCount = StreamingTriangleCountExecutor::aggregateCentralStoreTriangles(
                 sqlite, streamingDB, graphId, masterIP, mode, partitionCount);
         if (mode == "0") {
@@ -87,16 +101,6 @@ void StreamingTriangleCountExecutor::execute() {
             saveCentralValues(streamingDB, graphId, std::to_string(aggregatedTriangleCount + old_result));
             result += (aggregatedTriangleCount + old_result);
         }
-    }
-
-    for (auto &thread : workerThreads) {
-        if (thread.joinable()) {
-            thread.join();
-        }
-    }
-
-    for (long res : intermRes) {
-        result += res;
     }
 
     streaming_triangleCount_logger.info("###STREAMING-TRIANGLE-COUNT-EXECUTOR### Completed local counting");
