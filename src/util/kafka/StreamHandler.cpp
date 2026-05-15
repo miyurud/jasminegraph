@@ -767,13 +767,7 @@ void StreamHandler::flushWorkerBatch(int workerId, bool force) {
     if (workerBatches[workerId].empty()) return;
     if (!force && workerBatches[workerId].size() < BATCH_SIZE) return;
 
-    // assign partitions to workers (keep existing behavior)
-    {
-        std::vector<JasmineGraphServer::worker> workers = JasmineGraphServer::getInstance()->workers(workerClients.size());
-        for (int i = 0; i < (int)workerClients.size(); i++) {
-            Utils::assignPartitionToWorker(graphId, i, workers.at(i).hostname, workers.at(i).port);
-        }
-    }
+    /* Redundant: assignment happens once at start of listen_to_kafka_topic */
 
     // Send all edges individually but asynchronously
     std::vector<std::string> edges = std::move(workerBatches[workerId]);
@@ -1110,12 +1104,14 @@ void StreamHandler::listen_to_kafka_topic() {
     streamHandlerLogger().info("Starting " + std::to_string(numConsumerThreads) +
                                " parallel Kafka consumer threads for topic '" + topic + "'");
 
+    /*
     // For HASH partitioning: workers consume directly from Kafka (eliminates master relay bottleneck)
     if (graphPartitioner.isHashAlgorithm()) {
         streamHandlerLogger().info("Hash partitioning detected: dispatching direct Kafka consuming to workers");
         listenViaDirectWorkers(topic, workers);
         return;
     }
+    */
 
     // Shared state for all consumer threads
     std::atomic<uint64_t> totalMessages{0};
