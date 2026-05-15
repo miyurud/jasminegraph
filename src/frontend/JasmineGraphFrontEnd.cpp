@@ -5049,8 +5049,7 @@ static void page_rank_command(std::string masterIP, int connFd, SQLiteDBInterfac
         return;
     }
 
-    char page_rank_command[FRONTEND_DATA_LENGTH + 1];
-    memset(page_rank_command, 0, FRONTEND_DATA_LENGTH + 1);
+
     string name = "";
     string path = "";
 
@@ -5304,8 +5303,7 @@ static void predict_command(std::string masterIP, int connFd, SQLiteDBInterface 
             return;
         }
 
-        char predict_data[301];
-        memset(predict_data, 0, 301);
+
         string graphID = "";
         string modelID = "";
         string path = "";
@@ -5342,8 +5340,7 @@ static void predict_command(std::string masterIP, int connFd, SQLiteDBInterface 
             *loop_exit_p = true;
             return;
         }
-        char predict_data[301];
-        memset(predict_data, 0, 301);
+
         string graphID = "";
         string path = "";
 
