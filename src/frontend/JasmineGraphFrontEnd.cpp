@@ -2346,8 +2346,6 @@ static void add_rdf_command(std::string masterIP, int connFd, SQLiteDBInterface 
     }
 
     // We get the name and the path to graph as a pair separated by |.
-    char graph_data[FRONTEND_DATA_LENGTH + 1];
-    memset(graph_data, 0, FRONTEND_DATA_LENGTH + 1);
     string name = "";
     string path = "";
 
@@ -2438,9 +2436,6 @@ static void add_graph_command(std::string masterIP, int connFd, SQLiteDBInterfac
     }
 
     // We get the name and the path to graph as a pair separated by |.
-    char graph_data[FRONTEND_DATA_LENGTH + 1];
-    char partition_count[FRONTEND_DATA_LENGTH + 1];
-    memset(graph_data, 0, FRONTEND_DATA_LENGTH + 1);
     string name = "";
     string path = "";
     string partitionCount = "";
@@ -2596,8 +2591,6 @@ static void add_graph_cust_command(std::string masterIP, int connFd, SQLiteDBInt
         *loop_exit_p = true;
         return;
     }
-    char graph_data[FRONTEND_DATA_LENGTH + 1];
-    memset(graph_data, 0, FRONTEND_DATA_LENGTH + 1);
     string name = "";
     string edgeListPath = "";
     string attributeListPath = "";
@@ -2695,8 +2688,6 @@ static void remove_graph_command(std::string masterIP, int connFd, SQLiteDBInter
     }
 
     // We get the name and the path to graph as a pair separated by |.
-    char graph_id[FRONTEND_DATA_LENGTH + 1];
-    memset(graph_id, 0, FRONTEND_DATA_LENGTH + 1);
     string name = "";
     string path = "";
     std::string graphID = read_frontend_socket_value(connFd);
@@ -2814,8 +2805,6 @@ static void add_model_command(int connFd, SQLiteDBInterface *sqlite, bool *loop_
         return;
     }
 
-    char graph_data[FRONTEND_DATA_LENGTH + 1];
-    memset(graph_data, 0, FRONTEND_DATA_LENGTH + 1);
     string name = "";
     string path = "";
 
@@ -4984,14 +4973,7 @@ static void in_degree_command(int connFd, bool *loop_exit_p) {
         return;
     }
 
-    char graph_id[FRONTEND_DATA_LENGTH + 1];
-    memset(graph_id, 0, FRONTEND_DATA_LENGTH + 1);
-
-    read(connFd, graph_id, FRONTEND_DATA_LENGTH);
-
-    string graphID(graph_id);
-
-    graphID = Utils::trim_copy(graphID);
+    std::string graphID = read_frontend_socket_value(connFd);
     frontend_logger.info("Graph ID received: " + graphID);
 
     JasmineGraphServer::inDegreeDistribution(graphID);
@@ -5251,14 +5233,7 @@ static void egonet_command(int connFd, bool *loop_exit_p) {
         return;
     }
 
-    char graph_id[FRONTEND_DATA_LENGTH + 1];
-    memset(graph_id, 0, FRONTEND_DATA_LENGTH + 1);
-
-    read(connFd, graph_id, FRONTEND_DATA_LENGTH);
-
-    string graphID(graph_id);
-
-    graphID = Utils::trim_copy(graphID);
+    std::string graphID = read_frontend_socket_value(connFd);
     frontend_logger.info("Graph ID received: " + graphID);
 
     JasmineGraphServer::egoNet(graphID);
@@ -5292,14 +5267,7 @@ static void duplicate_centralstore_command(int connFd, bool *loop_exit_p) {
         return;
     }
 
-    char graph_id[FRONTEND_DATA_LENGTH + 1];
-    memset(graph_id, 0, FRONTEND_DATA_LENGTH + 1);
-
-    read(connFd, graph_id, FRONTEND_DATA_LENGTH);
-
-    string graphID(graph_id);
-
-    graphID = Utils::trim_copy(graphID);
+    std::string graphID = read_frontend_socket_value(connFd);
     frontend_logger.info("Graph ID received: " + graphID);
 
     JasmineGraphServer::duplicateCentralStore(graphID);
