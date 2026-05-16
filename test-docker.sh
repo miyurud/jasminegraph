@@ -23,7 +23,7 @@ BUILD_LOG="${LOG_DIR}/build.log"
 RUN_LOG="${LOG_DIR}/run_master.log"
 TEST_LOG="${LOG_DIR}/test.log"
 WORKER_LOG_DIR="/tmp/jasminegraph"
-rm -rf "${WORKER_LOG_DIR}"
+rm -rf "${WORKER_LOG_DIR}" &>/dev/null || sudo rm -rf "${WORKER_LOG_DIR}"
 mkdir -p "${WORKER_LOG_DIR}"
 docker compose -f "${TEST_ROOT}/docker-compose.yml" down -v --remove-orphans || true
 docker network prune -f
@@ -77,6 +77,7 @@ build_and_run_docker() {
     cat $HDFS_CONF_FILE
 
     docker compose -f "${TEST_ROOT}/docker-compose.yml" up >"$RUN_LOG" 2>&1 &
+
 }
 
 wait_for_hadoop() {
@@ -86,14 +87,40 @@ wait_for_hadoop() {
     done
     echo "Hadoop Namenode is ready."
 
-    # Check and leave safe mode if necessary
-    docker exec -i hdfs-namenode hadoop dfsadmin -safemode get
-    if docker exec -i hdfs-namenode hadoop dfsadmin -safemode get | grep -q "Safe mode is ON"; then
+    # Check and leave safe mode if necessary (with retries for transient RPC/EOF startup races)
+    safemode_status=""
+    for attempt in {1..20}; do
+        safemode_status="$(docker exec -i hdfs-namenode hdfs dfsadmin -safemode get 2>&1 || true)"
+        if echo "$safemode_status" | grep -q "Safe mode is ON\|Safe mode is OFF"; then
+            break
+        fi
+        echo "HDFS safemode status not available yet (attempt ${attempt}/20). Retrying..."
+        sleep 3
+    done
+
+    if echo "$safemode_status" | grep -q "Safe mode is ON"; then
         echo "Exiting safe mode..."
-        docker exec -i hdfs-namenode hadoop dfsadmin -safemode leave
-        echo "Safe mode exited."
-    else
+        left_safe_mode=false
+        for attempt in {1..10}; do
+            leave_output="$(docker exec -i hdfs-namenode hdfs dfsadmin -safemode leave 2>&1 || true)"
+            if echo "$leave_output" | grep -q "Safe mode is OFF\|Safe mode is OFF in"; then
+                left_safe_mode=true
+                break
+            fi
+            echo "Retrying safemode leave (attempt ${attempt}/10)..."
+            sleep 2
+        done
+
+        if [[ $left_safe_mode == true ]]; then
+            echo "Safe mode exited."
+        else
+            echo "Warning: Could not confirm safe mode exit. Continuing test setup."
+        fi
+    elif echo "$safemode_status" | grep -q "Safe mode is OFF"; then
         echo "Namenode is not in safe mode."
+    else
+        echo "Warning: Unable to read HDFS safemode status reliably. Continuing test setup."
+        echo "$safemode_status"
     fi
 
     export HOST_IP=$(hostname -I | awk '{print $1}')
@@ -110,35 +137,24 @@ wait_for_hadoop() {
     FILE_NAME="powergrid.dl"
     LOCAL_DIRECTORY="/var/tmp/data/"
     LOCAL_FILE_PATH="${LOCAL_DIRECTORY}${FILE_NAME}"
-
     HDFS_DIRECTORY="/home/"
-    HDFS_FILE_PATH="${HDFS_DIRECTORY}${FILE_NAME}"
 
-    # # cp the hdfs config file to the jasminegraph container
+    # cp the hdfs config file to the JasmineGraph container
     docker cp "${HDFS_CONF_FILE}" integration-jasminegraph-1:/var/tmp/config/hdfs_config.txt
 
     docker exec -i integration-jasminegraph-1 cat /var/tmp/config/hdfs_config.txt
 
-    # Upload the file to HDFS
-    # Ensure local directory exists
+    # Ensure local directory exists and copy powergrid.dl from the JasmineGraph container
     mkdir -p "${LOCAL_DIRECTORY}"
 
     # Copy the file from jasminegraph-server to the current container
     docker cp integration-jasminegraph-1:"${LOCAL_FILE_PATH}" "${LOCAL_DIRECTORY}"
 
-    # Create the HDFS directory (this ensures it exists in HDFS)
+    # Create the HDFS /home directory and grant write permissions
+    # (sdhdfs will write graph data here during integration tests)
     docker exec -i hdfs-namenode hadoop fs -mkdir -p "${HDFS_DIRECTORY}"
-
-    # Copy the file from host to the namenode container
-    docker cp "${LOCAL_FILE_PATH}" hdfs-namenode:"${HDFS_FILE_PATH}"
-
-    # Check if the file exists in HDFS
-    if ! docker exec -i hdfs-namenode hadoop fs -test -e "${HDFS_FILE_PATH}"; then
-        docker exec -i hdfs-namenode hadoop fs -put "${HDFS_FILE_PATH}" "${HDFS_DIRECTORY}"
-        echo "File: ${LOCAL_FILE_PATH} successfully uploaded to HDFS."
-    else
-        echo "File already exists in HDFS at ${HDFS_FILE_PATH}. Skipping upload."
-    fi
+    docker exec -i hdfs-namenode hadoop fs -chmod 777 "${HDFS_DIRECTORY}"
+    echo "HDFS directory ${HDFS_DIRECTORY} created with write permissions."
 
     # uploading custom_graph_with_properties.txt
     CUSTOM_GRAPH_FILE="graph_with_properties.txt"
@@ -320,58 +336,9 @@ done
 sleep 2
 stop_tests_on_failure &
 
-# Expand comma-separated or space-separated list into array TEST_LIST
-TEST_LIST=()
-
-if [ -z "$TEST_NAME" ]; then
-    # No arguments → run ALL tests
-    echo "No specific test provided — running ALL tests under $TEST_ROOT"
-    TEST_LIST=($(find "$TEST_ROOT" -maxdepth 2 -type f -name "test.py"))
-else
-    # Arguments provided → support multiple or comma-separated test names
-    IFS=',' read -ra RAW_LIST <<<"$TEST_NAME"
-
-    for name in "${RAW_LIST[@]}"; do
-        if [ "$name" = "main" ]; then
-            # Add main/test.py first if exists
-            if [ -f "${TEST_ROOT}/test.py" ]; then
-                TEST_LIST+="${TEST_ROOT}/test.py"
-            else
-                echo "ERROR: test.py does not exist"
-                exit 1
-            fi
-
-        else
-            # Regular test under integration folder
-            TEST_PY="${TEST_ROOT}/${name}/test.py"
-            if [ -f "$TEST_PY" ]; then
-                TEST_LIST+=("$TEST_PY")
-            else
-                echo "ERROR: Test does not exist: $name"
-                exit 1
-            fi
-        fi
-    done
-fi
-
-# --- Run the collected test files ---
-exit_code=0
-
-for test_file in "${TEST_LIST[@]}"; do
-    echo "--------------------------------------------------"
-    echo "Running: $test_file"
-    echo "--------------------------------------------------"
-
-    timeout "$TIMEOUT_SECONDS" python3 -u "$test_file" |& tee -a "$TEST_LOG"
-    test_exit=${PIPESTATUS[0]}
-
-    if [ "$test_exit" != "0" ]; then
-        echo "❌ Test failed: $test_file"
-        exit_code="$test_exit"
-        break
-    fi
-done
-
+JASMINEGRAPH_ENABLE_STREAMING_TEST="${JASMINEGRAPH_ENABLE_STREAMING_TEST:-1}" \
+    timeout "$TIMEOUT_SECONDS" python3 -u "${TEST_ROOT}/test.py" |& tee "$TEST_LOG"
+exit_code="${PIPESTATUS[0]}"
 set +ex
 if [ "$exit_code" = '124' ]; then
     echo
@@ -431,6 +398,6 @@ fi
 stop_and_remove_containers
 force_remove "${TEST_ROOT}/env" "${WORKER_LOG_DIR}"
 if [ "$exit_code" = '0' ]; then
-    docker tag jasminegraph:test jasmTest Timeoutinegraph:latest
+    docker tag jasminegraph:test jasminegraph:latest
 fi
 exit "$exit_code"

@@ -34,6 +34,20 @@ bool FilterHelper::evaluateCondition(std::string condition, std::string data) {
     return false;
 }
 
+ValueType FilterHelper::evaluateOperand(const json &operand, const json &data, const string &otherType) {
+    if (operand["type"] == "PROPERTY_LOOKUP") {
+        std::string variable = operand["variable"];
+        return evaluatePropertyLookup(operand.dump(), data[variable].dump(), otherType);
+    }
+
+    if (operand["type"] == Const::FUNCTION) {
+        return evaluateFunction(operand.dump(), data.dump(), otherType);
+    }
+
+    // only evaluating string, decimal, boolean, null for now
+    return evaluateOtherTypes(operand.dump());
+}
+
 bool FilterHelper::evaluateComparison(std::string condition, std::string raw) {
     json predicate = json::parse(condition);
     json data = json::parse(raw);
@@ -51,30 +65,9 @@ bool FilterHelper::evaluateComparison(std::string condition, std::string raw) {
                              data[right].dump());
     }
 
-    if (predicate["left"]["type"] == "PROPERTY_LOOKUP") {
-        std::string variable = predicate["left"]["variable"];
-        leftValue = evaluatePropertyLookup(predicate["left"].dump(),
-                                           data[variable].dump(), predicate["right"]["type"]);
-    } else if (predicate["left"]["type"] == Const::FUNCTION) {
-        leftValue = evaluateFunction(predicate["left"].dump(),
-                                     data.dump(), predicate["right"]["type"]);
-    } else {
-        //  only evaluating string, decimal, boolean, null for now
-        leftValue = evaluateOtherTypes(predicate["left"].dump());
-    }
+    leftValue = evaluateOperand(predicate["left"], data, predicate["right"]["type"]);
 
-    if (predicate["right"]["type"] == "PROPERTY_LOOKUP") {
-        std::string variable = predicate["right"]["variable"];
-        rightValue = evaluatePropertyLookup(predicate["right"].dump(),
-                                            data[variable].dump(), predicate["left"]["type"]);
-
-    } else if (predicate["right"]["type"] == Const::FUNCTION) {
-        rightValue = evaluateFunction(predicate["right"].dump(),
-                                      data.dump(), predicate["left"]["type"]);
-    } else {
-        //  only evaluating string, decimal, boolean, null for now
-        rightValue = evaluateOtherTypes(predicate["right"].dump());
-    }
+    rightValue = evaluateOperand(predicate["right"], data, predicate["left"]["type"]);
     string op = predicate["operator"];
 
     return std::visit([&op](auto&& lhs, auto&& rhs) -> bool {
@@ -113,17 +106,7 @@ bool FilterHelper::evaluatePredicateExpression(std::string condition, std::strin
                              data[right].dump());
     }
 
-    if (predicate["left"]["type"] == "PROPERTY_LOOKUP") {
-        std::string variable = predicate["left"]["variable"];
-        leftValue = evaluatePropertyLookup(predicate["left"].dump(),
-                                           data[variable].dump(), predicate["right"]["type"]);
-    } else if (predicate["left"]["type"] == Const::FUNCTION) {
-        leftValue = evaluateFunction(predicate["left"].dump(),
-                                     data.dump(), predicate["right"]["type"]);
-    } else {
-        // only evaluating string, decimal, boolean, null for now
-        leftValue = evaluateOtherTypes(predicate["left"].dump());
-    }
+    leftValue = evaluateOperand(predicate["left"], data, predicate["right"]["type"]);
     rightValue = evaluateOtherTypes(predicate["right"].dump());
 
     string op = predicate["operator"];
@@ -584,7 +567,7 @@ void CreateHelper::insertFromData(std::string data, SharedBuffer &buffer) {
                     newRelation->getDestination()->addProperty(std::string(it.key()), &value[0]);
                 }
 
-                std::string destPid = to_string(partitionedEdge[1].second);;
+                std::string destPid = to_string(partitionedEdge[1].second);
                 strcpy(meta, destPid.c_str());
                 newRelation->getDestination()->addMetaProperty(MetaPropertyLink::PARTITION_ID, &meta[0]);
 
@@ -646,7 +629,7 @@ void CreateHelper::insertFromData(std::string data, SharedBuffer &buffer) {
                     newNode->addProperty(std::string(it.key()), &value[0]);
                 }
 
-                std::string sourcePid = to_string(partitionedEdge[0].second);;
+                std::string sourcePid = to_string(partitionedEdge[0].second);
                 strcpy(meta, sourcePid.c_str());
                 newNode->addMetaProperty(MetaPropertyLink::PARTITION_ID, &meta[0]);
 
@@ -740,7 +723,7 @@ void CreateHelper::insertWithoutData(SharedBuffer &buffer) {
                     newRelation->getDestination()->addProperty(std::string(it.key()), &value[0]);
                 }
 
-                std::string destPid = to_string(partitionedEdge[1].second);;
+                std::string destPid = to_string(partitionedEdge[1].second);
                 strcpy(meta, destPid.c_str());
                 newRelation->getDestination()->addMetaProperty(MetaPropertyLink::PARTITION_ID, &meta[0]);
 
@@ -785,7 +768,7 @@ void CreateHelper::insertWithoutData(SharedBuffer &buffer) {
                     newNode->addProperty(std::string(it.key()), &value[0]);
                 }
 
-                std::string sourcePid = to_string(partitionedEdge[0].second);;
+                std::string sourcePid = to_string(partitionedEdge[0].second);
                 strcpy(meta, sourcePid.c_str());
                 newNode->addMetaProperty(MetaPropertyLink::PARTITION_ID, &meta[0]);
 

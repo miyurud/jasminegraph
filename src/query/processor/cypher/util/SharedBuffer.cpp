@@ -56,4 +56,3 @@ std::optional<std::string> SharedBuffer::getWithTimeout(int timeoutSeconds) {
         return std::nullopt;  // timeout
     }
 }
-
