@@ -155,7 +155,7 @@ static void start_remote_worker_command(int connFd, bool *loop_exit_p);
 static void sla_command(int connFd, SQLiteDBInterface *sqlite, PerformanceSQLiteDBInterface *perfSqlite,
                         bool *loop_exit_p);
 static void sheep_command(std::string masterIP, int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_p);
-static void sheep_triangles_command(std::string masterIP, int connFd, SQLiteDBInterface *sqlite,
+static void sheep_triangles_command(const std::string& masterIP, int conn_fd, SQLiteDBInterface *sqlite,
                                     PerformanceSQLiteDBInterface *perfSqlite,
                                     JobScheduler *jobScheduler, bool *loop_exit_p);
 std::map<int, std::shared_ptr<::KGConstructionRate>> JasmineGraphFrontEnd::kgConstructionRates = {};
@@ -4156,40 +4156,40 @@ static void sheep_command(std::string masterIP, int connFd, SQLiteDBInterface *s
     }
 }
 
-static void sheep_triangles_command(std::string masterIP, int connFd, SQLiteDBInterface *sqlite,
+static void sheep_triangles_command(const std::string& masterIP, int conn_fd, SQLiteDBInterface *sqlite,
                                     PerformanceSQLiteDBInterface *perfSqlite, JobScheduler *jobScheduler,
                                     bool *loop_exit_p) {
     frontend_logger.info("Starting sheep triangle counting command");
 
     int uniqueId = JasmineGraphFrontEndCommon::getUid();
-    if (!writeSocketLine(connFd, GRAPHID_SEND, loop_exit_p)) {
+    if (!writeSocketLine(conn_fd, GRAPHID_SEND, loop_exit_p)) {
         return;
     }
-    string graph_id = readTrimmedSocketInput(connFd);
+    string graph_id = readTrimmedSocketInput(conn_fd);
 
     if (!JasmineGraphFrontEndCommon::graphExistsByID(graph_id, sqlite)) {
         string error_message = "The specified graph id does not exist";
-        writeSocketLine(connFd, error_message, loop_exit_p);
+        writeSocketLine(conn_fd, error_message, loop_exit_p);
         *loop_exit_p = true;
         return;
     }
 
-    if (!writeSocketLine(connFd, PRIORITY, loop_exit_p)) {
+    if (!writeSocketLine(conn_fd, PRIORITY, loop_exit_p)) {
         return;
     }
-    string priority = readTrimmedSocketInput(connFd);
+    string priority = readTrimmedSocketInput(conn_fd);
 
     if (!(std::find_if(priority.begin(), priority.end(), [](unsigned char c) { return !std::isdigit(c); }) ==
           priority.end())) {
         *loop_exit_p = true;
         string error_message = "Priority should be numeric and > 1 or empty";
-        writeSocketLine(connFd, error_message, loop_exit_p);
+        writeSocketLine(conn_fd, error_message, loop_exit_p);
         return;
     }
 
     int threadPriority = std::atoi(priority.c_str());
 
-    static std::atomic<int> reqCounter = 0;
+    static std::atomic reqCounter = 0;
     string reqId = to_string(reqCounter++);
     frontend_logger.info("Started processing sheep triangle counting request " + reqId);
     std::string sheepTriangleCount;
@@ -4199,11 +4199,11 @@ static void sheep_triangles_command(std::string masterIP, int connFd, SQLiteDBIn
                                      sheepTriangleCount, errorMessage};
         !executeTriangleCountJob(args)) {
         *loop_exit_p = true;
-        writeSocketLine(connFd, errorMessage, loop_exit_p);
+        writeSocketLine(conn_fd, errorMessage, loop_exit_p);
         return;
     }
 
-    writeSocketLine(connFd, sheepTriangleCount, loop_exit_p);
+    writeSocketLine(conn_fd, sheepTriangleCount, loop_exit_p);
     if (*loop_exit_p) {
         return;
     }
