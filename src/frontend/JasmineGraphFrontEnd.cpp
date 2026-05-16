@@ -1660,7 +1660,7 @@ static void add_stream_kafka_command(int connFd, std::string &kafka_server_IP, c
     auto stopFlag = streamMetadata->stopFlag;
 
     // Create the StreamHandler object with the stop flag
-    auto stream_handler = std::make_shared<StreamHandler>(
+    auto stream_handler = std::make_unique<StreamHandler>(
         kstream, numberOfPartitions, workerClients, sqlite, graphIdInt, direction == Conts::DIRECTED,
         spt::getPartitioner(partitionAlgo), stopFlag);
 
@@ -1686,7 +1686,7 @@ static void add_stream_kafka_command(int connFd, std::string &kafka_server_IP, c
         frontend_logger.warn("Detaching existing Kafka input stream handler thread before starting a new one");
         input_stream_handler_thread.detach();
     }
-    input_stream_handler_thread = thread(&StreamHandler::listen_to_kafka_topic, stream_handler);
+    input_stream_handler_thread = thread(&StreamHandler::listen_to_kafka_topic, std::move(stream_handler));
 
     // Update the stream registry with the new thread ID
     registry.updateStreamThreadId(graphIdInt, input_stream_handler_thread.get_id());
@@ -2770,9 +2770,9 @@ static void stop_stream_kafka_command(int connFd, const std::string &topicName, 
     } else {
         string errorMsg = "Error: Could not signal stop for topic `" + topicName + "`";
         frontend_logger.error(errorMsg);
-        write(connFd, errorMsg.c_str(), errorMsg.length());
-        write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
-        *loop_exit_p = true;
+        if (!writeSocketLine(connFd, errorMsg, loop_exit_p)) {
+            return;
+        }
     }
 }
 
