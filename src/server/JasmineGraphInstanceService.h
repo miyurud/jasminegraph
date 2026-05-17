@@ -55,21 +55,27 @@ int deleteStreamingGraphPartition(std::string graphID, std::string partitionID);
 void removeGraphFragments(std::string graphID);
 
 map<long, long> calculateOutDegreeDist(string graphID, string partitionID, int serverPort,
-                                       std::map<std::string, JasmineGraphHashMapLocalStore, std::less<>> &graphDBMapLocalStores,
-                                       std::map<std::string, JasmineGraphHashMapCentralStore, std::less<>> &graphDBMapCentralStores,
+                                       std::map<std::string, JasmineGraphHashMapLocalStore,
+                                                std::less<>> &graphDBMapLocalStores,
+                                       std::map<std::string, JasmineGraphHashMapCentralStore,
+                                                std::less<>> &graphDBMapCentralStores,
                                        std::vector<string> &workerSockets);
 
 map<long, long> calculateLocalOutDegreeDist(
-    string graphID, string partitionID, std::map<std::string, JasmineGraphHashMapLocalStore, std::less<>> &graphDBMapLocalStores,
+    string graphID, string partitionID,
+    std::map<std::string, JasmineGraphHashMapLocalStore, std::less<>> &graphDBMapLocalStores,
     std::map<std::string, JasmineGraphHashMapCentralStore, std::less<>> &graphDBMapCentralStores);
 
 map<long, long> calculateInDegreeDist(string graphID, string partitionID, int serverPort,
-                                      std::map<std::string, JasmineGraphHashMapLocalStore, std::less<>> &graphDBMapLocalStores,
-                                      std::map<std::string, JasmineGraphHashMapCentralStore, std::less<>> &graphDBMapCentralStores,
+                                      std::map<std::string, JasmineGraphHashMapLocalStore,
+                                               std::less<>> &graphDBMapLocalStores,
+                                      std::map<std::string, JasmineGraphHashMapCentralStore,
+                                               std::less<>> &graphDBMapCentralStores,
                                       std::vector<string> &workerSockets, string workerList);
 
 map<long, long> calculateLocalInDegreeDist(
-    string graphID, string partitionID, std::map<std::string, JasmineGraphHashMapLocalStore, std::less<>> &graphDBMapLocalStores,
+    string graphID, string partitionID,
+    std::map<std::string, JasmineGraphHashMapLocalStore, std::less<>> &graphDBMapLocalStores,
     std::map<std::string, JasmineGraphHashMapCentralStore, std::less<>> &graphDBMapCentralStores);
 
 map<long, map<long, unordered_set<long>>> calculateLocalEgoNet(string graphID, string partitionID, int serverPort,
@@ -121,8 +127,9 @@ class JasmineGraphInstanceService {
     static bool isGraphDBExists(std::string graphId, std::string partitionId);
     static bool isInstanceCentralStoreExists(std::string graphId, std::string partitionId);
     static bool isInstanceDuplicateCentralStoreExists(std::string graphId, std::string partitionId);
-    static void loadLocalStore(std::string graphId, std::string partitionId,
-                               std::map<std::string, JasmineGraphHashMapLocalStore, std::less<>> &graphDBMapLocalStores);
+    static void loadLocalStore(
+        std::string graphId, std::string partitionId,
+        std::map<std::string, JasmineGraphHashMapLocalStore, std::less<>> &graphDBMapLocalStores);
     static JasmineGraphIncrementalLocalStore *loadStreamingStore(
         std::string graphId, std::string partitionId,
         std::map<std::string, JasmineGraphIncrementalLocalStore *> &graphDBMapStreamingStores, std::string openMode ,

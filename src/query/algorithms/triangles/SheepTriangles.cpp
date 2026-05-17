@@ -22,8 +22,8 @@ Logger sheep_triangle_logger;
 long SheepTriangles::run(JasmineGraphHashMapLocalStore &graphDB,
                          JasmineGraphHashMapCentralStore &centralStore,
                          JasmineGraphHashMapDuplicateCentralStore &duplicateCentralStore,
-                         std::string graphId,
-                         std::string partitionId) {
+                         const std::string &graphId,
+                         const std::string &partitionId) {
     OTEL_TRACE_FUNCTION();
 
     std::string workerInfo = "worker_" + graphId + "_partition_" + partitionId;
@@ -71,21 +71,36 @@ long SheepTriangles::run(JasmineGraphHashMapLocalStore &graphDB,
 void SheepTriangles::mergeStores(
     std::map<long, std::unordered_set<long>> &localMap,
     std::map<long, std::unordered_set<long>> &centralMap,
-    std::map<long, std::unordered_set<long>> &duplicateMap) {
+    const std::map<long, std::unordered_set<long>> &duplicateMap) {
 
     // Merge duplicate central into central (avoiding duplicates)
-    for (const auto &entry : duplicateMap) {
-        long vertex = entry.first;
-        const auto &edges = entry.second;
+    for (const auto &[vertex, edges] : duplicateMap) {
         centralMap[vertex].insert(edges.begin(), edges.end());
     }
 
     // Merge central into local
-    for (const auto &entry : centralMap) {
-        long vertex = entry.first;
-        const auto &edges = entry.second;
+    for (const auto &[vertex, edges] : centralMap) {
         localMap[vertex].insert(edges.begin(), edges.end());
     }
+}
+
+static long countTrianglesForPair(long u, long v, const std::unordered_set<long> &u_neighbors,
+                                  const std::unordered_set<long> &v_neighbors, bool returnTriangles,
+                                  std::ostringstream &triangleStream) {
+    long count = 0;
+    for (long w : u_neighbors) {
+        if (w <= v) continue;  // Enforce v < w
+
+        // Check if v is connected to w (completing the triangle)
+        if (v_neighbors.find(w) != v_neighbors.end()) {
+            count++;
+
+            if (returnTriangles) {
+                triangleStream << u << "," << v << "," << w << ":";
+            }
+        }
+    }
+    return count;
 }
 
 SheepTriangleResult SheepTriangles::countTriangles(
@@ -111,20 +126,8 @@ SheepTriangleResult SheepTriangles::countTriangles(
             if (v_it == edgeMap.end()) continue;
             const auto &v_neighbors = v_it->second;
 
-            // For each neighbor w of u where w > v (enforce u < v < w)
-            for (long w : u_neighbors) {
-                if (w <= v) continue;  // Enforce v < w
-
-                // Check if v is connected to w (completing the triangle)
-                if (v_neighbors.find(w) != v_neighbors.end()) {
-                    // Found triangle (u, v, w) with u < v < w
-                    result.count++;
-
-                    if (returnTriangles) {
-                        triangleStream << u << "," << v << "," << w << ":";
-                    }
-                }
-            }
+            result.count += countTrianglesForPair(u, v, u_neighbors, v_neighbors,
+                                                 returnTriangles, triangleStream);
         }
     }
 

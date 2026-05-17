@@ -48,8 +48,8 @@ class SheepTriangles {
     static long run(JasmineGraphHashMapLocalStore &graphDB,
                    JasmineGraphHashMapCentralStore &centralStore,
                    JasmineGraphHashMapDuplicateCentralStore &duplicateCentralStore,
-                   std::string graphId,
-                   std::string partitionId);
+                   const std::string &graphId,
+                   const std::string &partitionId);
 
  private:
     /**
@@ -66,7 +66,7 @@ class SheepTriangles {
     static void mergeStores(
         std::map<long, std::unordered_set<long>> &localMap,
         std::map<long, std::unordered_set<long>> &centralMap,
-        std::map<long, std::unordered_set<long>> &duplicateMap);
+        const std::map<long, std::unordered_set<long>> &duplicateMap);
 };
 
 #endif  // JASMINEGRAPH_SHEEPTRIANGLES_H
