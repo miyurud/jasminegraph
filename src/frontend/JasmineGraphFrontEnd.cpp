@@ -2984,7 +2984,7 @@ static void triangles_command(std::string masterIP, int connFd, SQLiteDBInterfac
 
         int threadPriority = std::atoi(priority.c_str());
 
-        static std::atomic<int> reqCounter = 0;
+        static std::atomic reqCounter = 0;
         string reqId = to_string(reqCounter++);
         frontend_logger.info("Started processing request " + reqId);
         std::string triangleCount;
@@ -4061,7 +4061,7 @@ void JasmineGraphFrontEnd::stop_graph_streaming(int connFd, bool *loop_exit_p) {
     }
 }
 
-static void sheep_command(std::string masterIP, int conn_fd, SQLiteDBInterface *sqlite, bool *loop_exit_p) {
+static void sheep_command(const std::string& masterIP, int conn_fd, SQLiteDBInterface *sqlite, bool *loop_exit_p) {
     frontend_logger.info("Starting sheep partitioning command");
     if (!writeSocketLine(conn_fd, "send graph name", loop_exit_p)) {
         return;
@@ -4082,7 +4082,7 @@ static void sheep_command(std::string masterIP, int conn_fd, SQLiteDBInterface *
     int numPartitions = 0;
     try {
         numPartitions = std::stoi(partitionCount);
-    } catch (...) {
+    } catch (const std::invalid_argument& e) {
         frontend_logger.error("Invalid partition count received: " + partitionCount);
         *loop_exit_p = true;
         writeSocketLine(conn_fd, "error: invalid partition count", loop_exit_p);
@@ -4100,9 +4100,8 @@ static void sheep_command(std::string masterIP, int conn_fd, SQLiteDBInterface *
 
     // Insert graph record into metadb
     std::time_t time = chrono::system_clock::to_time_t(chrono::system_clock::now());
-    char timeBuffer[26];
-    ctime_r(&time, timeBuffer);
-    string uploadStartTime(timeBuffer);
+    string uploadStartTime(26, '\0');
+    ctime_r(&time, &uploadStartTime[0]);
     uploadStartTime = Utils::trim_copy(uploadStartTime);
 
     string sqlStatement =
@@ -4139,7 +4138,8 @@ static void sheep_command(std::string masterIP, int conn_fd, SQLiteDBInterface *
         server->uploadGraphLocally(graphID, Conts::GRAPH_TYPE_NORMAL, fullFileList, masterIP);
 
         // Clean up temporary directory if it exists
-        if (string tempDir = Utils::getHomeDir() + "/.jasminegraph/tmp/" + to_string(graphID); Utils::fileExists(tempDir)) {
+        if (string tempDir = Utils::getHomeDir() + "/.jasminegraph/tmp/" + to_string(graphID);
+            Utils::fileExists(tempDir)) {
             Utils::deleteDirectory(tempDir);
         }
 
