@@ -325,7 +325,7 @@ int alloc_net_plan(std::map<int, string> &alloc, std::vector<int> &parts,
     return best;
 }
 
-void filter_partitions(std::map<string, std::vector<string>> &partitionMap, SQLiteDBInterface *sqlite,
+void filter_partitions(std::map<string, std::vector<string>, std::less<>> &partitionMap, SQLiteDBInterface *sqlite,
                               string graphId) {
     map<string, string> workers;  // id => "ip:port"
     const std::vector<vector<pair<string, string>>> &results =
@@ -459,7 +459,7 @@ void TriangleCountExecutor::execute() {
 long TriangleCountExecutor::getTriangleCount(
     int graphId, std::string host, int port, int dataPort, int partitionId, std::string masterIP, int uniqueId,
     bool isCompositeAggregation, int threadPriority, std::vector<std::vector<string>> fileCombinations,
-    std::map<std::string, std::string> *combinationWorkerMap_p,
+    std::map<std::string, std::string, std::less<>> *combinationWorkerMap_p,
     std::unordered_map<long, std::unordered_map<long, std::unordered_set<long>>> *triangleTree_p,
     std::mutex *triangleTreeMutex_p, const std::string& masterTraceContext) {
 
@@ -669,7 +669,7 @@ long TriangleCountExecutor::getTriangleCount(
                 std::string adjustedTransferredFile = transferredFiles.substr(0, transferredFiles.size() - 1);
 
                 fileCombinationMutex.lock();
-                std::map<std::string, std::string> &combinationWorkerMap = *combinationWorkerMap_p;
+                std::map<std::string, std::string, std::less<>> &combinationWorkerMap = *combinationWorkerMap_p;
                 if (combinationWorkerMap.find(combinationKey) == combinationWorkerMap.end()) {
                     if (partitionIdSet.find(std::to_string(partitionId)) != partitionIdSet.end()) {
                         combinationWorkerMap[combinationKey] = std::to_string(partitionId);
@@ -987,7 +987,7 @@ long TriangleCountExecutor::aggregateCentralStoreTriangles(SQLiteDBInterface *sq
     }
 
     const std::vector<std::string> &triangles = Utils::split(result, ':');
-    std::set<std::string> uniqueTriangleSet;
+    std::set<std::string, std::less<>> uniqueTriangleSet;
     for (auto triangleIterator = triangles.begin(); triangleIterator != triangles.end(); ++triangleIterator) {
         std::string triangle = *triangleIterator;
 
@@ -1750,7 +1750,7 @@ int TriangleCountExecutor::getUid() {
     return ++uid;
 }
 
-static std::map<string, std::vector<string>> buildPartitionMap(
+static std::map<string, std::vector<string>, std::less<>> buildPartitionMap(
     SQLiteDBInterface *sqlite, const std::string &graphId, const std::string &logPrefix, Logger &logger) {
     string sqlStatement =
         "SELECT DISTINCT worker_idworker,partition_idpartition "
@@ -1758,7 +1758,7 @@ static std::map<string, std::vector<string>> buildPartitionMap(
         "WHERE partition_graph_idgraph=" + graphId + ";";
 
     const std::vector<vector<pair<string, string>>> &results = sqlite->runSelect(sqlStatement);
-    std::map<string, std::vector<string>> partitionMap;
+    std::map<string, std::vector<string>, std::less<>> partitionMap;
 
     for (auto i = results.begin(); i != results.end(); ++i) {
         const std::vector<pair<string, string>> &rowData = *i;
@@ -1802,7 +1802,7 @@ static std::vector<std::vector<string>> getCompositeFileCombinations(const std::
 
 static int distributeTasksToWorkers(
     SQLiteDBInterface *sqlite,
-    const std::map<string, std::vector<string>> &partitionMap,
+    const std::map<string, std::vector<string>, std::less<>> &partitionMap,
     const std::string &graphId,
     const std::string &masterIP,
     int uniqueId,
@@ -1811,7 +1811,7 @@ static int distributeTasksToWorkers(
     const std::vector<std::vector<string>> &fileCombinations,
     ThreadingStrategy strategy,
     Logger &logger,
-    std::map<std::string, std::string> &combinationWorkerMap,
+    std::map<std::string, std::string, std::less<>> &combinationWorkerMap,
     std::unordered_map<long, std::unordered_map<long, std::unordered_set<long>>> &triangleTree,
     std::mutex &triangleTreeMutex,
     std::vector<std::tuple<string, string, string>> &workerTaskInfo,
@@ -2014,7 +2014,7 @@ void TriangleCountExecutor::executeTriangleCount(SQLiteDBInterface *sqlite, Perf
     bool isCompositeAggregation = false;
     auto begin = chrono::high_resolution_clock::now();
 
-    std::map<string, std::vector<string>> partitionMap = buildPartitionMap(sqlite, graphId, logPrefix, logger);
+    std::map<string, std::vector<string>, std::less<>> partitionMap = buildPartitionMap(sqlite, graphId, logPrefix, logger);
 
     size_t totalPartitions = 0;
     for (const auto &[worker, partitions] : partitionMap) {
@@ -2037,7 +2037,7 @@ void TriangleCountExecutor::executeTriangleCount(SQLiteDBInterface *sqlite, Perf
         }
     }
 
-    std::map<std::string, std::string> combinationWorkerMap;
+    std::map<std::string, std::string, std::less<>> combinationWorkerMap;
     std::unordered_map<long, std::unordered_map<long, std::unordered_set<long>>> triangleTree;
     std::mutex triangleTreeMutex;
     std::vector<std::tuple<string, string, string>> workerTaskInfo;
@@ -2060,7 +2060,8 @@ void TriangleCountExecutor::executeTriangleCount(SQLiteDBInterface *sqlite, Perf
 
     {
         OTEL_TRACE_OPERATION("collect_worker_results");
-        result += gatherWorkerResults(strategy, uniqueId, workerTaskInfo, intermThreads, intermResThread, intermResFuture, logger);
+        result += gatherWorkerResults(strategy, uniqueId, workerTaskInfo, intermThreads, intermResThread,
+            intermResFuture, logger);
 
         OTEL_TRACE_OPERATION("cleanup_worker_data_structures");
         triangleTree.clear();

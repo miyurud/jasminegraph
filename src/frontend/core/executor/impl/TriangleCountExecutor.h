@@ -57,7 +57,7 @@ class TriangleCountExecutor : public AbstractExecutor {
     static long getTriangleCount(
         int graphId, std::string host, int port, int dataPort, int partitionId, std::string masterIP, int uniqueId,
         bool isCompositeAggregation, int threadPriority, std::vector<std::vector<string>> fileCombinations,
-        std::map<std::string, std::string> *combinationWorkerMap_p,
+        std::map<std::string, std::string, std::less<>> *combinationWorkerMap_p,
         std::unordered_map<long, std::unordered_map<long, std::unordered_set<long>>> *triangleTree_p,
         std::mutex *triangleTreeMutex_p, const std::string& masterTraceContext);
 
@@ -109,7 +109,7 @@ int alloc_net_plan(std::map<int, std::string> &alloc, std::vector<int> &parts,
                    std::map<std::string, int> &net_loads, std::map<std::string, int> &loads,
                    const std::map<int, std::vector<std::string>> &P_AVAIL, int C);
 
-void filter_partitions(std::map<std::string, std::vector<std::string>> &partitionMap, SQLiteDBInterface *sqlite,
+void filter_partitions(std::map<std::string, std::vector<std::string>, std::less<>> &partitionMap, SQLiteDBInterface *sqlite,
                       std::string graphId);
 
 // Shared synchronization primitives and state
