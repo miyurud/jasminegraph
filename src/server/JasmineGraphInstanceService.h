@@ -106,7 +106,7 @@ struct instanceservicesessionargs {
     int dataPort;
     std::map<std::string, JasmineGraphHashMapLocalStore> *graphDBMapLocalStores;
     std::map<std::string, JasmineGraphHashMapCentralStore> *graphDBMapCentralStores;
-    std::map<std::string, JasmineGraphHashMapDuplicateCentralStore> *graphDBMapDuplicateCentralStores;
+    std::map<std::string, JasmineGraphHashMapDuplicateCentralStore, std::less<>> *graphDBMapDuplicateCentralStores;
     std::map<std::string, JasmineGraphIncrementalLocalStore *> *incrementalLocalStore;
 };
 
@@ -128,11 +128,12 @@ class JasmineGraphInstanceService {
         std::map<std::string, JasmineGraphIncrementalLocalStore *> &graphDBMapStreamingStores, std::string openMode ,
         bool isEmbed);
     static void loadInstanceCentralStore(
-        std::string graphId, std::string partitionId,
+        const std::string &graphId, const std::string &partitionId,
         std::map<std::string, JasmineGraphHashMapCentralStore> &graphDBMapCentralStores);
     static void loadInstanceDuplicateCentralStore(
-        std::string graphId, std::string partitionId,
-        std::map<std::string, JasmineGraphHashMapDuplicateCentralStore> &graphDBMapDuplicateCentralStores);
+        const std::string &graphId, const std::string &partitionId,
+        std::map<std::string, JasmineGraphHashMapDuplicateCentralStore, std::less<>>
+            &graphDBMapDuplicateCentralStores);
     static JasmineGraphHashMapCentralStore *loadCentralStore(std::string centralStoreFileName);
     static string aggregateCentralStoreTriangles(std::string graphId, std::string partitionId,
                                                  std::string partitionIdList, int threadPriority);

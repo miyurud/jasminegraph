@@ -99,7 +99,7 @@ static void worker_egonet_command(int connFd, int serverPort,
 static void triangles_command(
     int connFd, int serverPort, std::map<std::string, JasmineGraphHashMapLocalStore> &graphDBMapLocalStores,
     std::map<std::string, JasmineGraphHashMapCentralStore> &graphDBMapCentralStores,
-    std::map<std::string, JasmineGraphHashMapDuplicateCentralStore> &graphDBMapDuplicateCentralStores,
+    std::map<std::string, JasmineGraphHashMapDuplicateCentralStore, std::less<>> &graphDBMapDuplicateCentralStores,
     bool *loop_exit_p);
 static void streaming_triangles_command(
     int connFd, int serverPort, std::map<std::string, JasmineGraphIncrementalLocalStore *> &incrementalLocalStoreMap,
@@ -162,7 +162,7 @@ long countLocalTriangles(
     std::string graphId, std::string partitionId,
     std::map<std::string, JasmineGraphHashMapLocalStore> &graphDBMapLocalStores,
     std::map<std::string, JasmineGraphHashMapCentralStore> &graphDBMapCentralStores,
-    std::map<std::string, JasmineGraphHashMapDuplicateCentralStore> &graphDBMapDuplicateCentralStores,
+    std::map<std::string, JasmineGraphHashMapDuplicateCentralStore, std::less<>> &graphDBMapDuplicateCentralStores,
     int threadPriority);
 
 static void processFile(string basicString, bool isLocal, InstanceStreamHandler &handler, bool
@@ -186,7 +186,7 @@ void *instanceservicesession(void *dummyPt) {
     std::map<std::string, JasmineGraphHashMapLocalStore> *graphDBMapLocalStores = sessionargs.graphDBMapLocalStores;
     std::map<std::string, JasmineGraphHashMapCentralStore> *graphDBMapCentralStores =
         sessionargs.graphDBMapCentralStores;
-    std::map<std::string, JasmineGraphHashMapDuplicateCentralStore> *graphDBMapDuplicateCentralStores =
+    std::map<std::string, JasmineGraphHashMapDuplicateCentralStore, std::less<>> *graphDBMapDuplicateCentralStores =
         sessionargs.graphDBMapDuplicateCentralStores;
     std::map<std::string, JasmineGraphIncrementalLocalStore *> &incrementalLocalStoreMap =
         *(sessionargs.incrementalLocalStore);
@@ -373,7 +373,7 @@ void JasmineGraphInstanceService::run(string masterHost, string host, int server
     pthread_mutex_init(&file_lock, NULL);
     std::map<std::string, JasmineGraphHashMapLocalStore> graphDBMapLocalStores;
     std::map<std::string, JasmineGraphHashMapCentralStore> graphDBMapCentralStores;
-    std::map<std::string, JasmineGraphHashMapDuplicateCentralStore> graphDBMapDuplicateCentralStores;
+    std::map<std::string, JasmineGraphHashMapDuplicateCentralStore, std::less<>> graphDBMapDuplicateCentralStores;
     std::map<std::string, JasmineGraphIncrementalLocalStore *> incrementalLocalStore;
     std::thread perfThread = std::thread(&PerformanceUtil::collectPerformanceStatistics);
     perfThread.detach();
@@ -471,7 +471,7 @@ static void loadTriangleStores(
     std::string graphId, std::string partitionId,
     std::map<std::string, JasmineGraphHashMapLocalStore> &graphDBMapLocalStores,
     std::map<std::string, JasmineGraphHashMapCentralStore> &graphDBMapCentralStores,
-    std::map<std::string, JasmineGraphHashMapDuplicateCentralStore> &graphDBMapDuplicateCentralStores) {
+    std::map<std::string, JasmineGraphHashMapDuplicateCentralStore, std::less<>> &graphDBMapDuplicateCentralStores) {
     std::string graphIdentifier = graphId + "_" + partitionId;
     std::string centralGraphIdentifier = graphId + "_centralstore_" + partitionId;
     std::string duplicateCentralGraphIdentifier = graphId + "_centralstore_dp_" + partitionId;
@@ -498,7 +498,7 @@ long countLocalTriangles(
     std::string graphId, std::string partitionId,
     std::map<std::string, JasmineGraphHashMapLocalStore> &graphDBMapLocalStores,
     std::map<std::string, JasmineGraphHashMapCentralStore> &graphDBMapCentralStores,
-    std::map<std::string, JasmineGraphHashMapDuplicateCentralStore> &graphDBMapDuplicateCentralStores,
+    std::map<std::string, JasmineGraphHashMapDuplicateCentralStore, std::less<>> &graphDBMapDuplicateCentralStores,
     int threadPriority) {
     OTEL_TRACE_FUNCTION();
 
@@ -530,7 +530,7 @@ long countLocalSheepTriangles(
     std::string graphId, std::string partitionId,
     std::map<std::string, JasmineGraphHashMapLocalStore> &graphDBMapLocalStores,
     std::map<std::string, JasmineGraphHashMapCentralStore> &graphDBMapCentralStores,
-    std::map<std::string, JasmineGraphHashMapDuplicateCentralStore> &graphDBMapDuplicateCentralStores,
+    std::map<std::string, JasmineGraphHashMapDuplicateCentralStore, std::less<>> &graphDBMapDuplicateCentralStores,
     int threadPriority) {
     OTEL_TRACE_FUNCTION();
 
@@ -614,7 +614,7 @@ void JasmineGraphInstanceService::loadLocalStore(
 }
 
 void JasmineGraphInstanceService::loadInstanceCentralStore(
-    std::string graphId, std::string partitionId,
+    const std::string &graphId, const std::string &partitionId,
     std::map<std::string, JasmineGraphHashMapCentralStore> &graphDBMapCentralStores) {
     instance_logger.info("###INSTANCE### Loading central Store : Started");
     std::string graphIdentifier = graphId + "_centralstore_" + partitionId;
@@ -625,8 +625,8 @@ void JasmineGraphInstanceService::loadInstanceCentralStore(
 }
 
 void JasmineGraphInstanceService::loadInstanceDuplicateCentralStore(
-    std::string graphId, std::string partitionId,
-    std::map<std::string, JasmineGraphHashMapDuplicateCentralStore> &graphDBMapDuplicateCentralStores) {
+    const std::string &graphId, const std::string &partitionId,
+    std::map<std::string, JasmineGraphHashMapDuplicateCentralStore, std::less<>> &graphDBMapDuplicateCentralStores) {
     std::string graphIdentifier = graphId + "_centralstore_dp_" + partitionId;
     JasmineGraphHashMapDuplicateCentralStore jasmineGraphHashMapCentralStore(stoi(graphId), stoi(partitionId));
     jasmineGraphHashMapCentralStore.loadGraph();
@@ -2959,7 +2959,7 @@ template <typename TriangleCountFn>
 static void triangle_counting_command_common(
     int connFd, int serverPort, std::map<std::string, JasmineGraphHashMapLocalStore> &graphDBMapLocalStores,
     std::map<std::string, JasmineGraphHashMapCentralStore> &graphDBMapCentralStores,
-    std::map<std::string, JasmineGraphHashMapDuplicateCentralStore> &graphDBMapDuplicateCentralStores,
+    std::map<std::string, JasmineGraphHashMapDuplicateCentralStore, std::less<>> &graphDBMapDuplicateCentralStores,
     bool *loop_exit_p, TriangleCountFn countFn) {
     if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::OK)) {
         *loop_exit_p = true;
@@ -3036,7 +3036,7 @@ static void triangle_counting_command_common(
 static void triangles_command(
     int connFd, int serverPort, std::map<std::string, JasmineGraphHashMapLocalStore> &graphDBMapLocalStores,
     std::map<std::string, JasmineGraphHashMapCentralStore> &graphDBMapCentralStores,
-    std::map<std::string, JasmineGraphHashMapDuplicateCentralStore> &graphDBMapDuplicateCentralStores,
+    std::map<std::string, JasmineGraphHashMapDuplicateCentralStore, std::less<>> &graphDBMapDuplicateCentralStores,
     bool *loop_exit_p) {
     triangle_counting_command_common(connFd, serverPort, graphDBMapLocalStores, graphDBMapCentralStores,
                                      graphDBMapDuplicateCentralStores, loop_exit_p, countLocalTriangles);
@@ -3045,7 +3045,7 @@ static void triangles_command(
 static void sheep_triangles_command(
     int connFd, int serverPort, std::map<std::string, JasmineGraphHashMapLocalStore> &graphDBMapLocalStores,
     std::map<std::string, JasmineGraphHashMapCentralStore> &graphDBMapCentralStores,
-    std::map<std::string, JasmineGraphHashMapDuplicateCentralStore> &graphDBMapDuplicateCentralStores,
+    std::map<std::string, JasmineGraphHashMapDuplicateCentralStore, std::less<>> &graphDBMapDuplicateCentralStores,
     bool *loop_exit_p) {
     triangle_counting_command_common(connFd, serverPort, graphDBMapLocalStores, graphDBMapCentralStores,
                                      graphDBMapDuplicateCentralStores, loop_exit_p, countLocalSheepTriangles);
