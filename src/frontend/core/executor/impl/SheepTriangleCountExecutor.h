@@ -42,7 +42,7 @@ class SheepTriangleCountExecutor : public AbstractExecutor {
 
     void execute();
 
-    int getUid();
+    int getUid() const;
 
  private:
     SQLiteDBInterface *sqlite;

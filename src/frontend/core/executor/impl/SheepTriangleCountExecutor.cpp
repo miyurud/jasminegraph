@@ -19,13 +19,11 @@ Logger sheepTriangleCount_logger;
 SheepTriangleCountExecutor::SheepTriangleCountExecutor() {}
 
 SheepTriangleCountExecutor::SheepTriangleCountExecutor(SQLiteDBInterface *db, PerformanceSQLiteDBInterface *perfDb,
-                                                       JobRequest jobRequest) {
-    this->sqlite = db;
-    this->perfDB = perfDb;
-    this->request = jobRequest;
+                                                       JobRequest jobRequest)
+    : sqlite(db), perfDB(perfDb), request(jobRequest) {
 }
 
-int SheepTriangleCountExecutor::getUid() {
+int SheepTriangleCountExecutor::getUid() const {
     static int counter = 0;
     return counter++;
 }

@@ -154,7 +154,7 @@ static void predict_command(std::string masterIP, int connFd, SQLiteDBInterface 
 static void start_remote_worker_command(int connFd, bool *loop_exit_p);
 static void sla_command(int connFd, SQLiteDBInterface *sqlite, PerformanceSQLiteDBInterface *perfSqlite,
                         bool *loop_exit_p);
-static void sheep_command(std::string masterIP, int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_p);
+static void sheep_command(const std::string& masterIP, int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_p);
 static void sheep_triangles_command(const std::string& masterIP, int conn_fd, SQLiteDBInterface *sqlite,
                                     PerformanceSQLiteDBInterface *perfSqlite,
                                     JobScheduler *jobScheduler, bool *loop_exit_p);
@@ -4082,7 +4082,7 @@ static void sheep_command(const std::string& masterIP, int conn_fd, SQLiteDBInte
     int numPartitions = 0;
     try {
         numPartitions = std::stoi(partitionCount);
-    } catch (const std::invalid_argument& e) {
+    } catch (const std::invalid_argument&) {
         frontend_logger.error("Invalid partition count received: " + partitionCount);
         *loop_exit_p = true;
         writeSocketLine(conn_fd, "error: invalid partition count", loop_exit_p);
