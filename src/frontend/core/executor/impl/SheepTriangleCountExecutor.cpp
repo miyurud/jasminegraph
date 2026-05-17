@@ -16,10 +16,10 @@ limitations under the License.
 
 Logger sheepTriangleCount_logger;
 
-SheepTriangleCountExecutor::SheepTriangleCountExecutor() {}
+// SheepTriangleCountExecutor::SheepTriangleCountExecutor() = default;
 
 SheepTriangleCountExecutor::SheepTriangleCountExecutor(SQLiteDBInterface *db, PerformanceSQLiteDBInterface *perfDb,
-                                                       JobRequest jobRequest)
+                                                       const JobRequest& jobRequest)
     : sqlite(db), perfDB(perfDb), request(jobRequest) {
 }
 

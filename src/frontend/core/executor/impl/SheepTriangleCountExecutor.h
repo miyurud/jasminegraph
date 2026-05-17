@@ -38,7 +38,7 @@ class SheepTriangleCountExecutor : public AbstractExecutor {
  public:
     SheepTriangleCountExecutor();
 
-    SheepTriangleCountExecutor(SQLiteDBInterface *db, PerformanceSQLiteDBInterface *perfDb, JobRequest jobRequest);
+    SheepTriangleCountExecutor(SQLiteDBInterface *db, PerformanceSQLiteDBInterface *perfDb, const JobRequest& jobRequest);
 
     void execute();
 
