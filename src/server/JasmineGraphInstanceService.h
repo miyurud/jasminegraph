@@ -54,7 +54,7 @@ int deleteGraphPartition(std::string graphID, std::string partitionID);
 int deleteStreamingGraphPartition(std::string graphID, std::string partitionID);
 void removeGraphFragments(std::string graphID);
 
-map<long, long> calculateOutDegreeDist(string graphID, string partitionID, int serverPort,
+map<long, long> calculateOutDegreeDist(const string &graphID, const string &partitionID, int serverPort,
                                        std::map<std::string, JasmineGraphHashMapLocalStore,
                                                 std::less<>> &graphDBMapLocalStores,
                                        std::map<std::string, JasmineGraphHashMapCentralStore,
@@ -62,7 +62,7 @@ map<long, long> calculateOutDegreeDist(string graphID, string partitionID, int s
                                        std::vector<string> &workerSockets);
 
 map<long, long> calculateLocalOutDegreeDist(
-    string graphID, string partitionID,
+    const string &graphID, const string &partitionID,
     std::map<std::string, JasmineGraphHashMapLocalStore, std::less<>> &graphDBMapLocalStores,
     std::map<std::string, JasmineGraphHashMapCentralStore, std::less<>> &graphDBMapCentralStores);
 
@@ -74,9 +74,9 @@ map<long, long> calculateInDegreeDist(string graphID, string partitionID, int se
                                       std::vector<string> &workerSockets, string workerList);
 
 map<long, long> calculateLocalInDegreeDist(
-    string graphID, string partitionID,
+    const string &graphID, const string &partitionID,
     std::map<std::string, JasmineGraphHashMapLocalStore, std::less<>> &graphDBMapLocalStores,
-    std::map<std::string, JasmineGraphHashMapCentralStore, std::less<>> &graphDBMapCentralStores);
+    const std::map<std::string, JasmineGraphHashMapCentralStore, std::less<>> &graphDBMapCentralStores);
 
 map<long, map<long, unordered_set<long>>> calculateLocalEgoNet(string graphID, string partitionID, int serverPort,
                                                                JasmineGraphHashMapLocalStore localDB,

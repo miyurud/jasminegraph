@@ -1297,7 +1297,7 @@ bool JasmineGraphInstanceService::duplicateCentralStore(int thisWorkerPort, int 
 }
 
 map<long, long> calculateOutDegreeDist(
-    string graphID, string partitionID, int serverPort,
+    const string &graphID, const string &partitionID, int,
     std::map<std::string, JasmineGraphHashMapLocalStore, std::less<>> &graphDBMapLocalStores,
     std::map<std::string, JasmineGraphHashMapCentralStore, std::less<>> &graphDBMapCentralStores,
     std::vector<string> &workerSockets) {
@@ -1321,7 +1321,7 @@ map<long, long> calculateOutDegreeDist(
 }
 
 map<long, long> calculateLocalOutDegreeDist(
-    string graphID, string partitionID,
+    const string &graphID, const string &partitionID,
     std::map<std::string, JasmineGraphHashMapLocalStore, std::less<>> &graphDBMapLocalStores,
     std::map<std::string, JasmineGraphHashMapCentralStore, std::less<>> &graphDBMapCentralStores) {
     auto t_start = std::chrono::high_resolution_clock::now();
@@ -1369,9 +1369,9 @@ map<long, long> calculateLocalOutDegreeDist(
 }
 
 map<long, long> calculateLocalInDegreeDist(
-    string graphID, string partitionID,
+    const string &graphID, const string &partitionID,
     std::map<std::string, JasmineGraphHashMapLocalStore, std::less<>> &graphDBMapLocalStores,
-    std::map<std::string, JasmineGraphHashMapCentralStore, std::less<>>) {
+    const std::map<std::string, JasmineGraphHashMapCentralStore, std::less<>> &) {
     JasmineGraphHashMapLocalStore graphDB;
 
     std::map<std::string, JasmineGraphHashMapLocalStore, std::less<>>::iterator it;
@@ -2570,8 +2570,8 @@ static void out_degree_distribution_command(
 }
 
 static void page_rank_command(int connFd, int serverPort,
-                              std::map<std::string, JasmineGraphHashMapCentralStore, std::less<>> &graphDBMapCentralStores,
-                              bool *loop_exit_p) {
+                              std::map<std::string, JasmineGraphHashMapCentralStore,
+                              std::less<>> &graphDBMapCentralStores, bool *loop_exit_p) {
     if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::OK)) {
         *loop_exit_p = true;
         return;

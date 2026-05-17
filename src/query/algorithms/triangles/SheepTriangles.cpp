@@ -111,13 +111,9 @@ SheepTriangleResult SheepTriangles::countTriangles(
     result.count = 0;
 
     std::ostringstream triangleStream;
-    std::unordered_set<std::string> seenTriangles;  // Prevent duplicates
 
     // For each vertex u
-    for (const auto &u_entry : edgeMap) {
-        long u = u_entry.first;
-        const auto &u_neighbors = u_entry.second;
-
+    for (const auto &[u, u_neighbors] : edgeMap) {
         // For each neighbor v of u where v > u (ordering prevents duplicates)
         for (long v : u_neighbors) {
             if (v <= u) continue;  // Enforce u < v

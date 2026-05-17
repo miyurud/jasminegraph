@@ -92,7 +92,7 @@ static void cypher_ast_command(int connFd, vector<DataPublisher *> &workerClient
                                int numberOfPartitions, bool *loop_exit, std::string command);
 
 static bool sendResponse(int conn_fd, const std::string &response, bool *loop_exit_p, size_t length = 0);
-static void processTriangleCount(const std::string &masterIP, int connFd, SQLiteDBInterface *sqlite,
+static void processTriangleCount(const std::string &masterIP, int conn_fd, SQLiteDBInterface *sqlite,
                                  PerformanceSQLiteDBInterface *perfSqlite, JobScheduler *jobScheduler,
                                  bool *loop_exit_p, const std::string &command);
 
@@ -306,7 +306,7 @@ static bool sendResponse(int conn_fd, const std::string &response, bool *loop_ex
     return true;
 }
 
-static void processTriangleCount(const std::string &masterIP, int connFd, SQLiteDBInterface *sqlite,
+static void processTriangleCount(const std::string &masterIP, int conn_fd, SQLiteDBInterface *sqlite,
                                  PerformanceSQLiteDBInterface *perfSqlite, JobScheduler *jobScheduler,
                                  bool *loop_exit_p, const std::string &command) {
     char delimiter = '|';
@@ -326,14 +326,14 @@ static void processTriangleCount(const std::string &masterIP, int connFd, SQLite
     int uniqueId = JasmineGraphFrontEndCommon::getUid();
 
     if (!JasmineGraphFrontEndCommon::graphExistsByID(graph_id, sqlite)) {
-        sendResponse(connFd, "The specified graph id does not exist", loop_exit_p, FRONTEND_COMMAND_LENGTH);
+        sendResponse(conn_fd, "The specified graph id does not exist", loop_exit_p, FRONTEND_COMMAND_LENGTH);
         return;
     }
 
     if (!(std::find_if(priority.begin(), priority.end(), [](unsigned char c) { return !std::isdigit(c); }) ==
           priority.end())) {
         *loop_exit_p = true;
-        sendResponse(connFd, "Priority should be numeric and > 1 or empty", loop_exit_p);
+        sendResponse(conn_fd, "Priority should be numeric and > 1 or empty", loop_exit_p);
         return;
     }
 
@@ -383,7 +383,7 @@ static void processTriangleCount(const std::string &masterIP, int connFd, SQLite
 
     if (!errorMessage.empty()) {
         *loop_exit_p = true;
-        sendResponse(connFd, errorMessage, loop_exit_p);
+        sendResponse(conn_fd, errorMessage, loop_exit_p);
         return;
     }
 
@@ -398,7 +398,7 @@ static void processTriangleCount(const std::string &masterIP, int connFd, SQLite
     auto msDuration = std::chrono::duration_cast<std::chrono::milliseconds>(dur).count();
     ui_frontend_logger.info("Req: " + reqId + " Triangle Count: " + triangleCount +
                             " Time Taken: " + to_string(msDuration) + " milliseconds");
-    sendResponse(connFd, triangleCount, loop_exit_p);
+    sendResponse(conn_fd, triangleCount, loop_exit_p);
 }
 
 static void list_command(int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_p) {

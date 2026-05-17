@@ -27,8 +27,8 @@ limitations under the License.
 
 using std::string;
 
-typedef unsigned long vertex_id;
-typedef short partition_id;
+using vertex_id = unsigned long;
+using partition_id = short;
 
 /**
  * SheepPartitioner implements a streaming graph partitioning algorithm
@@ -39,7 +39,7 @@ typedef short partition_id;
  */
 class SheepPartitioner {
  public:
-    SheepPartitioner(SQLiteDBInterface *sqlite);
+    explicit SheepPartitioner(SQLiteDBInterface *sqlite);
 
     /**
      * Partition a graph using the sheep streaming partitioning algorithm
