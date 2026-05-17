@@ -1856,10 +1856,16 @@ void TriangleCountExecutor::executeTriangleCount(SQLiteDBInterface *sqlite, Perf
                             &triangleTree, &triangleTreeMutex, masterTraceContext);
                 }));
             } else {
-                intermResFuture.push_back(std::async(std::launch::async, TriangleCountExecutor::getTriangleCount,
-                    graphIdInt, host, workerPort, workerDataPort, partitionIdInt, masterIP, uniqueId,
-                    isCompositeAggregation, threadPriority, fileCombinations, &combinationWorkerMap,
-                    &triangleTree, &triangleTreeMutex, masterTraceContext));
+                std::packaged_task<long()> task([graphIdInt, host, workerPort, workerDataPort,
+                    partitionIdInt, masterIP, uniqueId, isCompositeAggregation, threadPriority, fileCombinations,
+                    &combinationWorkerMap, &triangleTree, &triangleTreeMutex, masterTraceContext]() {
+                        return TriangleCountExecutor::getTriangleCount(graphIdInt, host,
+                            workerPort, workerDataPort, partitionIdInt, masterIP, uniqueId,
+                            isCompositeAggregation, threadPriority, fileCombinations, &combinationWorkerMap,
+                            &triangleTree, &triangleTreeMutex, masterTraceContext);
+                });
+                intermResFuture.push_back(task.get_future());
+                intermThreads.push_back(std::thread(std::move(task)));
             }
             partitionCount++;
         }
@@ -1898,10 +1904,7 @@ void TriangleCountExecutor::executeTriangleCount(SQLiteDBInterface *sqlite, Perf
         int taskIndex = 0;
         if (strategy == ThreadingStrategy::THREAD_BASED) {
             for (auto &intermThread : intermThreads) {
-                const auto& taskInfo = workerTaskInfo[taskIndex];
-                string workerID = std::get<0>(taskInfo);
-                string partitionId = std::get<1>(taskInfo);
-                string host = std::get<2>(taskInfo);
+                const auto& [workerID, partitionId, host] = workerTaskInfo[taskIndex];
                 OTEL_TRACE_OPERATION("wait_for_worker_" + workerID + "_partition_" + partitionId + "_on_" + host);
                 logger.info("Waiting for result from worker_" + workerID + " partition_" + partitionId +
                             " host_" + host + " uuid=" + to_string(uniqueId));
@@ -1915,10 +1918,7 @@ void TriangleCountExecutor::executeTriangleCount(SQLiteDBInterface *sqlite, Perf
             }
         } else {
             for (auto &&futureCall : intermResFuture) {
-                const auto& taskInfo = workerTaskInfo[taskIndex];
-                string workerID = std::get<0>(taskInfo);
-                string partitionId = std::get<1>(taskInfo);
-                string host = std::get<2>(taskInfo);
+                const auto& [workerID, partitionId, host] = workerTaskInfo[taskIndex];
                 OTEL_TRACE_OPERATION("wait_for_worker_" + workerID + "_partition_" + partitionId + "_on_" + host);
                 logger.info("Waiting for result from worker_" + workerID + " partition_" + partitionId +
                             " host_" + host + " uuid=" + to_string(uniqueId));
@@ -1928,6 +1928,11 @@ void TriangleCountExecutor::executeTriangleCount(SQLiteDBInterface *sqlite, Perf
                 OTEL_TRACE_OPERATION("aggregate_result_worker_" + workerID + "_partition_" + partitionId);
                 result += worker_result;
                 taskIndex++;
+            }
+            for (auto &intermThread : intermThreads) {
+                if (intermThread.joinable()) {
+                    intermThread.join();
+                }
             }
         }
         OTEL_TRACE_OPERATION("cleanup_worker_data_structures");
