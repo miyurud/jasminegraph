@@ -32,6 +32,7 @@ const string  STOP_CONSTRUCT_KG = "stop-constructkg";
 const string ADD_STREAM_KAFKA_CSV = "adstrmkcsv";
 const string STOP_STREAM_KAFKA = "stopstrm";
 const string STOP_STRIAN = "stopstrian";
+const string KTOP = "ktop";
 const string STREAM_TOPIC_NAME = "topicnm";
 const string PROCESS_DATASET = "process_dataset";
 const string REFORMAT = "reformat";
