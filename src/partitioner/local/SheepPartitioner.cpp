@@ -24,7 +24,7 @@ using namespace std;
 Logger sheep_partitioner_logger;
 
 SheepPartitioner::SheepPartitioner(SQLiteDBInterface *sqlite)
-    : sqlite(sqlite), totalEdges(0), edgeCuts(0), numPartitions(0) {}
+    : sqlite(sqlite) {}
 
 bool SheepPartitioner::loadGraph(const string &graphPath) {
     sheep_partitioner_logger.info("Loading graph from: " + graphPath);
@@ -186,12 +186,12 @@ void SheepPartitioner::calculateEdgeCuts() {
                                  " (" + to_string((edgeCuts * 100.0) / totalEdges) + "%)");
 }
 
-string SheepPartitioner::extractGraphID(const string &outputPath) {
+string SheepPartitioner::extractGraphID(string_view outputPath) const {
     string graphID = "0";
     if (size_t lastSlash = outputPath.find_last_of("/\\"); lastSlash != string::npos) {
-        string filename = outputPath.substr(lastSlash + 1);
+        string_view filename = outputPath.substr(lastSlash + 1);
         if (size_t firstUnderscore = filename.find('_'); firstUnderscore != string::npos) {
-            graphID = filename.substr(0, firstUnderscore);
+            graphID = string(filename.substr(0, firstUnderscore));
         }
     }
     return graphID;
@@ -204,7 +204,7 @@ void SheepPartitioner::buildEdgeMaps(
     std::vector<std::map<int, std::unordered_set<int>>> &localStoreSets,
     std::vector<std::map<int, std::unordered_set<int>>> &centralStoreSets,
     std::vector<std::map<int, std::unordered_set<int>>> &duplicateCentralStoreSets) {
-    
+
     // Build edge maps from adjacency list
     // Key insight: adjacencyList has both A->B and B->A for each edge
     // We process ALL edges where source vertex is in each partition (like Metis)
@@ -240,8 +240,8 @@ void SheepPartitioner::buildEdgeMaps(
 
 void SheepPartitioner::convertStoreSetsToMaps(
     const std::vector<std::map<int, std::unordered_set<int>>> &sets,
-    std::vector<std::map<int, std::vector<int>>> &maps) {
-    
+    std::vector<std::map<int, std::vector<int>>> &maps) const {
+
     for (size_t i = 0; i < numPartitions; i++) {
         for (const auto &[key, val] : sets[i]) {
             maps[i][key] = std::vector<int>(val.begin(), val.end());

@@ -15,6 +15,7 @@ limitations under the License.
 #define JASMINEGRAPH_SHEEPPARTITIONER_H
 
 #include <string>
+#include <string_view>
 #include <vector>
 #include <map>
 #include <unordered_map>
@@ -26,6 +27,7 @@ limitations under the License.
 #include "../../centralstore/JasmineGraphHashMapCentralStore.h"
 
 using std::string;
+using std::string_view;
 
 using vertex_id = unsigned long;
 using partition_id = short;
@@ -58,7 +60,7 @@ class SheepPartitioner {
     void getPartitioningStats();
 
  private:
-    SQLiteDBInterface *sqlite;
+    SQLiteDBInterface *sqlite = nullptr;
 
     // Graph structure
     std::unordered_map<vertex_id, std::vector<vertex_id>> adjacencyList;
@@ -66,9 +68,9 @@ class SheepPartitioner {
     std::vector<size_t> partitionSizes;
 
     // Statistics
-    size_t totalEdges;
-    size_t edgeCuts;
-    size_t numPartitions;
+    size_t totalEdges = 0;
+    size_t edgeCuts = 0;
+    size_t numPartitions = 0;
     std::vector<size_t> partitionVertexCounts;
     std::vector<size_t> partitionEdgeCountsVec;
 
@@ -110,7 +112,7 @@ class SheepPartitioner {
     /**
      * Extract graphID from outputPath (format: path/graphID_)
      */
-    string extractGraphID(const string &outputPath);
+    string extractGraphID(string_view outputPath) const;
 
     /**
      * Build local and central edge maps and counts from adjacency list
@@ -128,7 +130,7 @@ class SheepPartitioner {
      */
     void convertStoreSetsToMaps(
         const std::vector<std::map<int, std::unordered_set<int>>> &sets,
-        std::vector<std::map<int, std::vector<int>>> &maps);
+        std::vector<std::map<int, std::vector<int>>> &maps) const;
 
     /**
      * Serialize and compress a single partition using FlatBuffers
