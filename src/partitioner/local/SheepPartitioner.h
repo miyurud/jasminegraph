@@ -50,7 +50,7 @@ class SheepPartitioner {
      * @return vector of file maps for distribution to workers
      */
     std::vector<std::map<int, std::string>> partitionGraph(int graphID, const string &graphPath,
-                                                            const string &outputPath, int numPartitions);
+                                                            const string &outputPath, int numberOfPartitions);
 
     /**
      * Get partitioning statistics after partitioning

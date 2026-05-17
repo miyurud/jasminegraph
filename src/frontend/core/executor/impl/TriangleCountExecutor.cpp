@@ -2039,7 +2039,7 @@ void TriangleCountExecutor::executeTriangleCount(SQLiteDBInterface *sqlite, Perf
     std::string graphId = request.getParameter(Conts::PARAM_KEYS::GRAPH_ID);
     OTEL_TRACE_FUNCTION();
 
-    std::unique_lock<std::mutex> lock(schedulerMutex);
+    std::unique_lock lock(schedulerMutex);
     if (time_t curr_time = time(nullptr); curr_time < last_exec_time + 8) {
         time_t sleep_duration = last_exec_time + 9 - curr_time;
         last_exec_time = curr_time + sleep_duration;
@@ -2177,7 +2177,7 @@ void TriangleCountExecutor::executeTriangleCount(SQLiteDBInterface *sqlite, Perf
     }
 
     {
-        std::lock_guard<std::mutex> scheduler_lock(schedulerMutex);
+        std::scoped_lock<std::mutex> scheduler_lock(schedulerMutex);
         for (auto it = partitionMap.begin(); it != partitionMap.end(); it++) {
             string worker = it->first;
             used_workers[worker]--;

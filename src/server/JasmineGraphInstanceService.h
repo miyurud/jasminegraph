@@ -66,7 +66,7 @@ map<long, long> calculateLocalOutDegreeDist(
     std::map<std::string, JasmineGraphHashMapLocalStore, std::less<>> &graphDBMapLocalStores,
     std::map<std::string, JasmineGraphHashMapCentralStore, std::less<>> &graphDBMapCentralStores);
 
-map<long, long> calculateInDegreeDist(string graphID, string partitionID, int serverPort,
+map<long, long> calculateInDegreeDist(const string &graphID, const string &partitionID, int serverPort,
                                       std::map<std::string, JasmineGraphHashMapLocalStore,
                                                std::less<>> &graphDBMapLocalStores,
                                       std::map<std::string, JasmineGraphHashMapCentralStore,

@@ -228,14 +228,13 @@ bool SheepPartitioner::writePartitions(const string &outputPath) {
         // Key insight: adjacencyList has both A->B and B->A for each edge
         // We process ALL edges where source vertex is in each partition (like Metis)
         // This ensures each partition gets all edges involving its vertices
-        for (const auto &entry : adjacencyList) {
-            vertex_id source = entry.first;
+        for (const auto &[source, targets] : adjacencyList) {
             partition_id sourcePart = vertexToPartition[source];
 
             // Track vertex in its partition
             partitionVertices[sourcePart].insert(source);
 
-            for (vertex_id target : entry.second) {
+            for (vertex_id target : targets) {
                 partition_id targetPart = vertexToPartition[target];
                 partitionVertices[targetPart].insert(target);
 
@@ -244,9 +243,7 @@ bool SheepPartitioner::writePartitions(const string &outputPath) {
                     // Using set ensures no duplicates even if input has them
                     localStoreSets[sourcePart][source].insert(target);
                     // Count edges only once (when processing from lower vertex ID)
-                    if (source < target) {
-                        localEdgeCounts[sourcePart]++;
-                    }
+                    localEdgeCounts[sourcePart] += (source < target ? 1 : 0);
                 } else {
                     // Cross-partition edge
                     // Add to source partition's central store
@@ -254,9 +251,7 @@ bool SheepPartitioner::writePartitions(const string &outputPath) {
                     // Add to target partition's duplicate central store
                     duplicateCentralStoreSets[targetPart][source].insert(target);
                     // Count edges only once
-                    if (source < target) {
-                        centralEdgeCounts[sourcePart]++;
-                    }
+                    centralEdgeCounts[sourcePart] += (source < target ? 1 : 0);
                 }
             }
         }
@@ -267,14 +262,14 @@ bool SheepPartitioner::writePartitions(const string &outputPath) {
         std::vector<std::map<int, std::vector<int>>> duplicateCentralStoreMaps(numPartitions);
 
         for (size_t i = 0; i < numPartitions; i++) {
-            for (const auto &entry : localStoreSets[i]) {
-                localStoreMaps[i][entry.first] = std::vector<int>(entry.second.begin(), entry.second.end());
+            for (const auto &[key, val] : localStoreSets[i]) {
+                localStoreMaps[i][key] = std::vector<int>(val.begin(), val.end());
             }
-            for (const auto &entry : centralStoreSets[i]) {
-                centralStoreMaps[i][entry.first] = std::vector<int>(entry.second.begin(), entry.second.end());
+            for (const auto &[key, val] : centralStoreSets[i]) {
+                centralStoreMaps[i][key] = std::vector<int>(val.begin(), val.end());
             }
-            for (const auto &entry : duplicateCentralStoreSets[i]) {
-                duplicateCentralStoreMaps[i][entry.first] = std::vector<int>(entry.second.begin(), entry.second.end());
+            for (const auto &[key, val] : duplicateCentralStoreSets[i]) {
+                duplicateCentralStoreMaps[i][key] = std::vector<int>(val.begin(), val.end());
             }
         }
 
@@ -341,20 +336,20 @@ bool SheepPartitioner::writePartitions(const string &outputPath) {
         }
 
         return true;
-    } catch (const std::exception &e) {
-        sheep_partitioner_logger.error("Error writing partitions: " + string(e.what()));
+    } catch (const std::invalid_argument &e) {
+        sheep_partitioner_logger.error("Invalid argument error writing partitions: " + string(e.what()));
         return false;
     }
 }
 
 std::vector<std::map<int, std::string>> SheepPartitioner::partitionGraph(int graphID, const string &graphPath,
-                                                                          const string &outputPath, int numPartitions) {
+                                                                          const string &outputPath, int numberOfPartitions) {
     sheep_partitioner_logger.info("Starting sheep partitioning for graph ID: " + to_string(graphID));
     sheep_partitioner_logger.info("Input graph: " + graphPath);
     sheep_partitioner_logger.info("Output path: " + outputPath);
-    sheep_partitioner_logger.info("Number of partitions: " + to_string(numPartitions));
+    sheep_partitioner_logger.info("Number of partitions: " + to_string(numberOfPartitions));
 
-    this->numPartitions = numPartitions;
+    this->numPartitions = numberOfPartitions;
 
     // Check if input graph exists
     if (!std::filesystem::exists(graphPath)) {
@@ -401,8 +396,8 @@ std::vector<std::map<int, std::string>> SheepPartitioner::partitionGraph(int gra
 
         sheep_partitioner_logger.info("Successfully partitioned graph " + to_string(graphID) +
                                      " using sheep algorithm with " + to_string(numPartitions) + " partitions");
-    } catch (const std::exception &e) {
-        sheep_partitioner_logger.error("Error updating database: " + string(e.what()));
+    } catch (const std::out_of_range &e) {
+        sheep_partitioner_logger.error("Out of range error during database update: " + string(e.what()));
         return fullFileList;
     }
 
@@ -410,9 +405,9 @@ std::vector<std::map<int, std::string>> SheepPartitioner::partitionGraph(int gra
     fullFileList.push_back(partitionFileMap);
     fullFileList.push_back(centralStoreFileList);
     fullFileList.push_back(centralStoreDuplicateFileList);
-    fullFileList.push_back(std::map<int, std::string>());  // Empty attribute files
-    fullFileList.push_back(std::map<int, std::string>());  // Empty central attribute files
-    fullFileList.push_back(std::map<int, std::string>());  // Empty composite central files
+    fullFileList.emplace_back();  // Empty attribute files
+    fullFileList.emplace_back();  // Empty central attribute files
+    fullFileList.emplace_back();  // Empty composite central files
 
     return fullFileList;
 }
