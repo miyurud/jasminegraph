@@ -336,12 +336,18 @@ StreamHandler::StreamHandler(KafkaConnector *kstream, int numberOfPartitions,
         uint64_t timeThreshold = 60;
         uint64_t edgeThreshold = 10000;
 
-        std::string timeStr = Utils::getJasmineGraphProperty("org.jasminegraph.temporal.snapshot.time.seconds");
+        std::string timeStr = Utils::getJasmineGraphPropertyFallback(
+            std::vector<std::string>{
+                "org.jasminegraph.temporal.shared.time.seconds"
+            });
         if (!timeStr.empty()) {
             timeThreshold = std::stoull(timeStr);
         }
 
-        std::string edgeStr = Utils::getJasmineGraphProperty("org.jasminegraph.temporal.snapshot.edge.count");
+        std::string edgeStr = Utils::getJasmineGraphPropertyFallback(
+            std::vector<std::string>{
+                "org.jasminegraph.temporal.shared.edge.count"
+            });
         if (!edgeStr.empty()) {
             edgeThreshold = std::stoull(edgeStr);
         }
@@ -1223,21 +1229,25 @@ void StreamHandler::listenViaDirectWorkers(
     uint64_t timeThreshold = 0, edgeThreshold = 0;
     uint32_t initialSnapshotId = globalSnapshotId;
     if (temporalEnabled) {
-        std::string tProp = Utils::getJasmineGraphProperty(
-            "org.jasminegraph.server.streaming.temporal.time.threshold");
-        std::string eProp = Utils::getJasmineGraphProperty(
-            "org.jasminegraph.server.streaming.temporal.edge.threshold");
+        std::string tProp = Utils::getJasmineGraphPropertyFallback(
+            std::vector<std::string>{
+                "org.jasminegraph.temporal.shared.time.seconds"
+            });
+        std::string eProp = Utils::getJasmineGraphPropertyFallback(
+            std::vector<std::string>{
+                "org.jasminegraph.temporal.shared.edge.count"
+            });
         if (!tProp.empty()) timeThreshold = std::stoull(tProp);
         if (!eProp.empty()) edgeThreshold = std::stoull(eProp);
         streamHandlerLogger().info("[TEMPORAL CFG] listenViaDirectWorkers:"
             " temporalEnabled=true edgeThreshold=" + std::to_string(edgeThreshold) +
             " timeThreshold=" + std::to_string(timeThreshold) +
             " initialSnapshotId=" + std::to_string(initialSnapshotId) +
-            " (rawEdgeProp='" + eProp + "' rawTimeProp='" + tProp + "')");
+            " (rawSharedEdgeProp='" + eProp + "' rawSharedTimeProp='" + tProp + "')");
         if (edgeThreshold == 0 && timeThreshold == 0) {
             streamHandlerLogger().warn("[TEMPORAL CFG] BOTH thresholds are 0 — workers will never"
-                " auto-snapshot. Check org.jasminegraph.server.streaming.temporal.edge.threshold"
-                " and org.jasminegraph.server.streaming.temporal.time.threshold in properties.");
+                " auto-snapshot. Check org.jasminegraph.temporal.shared.edge.count"
+                " and org.jasminegraph.temporal.shared.time.seconds in properties.");
         }
     } else {
         streamHandlerLogger().warn("[TEMPORAL CFG] listenViaDirectWorkers: temporalEnabled=false"

@@ -129,6 +129,15 @@ std::string Utils::getJasmineGraphProperty(std::string key) {
     return "";
 }
 
+std::string Utils::getJasmineGraphPropertyFallback(const std::vector<std::string> &keys) {
+    for (const auto &k : keys) {
+        std::string v = Utils::getJasmineGraphProperty(k);
+        v = Utils::trim_copy(v);
+        if (!v.empty()) return v;
+    }
+    return std::string();
+}
+
 std::vector<Utils::worker> Utils::getWorkerList(SQLiteDBInterface *sqlite) {
     vector<Utils::worker> workerVector;
     std::vector<vector<pair<string, string>>> v =
