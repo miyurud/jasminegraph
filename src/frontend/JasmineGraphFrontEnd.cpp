@@ -4061,31 +4061,31 @@ void JasmineGraphFrontEnd::stop_graph_streaming(int connFd, bool *loop_exit_p) {
     }
 }
 
-static void sheep_command(std::string masterIP, int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_p) {
+static void sheep_command(std::string masterIP, int conn_fd, SQLiteDBInterface *sqlite, bool *loop_exit_p) {
     frontend_logger.info("Starting sheep partitioning command");
-    if (!writeSocketLine(connFd, "send graph name", loop_exit_p)) {
+    if (!writeSocketLine(conn_fd, "send graph name", loop_exit_p)) {
         return;
     }
-    string graphName = readTrimmedSocketInput(connFd);
+    string graphName = readTrimmedSocketInput(conn_fd);
     frontend_logger.info("Graph name received: " + graphName);
 
-    if (!writeSocketLine(connFd, "send graph path", loop_exit_p)) {
+    if (!writeSocketLine(conn_fd, "send graph path", loop_exit_p)) {
         return;
     }
-    string graphPath = readTrimmedSocketInput(connFd);
+    string graphPath = readTrimmedSocketInput(conn_fd);
     frontend_logger.info("Graph path received: " + graphPath);
 
-    if (!writeSocketLine(connFd, "send number of partitions", loop_exit_p)) {
+    if (!writeSocketLine(conn_fd, "send number of partitions", loop_exit_p)) {
         return;
     }
-    string partitionCount = readTrimmedSocketInput(connFd);
+    string partitionCount = readTrimmedSocketInput(conn_fd);
     int numPartitions = 0;
     try {
         numPartitions = std::stoi(partitionCount);
     } catch (...) {
         frontend_logger.error("Invalid partition count received: " + partitionCount);
         *loop_exit_p = true;
-        writeSocketLine(connFd, "error: invalid partition count", loop_exit_p);
+        writeSocketLine(conn_fd, "error: invalid partition count", loop_exit_p);
         return;
     }
     frontend_logger.info("Number of partitions: " + to_string(numPartitions));
@@ -4093,26 +4093,28 @@ static void sheep_command(std::string masterIP, int connFd, SQLiteDBInterface *s
     // Check if graph file exists
     if (!Utils::fileExists(graphPath)) {
         frontend_logger.error("Graph file does not exist: " + graphPath);
-        writeSocketLine(connFd, "error: graph file not found", loop_exit_p);
+        writeSocketLine(conn_fd, "error: graph file not found", loop_exit_p);
         *loop_exit_p = true;
         return;
     }
 
     // Insert graph record into metadb
     std::time_t time = chrono::system_clock::to_time_t(chrono::system_clock::now());
-    string uploadStartTime = ctime(&time);
+    char timeBuffer[26];
+    ctime_r(&time, timeBuffer);
+    string uploadStartTime(timeBuffer);
     uploadStartTime = Utils::trim_copy(uploadStartTime);
 
     string sqlStatement =
         "INSERT INTO graph (name,upload_path,upload_start_time,upload_end_time,graph_status_idgraph_status,"
         "vertexcount,centralpartitioncount,edgecount) VALUES(\"" +
-        graphName + "\", \"" + graphPath + "\", \"" + uploadStartTime + "\", \"\",\"" +
-        to_string(Conts::GRAPH_STATUS::LOADING) + "\", \"\", \"\", \"\")";
+        graphName + R"(", ")" + graphPath + R"(", ")" + uploadStartTime + R"(", ""," )" +
+        to_string(Conts::GRAPH_STATUS::LOADING) + R"(", "", "", "")";
     int graphID = sqlite->runInsert(sqlStatement);
 
     if (graphID < 0) {
         frontend_logger.error("Failed to insert graph into database");
-        writeSocketLine(connFd, "error: database insertion failed", loop_exit_p);
+        writeSocketLine(conn_fd, "error: database insertion failed", loop_exit_p);
         *loop_exit_p = true;
         return;
     }
@@ -4137,21 +4139,20 @@ static void sheep_command(std::string masterIP, int connFd, SQLiteDBInterface *s
         server->uploadGraphLocally(graphID, Conts::GRAPH_TYPE_NORMAL, fullFileList, masterIP);
 
         // Clean up temporary directory if it exists
-        string tempDir = Utils::getHomeDir() + "/.jasminegraph/tmp/" + to_string(graphID);
-        if (Utils::fileExists(tempDir)) {
+        if (string tempDir = Utils::getHomeDir() + "/.jasminegraph/tmp/" + to_string(graphID); Utils::fileExists(tempDir)) {
             Utils::deleteDirectory(tempDir);
         }
 
         JasmineGraphFrontEndCommon::getAndUpdateUploadTime(to_string(graphID), sqlite);
 
         string message = "sheep partitioning completed for graph ID: " + to_string(graphID);
-        writeSocketLine(connFd, message, loop_exit_p);
+        writeSocketLine(conn_fd, message, loop_exit_p);
         if (*loop_exit_p) {
             return;
         }
     } else {
         frontend_logger.error("Sheep partitioning failed");
-        writeSocketLine(connFd, "error: sheep partitioning failed", loop_exit_p);
+        writeSocketLine(conn_fd, "error: sheep partitioning failed", loop_exit_p);
         *loop_exit_p = true;
     }
 }
