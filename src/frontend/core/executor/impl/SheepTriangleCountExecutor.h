@@ -39,7 +39,7 @@ class SheepTriangleCountExecutor : public AbstractExecutor {
     SheepTriangleCountExecutor(SQLiteDBInterface *db, PerformanceSQLiteDBInterface *perfDb,
         const JobRequest& jobRequest);
 
-    void execute();
+    void execute() override;
 
     int getUid() const;
 
