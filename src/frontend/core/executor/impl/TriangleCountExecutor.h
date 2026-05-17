@@ -94,23 +94,24 @@ class TriangleCountExecutor : public AbstractExecutor {
 
 // Partition filtering and allocation helper functions (shared between executors)
 void allocate(int p, std::string w, std::map<int, std::string> &alloc, std::set<int> &remain,
-             std::map<int, std::vector<std::string>> &p_avail, std::map<std::string, int> &loads);
+             std::map<int, std::vector<std::string>> &p_avail, std::map<std::string, int, std::less<>> &loads);
 
 int alloc_plan(std::map<int, std::string> &alloc, std::set<int> &remain,
-               std::map<int, std::vector<std::string>> &p_avail, std::map<std::string, int> &loads);
+               std::map<int, std::vector<std::string>> &p_avail, std::map<std::string, int, std::less<>> &loads);
 
 std::vector<int> reallocate_parts(std::map<int, std::string> &alloc, std::set<int> &remain,
                                   const std::map<int, std::vector<std::string>> &P_AVAIL);
 
-void scale_up(std::map<std::string, int> &loads, std::map<std::string, std::string> &workers, int copy_cnt);
+void scale_up(std::map<std::string, int, std::less<>> &loads,
+              std::map<std::string, std::string, std::less<>> &workers, int copy_cnt);
 
 int alloc_net_plan(std::map<int, std::string> &alloc, std::vector<int> &parts,
                    std::map<int, std::pair<std::string, std::string>> &transfer,
-                   std::map<std::string, int> &net_loads, std::map<std::string, int> &loads,
+                   std::map<std::string, int, std::less<>> &net_loads, std::map<std::string, int, std::less<>> &loads,
                    const std::map<int, std::vector<std::string>> &P_AVAIL, int C);
 
-void filter_partitions(std::map<std::string, std::vector<std::string>, std::less<>> &partitionMap, SQLiteDBInterface *sqlite,
-                      std::string graphId);
+void filter_partitions(std::map<std::string, std::vector<std::string>, std::less<>> &partitionMap,
+                       SQLiteDBInterface *sqlite, std::string graphId);
 
 // Shared synchronization primitives and state
 extern std::mutex processStatusMutex;

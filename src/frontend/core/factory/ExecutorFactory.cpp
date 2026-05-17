@@ -25,19 +25,19 @@ ExecutorFactory::ExecutorFactory(SQLiteDBInterface *db, PerformanceSQLiteDBInter
     this->perfDB = perfDb;
 }
 
-AbstractExecutor* ExecutorFactory::getExecutor(JobRequest jobRequest) {
+std::unique_ptr<AbstractExecutor> ExecutorFactory::getExecutor(JobRequest jobRequest) {
     if (TRIANGLES == jobRequest.getJobType()) {
-        return new TriangleCountExecutor(this->sqliteDB, this->perfDB, jobRequest);
+        return std::make_unique<TriangleCountExecutor>(this->sqliteDB, this->perfDB, jobRequest);
     } else if (SHEEP_TRIANGLES == jobRequest.getJobType()) {
-        return new SheepTriangleCountExecutor(this->sqliteDB, this->perfDB, jobRequest);
+        return std::make_unique<SheepTriangleCountExecutor>(this->sqliteDB, this->perfDB, jobRequest);
     } else if (STREAMING_TRIANGLES == jobRequest.getJobType()) {
-        return new StreamingTriangleCountExecutor(this->sqliteDB, jobRequest);
+        return std::make_unique<StreamingTriangleCountExecutor>(this->sqliteDB, jobRequest);
     } else if (PAGE_RANK == jobRequest.getJobType()) {
-        return new PageRankExecutor(this->sqliteDB, this->perfDB, jobRequest);
+        return std::make_unique<PageRankExecutor>(this->sqliteDB, this->perfDB, jobRequest);
     } else if (CYPHER == jobRequest.getJobType()) {
-        return new CypherQueryExecutor(this->sqliteDB, this->perfDB, jobRequest);
+        return std::make_unique<CypherQueryExecutor>(this->sqliteDB, this->perfDB, jobRequest);
     } else if (SEMANTIC_BEAM_SEARCH == jobRequest.getJobType()) {
-        return new SemanticBeamSearchExecutor(this->sqliteDB, this->perfDB, jobRequest);
+        return std::make_unique<SemanticBeamSearchExecutor>(this->sqliteDB, this->perfDB, jobRequest);
     }
     return nullptr;
 }

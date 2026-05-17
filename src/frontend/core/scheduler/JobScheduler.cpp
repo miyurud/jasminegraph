@@ -12,6 +12,7 @@ limitations under the License.
  */
 
 #include "JobScheduler.h"
+#include <memory>
 
 #include "../../../util/Conts.h"
 #include "../../../util/logger/Logger.h"
@@ -115,15 +116,13 @@ void JobScheduler::processJob(JobRequest request, SQLiteDBInterface *sqlite, Per
 }
 
 void JobScheduler::executeJob(JobRequest request, SQLiteDBInterface *sqlite, PerformanceSQLiteDBInterface *perfDB) {
-    ExecutorFactory *executorFactory = new ExecutorFactory(sqlite, perfDB);
-    AbstractExecutor *abstractExecutor = executorFactory->getExecutor(request);
-    delete executorFactory;
+    ExecutorFactory executorFactory(sqlite, perfDB);
+    std::unique_ptr<AbstractExecutor> abstractExecutor = executorFactory.getExecutor(request);
     if (abstractExecutor == nullptr) {
         jobScheduler_Logger.error("abstractExecutor is null");
         return;
     }
     abstractExecutor->execute();
-    delete abstractExecutor;
 }
 
 void JobScheduler::pushJob(JobRequest jobDetails) { jobQueue.push(jobDetails); }

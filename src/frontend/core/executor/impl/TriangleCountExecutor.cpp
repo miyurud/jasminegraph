@@ -78,7 +78,7 @@ TriangleCountExecutor::TriangleCountExecutor(SQLiteDBInterface *db, PerformanceS
 }
 
 void allocate(int p, string w, std::map<int, string> &alloc, std::set<int> &remain,
-                     std::map<int, std::vector<string>> &p_avail, std::map<string, int> &loads) {
+                     std::map<int, std::vector<string>> &p_avail, std::map<string, int, std::less<>> &loads) {
     alloc[p] = w;
     remain.erase(p);
     p_avail.erase(p);
@@ -111,7 +111,7 @@ static int get_min_partition(std::set<int> &remain, std::map<int, std::vector<st
 static const std::vector<int> LOAD_PREFERENCE = {2, 3, 1, 0};
 
 int alloc_plan(std::map<int, string> &alloc, std::set<int> &remain, std::map<int, std::vector<string>> &p_avail,
-                      std::map<string, int> &loads) {
+                      std::map<string, int, std::less<>> &loads) {
     for (bool done = false; !done;) {
         string w = "";
         done = true;
@@ -137,7 +137,7 @@ int alloc_plan(std::map<int, string> &alloc, std::set<int> &remain, std::map<int
         std::map<int, string> alloc;
         std::set<int> remain;
         std::map<int, std::vector<string>> p_avail;
-        std::map<string, int> loads;
+        std::map<string, int, std::less<>> loads;
     };
     int best_rem = remain.size();
     struct best_alloc best = {.alloc = alloc, .remain = remain, .p_avail = p_avail, .loads = loads};
@@ -222,7 +222,7 @@ std::vector<int> reallocate_parts(std::map<int, string> &alloc, std::set<int> &r
     return copying;
 }
 
-void scale_up(std::map<string, int> &loads, map<string, string> &workers, int copy_cnt) {
+void scale_up(std::map<string, int, std::less<>> &loads, map<string, string, std::less<>> &workers, int copy_cnt) {
     int curr_load = 0;
     for (auto it = loads.begin(); it != loads.end(); it++) {
         curr_load += it->second;
@@ -245,12 +245,13 @@ void scale_up(std::map<string, int> &loads, map<string, string> &workers, int co
 }
 
 int alloc_net_plan(std::map<int, string> &alloc, std::vector<int> &parts,
-                          std::map<int, std::pair<string, string>> &transfer, std::map<string, int> &net_loads,
-                          std::map<string, int> &loads, const std::map<int, std::vector<string>> &p_avail,
-                          int curr_best) {
+                   std::map<int, std::pair<string, string>> &transfer,
+                   std::map<string, int, std::less<>> &net_loads,
+                   std::map<string, int, std::less<>> &loads,
+                   const std::map<int, std::vector<string>> &p_avail,
+                   int curr_best) {
     int curr_load = std::max_element(net_loads.begin(), net_loads.end(),
-                                     [](const std::map<string, int>::value_type &p1,
-                                        const std::map<string, int>::value_type &p2) { return p1.second < p2.second; })
+                                     [](const auto &p1, const auto &p2) { return p1.second < p2.second; })
                         ->second;
     if (curr_load >= curr_best) {
         return curr_load;
@@ -262,8 +263,8 @@ int alloc_net_plan(std::map<int, string> &alloc, std::vector<int> &parts,
     struct best_net_alloc {
         std::map<int, string> alloc;
         std::map<int, std::pair<string, string>> transfer;
-        std::map<string, int> net_loads;
-        std::map<string, int> loads;
+        std::map<string, int, std::less<>> net_loads;
+        std::map<string, int, std::less<>> loads;
     };
     int best = curr_best;
     struct best_net_alloc best_plan = {.transfer = transfer, .net_loads = net_loads, .loads = loads};
@@ -327,7 +328,7 @@ int alloc_net_plan(std::map<int, string> &alloc, std::vector<int> &parts,
 
 void filter_partitions(std::map<string, std::vector<string>, std::less<>> &partitionMap, SQLiteDBInterface *sqlite,
                               string graphId) {
-    map<string, string> workers;  // id => "ip:port"
+    map<string, string, std::less<>> workers;  // id => "ip:port"
     const std::vector<vector<pair<string, string>>> &results =
         sqlite->runSelect("SELECT DISTINCT idworker,ip,server_port FROM worker;");
     for (int i = 0; i < results.size(); i++) {
@@ -337,7 +338,7 @@ void filter_partitions(std::map<string, std::vector<string>, std::less<>> &parti
         workers[workerId] = ip + ":" + port;
     }
 
-    map<string, int> loads;
+    map<string, int, std::less<>> loads;
     const map<string, string> &cpu_map = Utils::getMetricMap("cpu_usage");
     for (auto it = workers.begin(); it != workers.end(); it++) {
         auto workerId = it->first;
@@ -388,7 +389,7 @@ void filter_partitions(std::map<string, std::vector<string>, std::less<>> &parti
         scale_up(loads, workers, copying.size());
         triangleCount_logger.info("Scale up completed");
 
-        map<string, int> net_loads;
+        map<string, int, std::less<>> net_loads;
         for (auto it = loads.begin(); it != loads.end(); it++) {
             net_loads[it->first] = 0;
         }
@@ -937,9 +938,9 @@ static std::string buildPartitionIdListAndCopyFiles(
     return partitionIdList.substr(0, partitionIdList.size() - 1);
 }
 
-long TriangleCountExecutor::aggregateCentralStoreTriangles(SQLiteDBInterface *sqlite, std::string graphId,
-                                                           std::string masterIP, int threadPriority,
-                                                           const std::map<string, std::vector<string>, std::less<>> &partitionMap) {
+long TriangleCountExecutor::aggregateCentralStoreTriangles(
+    SQLiteDBInterface *sqlite, std::string graphId, std::string masterIP, int threadPriority,
+    const std::map<string, std::vector<string>, std::less<>> &partitionMap) {
     OTEL_TRACE_FUNCTION();
 
     auto [partitionsVector, partitionWorkerMap] = buildPartitionInfo(partitionMap);
@@ -1875,7 +1876,8 @@ static int distributeTasksToWorkers(
                 collector.intermResThread.push_back(0);
 
                 std::map<std::string, std::string, std::less<>> *combWorkerMapPtr = &taskCtx.combinationWorkerMap;
-                std::unordered_map<long, std::unordered_map<long, std::unordered_set<long>>> *triangleTreePtr = &taskCtx.triangleTree;
+                std::unordered_map<long, std::unordered_map<long, std::unordered_set<long>>> *triangleTreePtr =
+                    &taskCtx.triangleTree;
                 std::mutex *triangleTreeMutexPtr = &taskCtx.triangleTreeMutex;
                 std::vector<std::vector<string>> fileCombs = taskCtx.fileCombinations;
                 std::string mTraceCtx = taskCtx.masterTraceContext;
@@ -1896,7 +1898,8 @@ static int distributeTasksToWorkers(
                 }));
             } else {
                 std::map<std::string, std::string, std::less<>> *combWorkerMapPtr = &taskCtx.combinationWorkerMap;
-                std::unordered_map<long, std::unordered_map<long, std::unordered_set<long>>> *triangleTreePtr = &taskCtx.triangleTree;
+                std::unordered_map<long, std::unordered_map<long, std::unordered_set<long>>> *triangleTreePtr =
+                    &taskCtx.triangleTree;
                 std::mutex *triangleTreeMutexPtr = &taskCtx.triangleTreeMutex;
                 std::vector<std::vector<string>> fileCombs = taskCtx.fileCombinations;
                 std::string mTraceCtx = taskCtx.masterTraceContext;
@@ -1933,7 +1936,8 @@ static std::vector<std::thread> handleSLACalibration(
     bool &canCalibrate) {
 
     PerformanceUtil::init();
-    std::string logPrefix = (commandName == TRIANGLES) ? "###TRIANGLE-COUNT-EXECUTOR###" : "###SHEEP-TRIANGLE-COUNT-EXECUTOR###";
+    std::string logPrefix = (commandName == TRIANGLES) ? "###TRIANGLE-COUNT-EXECUTOR###"
+                                                       : "###SHEEP-TRIANGLE-COUNT-EXECUTOR###";
     std::string query = "SELECT attempt from graph_sla INNER JOIN sla_category where "
                         "graph_sla.id_sla_category=sla_category.id and graph_sla.graph_id='" + graphId +
                         "' and graph_sla.partition_count='" + std::to_string(partitionCount) +
@@ -2060,7 +2064,8 @@ void TriangleCountExecutor::executeTriangleCount(SQLiteDBInterface *sqlite, Perf
     bool isCompositeAggregation = false;
     auto begin = chrono::high_resolution_clock::now();
 
-    std::map<string, std::vector<string>, std::less<>> partitionMap = buildPartitionMap(sqlite, graphId, logPrefix, logger);
+    std::map<string, std::vector<string>, std::less<>> partitionMap =
+        buildPartitionMap(sqlite, graphId, logPrefix, logger);
 
     size_t totalPartitions = 0;
     for (const auto &[worker, partitions] : partitionMap) {
