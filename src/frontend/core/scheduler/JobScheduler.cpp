@@ -38,68 +38,69 @@ void *startScheduler(void *dummyPt) {
     JobScheduler *refToScheduler = (JobScheduler *)dummyPt;
     PerformanceUtil::init();
     while (true) {
-        if (jobQueue.size() > 0) {
-            jobScheduler_Logger.info("##JOB SCHEDULER## Jobs Available for Scheduling");
-
-            std::vector<JobRequest> pendingHPJobList;
-            std::vector<std::string> highPriorityGraphList;
-
-            while (!jobQueue.empty()) {
-                JobRequest request = jobQueue.top();
-
-                if (request.getPriority() == Conts::HIGH_PRIORITY_DEFAULT_VALUE &&
-                    (request.getJobType() == TRIANGLES || request.getJobType() == SHEEP_TRIANGLES)) {
-                    pendingHPJobList.push_back(request);
-                    highPriorityGraphList.push_back(request.getParameter(Conts::PARAM_KEYS::GRAPH_ID));
-                    jobQueue.pop();
-                } else if (request.getPriority() == Conts::HIGH_PRIORITY_DEFAULT_VALUE
-                    && request.getJobType() == CYPHER) {
-                    pendingHPJobList.push_back(request);
-                    highPriorityGraphList.push_back(request.getParameter(Conts::PARAM_KEYS::GRAPH_ID));
-                    jobQueue.pop();
-                    } else if (request.getPriority() == Conts::HIGH_PRIORITY_DEFAULT_VALUE
-                        && request.getJobType() == SEMANTIC_BEAM_SEARCH) {
-                        pendingHPJobList.push_back(request);
-                        highPriorityGraphList.push_back(request.getParameter(Conts::PARAM_KEYS::GRAPH_ID));
-                        jobQueue.pop();
-                        } else {
-                    jobQueue.pop();
-                    JobScheduler::processJob(request, refToScheduler->sqlite, refToScheduler->perfSqlite);
-                }
-            }
-
-            if (pendingHPJobList.size() > 0) {
-                jobScheduler_Logger.info("##JOB SCHEDULER## High Priority Jobs in Queue: " +
-                                         std::to_string(pendingHPJobList.size()));
-                std::string masterIP = pendingHPJobList[0].getMasterIP();
-                std::string jobType = pendingHPJobList[0].getJobType();
-                std::string category = pendingHPJobList[0].getParameter(Conts::PARAM_KEYS::CATEGORY);
-
-                std::vector<long> scheduleTimeVector = PerformanceUtil::getResourceAvailableTime(
-                    highPriorityGraphList, jobType, category, masterIP, pendingHPJobList);
-
-                for (int index = 0; index != pendingHPJobList.size(); ++index) {
-                    JobRequest hpRequest = pendingHPJobList[index];
-                    long queueTime = scheduleTimeVector[index];
-
-                    if (queueTime < 0) {
-                        JobResponse failedJobResponse;
-                        failedJobResponse.setJobId(hpRequest.getJobId());
-                        failedJobResponse.addParameter(Conts::PARAM_KEYS::ERROR_MESSAGE,
-                                                       "Rejecting the job request because "
-                                                       "SLA cannot be maintained");
-                        responseVectorMutex.lock();
-                        responseMap[hpRequest.getJobId()] = failedJobResponse;
-                        responseVectorMutex.unlock();
-                        continue;
-                    }
-
-                    hpRequest.addParameter(Conts::PARAM_KEYS::QUEUE_TIME, std::to_string(queueTime));
-                    JobScheduler::processJob(hpRequest, refToScheduler->sqlite, refToScheduler->perfSqlite);
-                }
-            }
-        } else {
+        if (jobQueue.empty()) {
             std::this_thread::sleep_for(std::chrono::seconds(Conts::SCHEDULER_SLEEP_TIME));
+            continue;
+        }
+
+        jobScheduler_Logger.info("##JOB SCHEDULER## Jobs Available for Scheduling");
+
+        std::vector<JobRequest> pendingHPJobList;
+        std::vector<std::string> highPriorityGraphList;
+
+        while (!jobQueue.empty()) {
+            JobRequest request = jobQueue.top();
+
+            if (request.getPriority() == Conts::HIGH_PRIORITY_DEFAULT_VALUE &&
+                (request.getJobType() == TRIANGLES || request.getJobType() == SHEEP_TRIANGLES)) {
+                pendingHPJobList.push_back(request);
+                highPriorityGraphList.push_back(request.getParameter(Conts::PARAM_KEYS::GRAPH_ID));
+                jobQueue.pop();
+            } else if (request.getPriority() == Conts::HIGH_PRIORITY_DEFAULT_VALUE
+                && request.getJobType() == CYPHER) {
+                pendingHPJobList.push_back(request);
+                highPriorityGraphList.push_back(request.getParameter(Conts::PARAM_KEYS::GRAPH_ID));
+                jobQueue.pop();
+            } else if (request.getPriority() == Conts::HIGH_PRIORITY_DEFAULT_VALUE
+                && request.getJobType() == SEMANTIC_BEAM_SEARCH) {
+                pendingHPJobList.push_back(request);
+                highPriorityGraphList.push_back(request.getParameter(Conts::PARAM_KEYS::GRAPH_ID));
+                jobQueue.pop();
+            } else {
+                jobQueue.pop();
+                JobScheduler::processJob(request, refToScheduler->sqlite, refToScheduler->perfSqlite);
+            }
+        }
+
+        if (pendingHPJobList.size() > 0) {
+            jobScheduler_Logger.info("##JOB SCHEDULER## High Priority Jobs in Queue: " +
+                                     std::to_string(pendingHPJobList.size()));
+            std::string masterIP = pendingHPJobList[0].getMasterIP();
+            std::string jobType = pendingHPJobList[0].getJobType();
+            std::string category = pendingHPJobList[0].getParameter(Conts::PARAM_KEYS::CATEGORY);
+
+            std::vector<long> scheduleTimeVector = PerformanceUtil::getResourceAvailableTime(
+                highPriorityGraphList, jobType, category, masterIP, pendingHPJobList);
+
+            for (int index = 0; index != pendingHPJobList.size(); ++index) {
+                JobRequest hpRequest = pendingHPJobList[index];
+                long queueTime = scheduleTimeVector[index];
+
+                if (queueTime < 0) {
+                    JobResponse failedJobResponse;
+                    failedJobResponse.setJobId(hpRequest.getJobId());
+                    failedJobResponse.addParameter(Conts::PARAM_KEYS::ERROR_MESSAGE,
+                                                   "Rejecting the job request because "
+                                                   "SLA cannot be maintained");
+                    responseVectorMutex.lock();
+                    responseMap[hpRequest.getJobId()] = failedJobResponse;
+                    responseVectorMutex.unlock();
+                    continue;
+                }
+
+                hpRequest.addParameter(Conts::PARAM_KEYS::QUEUE_TIME, std::to_string(queueTime));
+                JobScheduler::processJob(hpRequest, refToScheduler->sqlite, refToScheduler->perfSqlite);
+            }
         }
     }
     return NULL;

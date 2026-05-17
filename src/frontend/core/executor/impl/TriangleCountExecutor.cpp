@@ -326,18 +326,20 @@ int alloc_net_plan(std::map<int, string> &alloc, std::vector<int> &parts,
     return best;
 }
 
-void filter_partitions(std::map<string, std::vector<string>, std::less<>> &partitionMap, SQLiteDBInterface *sqlite,
-                              string graphId) {
-    map<string, string, std::less<>> workers;  // id => "ip:port"
+static map<string, string, std::less<>> get_workers(SQLiteDBInterface *sqlite) {
+    map<string, string, std::less<>> workers;
     const std::vector<vector<pair<string, string>>> &results =
         sqlite->runSelect("SELECT DISTINCT idworker,ip,server_port FROM worker;");
-    for (int i = 0; i < results.size(); i++) {
+    for (size_t i = 0; i < results.size(); i++) {
         string workerId = results[i][0].second;
         string ip = results[i][1].second;
         string port = results[i][2].second;
         workers[workerId] = ip + ":" + port;
     }
+    return workers;
+}
 
+static map<string, int, std::less<>> get_loads(const map<string, string, std::less<>> &workers) {
     map<string, int, std::less<>> loads;
     const map<string, string> &cpu_map = Utils::getMetricMap("cpu_usage");
     for (auto it = workers.begin(); it != workers.end(); it++) {
@@ -352,9 +354,11 @@ void filter_partitions(std::map<string, std::vector<string>, std::less<>> &parti
             loads[workerId] = 0;
         }
     }
+    return loads;
+}
 
-    std::map<int, std::vector<string>> p_avail;
-    std::set<int> remain;
+static void build_avail_partitions(const std::map<string, std::vector<string>, std::less<>> &partitionMap,
+                                   std::map<int, std::vector<string>> &p_avail, std::set<int> &remain) {
     for (auto it = partitionMap.begin(); it != partitionMap.end(); it++) {
         auto worker = it->first;
         auto &partitions = it->second;
@@ -364,8 +368,10 @@ void filter_partitions(std::map<string, std::vector<string>, std::less<>> &parti
             remain.insert(partition);
         }
     }
-    const std::map<int, std::vector<string>> P_AVAIL = p_avail;  // get a copy and make it const
+}
 
+static void filter_overloaded_workers(const map<string, int, std::less<>> &loads,
+                                     std::map<int, std::vector<string>> &p_avail) {
     for (auto loadIt = loads.begin(); loadIt != loads.end(); loadIt++) {
         if (loadIt->second < 3) continue;
         auto w = loadIt->first;
@@ -380,6 +386,56 @@ void filter_partitions(std::map<string, std::vector<string>, std::less<>> &parti
             }
         }
     }
+}
+
+static void execute_partition_transfers(SQLiteDBInterface *sqlite,
+                                        const std::map<int, std::pair<string, string>> &transfer,
+                                        const map<string, string, std::less<>> &workers,
+                                        const string &graphId) {
+    if (transfer.empty()) return;
+    const std::vector<vector<pair<string, string>>> &workerData =
+        sqlite->runSelect("SELECT DISTINCT ip,server_port,server_data_port FROM worker;");
+    map<string, string> dataPortMap;  // "ip:port" => data_port
+    for (size_t i = 0; i < workerData.size(); i++) {
+        string ip = workerData[i][0].second;
+        string port = workerData[i][1].second;
+        string dport = workerData[i][2].second;
+        dataPortMap[ip + ":" + port] = dport;
+    }
+    std::vector<std::thread> transferThreads;
+    transferThreads.reserve(transfer.size());
+    for (auto it = transfer.begin(); it != transfer.end(); it++) {
+        auto partition = it->first;
+        auto from_worker = it->second.first;
+        auto to_worker = it->second.second;
+        auto w_from = workers.find(from_worker)->second;
+        auto w_to = workers.find(to_worker)->second;
+        const auto &ip_port_from = Utils::split(w_from, ':');
+        auto ip_from = ip_port_from[0];
+        auto port_from = stoi(ip_port_from[1]);
+        const auto &ip_port_to = Utils::split(w_to, ':');
+        auto ip_to = ip_port_to[0];
+        auto dport_to = stoi(dataPortMap[w_to]);
+        transferThreads.emplace_back(&Utils::transferPartition, ip_from, port_from, ip_to,
+                                     dport_to, graphId, to_string(partition), to_worker, sqlite);
+    }
+    for (auto &t : transferThreads) {
+        t.join();
+    }
+}
+
+void filter_partitions(std::map<string, std::vector<string>, std::less<>> &partitionMap, SQLiteDBInterface *sqlite,
+                       string graphId) {
+    auto workers = get_workers(sqlite);
+    auto loads = get_loads(workers);
+
+    std::map<int, std::vector<string>> p_avail;
+    std::set<int> remain;
+    build_avail_partitions(partitionMap, p_avail, remain);
+
+    const std::map<int, std::vector<string>> P_AVAIL = p_avail;  // get a copy and make it const
+
+    filter_overloaded_workers(loads, p_avail);
 
     std::map<int, string> alloc;
     int unallocated = alloc_plan(alloc, remain, p_avail, loads);
@@ -407,41 +463,7 @@ void filter_partitions(std::map<string, std::vector<string>, std::less<>> &parti
             alloc[p] = w_to;
         }
 
-        if (!transfer.empty()) {
-            const std::vector<vector<pair<string, string>>> &workerData =
-                sqlite->runSelect("SELECT DISTINCT ip,server_port,server_data_port FROM worker;");
-            map<string, string> dataPortMap;  // "ip:port" => data_port
-            for (int i = 0; i < workerData.size(); i++) {
-                string ip = workerData[i][0].second;
-                string port = workerData[i][1].second;
-                string dport = workerData[i][2].second;
-                dataPortMap[ip + ":" + port] = dport;
-            }
-            map<string, string> workers_r;  // "ip:port" => id
-            for (auto it = workers.begin(); it != workers.end(); it++) {
-                workers_r[it->second] = it->first;
-            }
-            thread transferThreads[transfer.size()];
-            int threadCnt = 0;
-            for (auto it = transfer.begin(); it != transfer.end(); it++) {
-                auto partition = it->first;
-                auto from_worker = it->second.first;
-                auto to_worker = it->second.second;
-                auto w_from = workers[from_worker];
-                auto w_to = workers[to_worker];
-                const auto &ip_port_from = Utils::split(w_from, ':');
-                auto ip_from = ip_port_from[0];
-                auto port_from = stoi(ip_port_from[1]);
-                const auto &ip_port_to = Utils::split(w_to, ':');
-                auto ip_to = ip_port_to[0];
-                auto dport_to = stoi(dataPortMap[w_to]);
-                transferThreads[threadCnt++] = std::thread(&Utils::transferPartition, ip_from, port_from, ip_to,
-                                                           dport_to, graphId, to_string(partition), to_worker, sqlite);
-            }
-            for (int i = 0; i < threadCnt; i++) {
-                transferThreads[i].join();
-            }
-        }
+        execute_partition_transfers(sqlite, transfer, workers, graphId);
     }
     partitionMap.clear();
     for (auto it = alloc.begin(); it != alloc.end(); it++) {
@@ -1867,7 +1889,7 @@ static int distributeTasksToWorkers(
              ++partitionIterator) {
             string partitionId = *partitionIterator;
             triangleCount_logger.info("> partition" + partitionId);
-            collector.workerTaskInfo.push_back(std::make_tuple(workerID, partitionId, host));
+            collector.workerTaskInfo.emplace_back(workerID, partitionId, host);
             OTEL_TRACE_OPERATION("distribute_to_worker_" + workerID + "_partition_" + partitionId);
             int partitionIdInt = atoi(partitionId.c_str());
 
@@ -2018,9 +2040,14 @@ void TriangleCountExecutor::executeTriangleCount(SQLiteDBInterface *sqlite, Perf
     OTEL_TRACE_FUNCTION();
 
     schedulerMutex.lock();
-    time_t curr_time = time(NULL);
-    if (curr_time < last_exec_time + 8) {
-        sleep(last_exec_time + 9 - curr_time);
+    if (time_t curr_time = time(NULL); curr_time < last_exec_time + 8) {
+        time_t sleep_duration = last_exec_time + 9 - curr_time;
+        last_exec_time = curr_time + sleep_duration;
+        schedulerMutex.unlock();
+        std::this_thread::sleep_for(std::chrono::seconds(sleep_duration));
+        schedulerMutex.lock();
+    } else {
+        last_exec_time = curr_time;
     }
 
     int uniqueId = getUid();
@@ -2124,7 +2151,10 @@ void TriangleCountExecutor::executeTriangleCount(SQLiteDBInterface *sqlite, Perf
     std::vector<std::thread> statThreads = handleSLACalibration(
         perfDB, graphId, partitionCount, commandName, masterIP, autoCalibrate, canCalibrate);
 
-    last_exec_time = time(NULL);
+    time_t actual_time = time(NULL);
+    if (actual_time > last_exec_time) {
+        last_exec_time = actual_time;
+    }
     schedulerMutex.unlock();
 
     {
