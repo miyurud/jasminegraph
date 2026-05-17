@@ -72,35 +72,37 @@ void *startScheduler(void *dummyPt) {
             }
         }
 
-        if (pendingHPJobList.size() > 0) {
-            jobScheduler_Logger.info("##JOB SCHEDULER## High Priority Jobs in Queue: " +
-                                     std::to_string(pendingHPJobList.size()));
-            std::string masterIP = pendingHPJobList[0].getMasterIP();
-            std::string jobType = pendingHPJobList[0].getJobType();
-            std::string category = pendingHPJobList[0].getParameter(Conts::PARAM_KEYS::CATEGORY);
+        if (pendingHPJobList.empty()) {
+            continue;
+        }
 
-            std::vector<long> scheduleTimeVector = PerformanceUtil::getResourceAvailableTime(
-                highPriorityGraphList, jobType, category, masterIP, pendingHPJobList);
+        jobScheduler_Logger.info("##JOB SCHEDULER## High Priority Jobs in Queue: " +
+                                 std::to_string(pendingHPJobList.size()));
+        std::string masterIP = pendingHPJobList[0].getMasterIP();
+        std::string jobType = pendingHPJobList[0].getJobType();
+        std::string category = pendingHPJobList[0].getParameter(Conts::PARAM_KEYS::CATEGORY);
 
-            for (int index = 0; index != pendingHPJobList.size(); ++index) {
-                JobRequest hpRequest = pendingHPJobList[index];
-                long queueTime = scheduleTimeVector[index];
+        std::vector<long> scheduleTimeVector = PerformanceUtil::getResourceAvailableTime(
+            highPriorityGraphList, jobType, category, masterIP, pendingHPJobList);
 
-                if (queueTime < 0) {
-                    JobResponse failedJobResponse;
-                    failedJobResponse.setJobId(hpRequest.getJobId());
-                    failedJobResponse.addParameter(Conts::PARAM_KEYS::ERROR_MESSAGE,
-                                                   "Rejecting the job request because "
-                                                   "SLA cannot be maintained");
-                    responseVectorMutex.lock();
-                    responseMap[hpRequest.getJobId()] = failedJobResponse;
-                    responseVectorMutex.unlock();
-                    continue;
-                }
+        for (int index = 0; index != pendingHPJobList.size(); ++index) {
+            JobRequest hpRequest = pendingHPJobList[index];
+            long queueTime = scheduleTimeVector[index];
 
-                hpRequest.addParameter(Conts::PARAM_KEYS::QUEUE_TIME, std::to_string(queueTime));
-                JobScheduler::processJob(hpRequest, refToScheduler->sqlite, refToScheduler->perfSqlite);
+            if (queueTime < 0) {
+                JobResponse failedJobResponse;
+                failedJobResponse.setJobId(hpRequest.getJobId());
+                failedJobResponse.addParameter(Conts::PARAM_KEYS::ERROR_MESSAGE,
+                                               "Rejecting the job request because "
+                                               "SLA cannot be maintained");
+                responseVectorMutex.lock();
+                responseMap[hpRequest.getJobId()] = failedJobResponse;
+                responseVectorMutex.unlock();
+                continue;
             }
+
+            hpRequest.addParameter(Conts::PARAM_KEYS::QUEUE_TIME, std::to_string(queueTime));
+            JobScheduler::processJob(hpRequest, refToScheduler->sqlite, refToScheduler->perfSqlite);
         }
     }
     return NULL;

@@ -111,7 +111,7 @@ int alloc_net_plan(std::map<int, std::string> &alloc, std::vector<int> &parts,
                    const std::map<int, std::vector<std::string>> &P_AVAIL, int C);
 
 void filter_partitions(std::map<std::string, std::vector<std::string>, std::less<>> &partitionMap,
-                       SQLiteDBInterface *sqlite, std::string graphId);
+                       SQLiteDBInterface *sqlite, const std::string &graphId);
 
 // Shared synchronization primitives and state
 extern std::mutex processStatusMutex;

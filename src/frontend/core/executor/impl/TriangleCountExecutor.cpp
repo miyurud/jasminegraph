@@ -396,10 +396,10 @@ static void execute_partition_transfers(SQLiteDBInterface *sqlite,
     const std::vector<vector<pair<string, string>>> &workerData =
         sqlite->runSelect("SELECT DISTINCT ip,server_port,server_data_port FROM worker;");
     map<string, string> dataPortMap;  // "ip:port" => data_port
-    for (size_t i = 0; i < workerData.size(); i++) {
-        string ip = workerData[i][0].second;
-        string port = workerData[i][1].second;
-        string dport = workerData[i][2].second;
+    for (const auto &row : workerData) {
+        string ip = row[0].second;
+        string port = row[1].second;
+        string dport = row[2].second;
         dataPortMap[ip + ":" + port] = dport;
     }
     std::vector<std::thread> transferThreads;
@@ -425,7 +425,7 @@ static void execute_partition_transfers(SQLiteDBInterface *sqlite,
 }
 
 void filter_partitions(std::map<string, std::vector<string>, std::less<>> &partitionMap, SQLiteDBInterface *sqlite,
-                       string graphId) {
+                       const string &graphId) {
     auto workers = get_workers(sqlite);
     auto loads = get_loads(workers);
 
@@ -2039,13 +2039,13 @@ void TriangleCountExecutor::executeTriangleCount(SQLiteDBInterface *sqlite, Perf
     std::string graphId = request.getParameter(Conts::PARAM_KEYS::GRAPH_ID);
     OTEL_TRACE_FUNCTION();
 
-    schedulerMutex.lock();
-    if (time_t curr_time = time(NULL); curr_time < last_exec_time + 8) {
+    std::unique_lock<std::mutex> lock(schedulerMutex);
+    if (time_t curr_time = time(nullptr); curr_time < last_exec_time + 8) {
         time_t sleep_duration = last_exec_time + 9 - curr_time;
         last_exec_time = curr_time + sleep_duration;
-        schedulerMutex.unlock();
+        lock.unlock();
         std::this_thread::sleep_for(std::chrono::seconds(sleep_duration));
-        schedulerMutex.lock();
+        lock.lock();
     } else {
         last_exec_time = curr_time;
     }
@@ -2151,11 +2151,10 @@ void TriangleCountExecutor::executeTriangleCount(SQLiteDBInterface *sqlite, Perf
     std::vector<std::thread> statThreads = handleSLACalibration(
         perfDB, graphId, partitionCount, commandName, masterIP, autoCalibrate, canCalibrate);
 
-    time_t actual_time = time(NULL);
-    if (actual_time > last_exec_time) {
+    if (time_t actual_time = time(nullptr); actual_time > last_exec_time) {
         last_exec_time = actual_time;
     }
-    schedulerMutex.unlock();
+    lock.unlock();
 
     {
         OTEL_TRACE_OPERATION("collect_worker_results");
@@ -2177,19 +2176,20 @@ void TriangleCountExecutor::executeTriangleCount(SQLiteDBInterface *sqlite, Perf
         logger.log(logPrefix + " Getting Triangle Count : Completed: Triangles " + to_string(result), "info");
     }
 
-    schedulerMutex.lock();
-    for (auto it = partitionMap.begin(); it != partitionMap.end(); it++) {
-        string worker = it->first;
-        used_workers[worker]--;
-    }
-    for (auto it = used_workers.cbegin(); it != used_workers.cend();) {
-        if (it->second <= 0) {
-            used_workers.erase(it++);
-        } else {
-            it++;
+    {
+        std::lock_guard<std::mutex> scheduler_lock(schedulerMutex);
+        for (auto it = partitionMap.begin(); it != partitionMap.end(); it++) {
+            string worker = it->first;
+            used_workers[worker]--;
+        }
+        for (auto it = used_workers.cbegin(); it != used_workers.cend();) {
+            if (it->second <= 0) {
+                used_workers.erase(it++);
+            } else {
+                it++;
+            }
         }
     }
-    schedulerMutex.unlock();
     workerResponded = true;
 
     JobResponse jobResponse;

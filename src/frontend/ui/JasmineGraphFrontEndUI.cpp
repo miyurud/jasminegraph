@@ -80,21 +80,21 @@ static void remove_graph_command(std::string masterIP,
     int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_p, std::string command);
 static void remove_all_graphs_command(std::string masterIP,
     int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_p);
-static void triangles_command(std::string masterIP,
-    int connFd, SQLiteDBInterface *sqlite, PerformanceSQLiteDBInterface *perfSqlite,
-    JobScheduler *jobScheduler, bool *loop_exit_p, std::string command);
-static void sheep_triangles_command(std::string masterIP,
-    int connFd, SQLiteDBInterface *sqlite, PerformanceSQLiteDBInterface *perfSqlite,
+static void triangles_command(const std::string &masterIP,
+    int conn_fd, SQLiteDBInterface *sqlite, PerformanceSQLiteDBInterface *perfSqlite,
+    JobScheduler *jobScheduler, bool *loop_exit_p, const std::string &command);
+static void sheep_triangles_command(const std::string &masterIP,
+    int conn_fd, SQLiteDBInterface *sqlite, PerformanceSQLiteDBInterface *perfSqlite,
     JobScheduler *jobScheduler, bool *loop_exit_p, std::string command);
 static void get_degree_command(int connFd, std::string command, int numberOfPartition,
                                std::string type, bool *loop_exit_p);
 static void cypher_ast_command(int connFd, vector<DataPublisher *> &workerClients,
                                int numberOfPartitions, bool *loop_exit, std::string command);
 
-static bool sendResponse(int connFd, const std::string &response, bool *loop_exit_p, size_t length = 0);
-static void processTriangleCount(std::string masterIP, int connFd, SQLiteDBInterface *sqlite,
+static bool sendResponse(int conn_fd, const std::string &response, bool *loop_exit_p, size_t length = 0);
+static void processTriangleCount(const std::string &masterIP, int connFd, SQLiteDBInterface *sqlite,
                                  PerformanceSQLiteDBInterface *perfSqlite, JobScheduler *jobScheduler,
-                                 bool *loop_exit_p, std::string command, std::string jobType);
+                                 bool *loop_exit_p, const std::string &command);
 
 static void semantic_beam_search_command(int connFd, std::string command,
                                          int numberOfPartitions, bool *loop_exit_p , JobScheduler *jobScheduler);
@@ -289,15 +289,15 @@ int JasmineGraphFrontEndUI::run() {
     }
 }
 
-static bool sendResponse(int connFd, const std::string &response, bool *loop_exit_p, size_t length) {
+static bool sendResponse(int conn_fd, const std::string &response, bool *loop_exit_p, size_t length) {
     size_t write_len = (length > 0) ? length : response.length();
-    int result_wr = write(connFd, response.c_str(), write_len);
+    int result_wr = write(conn_fd, response.c_str(), write_len);
     if (result_wr < 0) {
         ui_frontend_logger.error("Error writing to socket");
         *loop_exit_p = true;
         return false;
     }
-    result_wr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
+    result_wr = write(conn_fd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
     if (result_wr < 0) {
         ui_frontend_logger.error("Error writing to socket");
         *loop_exit_p = true;
@@ -306,9 +306,9 @@ static bool sendResponse(int connFd, const std::string &response, bool *loop_exi
     return true;
 }
 
-static void processTriangleCount(std::string masterIP, int connFd, SQLiteDBInterface *sqlite,
+static void processTriangleCount(const std::string &masterIP, int connFd, SQLiteDBInterface *sqlite,
                                  PerformanceSQLiteDBInterface *perfSqlite, JobScheduler *jobScheduler,
-                                 bool *loop_exit_p, std::string command, std::string jobType) {
+                                 bool *loop_exit_p, const std::string &command) {
     char delimiter = '|';
     std::stringstream ss(command);
     std::string token;
@@ -317,6 +317,7 @@ static void processTriangleCount(std::string masterIP, int connFd, SQLiteDBInter
 
     std::getline(ss, token, delimiter);
     std::getline(ss, graph_id, delimiter);
+    std::string jobType = (token == SHTRIAN) ? SHEEP_TRIANGLES : TRIANGLES;
     std::getline(ss, priority, delimiter);
 
     ui_frontend_logger.info("recieved graph id: " + graph_id);
@@ -889,16 +890,16 @@ static void remove_all_graphs_command(std::string masterIP,
     }
 }
 
-static void triangles_command(std::string masterIP,
-    int connFd, SQLiteDBInterface *sqlite, PerformanceSQLiteDBInterface *perfSqlite,
-    JobScheduler *jobScheduler, bool *loop_exit_p, std::string command) {
-    processTriangleCount(masterIP, connFd, sqlite, perfSqlite, jobScheduler, loop_exit_p, command, TRIANGLES);
+static void triangles_command(const std::string &masterIP,
+    int conn_fd, SQLiteDBInterface *sqlite, PerformanceSQLiteDBInterface *perfSqlite,
+    JobScheduler *jobScheduler, bool *loop_exit_p, const std::string &command) {
+    processTriangleCount(masterIP, conn_fd, sqlite, perfSqlite, jobScheduler, loop_exit_p, command);
 }
 
-static void sheep_triangles_command(std::string masterIP, int connFd,
+static void sheep_triangles_command(const std::string &masterIP, int conn_fd,
     SQLiteDBInterface *sqlite, PerformanceSQLiteDBInterface *perfSqlite,
     JobScheduler *jobScheduler, bool *loop_exit_p, std::string command) {
-    processTriangleCount(masterIP, connFd, sqlite, perfSqlite, jobScheduler, loop_exit_p, command, SHEEP_TRIANGLES);
+    processTriangleCount(masterIP, conn_fd, sqlite, perfSqlite, jobScheduler, loop_exit_p, command);
 }
 
 static void get_degree_command(int connFd, std::string command, int numberOfPartition,
