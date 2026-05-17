@@ -37,8 +37,8 @@ static string isFileAccessibleToWorker(std::string graphId, std::string partitio
                                        std::string aggregatorPort, std::string masterIP, std::string fileType,
                                        std::string fileName);
 static long aggregateCentralStoreTriangles(SQLiteDBInterface *sqlite, std::string graphId, std::string masterIP,
-                                           int threadPriority,
-                                           const std::map<std::string, std::vector<string>> &partitionMap);
+                                        int threadPriority, const std::map<std::string, std::vector<string>,
+                                        std::less<>> &partitionMap);
 static int updateTriangleTreeAndGetTriangleCount(
     const std::vector<std::string> &triangles,
     std::unordered_map<long, std::unordered_map<long, std::unordered_set<long>>> *triangleTree_p,
@@ -807,10 +807,10 @@ static int updateTriangleTreeAndGetTriangleCount(
     return aggregateCount;
 }
 
-static std::pair<std::vector<string>, std::map<string, string>> buildPartitionInfo(
-    const std::map<string, std::vector<string>> &partitionMap) {
+static std::pair<std::vector<string>, std::map<string, string, std::less<>>> buildPartitionInfo(
+    const std::map<string, std::vector<string>, std::less<>> &partitionMap) {
     std::vector<string> partitionsVector;
-    std::map<string, string> partitionWorkerMap;  // partition_id => worker_id
+    std::map<string, string, std::less<>> partitionWorkerMap;  // partition_id => worker_id
     for (auto it = partitionMap.begin(); it != partitionMap.end(); it++) {
         const auto &parts = it->second;
         string worker = it->first;
@@ -823,10 +823,10 @@ static std::pair<std::vector<string>, std::map<string, string>> buildPartitionIn
     return {partitionsVector, partitionWorkerMap};
 }
 
-static std::map<string, std::vector<string>> fetchWorkerDataMap(SQLiteDBInterface *sqlite) {
+static std::map<string, std::vector<string>, std::less<>> fetchWorkerDataMap(SQLiteDBInterface *sqlite) {
     const std::vector<vector<pair<string, string>>> &workerDataResult =
         sqlite->runSelect("SELECT DISTINCT idworker,ip,server_port,server_data_port FROM worker;");
-    std::map<string, std::vector<string>> workerDataMap;  // worker_id => [ip,port,data_port]
+    std::map<string, std::vector<string>, std::less<>> workerDataMap;  // worker_id => [ip,port,data_port]
     for (auto it = workerDataResult.begin(); it != workerDataResult.end(); it++) {
         const auto &ipPortDport = *it;
         string id = ipPortDport[0].second;
@@ -840,8 +840,8 @@ static std::map<string, std::vector<string>> fetchWorkerDataMap(SQLiteDBInterfac
 
 static std::pair<std::string, std::string> findMinWeightWorker(
     const std::vector<string> &partitionCombination,
-    const std::map<string, string> &partitionWorkerMap,
-    std::map<string, int> &workerWeightMap) {
+    const std::map<string, string, std::less<>> &partitionWorkerMap,
+    std::map<string, int, std::less<>> &workerWeightMap) {
 
     int minimumWeight = 0;
     std::string minWeightWorker;
@@ -874,16 +874,20 @@ static std::pair<std::string, std::string> findMinWeightWorker(
     return {minWeightWorker, minWeightWorkerPartition};
 }
 
+struct CopyContext {
+    const std::string &graphId;
+    const std::string &masterIP;
+    const std::string &minWeightWorker;
+    const std::string &minWeightWorkerPartition;
+    const std::string &aggregatorIp;
+    const std::string &aggregatorPort;
+    const std::string &aggregatorDataPort;
+};
+
 static std::string buildPartitionIdListAndCopyFiles(
     const std::vector<string> &partitionCombination,
-    const std::map<string, string> &partitionWorkerMap,
-    const std::string &minWeightWorker,
-    const std::string &minWeightWorkerPartition,
-    const std::string &graphId,
-    const std::string &aggregatorIp,
-    const std::string &aggregatorPort,
-    const std::string &aggregatorDataPort,
-    const std::string &masterIP) {
+    const std::map<string, string, std::less<>> &partitionWorkerMap,
+    const CopyContext &ctx) {
 
     std::string partitionIdList = "";
     std::vector<std::thread> remoteGraphCopyThreads;
@@ -897,17 +901,21 @@ static std::string buildPartitionIdListAndCopyFiles(
         }
         string workerId = iter->second;
 
-        if (part != minWeightWorkerPartition) {
+        if (part != ctx.minWeightWorkerPartition) {
             partitionIdList += part + ",";
         }
-        if (workerId != minWeightWorker) {
+        if (workerId != ctx.minWeightWorker) {
             std::string centralStoreAvailable = isFileAccessibleToWorker(
-                graphId, part, aggregatorIp, aggregatorPort, masterIP,
+                ctx.graphId, part, ctx.aggregatorIp, ctx.aggregatorPort, ctx.masterIP,
                 JasmineGraphInstanceProtocol::FILE_TYPE_CENTRALSTORE_AGGREGATE, std::string());
 
             if (centralStoreAvailable.compare("false") == 0) {
-                int graphIdInt = atoi(graphId.c_str());
+                int graphIdInt = atoi(ctx.graphId.c_str());
                 int partInt = atoi(part.c_str());
+                std::string aggregatorIp = ctx.aggregatorIp;
+                std::string aggregatorPort = ctx.aggregatorPort;
+                std::string aggregatorDataPort = ctx.aggregatorDataPort;
+                std::string masterIP = ctx.masterIP;
                 remoteGraphCopyThreads.push_back(std::thread([aggregatorIp, aggregatorPort, aggregatorDataPort,
                     graphIdInt, partInt, masterIP]() {
                     TriangleCountExecutor::copyCentralStoreToAggregator(aggregatorIp,
@@ -931,19 +939,19 @@ static std::string buildPartitionIdListAndCopyFiles(
 
 long TriangleCountExecutor::aggregateCentralStoreTriangles(SQLiteDBInterface *sqlite, std::string graphId,
                                                            std::string masterIP, int threadPriority,
-                                                           const std::map<string, std::vector<string>> &partitionMap) {
+                                                           const std::map<string, std::vector<string>, std::less<>> &partitionMap) {
     OTEL_TRACE_FUNCTION();
 
     auto [partitionsVector, partitionWorkerMap] = buildPartitionInfo(partitionMap);
 
     const std::vector<std::vector<string>> &partitionCombinations = AbstractExecutor::getCombinations(partitionsVector);
-    std::map<string, int> workerWeightMap;
+    std::map<string, int, std::less<>> workerWeightMap;
     std::vector<std::thread> triangleCountThreads;
     std::vector<std::string> triangleCountResponse(partitionCombinations.size(), "");
     std::string result = "";
     long aggregatedTriangleCount = 0;
 
-    std::map<string, std::vector<string>> workerDataMap = fetchWorkerDataMap(sqlite);
+    std::map<string, std::vector<string>, std::less<>> workerDataMap = fetchWorkerDataMap(sqlite);
 
     int comboIndex = 0;
     for (auto partitonCombinationsIterator = partitionCombinations.begin();
@@ -960,9 +968,18 @@ long TriangleCountExecutor::aggregateCentralStoreTriangles(SQLiteDBInterface *sq
 
         std::string aggregatorPartitionId = minWeightWorkerPartition;
 
+        CopyContext copyCtx{
+            graphId,
+            masterIP,
+            minWeightWorker,
+            minWeightWorkerPartition,
+            aggregatorIp,
+            aggregatorPort,
+            aggregatorDataPort
+        };
+
         std::string adjustedPartitionIdList = buildPartitionIdListAndCopyFiles(
-            partitionCombination, partitionWorkerMap, minWeightWorker, minWeightWorkerPartition,
-            graphId, aggregatorIp, aggregatorPort, aggregatorDataPort, masterIP);
+            partitionCombination, partitionWorkerMap, copyCtx);
 
         // Capture current trace context before async call
         std::string currentTraceContext = OpenTelemetryUtil::getCurrentTraceContext();
@@ -1800,25 +1817,32 @@ static std::vector<std::vector<string>> getCompositeFileCombinations(const std::
     return AbstractExecutor::getCombinations(compositeCentralStoreFiles);
 }
 
+struct WorkerTaskContext {
+    int graphIdInt;
+    std::string masterIP;
+    int uniqueId;
+    bool isCompositeAggregation;
+    int threadPriority;
+    const std::vector<std::vector<string>> &fileCombinations;
+    std::map<std::string, std::string, std::less<>> &combinationWorkerMap;
+    std::unordered_map<long, std::unordered_map<long, std::unordered_set<long>>> &triangleTree;
+    std::mutex &triangleTreeMutex;
+    std::string masterTraceContext;
+};
+
+struct TaskCollector {
+    std::vector<std::tuple<string, string, string>> &workerTaskInfo;
+    std::vector<std::thread> &intermThreads;
+    std::vector<long> &intermResThread;
+    std::vector<std::future<long>> &intermResFuture;
+    ThreadingStrategy strategy;
+};
+
 static int distributeTasksToWorkers(
     SQLiteDBInterface *sqlite,
     const std::map<string, std::vector<string>, std::less<>> &partitionMap,
-    const std::string &graphId,
-    const std::string &masterIP,
-    int uniqueId,
-    bool isCompositeAggregation,
-    int threadPriority,
-    const std::vector<std::vector<string>> &fileCombinations,
-    ThreadingStrategy strategy,
-    Logger &logger,
-    std::map<std::string, std::string, std::less<>> &combinationWorkerMap,
-    std::unordered_map<long, std::unordered_map<long, std::unordered_set<long>>> &triangleTree,
-    std::mutex &triangleTreeMutex,
-    std::vector<std::tuple<string, string, string>> &workerTaskInfo,
-    std::vector<std::thread> &intermThreads,
-    std::vector<long> &intermResThread,
-    std::vector<std::future<long>> &intermResFuture,
-    const std::string &masterTraceContext) {
+    const WorkerTaskContext &taskCtx,
+    TaskCollector &collector) {
 
     vector<Utils::worker> workerList = Utils::getWorkerList(sqlite);
     int workerListSize = workerList.size();
@@ -1830,7 +1854,7 @@ static int distributeTasksToWorkers(
         string workerID = currentWorker.workerID;
         int workerPort = atoi(string(currentWorker.port).c_str());
         int workerDataPort = atoi(string(currentWorker.dataPort).c_str());
-        logger.info("worker_" + workerID + " host=" + host + ":" + to_string(workerPort) + ":" +
+        triangleCount_logger.info("worker_" + workerID + " host=" + host + ":" + to_string(workerPort) + ":" +
                     to_string(workerDataPort));
 
         auto partitionIter = partitionMap.find(workerID);
@@ -1841,34 +1865,57 @@ static int distributeTasksToWorkers(
         for (auto partitionIterator = partitionList.begin(); partitionIterator != partitionList.end();
              ++partitionIterator) {
             string partitionId = *partitionIterator;
-            logger.info("> partition" + partitionId);
-            workerTaskInfo.push_back(std::make_tuple(workerID, partitionId, host));
+            triangleCount_logger.info("> partition" + partitionId);
+            collector.workerTaskInfo.push_back(std::make_tuple(workerID, partitionId, host));
             OTEL_TRACE_OPERATION("distribute_to_worker_" + workerID + "_partition_" + partitionId);
-            int graphIdInt = atoi(graphId.c_str());
             int partitionIdInt = atoi(partitionId.c_str());
 
-            if (strategy == ThreadingStrategy::THREAD_BASED) {
+            if (collector.strategy == ThreadingStrategy::THREAD_BASED) {
                 int currentIndex = partitionCount;
-                intermResThread.push_back(0);
-                intermThreads.push_back(std::thread([&intermResThread, currentIndex, graphIdInt, host, workerPort,
-                    workerDataPort, partitionIdInt, masterIP, uniqueId, isCompositeAggregation, threadPriority,
-                    fileCombinations, &combinationWorkerMap, &triangleTree, &triangleTreeMutex, masterTraceContext]() {
-                        intermResThread[currentIndex] = TriangleCountExecutor::getTriangleCount(graphIdInt, host,
-                            workerPort, workerDataPort, partitionIdInt, masterIP, uniqueId,
-                            isCompositeAggregation, threadPriority, fileCombinations, &combinationWorkerMap,
-                            &triangleTree, &triangleTreeMutex, masterTraceContext);
+                collector.intermResThread.push_back(0);
+
+                std::map<std::string, std::string, std::less<>> *combWorkerMapPtr = &taskCtx.combinationWorkerMap;
+                std::unordered_map<long, std::unordered_map<long, std::unordered_set<long>>> *triangleTreePtr = &taskCtx.triangleTree;
+                std::mutex *triangleTreeMutexPtr = &taskCtx.triangleTreeMutex;
+                std::vector<std::vector<string>> fileCombs = taskCtx.fileCombinations;
+                std::string mTraceCtx = taskCtx.masterTraceContext;
+                std::vector<long> &intermResThreadRef = collector.intermResThread;
+                std::string mIP = taskCtx.masterIP;
+                int gId = taskCtx.graphIdInt;
+                int uId = taskCtx.uniqueId;
+                bool isCompAgg = taskCtx.isCompositeAggregation;
+                int tPriority = taskCtx.threadPriority;
+
+                collector.intermThreads.push_back(std::thread([&intermResThreadRef, currentIndex, gId, host, workerPort,
+                    workerDataPort, partitionIdInt, mIP, uId, isCompAgg, tPriority,
+                    fileCombs, combWorkerMapPtr, triangleTreePtr, triangleTreeMutexPtr, mTraceCtx]() {
+                        intermResThreadRef[currentIndex] = TriangleCountExecutor::getTriangleCount(gId, host,
+                            workerPort, workerDataPort, partitionIdInt, mIP, uId,
+                            isCompAgg, tPriority, fileCombs, combWorkerMapPtr,
+                            triangleTreePtr, triangleTreeMutexPtr, mTraceCtx);
                 }));
             } else {
-                std::packaged_task<long()> task([graphIdInt, host, workerPort, workerDataPort,
-                    partitionIdInt, masterIP, uniqueId, isCompositeAggregation, threadPriority, fileCombinations,
-                    &combinationWorkerMap, &triangleTree, &triangleTreeMutex, masterTraceContext]() {
-                        return TriangleCountExecutor::getTriangleCount(graphIdInt, host,
-                            workerPort, workerDataPort, partitionIdInt, masterIP, uniqueId,
-                            isCompositeAggregation, threadPriority, fileCombinations, &combinationWorkerMap,
-                            &triangleTree, &triangleTreeMutex, masterTraceContext);
+                std::map<std::string, std::string, std::less<>> *combWorkerMapPtr = &taskCtx.combinationWorkerMap;
+                std::unordered_map<long, std::unordered_map<long, std::unordered_set<long>>> *triangleTreePtr = &taskCtx.triangleTree;
+                std::mutex *triangleTreeMutexPtr = &taskCtx.triangleTreeMutex;
+                std::vector<std::vector<string>> fileCombs = taskCtx.fileCombinations;
+                std::string mTraceCtx = taskCtx.masterTraceContext;
+                std::string mIP = taskCtx.masterIP;
+                int gId = taskCtx.graphIdInt;
+                int uId = taskCtx.uniqueId;
+                bool isCompAgg = taskCtx.isCompositeAggregation;
+                int tPriority = taskCtx.threadPriority;
+
+                std::packaged_task<long()> task([gId, host, workerPort, workerDataPort,
+                    partitionIdInt, mIP, uId, isCompAgg, tPriority, fileCombs,
+                    combWorkerMapPtr, triangleTreePtr, triangleTreeMutexPtr, mTraceCtx]() {
+                        return TriangleCountExecutor::getTriangleCount(gId, host,
+                            workerPort, workerDataPort, partitionIdInt, mIP, uId,
+                            isCompAgg, tPriority, fileCombs, combWorkerMapPtr,
+                            triangleTreePtr, triangleTreeMutexPtr, mTraceCtx);
                 });
-                intermResFuture.push_back(task.get_future());
-                intermThreads.push_back(std::thread(std::move(task)));
+                collector.intermResFuture.push_back(task.get_future());
+                collector.intermThreads.push_back(std::thread(std::move(task)));
             }
             partitionCount++;
         }
@@ -1881,13 +1928,12 @@ static std::vector<std::thread> handleSLACalibration(
     const std::string &graphId,
     int partitionCount,
     const std::string &commandName,
-    const std::string &logPrefix,
     const std::string &masterIP,
     bool autoCalibrate,
-    bool &canCalibrate,
-    Logger &logger) {
+    bool &canCalibrate) {
 
     PerformanceUtil::init();
+    std::string logPrefix = (commandName == TRIANGLES) ? "###TRIANGLE-COUNT-EXECUTOR###" : "###SHEEP-TRIANGLE-COUNT-EXECUTOR###";
     std::string query = "SELECT attempt from graph_sla INNER JOIN sla_category where "
                         "graph_sla.id_sla_category=sla_category.id and graph_sla.graph_id='" + graphId +
                         "' and graph_sla.partition_count='" + std::to_string(partitionCount) +
@@ -1903,7 +1949,7 @@ static std::vector<std::thread> handleSLACalibration(
             canCalibrate = false;
         }
     } else {
-        logger.log(logPrefix + " Inserting initial record for SLA ", "info");
+        triangleCount_logger.log(logPrefix + " Inserting initial record for SLA ", "info");
         Utils::updateSLAInformation(perfDB, graphId, partitionCount, 0, commandName, Conts::SLA_CATEGORY::LATENCY);
         statThreads.push_back(std::thread([perfDB, graphId, commandName, partitionCount, masterIP, autoCalibrate]() {
             AbstractExecutor::collectPerformaceData(perfDB, graphId, commandName, Conts::SLA_CATEGORY::LATENCY,
@@ -2047,13 +2093,31 @@ void TriangleCountExecutor::executeTriangleCount(SQLiteDBInterface *sqlite, Perf
     std::vector<long> intermResThread;
     std::vector<std::future<long>> intermResFuture;
 
-    int partitionCount = distributeTasksToWorkers(
-        sqlite, partitionMap, graphId, masterIP, uniqueId, isCompositeAggregation, threadPriority,
-        fileCombinations, strategy, logger, combinationWorkerMap, triangleTree, triangleTreeMutex,
-        workerTaskInfo, intermThreads, intermResThread, intermResFuture, masterTraceContext);
+    WorkerTaskContext taskCtx{
+        atoi(graphId.c_str()),
+        masterIP,
+        uniqueId,
+        isCompositeAggregation,
+        threadPriority,
+        fileCombinations,
+        combinationWorkerMap,
+        triangleTree,
+        triangleTreeMutex,
+        masterTraceContext
+    };
+
+    TaskCollector collector{
+        workerTaskInfo,
+        intermThreads,
+        intermResThread,
+        intermResFuture,
+        strategy
+    };
+
+    int partitionCount = distributeTasksToWorkers(sqlite, partitionMap, taskCtx, collector);
 
     std::vector<std::thread> statThreads = handleSLACalibration(
-        perfDB, graphId, partitionCount, commandName, logPrefix, masterIP, autoCalibrate, canCalibrate, logger);
+        perfDB, graphId, partitionCount, commandName, masterIP, autoCalibrate, canCalibrate);
 
     last_exec_time = time(NULL);
     schedulerMutex.unlock();

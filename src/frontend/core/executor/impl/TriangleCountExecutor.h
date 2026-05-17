@@ -77,7 +77,7 @@ class TriangleCountExecutor : public AbstractExecutor {
 
     static long aggregateCentralStoreTriangles(SQLiteDBInterface *sqlite, std::string graphId, std::string masterIP,
                                                int threadPriority,
-                                               const std::map<string, std::vector<string>> &partitionMap);
+                                               const std::map<string, std::vector<string>, std::less<>> &partitionMap);
 
     static string countCentralStoreTriangles(std::string aggregatorPort, std::string host, std::string partitionId,
                                              std::string partitionIdList, std::string graphId, std::string masterIP,
