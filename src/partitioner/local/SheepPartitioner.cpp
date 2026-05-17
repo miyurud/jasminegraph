@@ -23,12 +23,8 @@ using namespace std;
 
 Logger sheep_partitioner_logger;
 
-SheepPartitioner::SheepPartitioner(SQLiteDBInterface *sqlite) {
-    this->sqlite = sqlite;
-    this->totalEdges = 0;
-    this->edgeCuts = 0;
-    this->numPartitions = 0;
-}
+SheepPartitioner::SheepPartitioner(SQLiteDBInterface *sqlite)
+    : sqlite(sqlite), totalEdges(0), edgeCuts(0), numPartitions(0) {}
 
 bool SheepPartitioner::loadGraph(const string &graphPath) {
     sheep_partitioner_logger.info("Loading graph from: " + graphPath);
@@ -50,7 +46,8 @@ bool SheepPartitioner::loadGraph(const string &graphPath) {
             continue;
         }
 
-        vertex_id source, target;
+        vertex_id source;
+        vertex_id target;
         std::istringstream iss(line);
 
         if (iss >> source >> target) {
@@ -68,15 +65,15 @@ bool SheepPartitioner::loadGraph(const string &graphPath) {
     return true;
 }
 
-std::vector<vertex_id> SheepPartitioner::getDegreeSequence() {
+std::vector<vertex_id> SheepPartitioner::getDegreeSequence() const {
     sheep_partitioner_logger.info("Computing degree sequence");
 
     // Create vector of (vertex, degree) pairs
     std::vector<std::pair<vertex_id, size_t>> vertexDegrees;
     vertexDegrees.reserve(adjacencyList.size());
 
-    for (const auto &entry : adjacencyList) {
-        vertexDegrees.emplace_back(entry.first, entry.second.size());
+    for (const auto &[vertex, neighbors] : adjacencyList) {
+        vertexDegrees.emplace_back(vertex, neighbors.size());
     }
 
     // Sort by degree (descending)
@@ -87,8 +84,8 @@ std::vector<vertex_id> SheepPartitioner::getDegreeSequence() {
     std::vector<vertex_id> sequence;
     sequence.reserve(vertexDegrees.size());
 
-    for (const auto &pair : vertexDegrees) {
-        sequence.push_back(pair.first);
+    for (const auto &[vertex, degree] : vertexDegrees) {
+        sequence.push_back(vertex);
     }
 
     sheep_partitioner_logger.info("Degree sequence computed with " +
@@ -174,16 +171,13 @@ void SheepPartitioner::assignPartitions() {
 void SheepPartitioner::calculateEdgeCuts() {
     edgeCuts = 0;
 
-    for (const auto &entry : adjacencyList) {
-        vertex_id source = entry.first;
+    for (const auto &[source, targets] : adjacencyList) {
         partition_id sourcePart = vertexToPartition[source];
 
-        for (vertex_id target : entry.second) {
-            if (source < target) {  // Count each edge once
-                partition_id targetPart = vertexToPartition[target];
-                if (sourcePart != targetPart) {
-                    edgeCuts++;
-                }
+        for (vertex_id target : targets) {
+            // Count each cross-partition edge once
+            if (source < target && sourcePart != vertexToPartition[target]) {
+                edgeCuts++;
             }
         }
     }
@@ -192,14 +186,125 @@ void SheepPartitioner::calculateEdgeCuts() {
                                  " (" + to_string((edgeCuts * 100.0) / totalEdges) + "%)");
 }
 
+string SheepPartitioner::extractGraphID(const string &outputPath) {
+    string graphID = "0";
+    if (size_t lastSlash = outputPath.find_last_of("/\\"); lastSlash != string::npos) {
+        string filename = outputPath.substr(lastSlash + 1);
+        if (size_t firstUnderscore = filename.find('_'); firstUnderscore != string::npos) {
+            graphID = filename.substr(0, firstUnderscore);
+        }
+    }
+    return graphID;
+}
+
+void SheepPartitioner::buildEdgeMaps(
+    std::vector<std::set<vertex_id>> &partitionVertices,
+    std::vector<size_t> &localEdgeCounts,
+    std::vector<size_t> &centralEdgeCounts,
+    std::vector<std::map<int, std::unordered_set<int>>> &localStoreSets,
+    std::vector<std::map<int, std::unordered_set<int>>> &centralStoreSets,
+    std::vector<std::map<int, std::unordered_set<int>>> &duplicateCentralStoreSets) {
+    
+    // Build edge maps from adjacency list
+    // Key insight: adjacencyList has both A->B and B->A for each edge
+    // We process ALL edges where source vertex is in each partition (like Metis)
+    // This ensures each partition gets all edges involving its vertices
+    for (const auto &[source, targets] : adjacencyList) {
+        partition_id sourcePart = vertexToPartition[source];
+
+        // Track vertex in its partition
+        partitionVertices[sourcePart].insert(source);
+
+        for (vertex_id target : targets) {
+            partition_id targetPart = vertexToPartition[target];
+            partitionVertices[targetPart].insert(target);
+
+            if (sourcePart == targetPart) {
+                // Local edge - both vertices in same partition
+                // Using set ensures no duplicates even if input has them
+                localStoreSets[sourcePart][source].insert(target);
+                // Count edges only once (when processing from lower vertex ID)
+                localEdgeCounts[sourcePart] += (source < target ? 1 : 0);
+            } else {
+                // Cross-partition edge
+                // Add to source partition's central store
+                centralStoreSets[sourcePart][source].insert(target);
+                // Add to target partition's duplicate central store
+                duplicateCentralStoreSets[targetPart][source].insert(target);
+                // Count edges only once
+                centralEdgeCounts[sourcePart] += (source < target ? 1 : 0);
+            }
+        }
+    }
+}
+
+void SheepPartitioner::convertStoreSetsToMaps(
+    const std::vector<std::map<int, std::unordered_set<int>>> &sets,
+    std::vector<std::map<int, std::vector<int>>> &maps) {
+    
+    for (size_t i = 0; i < numPartitions; i++) {
+        for (const auto &[key, val] : sets[i]) {
+            maps[i][key] = std::vector<int>(val.begin(), val.end());
+        }
+    }
+}
+
+bool SheepPartitioner::serializeSinglePartition(
+    size_t partitionId,
+    const string &outputPath,
+    const string &graphID,
+    const std::map<int, std::vector<int>> &localMap,
+    const std::map<int, std::vector<int>> &centralMap,
+    const std::map<int, std::vector<int>> &duplicateCentralMap) {
+
+    string localFilename = outputPath + to_string(partitionId);
+    string dirPath = outputPath.substr(0, outputPath.find_last_of("/\\") + 1);
+    string centralFilename = dirPath + graphID + "_centralstore_" + to_string(partitionId);
+    string duplicateCentralFilename = dirPath + graphID + "_centralstore_dp_" + to_string(partitionId);
+
+    // Store local store using FlatBuffers
+    if (!JasmineGraphHashMapLocalStore::storePartEdgeMap(localMap, localFilename)) {
+        sheep_partitioner_logger.error("Failed to serialize local store for partition " + to_string(partitionId));
+        return false;
+    }
+
+    // Compress local store file
+    Utils::compressFile(localFilename);
+    partitionFileMap[partitionId] = localFilename + ".gz";
+
+    // Store central store using FlatBuffers
+    if (!JasmineGraphHashMapCentralStore::storePartEdgeMap(centralMap, centralFilename)) {
+        sheep_partitioner_logger.error("Failed to serialize central store for partition " + to_string(partitionId));
+        return false;
+    }
+
+    // Compress central store file
+    Utils::compressFile(centralFilename);
+    centralStoreFileList[partitionId] = centralFilename + ".gz";
+
+    // Store duplicate central store using FlatBuffers
+    if (!JasmineGraphHashMapCentralStore::storePartEdgeMap(duplicateCentralMap, duplicateCentralFilename)) {
+        sheep_partitioner_logger.error(
+            "Failed to serialize duplicate central store for partition " + to_string(partitionId));
+        return false;
+    }
+
+    // Compress duplicate central store file
+    Utils::compressFile(duplicateCentralFilename);
+    centralStoreDuplicateFileList[partitionId] = duplicateCentralFilename + ".gz";
+
+    sheep_partitioner_logger.info("Serialized and compressed partition " + to_string(partitionId));
+    return true;
+}
+
 bool SheepPartitioner::writePartitions(const string &outputPath) {
     sheep_partitioner_logger.info("Writing partitions with central/local store format to: " + outputPath);
 
     try {
         // Create output directory if needed
         std::filesystem::path basePath(outputPath);
-        std::filesystem::path parentDir = basePath.parent_path();
-        if (!parentDir.empty() && !std::filesystem::exists(parentDir)) {
+        if (std::filesystem::path parentDir = basePath.parent_path();
+            !parentDir.empty() && !std::filesystem::exists(parentDir)) {
             std::filesystem::create_directories(parentDir);
         }
 
@@ -213,107 +318,28 @@ bool SheepPartitioner::writePartitions(const string &outputPath) {
         std::vector<std::map<int, std::unordered_set<int>>> centralStoreSets(numPartitions);
         std::vector<std::map<int, std::unordered_set<int>>> duplicateCentralStoreSets(numPartitions);
 
-        // Extract graphID from outputPath (format: path/graphID_)
-        string graphID = "0";
-        size_t lastSlash = outputPath.find_last_of("/\\");
-        if (lastSlash != string::npos) {
-            string filename = outputPath.substr(lastSlash + 1);
-            size_t firstUnderscore = filename.find('_');
-            if (firstUnderscore != string::npos) {
-                graphID = filename.substr(0, firstUnderscore);
-            }
-        }
+        // Extract graphID from outputPath
+        string graphID = extractGraphID(outputPath);
 
         // Build edge maps from adjacency list
-        // Key insight: adjacencyList has both A->B and B->A for each edge
-        // We process ALL edges where source vertex is in each partition (like Metis)
-        // This ensures each partition gets all edges involving its vertices
-        for (const auto &[source, targets] : adjacencyList) {
-            partition_id sourcePart = vertexToPartition[source];
-
-            // Track vertex in its partition
-            partitionVertices[sourcePart].insert(source);
-
-            for (vertex_id target : targets) {
-                partition_id targetPart = vertexToPartition[target];
-                partitionVertices[targetPart].insert(target);
-
-                if (sourcePart == targetPart) {
-                    // Local edge - both vertices in same partition
-                    // Using set ensures no duplicates even if input has them
-                    localStoreSets[sourcePart][source].insert(target);
-                    // Count edges only once (when processing from lower vertex ID)
-                    localEdgeCounts[sourcePart] += (source < target ? 1 : 0);
-                } else {
-                    // Cross-partition edge
-                    // Add to source partition's central store
-                    centralStoreSets[sourcePart][source].insert(target);
-                    // Add to target partition's duplicate central store
-                    duplicateCentralStoreSets[targetPart][source].insert(target);
-                    // Count edges only once
-                    centralEdgeCounts[sourcePart] += (source < target ? 1 : 0);
-                }
-            }
-        }
+        buildEdgeMaps(partitionVertices, localEdgeCounts, centralEdgeCounts,
+                      localStoreSets, centralStoreSets, duplicateCentralStoreSets);
 
         // Convert sets to vectors for serialization
         std::vector<std::map<int, std::vector<int>>> localStoreMaps(numPartitions);
         std::vector<std::map<int, std::vector<int>>> centralStoreMaps(numPartitions);
         std::vector<std::map<int, std::vector<int>>> duplicateCentralStoreMaps(numPartitions);
 
-        for (size_t i = 0; i < numPartitions; i++) {
-            for (const auto &[key, val] : localStoreSets[i]) {
-                localStoreMaps[i][key] = std::vector<int>(val.begin(), val.end());
-            }
-            for (const auto &[key, val] : centralStoreSets[i]) {
-                centralStoreMaps[i][key] = std::vector<int>(val.begin(), val.end());
-            }
-            for (const auto &[key, val] : duplicateCentralStoreSets[i]) {
-                duplicateCentralStoreMaps[i][key] = std::vector<int>(val.begin(), val.end());
-            }
-        }
+        convertStoreSetsToMaps(localStoreSets, localStoreMaps);
+        convertStoreSetsToMaps(centralStoreSets, centralStoreMaps);
+        convertStoreSetsToMaps(duplicateCentralStoreSets, duplicateCentralStoreMaps);
 
         // Serialize and compress files using FlatBuffers format
         for (size_t i = 0; i < numPartitions; i++) {
-            string localFilename = outputPath + to_string(i);
-            string centralFilename = outputPath.substr(0, outputPath.find_last_of("/\\") + 1) +
-                                   graphID + "_centralstore_" + to_string(i);
-            string duplicateCentralFilename = outputPath.substr(0, outputPath.find_last_of("/\\") + 1) +
-                                            graphID + "_centralstore_dp_" + to_string(i);
-
-            // Store local store using FlatBuffers
-            if (!JasmineGraphHashMapLocalStore::storePartEdgeMap(localStoreMaps[i], localFilename)) {
-                sheep_partitioner_logger.error("Failed to serialize local store for partition " + to_string(i));
+            if (!serializeSinglePartition(i, outputPath, graphID,
+                                          localStoreMaps[i], centralStoreMaps[i], duplicateCentralStoreMaps[i])) {
                 return false;
             }
-
-            // Compress local store file
-            Utils::compressFile(localFilename);
-            partitionFileMap[i] = localFilename + ".gz";
-
-            // Store central store using FlatBuffers
-            if (!JasmineGraphHashMapCentralStore::storePartEdgeMap(centralStoreMaps[i], centralFilename)) {
-                sheep_partitioner_logger.error("Failed to serialize central store for partition " + to_string(i));
-                return false;
-            }
-
-            // Compress central store file
-            Utils::compressFile(centralFilename);
-            centralStoreFileList[i] = centralFilename + ".gz";
-
-            // Store duplicate central store using FlatBuffers
-            if (!JasmineGraphHashMapCentralStore::storePartEdgeMap(duplicateCentralStoreMaps[i],
-                                                                   duplicateCentralFilename)) {
-                sheep_partitioner_logger.error(
-                    "Failed to serialize duplicate central store for partition " + to_string(i));
-                return false;
-            }
-
-            // Compress duplicate central store file
-            Utils::compressFile(duplicateCentralFilename);
-            centralStoreDuplicateFileList[i] = duplicateCentralFilename + ".gz";
-
-            sheep_partitioner_logger.info("Serialized and compressed partition " + to_string(i));
         }
 
         // Store partition statistics for later metadb update
@@ -343,7 +369,7 @@ bool SheepPartitioner::writePartitions(const string &outputPath) {
 }
 
 std::vector<std::map<int, std::string>> SheepPartitioner::partitionGraph(int graphID, const string &graphPath,
-                                                                          const string &outputPath, int numberOfPartitions) {
+                                                                    const string &outputPath, int numberOfPartitions) {
     sheep_partitioner_logger.info("Starting sheep partitioning for graph ID: " + to_string(graphID));
     sheep_partitioner_logger.info("Input graph: " + graphPath);
     sheep_partitioner_logger.info("Output path: " + outputPath);

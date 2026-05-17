@@ -87,7 +87,7 @@ class SheepPartitioner {
     /**
      * Sort vertices by degree (descending order)
      */
-    std::vector<vertex_id> getDegreeSequence();
+    std::vector<vertex_id> getDegreeSequence() const;
 
     /**
      * Assign vertices to partitions using streaming algorithm
@@ -106,6 +106,40 @@ class SheepPartitioner {
      * Write partitions to output files
      */
     bool writePartitions(const string &outputPath);
+
+    /**
+     * Extract graphID from outputPath (format: path/graphID_)
+     */
+    string extractGraphID(const string &outputPath);
+
+    /**
+     * Build local and central edge maps and counts from adjacency list
+     */
+    void buildEdgeMaps(
+        std::vector<std::set<vertex_id>> &partitionVertices,
+        std::vector<size_t> &localEdgeCounts,
+        std::vector<size_t> &centralEdgeCounts,
+        std::vector<std::map<int, std::unordered_set<int>>> &localStoreSets,
+        std::vector<std::map<int, std::unordered_set<int>>> &centralStoreSets,
+        std::vector<std::map<int, std::unordered_set<int>>> &duplicateCentralStoreSets);
+
+    /**
+     * Convert sets to vectors for serialization
+     */
+    void convertStoreSetsToMaps(
+        const std::vector<std::map<int, std::unordered_set<int>>> &sets,
+        std::vector<std::map<int, std::vector<int>>> &maps);
+
+    /**
+     * Serialize and compress a single partition using FlatBuffers
+     */
+    bool serializeSinglePartition(
+        size_t partitionId,
+        const string &outputPath,
+        const string &graphID,
+        const std::map<int, std::vector<int>> &localMap,
+        const std::map<int, std::vector<int>> &centralMap,
+        const std::map<int, std::vector<int>> &duplicateCentralMap);
 
     /**
      * Calculate edge cut statistics
