@@ -36,9 +36,8 @@ limitations under the License.
  */
 class SheepTriangleCountExecutor : public AbstractExecutor {
  public:
-    SheepTriangleCountExecutor();
-
-    SheepTriangleCountExecutor(SQLiteDBInterface *db, PerformanceSQLiteDBInterface *perfDb, const JobRequest& jobRequest);
+    SheepTriangleCountExecutor(SQLiteDBInterface *db, PerformanceSQLiteDBInterface *perfDb,
+        const JobRequest& jobRequest);
 
     void execute();
 
@@ -47,7 +46,6 @@ class SheepTriangleCountExecutor : public AbstractExecutor {
  private:
     SQLiteDBInterface *sqlite;
     PerformanceSQLiteDBInterface *perfDB;
-    JobRequest request;
 };
 
 #endif  // JASMINEGRAPH_SHEEPTRIANGLECOUNTEXECUTOR_H
