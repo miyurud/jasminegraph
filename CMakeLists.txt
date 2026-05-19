@@ -21,6 +21,7 @@ set(HEADERS globals.h
         src/exception/JasmineGraphException.h
         src/frontend/JasmineGraphFrontEnd.h
         src/frontend/JasmineGraphFrontEndProtocol.h
+        src/frontend/KafkaTopicUtils.h
         src/frontend/core/CoreConstants.h
         src/frontend/core/domain/JobRequest.h
         src/frontend/core/domain/JobResponse.h
@@ -123,6 +124,7 @@ set(SOURCES src/backend/JasmineGraphBackend.cpp
         src/exception/JasmineGraphException.cpp
         src/frontend/JasmineGraphFrontEnd.cpp
         src/frontend/JasmineGraphFrontEndProtocol.cpp
+        src/frontend/KafkaTopicUtils.cpp
         src/frontend/core/CoreConstants.cpp
         src/frontend/core/domain/JobRequest.cpp
         src/frontend/core/domain/JobResponse.cpp
