@@ -43,7 +43,7 @@ def _send_and_capture_response_contains(sock, test_name, send, expected):
     return response
 
 
-def _start_kafka_stream(sock, topic_name):
+def _start_kafka_stream(sock, topic_name, graph_id=None):
     """Start a Kafka stream for a new graph and return the graph id."""
     topic_bytes = topic_name.encode('utf-8')
 
@@ -69,15 +69,32 @@ def _start_kafka_stream(sock, topic_name):
         )
         _fail('adstrmk default graph id prompt')
 
-    graph_id = int(match.group(1))
+    default_graph_id = int(match.group(1))
 
-    common.send_and_expect_response_contains(
-        sock,
-        'adstrmk accept default graph id',
-        b'y',
-        b'Choose an option(1,2,3): ',
-        exit_on_failure=True,
-    )
+    if graph_id is None:
+        graph_id = default_graph_id
+        common.send_and_expect_response_contains(
+            sock,
+            'adstrmk accept default graph id',
+            b'y',
+            b'Choose an option(1,2,3): ',
+            exit_on_failure=True,
+        )
+    else:
+        common.send_and_expect_response_contains(
+            sock,
+            'adstrmk reject default graph id',
+            b'n',
+            b'Input your graph ID: ',
+            exit_on_failure=True,
+        )
+        common.send_and_expect_response_contains(
+            sock,
+            'adstrmk custom graph id',
+            str(graph_id).encode('utf-8'),
+            b'Set graph ID successfully',
+            exit_on_failure=True,
+        )
     common.send_and_expect_response_contains(
         sock,
         'adstrmk partition option',
@@ -140,7 +157,7 @@ def run_kafka_workflow(sock):
 
     shared_topic = f'jg_it_kafka_shared_{int(time.time())}'
     first_graph_id = _start_kafka_stream(sock, shared_topic)
-    second_graph_id = _start_kafka_stream(sock, shared_topic)
+    second_graph_id = _start_kafka_stream(sock, shared_topic, first_graph_id + 1000)
 
     stop_command = common.STOPSTRM + b' ' + shared_topic.encode('utf-8')
     common.send_and_expect_response(
