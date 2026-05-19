@@ -17,10 +17,12 @@ limitations under the License.
 #include <stdlib.h>
 #include <sys/stat.h>
 
+#include <filesystem>
 #include <iostream>
 #include <map>
 #include <unordered_map>
 #include <string>
+#include <string_view>
 
 #include "../../globals.h"
 #include "../k8s/K8sWorkerController.h"
@@ -75,6 +77,7 @@ static void degreeDistributionCommon(std::string graphID, std::string command);
 static int getPortByHost(const std::string &host);
 static int getDataPortByHost(const std::string &host);
 static size_t getWorkerCount();
+static void joinCompletedThreads(std::thread *workerThreads, int file_count, std::string_view graphType, int count);
 
 static std::vector<JasmineGraphServer::worker> hostWorkerList;
 
@@ -999,30 +1002,50 @@ void JasmineGraphServer::uploadGraphLocally(int graphID, const string graphType,
     }
     int count = 0;
     int file_count = 0;
+
+    // Increase concurrent thread limit for I/O-bound operations
+    // File uploads are I/O-bound, not CPU-bound, so we can handle more concurrent operations
+    const int MAX_CONCURRENT_THREADS = std::min(total_threads, 200);
     std::thread *workerThreads = new std::thread[total_threads];
+    std::vector<std::tuple<std::string, int, std::string, int>> partitionWorkerAssignments;
+    partitionWorkerAssignments.reserve(partitionFileMap.size());
+
     while (count < total_threads) {
         const auto &workerList = getWorkers(partitionFileMap.size());
-        while (true) {
-            if (count >= total_threads) {
-                break;
+        while (count < total_threads) {
+            // Wait if we've hit the concurrent thread limit - join completed threads
+            if (count >= MAX_CONCURRENT_THREADS && count - file_count >= MAX_CONCURRENT_THREADS) {
+                joinCompletedThreads(workerThreads, file_count, graphType, count);
             }
+
+
             worker worker = workerList[graphUploadWorkerTracker];
             std::string partitionFileName = partitionFileMap[file_count];
+            std::string centralFile = centralStoreFileMap[file_count];
+            std::string centralDuplFile = centralStoreDuplFileMap[file_count];
+
+            // Launch partition file upload thread
             workerThreads[count++] = std::thread(batchUploadFile, worker.hostname, worker.port, worker.dataPort,
                                                  graphID, partitionFileName, masterHost);
-            copyCentralStoreToAggregateLocation(centralStoreFileMap[file_count]);
-            workerThreads[count++] = std::thread(batchUploadCentralStore, worker.hostname, worker.port, worker.dataPort,
-                                                 graphID, centralStoreFileMap[file_count], masterHost);
+
+            // Launch central store upload thread (includes aggregator copy)
+            workerThreads[count++] = std::thread([this, centralFile, worker, graphID]() {
+                copyCentralStoreToAggregateLocation(centralFile);
+                batchUploadCentralStore(worker.hostname, worker.port, worker.dataPort,
+                                       graphID, centralFile, masterHost);
+            });
 
             if (compositeCentralStoreFileMap.find(file_count) != compositeCentralStoreFileMap.end()) {
-                copyCentralStoreToAggregateLocation(compositeCentralStoreFileMap[file_count]);
-                workerThreads[count++] =
-                    std::thread(batchUploadCompositeCentralstoreFile, worker.hostname, worker.port, worker.dataPort,
-                                graphID, compositeCentralStoreFileMap[file_count], masterHost);
+                std::string compositeFile = compositeCentralStoreFileMap[file_count];
+                workerThreads[count++] = std::thread([this, compositeFile, worker, graphID]() {
+                    copyCentralStoreToAggregateLocation(compositeFile);
+                    batchUploadCompositeCentralstoreFile(worker.hostname, worker.port, worker.dataPort,
+                                                        graphID, compositeFile, masterHost);
+                });
             }
 
             workerThreads[count++] = std::thread(batchUploadCentralStore, worker.hostname, worker.port, worker.dataPort,
-                                                 graphID, centralStoreDuplFileMap[file_count], masterHost);
+                                                 graphID, centralDuplFile, masterHost);
             if (graphType == Conts::GRAPH_WITH_ATTRIBUTES) {
                 workerThreads[count++] =
                     std::thread(batchUploadAttributeFile, worker.hostname, worker.port, worker.dataPort, graphID,
@@ -1031,7 +1054,9 @@ void JasmineGraphServer::uploadGraphLocally(int graphID, const string graphType,
                     std::thread(batchUploadCentralAttributeFile, worker.hostname, worker.port, worker.dataPort, graphID,
                                 centralStoreAttributeFileMap[file_count], masterHost);
             }
-            assignPartitionToWorker(partitionFileName, graphID, worker.hostname, worker.port);
+
+            // Defer database operations to reduce blocking
+            partitionWorkerAssignments.emplace_back(partitionFileName, graphID, worker.hostname, worker.port);
             file_count++;
 
             graphUploadWorkerTracker++;
@@ -1039,11 +1064,21 @@ void JasmineGraphServer::uploadGraphLocally(int graphID, const string graphType,
         }
     }
 
-    server_logger.info("Total number of threads to join : " + to_string(count));
+    server_logger.info("Waiting for all " + to_string(count) + " threads to complete...");
+    // Join all remaining threads
     for (int threadCount = 0; threadCount < count; threadCount++) {
-        workerThreads[threadCount].join();
-        server_logger.info("Thread " + to_string(threadCount) + " joined");
+        if (workerThreads[threadCount].joinable()) {
+            workerThreads[threadCount].join();
+        }
     }
+    server_logger.info("All upload threads completed");
+
+    // Now perform database operations in batch after all uploads complete
+    server_logger.info("Assigning partitions to workers in database...");
+    for (const auto& [partitionFileName, graphId, host, port] : partitionWorkerAssignments) {
+        assignPartitionToWorker(partitionFileName, graphId, host, port);
+    }
+    server_logger.info("Database assignments completed");
 
     std::time_t time = chrono::system_clock::to_time_t(chrono::system_clock::now());
     string uploadEndTime = ctime(&time);
@@ -1110,17 +1145,32 @@ static bool batchUploadCentralStore(std::string host, int port, int dataPort, in
                                      JasmineGraphInstanceProtocol::BATCH_UPLOAD_CENTRAL);
 }
 
+static void joinCompletedThreads(std::thread *workerThreads, int file_count, std::string_view graphType, int count) {
+    int batch_start = file_count * (graphType == Conts::GRAPH_WITH_ATTRIBUTES ? 6 : 4);
+    int batch_end = std::min(batch_start + 10, count);
+    for (int i = batch_start; i < batch_end; i++) {
+        if (workerThreads[i].joinable()) {
+            workerThreads[i].join();
+        }
+    }
+}
+
 void JasmineGraphServer::copyCentralStoreToAggregateLocation(std::string filePath) {
-    std::string result = "SUCCESS";
     std::string aggregatorDirPath = Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.aggregatefolder");
 
     if (access(aggregatorDirPath.c_str(), F_OK)) {
         Utils::createDirectory(aggregatorDirPath);
     }
 
-    std::string copyCommand = "cp " + filePath + " " + aggregatorDirPath;
-    if (system(copyCommand.c_str())) {
-        server_logger.error("Copying " + filePath + " into " + aggregatorDirPath + " failed");
+    // Use C++ filesystem for better performance (no shell process spawn)
+    try {
+        std::filesystem::path source(filePath);
+        std::filesystem::path dest = std::filesystem::path(aggregatorDirPath) / source.filename();
+
+        // Use copy_options::overwrite_existing for idempotency
+        std::filesystem::copy_file(source, dest, std::filesystem::copy_options::overwrite_existing);
+    } catch (const std::filesystem::filesystem_error& e) {
+        server_logger.error("Copying " + filePath + " into " + aggregatorDirPath + " failed: " + e.what());
     }
 }
 

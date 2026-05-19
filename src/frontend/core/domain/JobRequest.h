@@ -32,15 +32,15 @@ class JobRequest {
 
     std::string getJobId() const;
     void setJobId(std::string inputJobId);
-    std::string getJobType();
+    std::string getJobType() const;
     void setJobType(std::string inputJobType);
     void addParameter(std::string key, std::string value);
-    std::string getParameter(std::string key);
+    std::string getParameter(std::string key) const;
     void setPriority(int priority);
-    int getPriority();
+    int getPriority() const;
     void setMasterIP(std::string masterip);
-    std::string getMasterIP();
-    std::chrono::time_point<std::chrono::system_clock> getBegin();
+    std::string getMasterIP() const;
+    std::chrono::time_point<std::chrono::system_clock> getBegin() const;
     void setBeginTime(std::chrono::time_point<std::chrono::system_clock> begin);
 };
 

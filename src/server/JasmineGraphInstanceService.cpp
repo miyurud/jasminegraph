@@ -28,6 +28,8 @@ limitations under the License.
 #include "../knowledgegraph/construction/Pipeline.h"
 #include "../knowledgegraph/construction/VLLMTupleStreamer.h"
 #include "../query/algorithms/triangles/StreamingTriangles.h"
+#include "../query/algorithms/triangles/SheepTriangles.h"
+#include "../query/algorithms/triangles/SheepTriangles.h"
 #include "../query/processor/cypher/runtime/InstanceHandler.h"
 #include "../query/processor/nlp/semanticbeamsearch/SemanticBeamSearch.h"
 #include "../server/JasmineGraphServer.h"
@@ -71,33 +73,46 @@ static void delete_graph_command(int connFd, bool *loop_exit_p);
 static void delete_graph_fragment_command(int connFd, bool *loop_exit_p);
 static void duplicate_centralstore_command(int connFd, int serverPort, bool *loop_exit_p);
 static void worker_in_degree_distribution_command(
-    int connFd, std::map<std::string, JasmineGraphHashMapLocalStore> &graphDBMapLocalStores,
-    std::map<std::string, JasmineGraphHashMapCentralStore> &graphDBMapCentralStores, bool *loop_exit_p);
-static void in_degree_distribution_command(
-    int connFd, int serverPort, std::map<std::string, JasmineGraphHashMapLocalStore> &graphDBMapLocalStores,
-    std::map<std::string, JasmineGraphHashMapCentralStore> &graphDBMapCentralStores, bool *loop_exit_p);
-static void worker_out_degree_distribution_command(
-    int connFd, std::map<std::string, JasmineGraphHashMapLocalStore> &graphDBMapLocalStores,
-    std::map<std::string, JasmineGraphHashMapCentralStore> &graphDBMapCentralStores, bool *loop_exit_p);
-static void out_degree_distribution_command(
-    int connFd, int serverPort, std::map<std::string, JasmineGraphHashMapLocalStore> &graphDBMapLocalStores,
-    std::map<std::string, JasmineGraphHashMapCentralStore> &graphDBMapCentralStores, bool *loop_exit_p);
-static void page_rank_command(int connFd, int serverPort,
-                              std::map<std::string, JasmineGraphHashMapCentralStore> &graphDBMapCentralStores,
-                              bool *loop_exit_p);
-static void worker_page_rank_distribution_command(
-    int connFd, int serverPort, std::map<std::string, JasmineGraphHashMapCentralStore> &graphDBMapCentralStores,
+    int connFd,
+    std::map<std::string, JasmineGraphHashMapLocalStore, std::less<>> &graphDBMapLocalStores,
+    std::map<std::string, JasmineGraphHashMapCentralStore, std::less<>> &graphDBMapCentralStores,
     bool *loop_exit_p);
-static void egonet_command(int connFd, int serverPort,
-                           std::map<std::string, JasmineGraphHashMapCentralStore> &graphDBMapCentralStores,
-                           bool *loop_exit_p);
-static void worker_egonet_command(int connFd, int serverPort,
-                                  std::map<std::string, JasmineGraphHashMapCentralStore> &graphDBMapCentralStores,
-                                  bool *loop_exit_p);
+static void in_degree_distribution_command(
+    int connFd, int serverPort,
+    std::map<std::string, JasmineGraphHashMapLocalStore, std::less<>> &graphDBMapLocalStores,
+    std::map<std::string, JasmineGraphHashMapCentralStore, std::less<>> &graphDBMapCentralStores,
+    bool *loop_exit_p);
+static void worker_out_degree_distribution_command(
+    int connFd,
+    std::map<std::string, JasmineGraphHashMapLocalStore, std::less<>> &graphDBMapLocalStores,
+    std::map<std::string, JasmineGraphHashMapCentralStore, std::less<>> &graphDBMapCentralStores,
+    bool *loop_exit_p);
+static void out_degree_distribution_command(
+    int connFd, int serverPort,
+    std::map<std::string, JasmineGraphHashMapLocalStore, std::less<>> &graphDBMapLocalStores,
+    std::map<std::string, JasmineGraphHashMapCentralStore, std::less<>> &graphDBMapCentralStores,
+    bool *loop_exit_p);
+static void page_rank_command(
+    int connFd, int serverPort,
+    std::map<std::string, JasmineGraphHashMapCentralStore, std::less<>> &graphDBMapCentralStores,
+    bool *loop_exit_p);
+static void worker_page_rank_distribution_command(
+    int connFd, int serverPort,
+    std::map<std::string, JasmineGraphHashMapCentralStore, std::less<>> &graphDBMapCentralStores,
+    bool *loop_exit_p);
+static void egonet_command(
+    int connFd, int serverPort,
+    std::map<std::string, JasmineGraphHashMapCentralStore, std::less<>> &graphDBMapCentralStores,
+    bool *loop_exit_p);
+static void worker_egonet_command(
+    int connFd, int serverPort,
+    std::map<std::string, JasmineGraphHashMapCentralStore, std::less<>> &graphDBMapCentralStores,
+    bool *loop_exit_p);
 static void triangles_command(
-    int connFd, int serverPort, std::map<std::string, JasmineGraphHashMapLocalStore> &graphDBMapLocalStores,
-    std::map<std::string, JasmineGraphHashMapCentralStore> &graphDBMapCentralStores,
-    std::map<std::string, JasmineGraphHashMapDuplicateCentralStore> &graphDBMapDuplicateCentralStores,
+    int connFd, int serverPort,
+    std::map<std::string, JasmineGraphHashMapLocalStore, std::less<>> &graphDBMapLocalStores,
+    std::map<std::string, JasmineGraphHashMapCentralStore, std::less<>> &graphDBMapCentralStores,
+    std::map<std::string, JasmineGraphHashMapDuplicateCentralStore, std::less<>> &graphDBMapDuplicateCentralStores,
     bool *loop_exit_p);
 static void streaming_triangles_command(
     int connFd, int serverPort, std::map<std::string, JasmineGraphIncrementalLocalStore *> &incrementalLocalStoreMap,
@@ -133,10 +148,11 @@ static void graph_stream_start_command(int connFd, InstanceStreamHandler &instan
 static void send_priority_command(int connFd, bool *loop_exit_p);
 static std::string initiate_command_common(int connFd, bool *loop_exit_p);
 static void batch_upload_common(int connFd, bool *loop_exit_p, bool batch_upload);
-static void degree_distribution_common(int connFd, int serverPort,
-                                       std::map<std::string, JasmineGraphHashMapLocalStore> &graphDBMapLocalStores,
-                                       std::map<std::string, JasmineGraphHashMapCentralStore> &graphDBMapCentralStores,
-                                       bool *loop_exit_p, bool in);
+static void degree_distribution_common(
+    int connFd, int serverPort,
+    std::map<std::string, JasmineGraphHashMapLocalStore, std::less<>> &graphDBMapLocalStores,
+    std::map<std::string, JasmineGraphHashMapCentralStore, std::less<>> &graphDBMapCentralStores,
+    bool *loop_exit_p, bool in);
 static void push_partition_command(int connFd, bool *loop_exit_p);
 static void push_file_command(int connFd, bool *loop_exit_p);
 static void send_edges_command(int connFd, bool *loop_exit_p);
@@ -158,9 +174,9 @@ static void hdfs_start_stream_command(int connFd, bool *loop_exit_p, bool isLoca
                                       InstanceStreamHandler &instanceStreamHandler);
 long countLocalTriangles(
     std::string graphId, std::string partitionId,
-    std::map<std::string, JasmineGraphHashMapLocalStore> &graphDBMapLocalStores,
-    std::map<std::string, JasmineGraphHashMapCentralStore> &graphDBMapCentralStores,
-    std::map<std::string, JasmineGraphHashMapDuplicateCentralStore> &graphDBMapDuplicateCentralStores,
+    std::map<std::string, JasmineGraphHashMapLocalStore, std::less<>> &graphDBMapLocalStores,
+    std::map<std::string, JasmineGraphHashMapCentralStore, std::less<>> &graphDBMapCentralStores,
+    std::map<std::string, JasmineGraphHashMapDuplicateCentralStore, std::less<>> &graphDBMapDuplicateCentralStores,
     int threadPriority);
 
 static void processFile(string basicString, bool isLocal, InstanceStreamHandler &handler, bool
@@ -181,11 +197,12 @@ void *instanceservicesession(void *dummyPt) {
     instanceservicesessionargs sessionargs = *sessionargs_p;
     delete sessionargs_p;
     int connFd = sessionargs.connFd;
-    std::map<std::string, JasmineGraphHashMapLocalStore> *graphDBMapLocalStores = sessionargs.graphDBMapLocalStores;
-    std::map<std::string, JasmineGraphHashMapCentralStore> *graphDBMapCentralStores =
-        sessionargs.graphDBMapCentralStores;
-    std::map<std::string, JasmineGraphHashMapDuplicateCentralStore> *graphDBMapDuplicateCentralStores =
-        sessionargs.graphDBMapDuplicateCentralStores;
+    std::map<std::string, JasmineGraphHashMapLocalStore, std::less<>>
+        *graphDBMapLocalStores = sessionargs.graphDBMapLocalStores;
+    std::map<std::string, JasmineGraphHashMapCentralStore, std::less<>>
+        *graphDBMapCentralStores = sessionargs.graphDBMapCentralStores;
+    std::map<std::string, JasmineGraphHashMapDuplicateCentralStore, std::less<>>
+        *graphDBMapDuplicateCentralStores = sessionargs.graphDBMapDuplicateCentralStores;
     std::map<std::string, JasmineGraphIncrementalLocalStore *> &incrementalLocalStoreMap =
         *(sessionargs.incrementalLocalStore);
     InstanceStreamHandler streamHandler(incrementalLocalStoreMap);
@@ -369,9 +386,9 @@ void JasmineGraphInstanceService::run(string masterHost, string host, int server
     len = sizeof(clntAdd);
 
     pthread_mutex_init(&file_lock, NULL);
-    std::map<std::string, JasmineGraphHashMapLocalStore> graphDBMapLocalStores;
-    std::map<std::string, JasmineGraphHashMapCentralStore> graphDBMapCentralStores;
-    std::map<std::string, JasmineGraphHashMapDuplicateCentralStore> graphDBMapDuplicateCentralStores;
+    std::map<std::string, JasmineGraphHashMapLocalStore, std::less<>> graphDBMapLocalStores;
+    std::map<std::string, JasmineGraphHashMapCentralStore, std::less<>> graphDBMapCentralStores;
+    std::map<std::string, JasmineGraphHashMapDuplicateCentralStore, std::less<>> graphDBMapDuplicateCentralStores;
     std::map<std::string, JasmineGraphIncrementalLocalStore *> incrementalLocalStore;
     std::thread perfThread = std::thread(&PerformanceUtil::collectPerformanceStatistics);
     perfThread.detach();
@@ -465,49 +482,90 @@ void writeCatalogRecord(string record) {
     outfile.close();
 }
 
+static void loadTriangleStores(
+    std::string graphId, std::string partitionId,
+    std::map<std::string, JasmineGraphHashMapLocalStore, std::less<>> &graphDBMapLocalStores,
+    std::map<std::string, JasmineGraphHashMapCentralStore, std::less<>> &graphDBMapCentralStores,
+    std::map<std::string, JasmineGraphHashMapDuplicateCentralStore, std::less<>> &graphDBMapDuplicateCentralStores) {
+    std::string graphIdentifier = graphId + "_" + partitionId;
+    std::string centralGraphIdentifier = graphId + "_centralstore_" + partitionId;
+    std::string duplicateCentralGraphIdentifier = graphId + "_centralstore_dp_" + partitionId;
+
+    if (graphDBMapLocalStores.find(graphIdentifier) == graphDBMapLocalStores.end() &&
+        JasmineGraphInstanceService::isGraphDBExists(graphId, partitionId)) {
+        JasmineGraphInstanceService::loadLocalStore(graphId, partitionId, graphDBMapLocalStores);
+    }
+
+    if (graphDBMapCentralStores.find(centralGraphIdentifier) == graphDBMapCentralStores.end() &&
+        JasmineGraphInstanceService::isInstanceCentralStoreExists(graphId, partitionId)) {
+        JasmineGraphInstanceService::loadInstanceCentralStore(graphId, partitionId, graphDBMapCentralStores);
+    }
+
+    if (graphDBMapDuplicateCentralStores.find(duplicateCentralGraphIdentifier) ==
+        graphDBMapDuplicateCentralStores.end() &&
+        JasmineGraphInstanceService::isInstanceDuplicateCentralStoreExists(graphId, partitionId)) {
+        JasmineGraphInstanceService::loadInstanceDuplicateCentralStore(graphId, partitionId,
+                                                                       graphDBMapDuplicateCentralStores);
+    }
+}
+
 long countLocalTriangles(
     std::string graphId, std::string partitionId,
-    std::map<std::string, JasmineGraphHashMapLocalStore> &graphDBMapLocalStores,
-    std::map<std::string, JasmineGraphHashMapCentralStore> &graphDBMapCentralStores,
-    std::map<std::string, JasmineGraphHashMapDuplicateCentralStore> &graphDBMapDuplicateCentralStores,
+    std::map<std::string, JasmineGraphHashMapLocalStore, std::less<>> &graphDBMapLocalStores,
+    std::map<std::string, JasmineGraphHashMapCentralStore, std::less<>> &graphDBMapCentralStores,
+    std::map<std::string, JasmineGraphHashMapDuplicateCentralStore, std::less<>> &graphDBMapDuplicateCentralStores,
     int threadPriority) {
-
     OTEL_TRACE_FUNCTION();
-
-    long result;
 
     instance_logger.info("###INSTANCE### Local Triangle Count : Started: Graph ID " + graphId +
                          " Partition " + partitionId);
+
+    loadTriangleStores(graphId, partitionId, graphDBMapLocalStores, graphDBMapCentralStores,
+                       graphDBMapDuplicateCentralStores);
 
     std::string graphIdentifier = graphId + "_" + partitionId;
     std::string centralGraphIdentifier = graphId + "_centralstore_" + partitionId;
     std::string duplicateCentralGraphIdentifier = graphId + "_centralstore_dp_" + partitionId;
 
-    auto localMapIterator = graphDBMapLocalStores.find(graphIdentifier);
-    auto centralStoreIterator = graphDBMapCentralStores.find(graphIdentifier);
-    auto duplicateCentralStoreIterator = graphDBMapDuplicateCentralStores.find(graphIdentifier);
-
-    if (localMapIterator == graphDBMapLocalStores.end() &&
-        JasmineGraphInstanceService::isGraphDBExists(graphId, partitionId)) {
-        JasmineGraphInstanceService::loadLocalStore(graphId, partitionId, graphDBMapLocalStores);
-    }
     JasmineGraphHashMapLocalStore graphDB = graphDBMapLocalStores[graphIdentifier];
-
-    if (centralStoreIterator == graphDBMapCentralStores.end() &&
-        JasmineGraphInstanceService::isInstanceCentralStoreExists(graphId, partitionId)) {
-        JasmineGraphInstanceService::loadInstanceCentralStore(graphId, partitionId, graphDBMapCentralStores);
-    }
     JasmineGraphHashMapCentralStore centralGraphDB = graphDBMapCentralStores[centralGraphIdentifier];
-
-    if (duplicateCentralStoreIterator == graphDBMapDuplicateCentralStores.end() &&
-        JasmineGraphInstanceService::isInstanceDuplicateCentralStoreExists(graphId, partitionId)) {
-        JasmineGraphInstanceService::loadInstanceDuplicateCentralStore(graphId, partitionId,
-                                                                       graphDBMapDuplicateCentralStores);
-    }
     JasmineGraphHashMapDuplicateCentralStore duplicateCentralGraphDB =
         graphDBMapDuplicateCentralStores[duplicateCentralGraphIdentifier];
 
-    result = Triangles::run(graphDB, centralGraphDB, duplicateCentralGraphDB, graphId, partitionId, threadPriority);
+    instance_logger.info("###INSTANCE### Using standard Triangles algorithm");
+    long result = Triangles::run(graphDB, centralGraphDB, duplicateCentralGraphDB, graphId, partitionId,
+                                 threadPriority);
+
+    instance_logger.info("###INSTANCE### Local Triangle Count : Completed: Triangles: " + to_string(result));
+
+    return result;
+}
+
+long countLocalSheepTriangles(
+    std::string graphId, std::string partitionId,
+    std::map<std::string, JasmineGraphHashMapLocalStore, std::less<>> &graphDBMapLocalStores,
+    std::map<std::string, JasmineGraphHashMapCentralStore, std::less<>> &graphDBMapCentralStores,
+    std::map<std::string, JasmineGraphHashMapDuplicateCentralStore, std::less<>> &graphDBMapDuplicateCentralStores,
+    int threadPriority) {
+    OTEL_TRACE_FUNCTION();
+
+    instance_logger.info("###INSTANCE### Local Triangle Count : Started: Graph ID " + graphId +
+                         " Partition " + partitionId);
+
+    loadTriangleStores(graphId, partitionId, graphDBMapLocalStores, graphDBMapCentralStores,
+                       graphDBMapDuplicateCentralStores);
+
+    std::string graphIdentifier = graphId + "_" + partitionId;
+    std::string centralGraphIdentifier = graphId + "_centralstore_" + partitionId;
+    std::string duplicateCentralGraphIdentifier = graphId + "_centralstore_dp_" + partitionId;
+
+    JasmineGraphHashMapLocalStore graphDB = graphDBMapLocalStores[graphIdentifier];
+    JasmineGraphHashMapCentralStore centralGraphDB = graphDBMapCentralStores[centralGraphIdentifier];
+    JasmineGraphHashMapDuplicateCentralStore duplicateCentralGraphDB =
+        graphDBMapDuplicateCentralStores[duplicateCentralGraphIdentifier];
+
+    instance_logger.info("###INSTANCE### Using SheepTriangles algorithm");
+    long result = SheepTriangles::run(graphDB, centralGraphDB, duplicateCentralGraphDB, graphId, partitionId);
 
     instance_logger.info("###INSTANCE### Local Triangle Count : Completed: Triangles: " + to_string(result));
 
@@ -560,7 +618,7 @@ JasmineGraphIncrementalLocalStore *JasmineGraphInstanceService::loadStreamingSto
 
 void JasmineGraphInstanceService::loadLocalStore(
     std::string graphId, std::string partitionId,
-    std::map<std::string, JasmineGraphHashMapLocalStore> &graphDBMapLocalStores) {
+    std::map<std::string, JasmineGraphHashMapLocalStore, std::less<>> &graphDBMapLocalStores) {
     instance_logger.info("###INSTANCE### Loading Local Store : Started");
     std::string graphIdentifier = graphId + "_" + partitionId;
     std::string folderLocation = Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder");
@@ -571,8 +629,8 @@ void JasmineGraphInstanceService::loadLocalStore(
 }
 
 void JasmineGraphInstanceService::loadInstanceCentralStore(
-    std::string graphId, std::string partitionId,
-    std::map<std::string, JasmineGraphHashMapCentralStore> &graphDBMapCentralStores) {
+    const std::string &graphId, const std::string &partitionId,
+    std::map<std::string, JasmineGraphHashMapCentralStore, std::less<>> &graphDBMapCentralStores) {
     instance_logger.info("###INSTANCE### Loading central Store : Started");
     std::string graphIdentifier = graphId + "_centralstore_" + partitionId;
     JasmineGraphHashMapCentralStore jasmineGraphHashMapCentralStore(stoi(graphId), stoi(partitionId));
@@ -582,8 +640,8 @@ void JasmineGraphInstanceService::loadInstanceCentralStore(
 }
 
 void JasmineGraphInstanceService::loadInstanceDuplicateCentralStore(
-    std::string graphId, std::string partitionId,
-    std::map<std::string, JasmineGraphHashMapDuplicateCentralStore> &graphDBMapDuplicateCentralStores) {
+    const std::string &graphId, const std::string &partitionId,
+    std::map<std::string, JasmineGraphHashMapDuplicateCentralStore, std::less<>> &graphDBMapDuplicateCentralStores) {
     std::string graphIdentifier = graphId + "_centralstore_dp_" + partitionId;
     JasmineGraphHashMapDuplicateCentralStore jasmineGraphHashMapCentralStore(stoi(graphId), stoi(partitionId));
     jasmineGraphHashMapCentralStore.loadGraph();
@@ -660,7 +718,7 @@ static string aggregateCentralStoreTriangles(std::string graphId, std::string pa
 
 string JasmineGraphInstanceService::aggregateCompositeCentralStoreTriangles(std::string compositeFileList,
                                                                             std::string availableFileList,
-                                                                            int threadPriority) {
+                                                                            int) {
     instance_logger.info("###INSTANCE### Started Aggregating Composite Central Store Triangles");
     std::string aggregatorDirPath = Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.aggregatefolder");
     std::string dataFolder = Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder");
@@ -1238,10 +1296,11 @@ bool JasmineGraphInstanceService::duplicateCentralStore(int thisWorkerPort, int 
     return true;
 }
 
-map<long, long> calculateOutDegreeDist(string graphID, string partitionID, int serverPort,
-                                       std::map<std::string, JasmineGraphHashMapLocalStore> &graphDBMapLocalStores,
-                                       std::map<std::string, JasmineGraphHashMapCentralStore> &graphDBMapCentralStores,
-                                       std::vector<string> &workerSockets) {
+map<long, long> calculateOutDegreeDist(
+    const string &graphID, const string &partitionID, int,
+    std::map<std::string, JasmineGraphHashMapLocalStore, std::less<>> &graphDBMapLocalStores,
+    std::map<std::string, JasmineGraphHashMapCentralStore, std::less<>> &graphDBMapCentralStores,
+    std::vector<string> &workerSockets) {
     map<long, long> degreeDistribution =
         calculateLocalOutDegreeDist(graphID, partitionID, graphDBMapLocalStores, graphDBMapCentralStores);
 
@@ -1262,14 +1321,15 @@ map<long, long> calculateOutDegreeDist(string graphID, string partitionID, int s
 }
 
 map<long, long> calculateLocalOutDegreeDist(
-    string graphID, string partitionID, std::map<std::string, JasmineGraphHashMapLocalStore> &graphDBMapLocalStores,
-    std::map<std::string, JasmineGraphHashMapCentralStore> &graphDBMapCentralStores) {
+    const string &graphID, const string &partitionID,
+    std::map<std::string, JasmineGraphHashMapLocalStore, std::less<>> &graphDBMapLocalStores,
+    std::map<std::string, JasmineGraphHashMapCentralStore, std::less<>> &graphDBMapCentralStores) {
     auto t_start = std::chrono::high_resolution_clock::now();
 
     JasmineGraphHashMapLocalStore graphDB;
     JasmineGraphHashMapCentralStore centralDB;
-    std::map<std::string, JasmineGraphHashMapLocalStore>::iterator it;
-    std::map<std::string, JasmineGraphHashMapCentralStore>::iterator itcen;
+    std::map<std::string, JasmineGraphHashMapLocalStore, std::less<>>::iterator it;
+    std::map<std::string, JasmineGraphHashMapCentralStore, std::less<>>::iterator itcen;
 
     if (JasmineGraphInstanceService::isGraphDBExists(graphID, partitionID)) {
         JasmineGraphInstanceService::loadLocalStore(graphID, partitionID, graphDBMapLocalStores);
@@ -1309,11 +1369,12 @@ map<long, long> calculateLocalOutDegreeDist(
 }
 
 map<long, long> calculateLocalInDegreeDist(
-    string graphID, string partitionID, std::map<std::string, JasmineGraphHashMapLocalStore> &graphDBMapLocalStores,
-    std::map<std::string, JasmineGraphHashMapCentralStore> &graphDBMapCentralStores) {
+    const string &graphID, const string &partitionID,
+    std::map<std::string, JasmineGraphHashMapLocalStore, std::less<>> &graphDBMapLocalStores,
+    const std::map<std::string, JasmineGraphHashMapCentralStore, std::less<>> &) {
     JasmineGraphHashMapLocalStore graphDB;
 
-    std::map<std::string, JasmineGraphHashMapLocalStore>::iterator it;
+    std::map<std::string, JasmineGraphHashMapLocalStore, std::less<>>::iterator it;
 
     if (JasmineGraphInstanceService::isGraphDBExists(graphID, partitionID)) {
         JasmineGraphInstanceService::loadLocalStore(graphID, partitionID, graphDBMapLocalStores);
@@ -1327,10 +1388,11 @@ map<long, long> calculateLocalInDegreeDist(
     return degreeDistribution;
 }
 
-map<long, long> calculateInDegreeDist(string graphID, string partitionID, int serverPort,
-                                      std::map<std::string, JasmineGraphHashMapLocalStore> &graphDBMapLocalStores,
-                                      std::map<std::string, JasmineGraphHashMapCentralStore> &graphDBMapCentralStores,
-                                      std::vector<string> &workerSockets, string workerList) {
+map<long, long> calculateInDegreeDist(
+    const string &graphID, const string &partitionID, int,
+    std::map<std::string, JasmineGraphHashMapLocalStore, std::less<>> &graphDBMapLocalStores,
+    std::map<std::string, JasmineGraphHashMapCentralStore, std::less<>> &graphDBMapCentralStores,
+    std::vector<string> &workerSockets, string workerList) {
     auto t_start = std::chrono::high_resolution_clock::now();
 
     map<long, long> degreeDistribution =
@@ -1349,7 +1411,7 @@ map<long, long> calculateInDegreeDist(string graphID, string partitionID, int se
 
         JasmineGraphHashMapCentralStore centralDB;
 
-        std::map<std::string, JasmineGraphHashMapCentralStore>::iterator itcen;
+        std::map<std::string, JasmineGraphHashMapCentralStore, std::less<>>::iterator itcen;
 
         if (JasmineGraphInstanceService::isInstanceCentralStoreExists(graphID, workerPartitionID)) {
             JasmineGraphInstanceService::loadInstanceCentralStore(graphID, workerPartitionID, graphDBMapCentralStores);
@@ -2303,8 +2365,8 @@ static void duplicate_centralstore_command(int connFd, int serverPort, bool *loo
 }
 
 static void worker_in_degree_distribution_command(
-    int connFd, std::map<std::string, JasmineGraphHashMapLocalStore> &graphDBMapLocalStores,
-    std::map<std::string, JasmineGraphHashMapCentralStore> &graphDBMapCentralStores, bool *loop_exit_p) {
+    int connFd, std::map<std::string, JasmineGraphHashMapLocalStore, std::less<>> &graphDBMapLocalStores,
+    std::map<std::string, JasmineGraphHashMapCentralStore, std::less<>> &graphDBMapCentralStores, bool *loop_exit_p) {
     if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::OK)) {
         *loop_exit_p = true;
         return;
@@ -2360,7 +2422,7 @@ static void worker_in_degree_distribution_command(
 
         JasmineGraphHashMapCentralStore centralDB;
 
-        std::map<std::string, JasmineGraphHashMapCentralStore>::iterator itcen;
+        std::map<std::string, JasmineGraphHashMapCentralStore, std::less<>>::iterator itcen;
 
         if (JasmineGraphInstanceService::isInstanceCentralStoreExists(graphID, workerPartitionID)) {
             JasmineGraphInstanceService::loadInstanceCentralStore(graphID, workerPartitionID, graphDBMapCentralStores);
@@ -2400,10 +2462,11 @@ static void worker_in_degree_distribution_command(
     *loop_exit_p = true;
 }
 
-static void degree_distribution_common(int connFd, int serverPort,
-                                       std::map<std::string, JasmineGraphHashMapLocalStore> &graphDBMapLocalStores,
-                                       std::map<std::string, JasmineGraphHashMapCentralStore> &graphDBMapCentralStores,
-                                       bool *loop_exit_p, bool in) {
+static void degree_distribution_common(
+    int connFd, int serverPort,
+    std::map<std::string, JasmineGraphHashMapLocalStore, std::less<>> &graphDBMapLocalStores,
+    std::map<std::string, JasmineGraphHashMapCentralStore, std::less<>> &graphDBMapCentralStores,
+    bool *loop_exit_p, bool in) {
     if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::OK)) {
         *loop_exit_p = true;
         return;
@@ -2453,14 +2516,18 @@ static void degree_distribution_common(int connFd, int serverPort,
 }
 
 static void in_degree_distribution_command(
-    int connFd, int serverPort, std::map<std::string, JasmineGraphHashMapLocalStore> &graphDBMapLocalStores,
-    std::map<std::string, JasmineGraphHashMapCentralStore> &graphDBMapCentralStores, bool *loop_exit_p) {
+    int connFd, int serverPort,
+    std::map<std::string, JasmineGraphHashMapLocalStore, std::less<>> &graphDBMapLocalStores,
+    std::map<std::string, JasmineGraphHashMapCentralStore, std::less<>> &graphDBMapCentralStores,
+    bool *loop_exit_p) {
     degree_distribution_common(connFd, serverPort, graphDBMapLocalStores, graphDBMapCentralStores, loop_exit_p, true);
 }
 
 static void worker_out_degree_distribution_command(
-    int connFd, std::map<std::string, JasmineGraphHashMapLocalStore> &graphDBMapLocalStores,
-    std::map<std::string, JasmineGraphHashMapCentralStore> &graphDBMapCentralStores, bool *loop_exit_p) {
+    int connFd,
+    std::map<std::string, JasmineGraphHashMapLocalStore, std::less<>> &graphDBMapLocalStores,
+    std::map<std::string, JasmineGraphHashMapCentralStore, std::less<>> &graphDBMapCentralStores,
+    bool *loop_exit_p) {
     if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::OK)) {
         *loop_exit_p = true;
         return;
@@ -2495,14 +2562,16 @@ static void worker_out_degree_distribution_command(
 }
 
 static void out_degree_distribution_command(
-    int connFd, int serverPort, std::map<std::string, JasmineGraphHashMapLocalStore> &graphDBMapLocalStores,
-    std::map<std::string, JasmineGraphHashMapCentralStore> &graphDBMapCentralStores, bool *loop_exit_p) {
+    int connFd, int serverPort,
+    std::map<std::string, JasmineGraphHashMapLocalStore, std::less<>> &graphDBMapLocalStores,
+    std::map<std::string, JasmineGraphHashMapCentralStore, std::less<>> &graphDBMapCentralStores,
+    bool *loop_exit_p) {
     degree_distribution_common(connFd, serverPort, graphDBMapLocalStores, graphDBMapCentralStores, loop_exit_p, false);
 }
 
 static void page_rank_command(int connFd, int serverPort,
-                              std::map<std::string, JasmineGraphHashMapCentralStore> &graphDBMapCentralStores,
-                              bool *loop_exit_p) {
+                              std::map<std::string, JasmineGraphHashMapCentralStore,
+                              std::less<>> &graphDBMapCentralStores, bool *loop_exit_p) {
     if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::OK)) {
         *loop_exit_p = true;
         return;
@@ -2578,7 +2647,7 @@ static void page_rank_command(int connFd, int serverPort,
     JasmineGraphHashMapLocalStore graphDB;
     JasmineGraphHashMapCentralStore centralDB;
 
-    std::map<std::string, JasmineGraphHashMapLocalStore> graphDBMapLocalStoresPgrnk;
+    std::map<std::string, JasmineGraphHashMapLocalStore, std::less<>> graphDBMapLocalStoresPgrnk;
     if (JasmineGraphInstanceService::isGraphDBExists(graphID, partitionID)) {
         JasmineGraphInstanceService::loadLocalStore(graphID, partitionID, graphDBMapLocalStoresPgrnk);
     }
@@ -2654,7 +2723,8 @@ static void page_rank_command(int connFd, int serverPort,
 }
 
 static void worker_page_rank_distribution_command(
-    int connFd, int serverPort, std::map<std::string, JasmineGraphHashMapCentralStore> &graphDBMapCentralStores,
+    int connFd, int serverPort,
+    std::map<std::string, JasmineGraphHashMapCentralStore, std::less<>> &graphDBMapCentralStores,
     bool *loop_exit_p) {
     if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::OK)) {
         *loop_exit_p = true;
@@ -2731,7 +2801,7 @@ static void worker_page_rank_distribution_command(
     JasmineGraphHashMapLocalStore graphDB;
     JasmineGraphHashMapCentralStore centralDB;
 
-    std::map<std::string, JasmineGraphHashMapLocalStore> graphDBMapLocalStoresPgrnk;
+    std::map<std::string, JasmineGraphHashMapLocalStore, std::less<>> graphDBMapLocalStoresPgrnk;
     if (JasmineGraphInstanceService::isGraphDBExists(graphID, partitionID)) {
         JasmineGraphInstanceService::loadLocalStore(graphID, partitionID, graphDBMapLocalStoresPgrnk);
     }
@@ -2782,7 +2852,7 @@ static void worker_page_rank_distribution_command(
 }
 
 static void egonet_command(int connFd, int serverPort,
-                           std::map<std::string, JasmineGraphHashMapCentralStore> &graphDBMapCentralStores,
+                           std::map<std::string, JasmineGraphHashMapCentralStore, std::less<>> &graphDBMapCentralStores,
                            bool *loop_exit_p) {
     if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::OK)) {
         *loop_exit_p = true;
@@ -2815,7 +2885,7 @@ static void egonet_command(int connFd, int serverPort,
     JasmineGraphHashMapLocalStore graphDB;
     JasmineGraphHashMapCentralStore centralDB;
 
-    std::map<std::string, JasmineGraphHashMapLocalStore> graphDBMapLocalStoresPgrnk;
+    std::map<std::string, JasmineGraphHashMapLocalStore, std::less<>> graphDBMapLocalStoresPgrnk;
     if (JasmineGraphInstanceService::isGraphDBExists(graphID, partitionID)) {
         JasmineGraphInstanceService::loadLocalStore(graphID, partitionID, graphDBMapLocalStoresPgrnk);
     }
@@ -2830,9 +2900,8 @@ static void egonet_command(int connFd, int serverPort,
     calculateEgoNet(graphID, partitionID, serverPort, graphDB, centralDB, workerList);
 }
 
-static void worker_egonet_command(int connFd, int serverPort,
-                                  std::map<std::string, JasmineGraphHashMapCentralStore> &graphDBMapCentralStores,
-                                  bool *loop_exit_p) {
+static void worker_egonet_command(int connFd, int serverPort, std::map<std::string, JasmineGraphHashMapCentralStore,
+    std::less<>> &graphDBMapCentralStores, bool *loop_exit_p) {
     if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::OK)) {
         *loop_exit_p = true;
         return;
@@ -2877,7 +2946,7 @@ static void worker_egonet_command(int connFd, int serverPort,
     JasmineGraphHashMapLocalStore graphDB;
     JasmineGraphHashMapCentralStore centralDB;
 
-    std::map<std::string, JasmineGraphHashMapLocalStore> graphDBMapLocalStoresPgrnk;
+    std::map<std::string, JasmineGraphHashMapLocalStore, std::less<>> graphDBMapLocalStoresPgrnk;
     if (JasmineGraphInstanceService::isGraphDBExists(graphID, partitionID)) {
         JasmineGraphInstanceService::loadLocalStore(graphID, partitionID, graphDBMapLocalStoresPgrnk);
     }
@@ -2912,11 +2981,13 @@ static void worker_egonet_command(int connFd, int serverPort,
     instance_logger.info("Egonet calculation completed");
 }
 
-static void triangles_command(
-    int connFd, int serverPort, std::map<std::string, JasmineGraphHashMapLocalStore> &graphDBMapLocalStores,
-    std::map<std::string, JasmineGraphHashMapCentralStore> &graphDBMapCentralStores,
-    std::map<std::string, JasmineGraphHashMapDuplicateCentralStore> &graphDBMapDuplicateCentralStores,
-    bool *loop_exit_p) {
+template <typename TriangleCountFn>
+static void triangle_counting_command_common(
+    int connFd, int serverPort,
+    std::map<std::string, JasmineGraphHashMapLocalStore, std::less<>> &graphDBMapLocalStores,
+    std::map<std::string, JasmineGraphHashMapCentralStore, std::less<>> &graphDBMapCentralStores,
+    std::map<std::string, JasmineGraphHashMapDuplicateCentralStore, std::less<>> &graphDBMapDuplicateCentralStores,
+    bool *loop_exit_p, TriangleCountFn countFn) {
     if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::OK)) {
         *loop_exit_p = true;
         return;
@@ -2948,16 +3019,10 @@ static void triangles_command(
         return;
     }
 
-    // Receive trace context from master
     string traceContext = Utils::read_str_trim_wrapper(connFd, data, INSTANCE_DATA_LENGTH);
-
-    // Use utility function to validate and set trace context
     OpenTelemetryUtil::receiveAndSetTraceContext(traceContext, "triangle counting");
-
-    // Start tracing AFTER trace context is set to ensure proper parent-child relationship
     OTEL_TRACE_FUNCTION();
 
-    // Add worker identification attributes to distinguish workers in traces
     OpenTelemetryUtil::addSpanAttribute("worker.id", "worker_" + std::to_string(serverPort));
     OpenTelemetryUtil::addSpanAttribute("worker.port", std::to_string(serverPort));
     OpenTelemetryUtil::addSpanAttribute("partition.id", partitionId);
@@ -2976,10 +3041,8 @@ static void triangles_command(
     std::thread perfThread = std::thread(&PerformanceUtil::collectPerformanceStatistics);
     perfThread.detach();
 
-    long localCount = countLocalTriangles(graphID, partitionId, graphDBMapLocalStores, graphDBMapCentralStores,
-                                          graphDBMapDuplicateCentralStores, threadPriority);
-
-
+    long localCount = countFn(graphID, partitionId, graphDBMapLocalStores, graphDBMapCentralStores,
+                              graphDBMapDuplicateCentralStores, threadPriority);
 
     if (threadPriority > Conts::DEFAULT_THREAD_PRIORITY) {
         threadPriorityMutex.lock();
@@ -2995,6 +3058,26 @@ static void triangles_command(
     if (!Utils::send_str_wrapper(connFd, result)) {
         *loop_exit_p = true;
     }
+}
+
+static void triangles_command(
+    int connFd, int serverPort,
+    std::map<std::string, JasmineGraphHashMapLocalStore, std::less<>> &graphDBMapLocalStores,
+    std::map<std::string, JasmineGraphHashMapCentralStore, std::less<>> &graphDBMapCentralStores,
+    std::map<std::string, JasmineGraphHashMapDuplicateCentralStore, std::less<>> &graphDBMapDuplicateCentralStores,
+    bool *loop_exit_p) {
+    triangle_counting_command_common(connFd, serverPort, graphDBMapLocalStores, graphDBMapCentralStores,
+                                     graphDBMapDuplicateCentralStores, loop_exit_p, countLocalTriangles);
+}
+
+static void sheep_triangles_command(
+    int connFd, int serverPort,
+    std::map<std::string, JasmineGraphHashMapLocalStore, std::less<>> &graphDBMapLocalStores,
+    std::map<std::string, JasmineGraphHashMapCentralStore, std::less<>> &graphDBMapCentralStores,
+    std::map<std::string, JasmineGraphHashMapDuplicateCentralStore, std::less<>> &graphDBMapDuplicateCentralStores,
+    bool *loop_exit_p) {
+    triangle_counting_command_common(connFd, serverPort, graphDBMapLocalStores, graphDBMapCentralStores,
+                                     graphDBMapDuplicateCentralStores, loop_exit_p, countLocalSheepTriangles);
 }
 
 static void streaming_triangles_command(

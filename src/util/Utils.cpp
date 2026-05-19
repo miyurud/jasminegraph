@@ -17,6 +17,7 @@ limitations under the License.
 #include <dirent.h>
 #include <jsoncpp/json/json.h>
 #include <netdb.h>
+#include <netinet/tcp.h>
 #include <pwd.h>
 #include <sys/stat.h>
 #include <unistd.h>
@@ -26,6 +27,7 @@ limitations under the License.
 #include <iomanip>
 #include <regex>
 #include <sstream>
+#include <thread>
 #include <vector>
 
 #include "../../globals.h"
@@ -1151,8 +1153,24 @@ bool Utils::uploadFileToWorker(const std::string &host, int port, int dataPort, 
 
     sockfd = Utils::createAndConnectToWorker(host, port, masterIP, data, FED_DATA_LENGTH);
     if (sockfd < 0) {
+        util_logger.error("Cannot create socket");
         return false;
     }
+
+
+
+    // Optimize TCP socket for file uploads
+    int flag = 1;
+    setsockopt(sockfd, IPPROTO_TCP, TCP_NODELAY, (char *)&flag, sizeof(int));
+
+    // Increase send/receive buffer sizes for better throughput (1MB)
+    int bufsize = 1024 * 1024;
+    setsockopt(sockfd, SOL_SOCKET, SO_SNDBUF, (char *)&bufsize, sizeof(bufsize));
+    setsockopt(sockfd, SOL_SOCKET, SO_RCVBUF, (char *)&bufsize, sizeof(bufsize));
+
+    // Enable address reuse
+    int reuse = 1;
+    setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, (char *)&reuse, sizeof(reuse));
 
     if (!Utils::sendExpectResponse(sockfd, data, INSTANCE_DATA_LENGTH, uploadType, JasmineGraphInstanceProtocol::OK)) {
         Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::CLOSE);
@@ -1185,52 +1203,73 @@ bool Utils::uploadFileToWorker(const std::string &host, int port, int dataPort, 
         return false;
     }
 
-    util_logger.info("Going to send file" + filePath + "/" + fileName + "through file transfer service to worker");
+    util_logger.info("Sending file " + fileName + " through file transfer service to worker");
     Utils::sendFileThroughService(host, dataPort, fileName, filePath);
 
     string response;
     int count = 0;
-    while (true) {
+    int maxRetries = 300;  // 5 minutes max with exponential backoff
+    int sleepMs = 50;  // Start with 50ms
+
+    // Wait for file reception with exponential backoff
+    while (count < maxRetries) {
         if (!Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::FILE_RECV_CHK)) {
             Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::CLOSE);
             close(sockfd);
             return false;
         }
-        util_logger.info("Sent: " + JasmineGraphInstanceProtocol::FILE_RECV_CHK);
 
-        util_logger.info("Checking if file is received");
         response = Utils::read_str_trim_wrapper(sockfd, data, FED_DATA_LENGTH);
         if (response.compare(JasmineGraphInstanceProtocol::FILE_RECV_WAIT) == 0) {
-            util_logger.info("Received: " + JasmineGraphInstanceProtocol::FILE_RECV_WAIT);
-            util_logger.info("Checking file status : " + to_string(count));
             count++;
-            sleep(1);
+            std::this_thread::sleep_for(std::chrono::milliseconds(sleepMs));
+            // Exponential backoff up to 1 second
+            if (sleepMs < 1000) {
+                sleepMs = std::min(sleepMs * 2, 1000);
+            }
             continue;
         } else if (response.compare(JasmineGraphInstanceProtocol::FILE_ACK) == 0) {
-            util_logger.info("Received: " + JasmineGraphInstanceProtocol::FILE_ACK);
-            util_logger.info("File transfer completed for file : " + filePath);
+            util_logger.info("File transfer completed for: " + fileName);
             break;
         }
     }
-    // Next we wait till the batch upload completes
-    while (true) {
+
+    if (count >= maxRetries) {
+        util_logger.error("File reception timeout for: " + fileName);
+        Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::CLOSE);
+        close(sockfd);
+        return false;
+    }
+
+    // Wait for batch upload completion with exponential backoff
+    count = 0;
+    sleepMs = 50;
+    while (count < maxRetries) {
         if (!Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::BATCH_UPLOAD_CHK)) {
             Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::CLOSE);
             close(sockfd);
             return false;
         }
-        util_logger.info("Sent: " + JasmineGraphInstanceProtocol::BATCH_UPLOAD_CHK);
 
         response = Utils::read_str_trim_wrapper(sockfd, data, FED_DATA_LENGTH);
         if (response.compare(JasmineGraphInstanceProtocol::BATCH_UPLOAD_WAIT) == 0) {
-            util_logger.info("Received: " + JasmineGraphInstanceProtocol::BATCH_UPLOAD_WAIT);
-            sleep(1);
+            count++;
+            std::this_thread::sleep_for(std::chrono::milliseconds(sleepMs));
+            if (sleepMs < 1000) {
+                sleepMs = std::min(sleepMs * 2, 1000);
+            }
             continue;
         } else if (response.compare(JasmineGraphInstanceProtocol::BATCH_UPLOAD_ACK) == 0) {
-            util_logger.info("Received: " + JasmineGraphInstanceProtocol::BATCH_UPLOAD_ACK);
             util_logger.info("Batch upload completed: " + fileName);
             break;
         }
+    }
+
+    if (count >= maxRetries) {
+        util_logger.error("Batch upload timeout for: " + fileName);
+        Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::CLOSE);
+        close(sockfd);
+        return false;
     }
     Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::CLOSE);
     close(sockfd);
@@ -1348,6 +1387,11 @@ bool Utils::sendFileThroughService(std::string host, int dataPort, std::string f
     struct hostent *server;
 
     util_logger.info("Sending file " + filePath + " through port " + std::to_string(dataPort));
+
+    if (host.find('@') != std::string::npos) {
+        host = Utils::split(host, '@')[1];
+    }
+
     FILE *fp = fopen(filePath.c_str(), "r");
     if (fp == NULL) {
         return false;
@@ -1373,6 +1417,19 @@ bool Utils::sendFileThroughService(std::string host, int dataPort, std::string f
         return false;
     }
 
+    // Optimize TCP socket for high-throughput file transfers
+    int flag = 1;
+    setsockopt(sockfd, IPPROTO_TCP, TCP_NODELAY, (char *)&flag, sizeof(int));
+
+    // Increase send/receive buffer sizes for better throughput (1MB)
+    int bufsize = 1024 * 1024;
+    setsockopt(sockfd, SOL_SOCKET, SO_SNDBUF, (char *)&bufsize, sizeof(bufsize));
+    setsockopt(sockfd, SOL_SOCKET, SO_RCVBUF, (char *)&bufsize, sizeof(bufsize));
+
+    // Enable address reuse
+    int reuse = 1;
+    setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, (char *)&reuse, sizeof(reuse));
+
     if (!Utils::sendExpectResponse(sockfd, data, INSTANCE_DATA_LENGTH, fileName,
                                    JasmineGraphInstanceProtocol::SEND_FILE_LEN)) {
         close(sockfd);
@@ -1387,13 +1444,16 @@ bool Utils::sendFileThroughService(std::string host, int dataPort, std::string f
     }
 
     bool status = true;
+    // Use larger buffer for better throughput (64KB)
+    const int BUFFER_SIZE = 65536;
+    std::vector<unsigned char> buff(BUFFER_SIZE);
+
     while (true) {
-        unsigned char buff[1024];
-        int nread = fread(buff, 1, sizeof(buff), fp);
+        int nread = fread(buff.data(), 1, BUFFER_SIZE, fp);
 
         /* If read was success, send data. */
         if (nread > 0) {
-            write(sockfd, buff, nread);
+            write(sockfd, buff.data(), nread);
         } else {
             if (feof(fp)) util_logger.info("End of file");
             if (ferror(fp)) {
@@ -1465,8 +1525,8 @@ void Utils::assignPartitionToWorker(int graphId, int partitionIndex, string  hos
     util_logger.debug("Assigning graph ID: " + std::to_string(graphId) + "  partition: "
     + std::to_string(partitionIndex) + " to worker");
 
-    auto *sqlite = new SQLiteDBInterface();
-    sqlite->init();
+    SQLiteDBInterface sqlite;
+    sqlite.init();
 
     string workerHost = hostname;
     if (hostname.find('@') != std::string::npos) {
@@ -1480,7 +1540,7 @@ void Utils::assignPartitionToWorker(int graphId, int partitionIndex, string  hos
                 "SELECT idworker FROM worker WHERE ip='" + workerHost +
                 "' AND server_port='" + std::to_string(port) + "'";
 
-        std::vector<std::vector<std::pair<std::string, std::string>>> results = sqlite->runSelect(workerSearchQuery);
+        std::vector<std::vector<std::pair<std::string, std::string>>> results = sqlite.runSelect(workerSearchQuery);
 
         if (results.empty()) {
             util_logger.error("Worker not found : " + workerHost);
@@ -1494,15 +1554,13 @@ void Utils::assignPartitionToWorker(int graphId, int partitionIndex, string  hos
                 "VALUES ('" + std::to_string(partitionIndex) + "','" + std::to_string(graphId)
                 + "','" + workerID + "')";
 
-        sqlite->runInsert(partitionToWorkerQuery);
+        sqlite.runInsert(partitionToWorkerQuery);
     } catch (const std::exception &ex) {
         util_logger.error("Error assigning partition to worker: " + std::string(ex.what()));
     }
 
-    sqlite->finalize();
+    sqlite.finalize();
     sqliteMutex.unlock();
-
-    delete sqlite;
 }
 
 

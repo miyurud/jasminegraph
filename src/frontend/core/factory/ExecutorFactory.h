@@ -14,6 +14,7 @@ limitations under the License.
 #ifndef JASMINEGRAPH_EXECUTORFACTORY_H
 #define JASMINEGRAPH_EXECUTORFACTORY_H
 
+#include <memory>
 #include <string>
 
 #include "../../../metadb/SQLiteDBInterface.h"
@@ -25,7 +26,7 @@ limitations under the License.
 class ExecutorFactory {
  public:
     ExecutorFactory(SQLiteDBInterface *db, PerformanceSQLiteDBInterface *perfDb);
-    AbstractExecutor* getExecutor(JobRequest jobRequest);
+    std::unique_ptr<AbstractExecutor> getExecutor(JobRequest jobRequest);
 
  private:
     SQLiteDBInterface *sqliteDB;
