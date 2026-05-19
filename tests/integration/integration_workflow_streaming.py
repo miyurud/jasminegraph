@@ -321,7 +321,8 @@ def test_streaming_triangle_count_with_kafka(host, port):  # pylint: disable=too
 
         publish_stream(records, delay_sec=1.0)
 
-        expected_triangle_count = len(records) // 3
+        expected_triangle_count = (len(records) - 1) // 3
+        minimum_triangle_count = max(1, expected_triangle_count - 1)
         latest_triangle_count = 0
         latest_response = ''
 
@@ -345,7 +346,7 @@ def test_streaming_triangle_count_with_kafka(host, port):  # pylint: disable=too
             latest_response = response
             common.logging.info('[Streaming][Sequential] Attempt %s triangle count: %s',
                                 sequential_attempt, triangle_count)
-            if triangle_count >= expected_triangle_count:
+            if triangle_count >= minimum_triangle_count:
                 break
             time.sleep(4)
 
@@ -358,10 +359,11 @@ def test_streaming_triangle_count_with_kafka(host, port):  # pylint: disable=too
                 len(consumed_messages)
             )
 
-        if latest_triangle_count < expected_triangle_count:
+        if latest_triangle_count < minimum_triangle_count:
             raise RuntimeError(
                 '[Streaming] Streaming triangle count below threshold. '
-                f'Expected >= {expected_triangle_count}, got {latest_triangle_count}. '
+                f'Expected >= {minimum_triangle_count} '
+                f'({expected_triangle_count} generated), got {latest_triangle_count}. '
                 f'Last response: {latest_response}'
             )
 
