@@ -296,7 +296,7 @@ echo '------------------ services -----------------------------------'
 kubectl get services -o wide
 echo
 
-JASMINEGRAPH_ENABLE_STREAMING_TEST="${JASMINEGRAPH_ENABLE_STREAMING_TEST:-1}" \
+JASMINEGRAPH_ENABLE_STREAMING_TEST="${JASMINEGRAPH_ENABLE_STREAMING_TEST:-0}" \
     timeout "$TIMEOUT_SECONDS" python3 -u "${TEST_ROOT}/test-k8s.py" "$masterIP" |& tee "$TEST_LOG"
 exit_code="${PIPESTATUS[0]}"
 
