@@ -33,6 +33,7 @@ limitations under the License.
 #include <iostream>
 #include <map>
 #include <string>
+#include <string_view>
 #include <thread>
 
 #include "../metadb/SQLiteDBInterface.h"
@@ -61,9 +62,9 @@ class JasmineGraphFrontEnd {
     static bool areRunningJobsForSameGraph();
     static bool constructKGStreamHDFSCommand(std::string masterIP, int connFd, int numberOfPartitions,
                                              SQLiteDBInterface *sqlite, bool *loop_exit_p);
+    static void stop_graph_streaming(int connFd, SQLiteDBInterface*sqlite,bool *loop_exit_p);
     static bool constructKGStreamLocalTXTCommand(std::string masterIP, int connFd, int numberOfPartitions,
                                           SQLiteDBInterface *sqlite, bool *loop_exit_p);
-    static void stop_graph_streaming(int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_p);
     static bool strian_exit;
     std::map<std::string, std::atomic<bool>> *streamsState;
     std::map<std::string, std::thread> streamingThreads;

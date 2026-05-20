@@ -1,0 +1,157 @@
+/**
+Copyright 2026 JasminGraph Team
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+    http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+ */
+
+#include "StreamRegistry.h"
+
+#include "../logger/Logger.h"
+
+Logger stream_registry_logger;
+
+StreamRegistry &StreamRegistry::getInstance() {
+    static StreamRegistry instance;
+    return instance;
+}
+
+bool StreamRegistry::registerStream(int graphId, const std::string &topicName, int connectionFd,
+                                     KafkaConnector *kafkaConnector, const std::string &userId) {
+    std::lock_guard<std::mutex> lock(registryMutex);
+
+    // Check if stream with this graphId already exists
+    if (activeStreams.find(graphId) != activeStreams.end()) {
+        stream_registry_logger.error("StreamRegistry: Stream with graphId " + std::to_string(graphId) +
+                                      " already registered");
+        return false;
+    }
+
+    // Create new stream metadata
+    auto metadata = std::make_shared<StreamMetadata>(graphId, topicName, connectionFd,
+                                                     std::this_thread::get_id(), kafkaConnector, userId);
+    activeStreams[graphId] = metadata;
+
+    stream_registry_logger.info("StreamRegistry: Registered stream for graphId=" + std::to_string(graphId) +
+                                ", topic=" + topicName + ", connectionFd=" + std::to_string(connectionFd));
+
+    return true;
+}
+
+void StreamRegistry::updateStreamThreadId(int graphId, std::thread::id threadId) {
+    std::lock_guard<std::mutex> lock(registryMutex);
+
+    auto it = activeStreams.find(graphId);
+    if (it != activeStreams.end()) {
+        it->second->threadId = threadId;
+        stream_registry_logger.info("StreamRegistry: Updated thread ID for graphId=" + std::to_string(graphId));
+    } else {
+        stream_registry_logger.error("StreamRegistry: Cannot update thread ID - stream graphId " +
+                                      std::to_string(graphId) + " not found");
+    }
+}
+
+std::shared_ptr<StreamMetadata> StreamRegistry::getStreamByTopic(const std::string &topicName) {
+    std::lock_guard<std::mutex> lock(registryMutex);
+
+    for (const auto &entry : activeStreams) {
+        if (entry.second && entry.second->topicName == topicName) {
+            return entry.second;
+        }
+    }
+
+    return nullptr;
+}
+
+std::vector<std::shared_ptr<StreamMetadata>> StreamRegistry::getStreamsByTopic(const std::string &topicName) {
+    std::lock_guard<std::mutex> lock(registryMutex);
+    std::vector<std::shared_ptr<StreamMetadata>> matches;
+
+    for (const auto &entry : activeStreams) {
+        if (entry.second && entry.second->topicName == topicName) {
+            matches.push_back(entry.second);
+        }
+    }
+
+    return matches;
+}
+
+std::shared_ptr<StreamMetadata> StreamRegistry::getStreamByGraphId(int graphId) {
+    std::lock_guard<std::mutex> lock(registryMutex);
+
+    auto it = activeStreams.find(graphId);
+    if (it != activeStreams.end()) {
+        return it->second;
+    }
+
+    return nullptr;
+}
+
+std::map<int, std::shared_ptr<StreamMetadata>> StreamRegistry::getAllStreams() {
+    std::lock_guard<std::mutex> lock(registryMutex);
+    return activeStreams;
+}
+
+bool StreamRegistry::unregisterStream(int graphId) {
+    std::lock_guard<std::mutex> lock(registryMutex);
+
+    auto it = activeStreams.find(graphId);
+    if (it != activeStreams.end()) {
+        activeStreams.erase(it);
+        stream_registry_logger.info("StreamRegistry: Unregistered stream for graphId=" +
+                                    std::to_string(graphId));
+        return true;
+    }
+
+    stream_registry_logger.error("StreamRegistry: Cannot unregister - stream graphId " + std::to_string(graphId) +
+                                 " not found");
+    return false;
+}
+
+bool StreamRegistry::signalStreamStop(int graphId) {
+    std::lock_guard<std::mutex> lock(registryMutex);
+
+    auto it = activeStreams.find(graphId);
+    if (it != activeStreams.end()) {
+        it->second->stopFlag->store(true, std::memory_order_release);
+        stream_registry_logger.info("StreamRegistry: Signaled stop for graphId=" + std::to_string(graphId));
+        return true;
+    }
+
+    stream_registry_logger.error("StreamRegistry: Cannot signal stop - stream graphId " + std::to_string(graphId) +
+                                 " not found");
+    return false;
+}
+
+bool StreamRegistry::isStreamActive(int graphId) {
+    std::lock_guard<std::mutex> lock(registryMutex);
+    return activeStreams.find(graphId) != activeStreams.end();
+}
+
+size_t StreamRegistry::getActiveStreamCount() {
+    std::lock_guard<std::mutex> lock(registryMutex);
+    return activeStreams.size();
+}
+
+void StreamRegistry::stopAllStreams() {
+    std::lock_guard<std::mutex> lock(registryMutex);
+
+    stream_registry_logger.info("StreamRegistry: Stopping all " + std::to_string(activeStreams.size()) +
+                                " active streams");
+
+    for (auto &entry : activeStreams) {
+        entry.second->stopFlag->store(true, std::memory_order_release);
+    }
+}
+
+void StreamRegistry::clear() {
+    std::lock_guard<std::mutex> lock(registryMutex);
+    activeStreams.clear();
+    stream_registry_logger.info("StreamRegistry: Cleared all stream entries");
+}

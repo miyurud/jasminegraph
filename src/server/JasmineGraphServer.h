@@ -59,7 +59,7 @@ class JasmineGraphServer {
 
     static bool hasEnding(std::string const &fullString, std::string const &ending);
     std::vector<std::string> getWorkerVector(std::string workerList);
-    void deleteNonOperationalGraphFragment(int graphID);
+    void deleteNON_OPERATIONALGraphFragment(int graphID);
 
  public:
     std::string workerHosts;

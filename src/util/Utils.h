@@ -130,7 +130,7 @@ class Utils {
 
   static std::string checkFlag(std::string flagPath);
 
-  static int connect_wrapper(int sock, const sockaddr* addr, socklen_t slen);
+  static int connect_wrapper(int sock, const sockaddr* addr, socklen_t slen);int createAndConnectToWorker(const std::string&host, int port, const std::string&masterIP, char*data, size_t dataLength, bool performHS);
 
   /**
    * Wrapper to recv(2) to read a string.
