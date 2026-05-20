@@ -27,6 +27,7 @@ limitations under the License.
 #include <map>
 #include <mutex>
 #include <nlohmann/json.hpp>
+#include <sstream>
 #include <set>
 #include <thread>
 
@@ -63,6 +64,7 @@ limitations under the License.
 #include "/home/ubuntu/software/antlr/CypherLexer.h"
 #include "/home/ubuntu/software/antlr/CypherParser.h"
 #include "JasmineGraphFrontEndProtocol.h"
+#include "KafkaTopicUtils.h"
 #include "JasmineGraphFrontEndProtocol.h"
 #include "JasmineGraphFrontEndProtocol.h"
 #include "antlr4-runtime.h"
@@ -138,6 +140,7 @@ static void addStreamHDFSCommand(std::string masterIP, int connFd, std::string &
 static void send_graph_hdfs_command(const std::string &masterIP, int connectionFd, SQLiteDBInterface *sqlite,
                                     bool *loop_exit_p);
 static void stop_stream_kafka_command(int connFd, const std::string &topicName, bool *loop_exit_p);
+static void kafka_topics_command(int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_p);
 static void process_dataset_command(int connFd, bool *loop_exit_p);
 static void triangles_command(std::string masterIP, int connFd, SQLiteDBInterface *sqlite,
                               PerformanceSQLiteDBInterface *perfSqlite, JobScheduler *jobScheduler, bool *loop_exit_p);
@@ -267,6 +270,8 @@ void* frontendservicesesion(void* dummyPt) {
             }
             add_stream_kafka_command(connFd, kafka_server_IP, configs, kstream, input_stream_handler, workerClients,
                                      numberOfPartitions, sqlite, &loop_exit);
+        } else if (line.compare(KTOP) == 0) {
+            kafka_topics_command(connFd, sqlite, &loop_exit);
         } else if (line.compare(ADD_STREAM_HDFS) == 0) {
             addStreamHDFSCommand(masterIP, connFd, hdfsServerIp, input_stream_handler, numberOfPartitions, sqlite,
                                  &loop_exit);
@@ -1827,7 +1832,6 @@ static void add_stream_kafka_command(int connFd, std::string &kafka_server_IP, c
         *loop_exit_p = true;
         return;
     }
-
     // Create the KafkaConnector object.
     kstream = new KafkaConnector(configs);
     // Subscribe to the Kafka topic.
@@ -1863,7 +1867,7 @@ static void add_stream_kafka_command(int connFd, std::string &kafka_server_IP, c
     auto stopFlag = streamMetadata->stopFlag;
 
     // Create the StreamHandler object with the stop flag
-    auto stream_handler = std::make_shared<StreamHandler>(
+    auto stream_handler = std::make_unique<StreamHandler>(
         kstream, numberOfPartitions, workerClients, sqlite, graphIdInt, direction == Conts::DIRECTED,
         spt::getPartitioner(partitionAlgo), stopFlag);
 
@@ -1889,11 +1893,12 @@ static void add_stream_kafka_command(int connFd, std::string &kafka_server_IP, c
         frontend_logger.warn("Detaching existing Kafka input stream handler thread before starting a new one");
         input_stream_handler_thread.detach();
     }
-    input_stream_handler_thread = thread(&StreamHandler::listen_to_kafka_topic, stream_handler);
+    input_stream_handler_thread = thread(&StreamHandler::listen_to_kafka_topic, std::move(stream_handler));
 
     // Update the stream registry with the new thread ID
     registry.updateStreamThreadId(graphIdInt, input_stream_handler_thread.get_id());
 }
+
 static bool writeSocketLine(int connectionFd, const std::string &message, bool *loop_exit_p) {
     int resultWr = write(connectionFd, message.c_str(), message.length());
     if (resultWr < 0) {
@@ -3151,7 +3156,8 @@ static void stop_stream_kafka_command(int connFd, const std::string &topicName, 
             *loop_exit_p = true;
             return;
         }
-        result_wr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
+        result_wr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(),
+                          Conts::CARRIAGE_RETURN_NEW_LINE.size());
         if (result_wr < 0) {
             frontend_logger.error("Error writing to socket");
             *loop_exit_p = true;
@@ -3163,9 +3169,9 @@ static void stop_stream_kafka_command(int connFd, const std::string &topicName, 
     } else {
         string errorMsg = "Error: Could not signal stop for topic `" + topicName + "`";
         frontend_logger.error(errorMsg);
-        write(connFd, errorMsg.c_str(), errorMsg.length());
-        write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
-        *loop_exit_p = true;
+        if (!writeSocketLine(connFd, errorMsg, loop_exit_p)) {
+            return;
+        }
     }
 }
     bool JasmineGraphFrontEnd::constructKGStreamLocalTXTCommand(
@@ -3346,6 +3352,23 @@ static void stop_stream_kafka_command(int connFd, const std::string &topicName, 
     }
 
 
+
+static void kafka_topics_command(int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_p) {
+    frontend_logger.info("Serving `" + KTOP + "` command");
+    std::set<std::string> topicNames;
+
+    try {
+        std::string sql = "SELECT upload_path FROM graph WHERE upload_path LIKE 'kafka:%'";
+        auto rows = sqlite->runSelect(sql);
+        topicNames = KafkaTopicUtils::extractTopicNames(rows);
+    } catch (const std::exception &ex) {
+        frontend_logger.error("Failed to fetch Kafka topics from storage: " + std::string(ex.what()));
+    }
+
+    writeSocketResultOrEmpty(connFd,
+                             KafkaTopicUtils::serializeTopicNames(topicNames, Conts::CARRIAGE_RETURN_NEW_LINE),
+                             loop_exit_p);
+}
 
         static void process_dataset_command(int connFd, bool* loop_exit_p) {
             int result_wr = write(connFd, SEND.c_str(), FRONTEND_COMMAND_LENGTH);

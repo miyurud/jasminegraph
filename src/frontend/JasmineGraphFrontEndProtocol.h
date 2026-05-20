@@ -89,6 +89,7 @@ extern const string PRIORITY;
 extern const string STOP_STREAM_KAFKA;
 extern const string STOP_STRIAN;
 extern const string SEND_GRAPH_HDFS;
+extern const string KTOP;
 
 extern const string ADMDL;
 extern const string MERGE;

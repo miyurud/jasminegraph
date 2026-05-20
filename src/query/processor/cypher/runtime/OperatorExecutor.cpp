@@ -1599,6 +1599,8 @@ void OperatorExecutor::OrderBy(SharedBuffer &buffer, std::string jsonPlan, Graph
             if (!runFiles.empty()) {
                 flushHeapToRunFile(heap, runFiles);
                 localKWayMergeToBuffer(runFiles, buffer, isAsc, sortKey);
+                result.join();
+                break;
             } else {
                 while (!heap.empty()) {
                     buffer.add(heap.top().jsonStr);
