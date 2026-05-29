@@ -2404,16 +2404,15 @@ static void add_rdf_command(std::string masterIP, int connFd, SQLiteDBInterface 
 
         MetisPartitioner metisPartitioner(sqlite);
         vector<std::map<int, string>> fullFileList;
-        const string dataFolder = Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder");
         string input_file_path =
-            dataFolder + "/tmp/" + to_string(newGraphID) + "/" + to_string(newGraphID);
+            Utils::getHomeDir() + "/.jasminegraph/tmp/" + to_string(newGraphID) + "/" + to_string(newGraphID);
         metisPartitioner.loadDataSet(input_file_path, newGraphID);
 
         metisPartitioner.constructMetisFormat(Conts::GRAPH_TYPE_RDF);
         fullFileList = metisPartitioner.partitioneWithGPMetis("");
         JasmineGraphServer *server = JasmineGraphServer::getInstance();
         server->uploadGraphLocally(newGraphID, Conts::GRAPH_WITH_ATTRIBUTES, fullFileList, masterIP);
-        Utils::deleteDirectory(dataFolder + "/tmp/" + to_string(newGraphID));
+        Utils::deleteDirectory(Utils::getHomeDir() + "/.jasminegraph/tmp/" + to_string(newGraphID));
         JasmineGraphFrontEndCommon::getAndUpdateUploadTime(to_string(newGraphID), sqlite);
         int result_wr = write(connFd, DONE.c_str(), DONE.size());
         if (result_wr < 0) {
@@ -2507,8 +2506,7 @@ static void add_graph_command(std::string masterIP, int connFd, SQLiteDBInterfac
         frontend_logger.info("Upload done");
         JasmineGraphServer *server = JasmineGraphServer::getInstance();
         server->uploadGraphLocally(newGraphID, Conts::GRAPH_TYPE_NORMAL, fullFileList, masterIP);
-        Utils::deleteDirectory(Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder") +
-                       "/tmp/" + to_string(newGraphID));
+        Utils::deleteDirectory(Utils::getHomeDir() + "/.jasminegraph/tmp/" + to_string(newGraphID));
         JasmineGraphFrontEndCommon::getAndUpdateUploadTime(to_string(newGraphID), sqlite);
         int result_wr = write(connFd, DONE.c_str(), DONE.size());
         if (result_wr < 0) {
@@ -2685,6 +2683,7 @@ static void add_graph_cust_command(std::string masterIP, int connFd, SQLiteDBInt
     }
 
     if (Utils::fileExists(edgeListPath) && Utils::fileExists(attributeListPath)) {
+
         string sqlStatement =
             "INSERT INTO graph (name,upload_path,upload_start_time,upload_end_time,graph_status_idgraph_status,"
             "vertexcount,centralpartitioncount,edgecount) VALUES(\"" +
@@ -2707,8 +2706,7 @@ static void add_graph_cust_command(std::string masterIP, int connFd, SQLiteDBInt
         // because this graph type has additional attribute files to be uploaded
         JasmineGraphServer *server = JasmineGraphServer::getInstance();
         server->uploadGraphLocally(newGraphID, Conts::GRAPH_WITH_ATTRIBUTES, fullFileList, masterIP);
-        std::string dataFolder = Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder");
-        Utils::deleteDirectory(dataFolder + "/tmp/" + std::to_string(newGraphID));
+        Utils::deleteDirectory(Utils::getHomeDir() + "/.jasminegraph/tmp/" + to_string(newGraphID));
         Utils::deleteDirectory("/tmp/" + std::to_string(newGraphID));
         JasmineGraphFrontEndCommon::getAndUpdateUploadTime(to_string(newGraphID), sqlite);
         result_wr = write(connFd, DONE.c_str(), DONE.size());
@@ -4360,9 +4358,7 @@ static void process_dataset_command(int connFd, bool *loop_exit_p) {
     frontend_logger.info("Path exists");
 
     JSONParser::jsonParse(path);
-    frontend_logger.info(std::string("Reformatted files created on ") +
-                         Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder") +
-                         "/tmp/JSONParser/output");
+    frontend_logger.info("Reformatted files created on /home/.jasminegraph/tmp/JSONParser/output");
 }
 
 static void triangles_command(std::string masterIP, int connFd, SQLiteDBInterface *sqlite,
