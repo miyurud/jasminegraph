@@ -2735,7 +2735,6 @@ static void remove_graph_command(std::string masterIP, int connFd, SQLiteDBInter
 
 }
 
-
 static void add_model_command(int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_p) {
     // TODO add error handling
     int result_wr = write(connFd, SEND.c_str(), FRONTEND_COMMAND_LENGTH);
