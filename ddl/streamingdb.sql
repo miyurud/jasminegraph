@@ -67,25 +67,25 @@ create table if not exists temporal_properties
 );
 
 -- Performance indexes
-create index if not exists idx_temporal_edges_graph 
+create index if not exists idx_temporal_edges_graph
     on temporal_edges(graph_id, partition_id);
 
-create index if not exists idx_temporal_edges_source 
+create index if not exists idx_temporal_edges_source
     on temporal_edges(source_id);
 
 create index if not exists idx_temporal_edges_destination
     on temporal_edges(destination_id);
 
-create index if not exists idx_temporal_properties_edge 
+create index if not exists idx_temporal_properties_edge
     on temporal_properties(edge_id);
 
-create index if not exists idx_temporal_properties_node 
+create index if not exists idx_temporal_properties_node
     on temporal_properties(node_id);
 
 create index if not exists idx_temporal_properties_key
     on temporal_properties(property_key);
 
-create index if not exists idx_temporal_snapshots_graph 
+create index if not exists idx_temporal_snapshots_graph
     on temporal_snapshots(graph_id, partition_id);
 
 create index if not exists idx_temporal_snapshots_time

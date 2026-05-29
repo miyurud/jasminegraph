@@ -631,6 +631,5 @@ class TemporalStore {
         }
     }
 };
-
 #endif  // TEMPORAL_STORE_H
 

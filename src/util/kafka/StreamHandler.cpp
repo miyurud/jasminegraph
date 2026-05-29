@@ -773,9 +773,6 @@ void StreamHandler::flushWorkerBatch(int workerId, bool force) {
     if (workerBatches[workerId].empty()) return;
     if (!force && workerBatches[workerId].size() < BATCH_SIZE) return;
 
-    /* Redundant: assignment happens once at start of listen_to_kafka_topic */
-
-    // Send all edges individually but asynchronously
     std::vector<std::string> edges = std::move(workerBatches[workerId]);
     workerBatches[workerId].clear();
     lock.unlock();
@@ -1110,15 +1107,6 @@ void StreamHandler::listen_to_kafka_topic() {
     streamHandlerLogger().info("Starting " + std::to_string(numConsumerThreads) +
                                " parallel Kafka consumer threads for topic '" + topic + "'");
 
-    /*
-    // For HASH partitioning: workers consume directly from Kafka (eliminates master relay bottleneck)
-    if (graphPartitioner.isHashAlgorithm()) {
-        streamHandlerLogger().info("Hash partitioning detected: dispatching direct Kafka consuming to workers");
-        listenViaDirectWorkers(topic, workers);
-        return;
-    }
-    */
-
     // Shared state for all consumer threads
     std::atomic<uint64_t> totalMessages{0};
     std::atomic<uint64_t> totalLocal{0};
@@ -1389,14 +1377,6 @@ void StreamHandler::listenViaDirectWorkers(
         doneThreads.emplace_back([doneStats, sockfd, wi]() {
             char longData[INSTANCE_LONG_DATA_LENGTH + 1];
             std::string doneMsg = Utils::read_str_trim_wrapper(sockfd, longData, INSTANCE_LONG_DATA_LENGTH);
-
-            // Log raw bytes for diagnostics
-            std::string rawHex;
-            for (unsigned char c : doneMsg.substr(0, std::min(doneMsg.size(), (size_t)80)))
-                rawHex += (c < 32 ? "[" + std::to_string((int)c) + "]" : std::string(1, c));
-            streamHandlerLogger().info("[DONE MSG] Worker " + std::to_string(wi) +
-                                       " rawBytes=" + rawHex +
-                                       " len=" + std::to_string(doneMsg.size()));
 
             const std::string& donePrefix = JasmineGraphInstanceProtocol::WORKER_DIRECT_KAFKA_DONE;
             if (doneMsg.size() >= donePrefix.size() &&

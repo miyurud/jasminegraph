@@ -1257,7 +1257,6 @@ bool JasmineGraphInstanceService::duplicateCentralStore(int thisWorkerPort, int 
     std::string centralStoreFileUnCompressed = dataDirPath + "/" + centralGraphIdentifierUnCompressed;
     std::string centralStoreFileUnCompressedDestination = aggregatorDirPath + "/" + centralGraphIdentifierUnCompressed;
 
-    // temporary copy the central store into the aggregate folder in order to compress and send
     Utils::copyToDirectory(centralStoreFileUnCompressed, aggregatorDirPath);
 
     // compress the central store file before sending
