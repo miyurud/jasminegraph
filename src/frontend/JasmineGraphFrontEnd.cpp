@@ -2361,10 +2361,10 @@ static void add_rdf_command(std::string masterIP, int connFd, SQLiteDBInterface 
 
     std::time_t time = chrono::system_clock::to_time_t(chrono::system_clock::now());
     string uploadStartTime = ctime(&time);
-    std::string gData = read_frontend_socket_value(connFd);
-    frontend_logger.info("Data received: " + gData);
+    std::string graphData = read_frontend_socket_value(connFd);
+    frontend_logger.info("Data received: " + graphData);
 
-    std::vector<std::string> strArr = Utils::split(gData, '|');
+    std::vector<std::string> strArr = Utils::split(graphData, '|');
 
     if (strArr.size() != 2) {
         frontend_logger.error("Message format not recognized");
@@ -2452,10 +2452,10 @@ static void add_graph_command(std::string masterIP, int connFd, SQLiteDBInterfac
 
     std::time_t time = chrono::system_clock::to_time_t(chrono::system_clock::now());
     string uploadStartTime = ctime(&time);
-    std::string gData = read_frontend_socket_value(connFd);
-    frontend_logger.info("Data received: " + gData);
+    std::string graphData = read_frontend_socket_value(connFd);
+    frontend_logger.info("Data received: " + graphData);
 
-    std::vector<std::string> strArr = Utils::split(gData, '|');
+    std::vector<std::string> strArr = Utils::split(graphData, '|');
 
     if (strArr.size() < 2) {
         frontend_logger.error("Message format not recognized");
@@ -2608,10 +2608,10 @@ static void add_graph_cust_command(std::string masterIP, int connFd, SQLiteDBInt
 
     std::time_t time = chrono::system_clock::to_time_t(chrono::system_clock::now());
     string uploadStartTime = ctime(&time);
-    std::string gData = read_frontend_socket_value(connFd);
-    frontend_logger.info("Data received: " + gData);
+    std::string graphData = read_frontend_socket_value(connFd);
+    frontend_logger.info("Data received: " + graphData);
 
-    std::vector<std::string> strArr = Utils::split(gData, '|');
+    std::vector<std::string> strArr = Utils::split(graphData, '|');
 
     if (strArr.size() != 3 && strArr.size() != 4) {
         frontend_logger.error("Message format not recognized");
@@ -2754,10 +2754,10 @@ static void add_model_command(int connFd, SQLiteDBInterface *sqlite, bool *loop_
 
     std::time_t time = chrono::system_clock::to_time_t(chrono::system_clock::now());
     string uploadStartTime = ctime(&time);
-    std::string gData = read_frontend_socket_value(connFd);
-    frontend_logger.info("Data received: " + gData);
+    std::string graphData = read_frontend_socket_value(connFd);
+    frontend_logger.info("Data received: " + graphData);
 
-    std::vector<std::string> strArr = Utils::split(gData, '|');
+    std::vector<std::string> strArr = Utils::split(graphData, '|');
 
     if (strArr.size() < 2) {
         frontend_logger.error("Message format not recognized");
