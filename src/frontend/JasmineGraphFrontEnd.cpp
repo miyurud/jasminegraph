@@ -2577,8 +2577,16 @@ static void add_graph_cust_command(std::string masterIP, int connFd, SQLiteDBInt
     string graphType(type);
     graphType = Utils::trim_copy(graphType);
 
-    std::unordered_set<std::string> s = {"1", "2", "3"};
-    if (s.find(graphType) == s.end()) {
+    enum class GraphType {
+        TEXT = 1,
+        JSON = 2,
+        XML = 3
+    };
+
+    int graphTypeValue = 0;
+    try {
+        graphTypeValue = std::stoi(graphType);
+    } catch (const std::exception&) {
         frontend_logger.error("Graph type not recognized");
         result_wr = write(connFd, "Graph type not recognized", strlen("Graph type not recognized"));
         if (result_wr < 0) {
@@ -2589,12 +2597,24 @@ static void add_graph_cust_command(std::string masterIP, int connFd, SQLiteDBInt
     }
 
     string graphAttributeType = "";
-    if (graphType == "1") {
-        graphAttributeType = Conts::GRAPH_WITH_TEXT_ATTRIBUTES;
-    } else if (graphType == "2") {
-        graphAttributeType = Conts::GRAPH_WITH_JSON_ATTRIBUTES;
-    } else if (graphType == "3") {
-        graphAttributeType = Conts::GRAPH_WITH_XML_ATTRIBUTES;
+    switch (graphTypeValue) {
+        case static_cast<int>(GraphType::TEXT):
+            graphAttributeType = Conts::GRAPH_WITH_TEXT_ATTRIBUTES;
+            break;
+        case static_cast<int>(GraphType::JSON):
+            graphAttributeType = Conts::GRAPH_WITH_JSON_ATTRIBUTES;
+            break;
+        case static_cast<int>(GraphType::XML):
+            graphAttributeType = Conts::GRAPH_WITH_XML_ATTRIBUTES;
+            break;
+        default:
+        frontend_logger.error("Graph type not recognized");
+        result_wr = write(connFd, "Graph type not recognized", strlen("Graph type not recognized"));
+        if (result_wr < 0) {
+            frontend_logger.error("Error writing to socket");
+            *loop_exit_p = true;
+        }
+        return;
     }
 
     // We get the name and the path to graph edge list and attribute list as a triplet separated by | .
