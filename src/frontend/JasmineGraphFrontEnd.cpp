@@ -1974,15 +1974,15 @@ int JasmineGraphFrontEnd::run() {
         }
         frontend_logger.info("Connection successful from " + std::string(inet_ntoa(clientAddress.sin_addr)));
 
-        frontendservicesessionargs *sessionargs = new frontendservicesessionargs;
-        sessionargs->masterIP = masterIP;
-        sessionargs->connFd = connFd;
-        sessionargs->sqlite = this->sqlite;
-        sessionargs->perfSqlite = this->perfSqlite;
-        sessionargs->jobScheduler = this->jobScheduler;
-        pthread_t pt;
-        pthread_create(&pt, nullptr, frontendservicesesion, sessionargs);
-        pthread_detach(pt);
+        frontendservicesessionargs *sessionArgs = new frontendservicesessionargs;
+        sessionArgs->masterIP = masterIP;
+        sessionArgs->connFd = connFd;
+        sessionArgs->sqlite = this->sqlite;
+        sessionArgs->perfSqlite = this->perfSqlite;
+        sessionArgs->jobScheduler = this->jobScheduler;
+        pthread_t sessionThread;
+        pthread_create(&sessionThread, nullptr, frontendservicesesion, sessionArgs);
+        pthread_detach(sessionThread);
     }
 }
 
