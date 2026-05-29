@@ -25,7 +25,7 @@ limitations under the License.
  * Responsibilities:
  * - Track current snapshot ID
  * - Determine when to close current snapshot and open new one
- * - Support multiple snapshot strategies (time-based, count-based, hybrid, adaptive)
+ * - Support multiple snapshot strategies (time-based, count-based, hybrid)
  *
  * Example:
  *   SnapshotManager mgr(60, 10000, "hybrid");  // 60 sec OR 10K edges
@@ -43,8 +43,7 @@ class SnapshotManager {
     enum class SnapshotMode {
         TIME_BASED,  // Create snapshot every T seconds
         COUNT_BASED,  // Create snapshot every K edges
-        HYBRID,  // Create when (time >= T) OR (edges >= K)
-        ADAPTIVE  // Calculate K based on system metrics
+        HYBRID  // Create when (time >= T) OR (edges >= K)
     };
 
  private:
@@ -123,11 +122,6 @@ class SnapshotManager {
                 return isEdgeCountThresholdReached();
 
             case SnapshotMode::HYBRID:
-                return isTimeThresholdReached() || isEdgeCountThresholdReached();
-
-            case SnapshotMode::ADAPTIVE:
-                // For now, use hybrid logic
-                // TODO: Implement adaptive sizing based on system metrics
                 return isTimeThresholdReached() || isEdgeCountThresholdReached();
 
             default:
@@ -227,7 +221,6 @@ class SnapshotManager {
         if (modeStr == "time") return SnapshotMode::TIME_BASED;
         if (modeStr == "count") return SnapshotMode::COUNT_BASED;
         if (modeStr == "hybrid") return SnapshotMode::HYBRID;
-        if (modeStr == "adaptive") return SnapshotMode::ADAPTIVE;
         return SnapshotMode::HYBRID;  // Default
     }
 };
