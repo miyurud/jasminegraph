@@ -2601,7 +2601,7 @@ static void add_graph_cust_command(std::string masterIP, int connFd, SQLiteDBInt
     // <name>|<path to edge list>|<path to attribute file>|(optional)<attribute data type: int8. int16, int32 or
     // float> Data types based on numpy array data types for numerical values with int8 referring to 8bit
     // integers etc. If data type is not specified, it will be inferred from values present in the first line of
-    // the attribute file The provided data type should be the largest in the following order: float > int32 >
+    // the attribute file. The provided data type should be the largest in the following order: float > int32 >
     // int16 > int8 Inferred data type will be the largest type based on the values present in the attribute
     // file first line
     message =
