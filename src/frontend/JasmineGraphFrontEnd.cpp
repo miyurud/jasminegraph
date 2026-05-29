@@ -1160,6 +1160,10 @@ class HistoryTriangleAggregation {
         }
     }
 
+    const std::string& tempDirPath() const {
+        return tempDir;
+    }
+
     bool ready() const {
         if (tempDir.empty()) {
             return false;
@@ -1594,7 +1598,11 @@ static TemporalTriangleResult countHistoryTrianglesDistributed(SQLiteDBInterface
     // Thread-safe sharded accumulator for boundary edges from all workers
     HistoryTriangleAggregation aggregation;
     if (!aggregation.ready()) {
-        frontend_logger.error("Failed to initialise HistoryTriangleAggregation temp dir");
+        const std::string tempDirPath = aggregation.tempDirPath().empty()
+            ? std::string("<unavailable>")
+            : aggregation.tempDirPath();
+        frontend_logger.error("Failed to initialise HistoryTriangleAggregation temp dir: " +
+                              tempDirPath);
         return result;
     }
 
