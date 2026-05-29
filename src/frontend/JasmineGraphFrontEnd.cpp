@@ -2683,7 +2683,6 @@ static void add_graph_cust_command(std::string masterIP, int connFd, SQLiteDBInt
     }
 
     if (Utils::fileExists(edgeListPath) && Utils::fileExists(attributeListPath)) {
-
         string sqlStatement =
             "INSERT INTO graph (name,upload_path,upload_start_time,upload_end_time,graph_status_idgraph_status,"
             "vertexcount,centralpartitioncount,edgecount) VALUES(\"" +
