@@ -2459,7 +2459,11 @@ static void add_graph_command(std::string masterIP, int connFd, SQLiteDBInterfac
 
     if (strArr.size() < 2) {
         frontend_logger.error("Message format not recognized");
-        // TODO: inform client?
+        result_wr = write(connFd, INVALID_FORMAT.c_str(), INVALID_FORMAT.size());
+        if (result_wr < 0) {
+            frontend_logger.error("Error writing to socket");
+            *loop_exit_p = true;
+        }
         return;
     }
 
@@ -2470,7 +2474,11 @@ static void add_graph_command(std::string masterIP, int connFd, SQLiteDBInterfac
 
     if (JasmineGraphFrontEndCommon::graphExists(path, sqlite)) {
         frontend_logger.error("Graph exists");
-        // TODO: inform client?
+        result_wr = write(connFd, "Graph exists", strlen("Graph exists"));
+        if (result_wr < 0) {
+            frontend_logger.error("Error writing to socket");
+            *loop_exit_p = true;
+        }
         return;
     }
 
@@ -2572,7 +2580,11 @@ static void add_graph_cust_command(std::string masterIP, int connFd, SQLiteDBInt
     std::unordered_set<std::string> s = {"1", "2", "3"};
     if (s.find(graphType) == s.end()) {
         frontend_logger.error("Graph type not recognized");
-        // TODO: inform client?
+        result_wr = write(connFd, "Graph type not recognized", strlen("Graph type not recognized"));
+        if (result_wr < 0) {
+            frontend_logger.error("Error writing to socket");
+            *loop_exit_p = true;
+        }
         return;
     }
 
@@ -2615,7 +2627,11 @@ static void add_graph_cust_command(std::string masterIP, int connFd, SQLiteDBInt
 
     if (strArr.size() != 3 && strArr.size() != 4) {
         frontend_logger.error("Message format not recognized");
-        // TODO: inform client?
+        result_wr = write(connFd, INVALID_FORMAT.c_str(), INVALID_FORMAT.size());
+        if (result_wr < 0) {
+            frontend_logger.error("Error writing to socket");
+            *loop_exit_p = true;
+        }
         return;
     }
 
@@ -2627,14 +2643,22 @@ static void add_graph_cust_command(std::string masterIP, int connFd, SQLiteDBInt
         attrDataType = strArr[3];
         if (attrDataType != "int8" && attrDataType != "int16" && attrDataType != "int32" && attrDataType != "float") {
             frontend_logger.error("Data type not recognized");
-            // TODO: inform client?
+            result_wr = write(connFd, "Data type not recognized", strlen("Data type not recognized"));
+            if (result_wr < 0) {
+                frontend_logger.error("Error writing to socket");
+                *loop_exit_p = true;
+            }
             return;
         }
     }
 
     if (JasmineGraphFrontEndCommon::graphExists(edgeListPath, sqlite)) {
         frontend_logger.error("Graph exists");
-        // TODO: inform client?
+        result_wr = write(connFd, "Graph exists", strlen("Graph exists"));
+        if (result_wr < 0) {
+            frontend_logger.error("Error writing to socket");
+            *loop_exit_p = true;
+        }
         return;
     }
 
@@ -2735,7 +2759,6 @@ static void remove_graph_command(std::string masterIP, int connFd, SQLiteDBInter
 }
 
 static void add_model_command(int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_p) {
-    // TODO add error handling
     int result_wr = write(connFd, SEND.c_str(), FRONTEND_COMMAND_LENGTH);
     if (result_wr < 0) {
         frontend_logger.error("Error writing to socket");
@@ -2761,7 +2784,11 @@ static void add_model_command(int connFd, SQLiteDBInterface *sqlite, bool *loop_
 
     if (strArr.size() < 2) {
         frontend_logger.error("Message format not recognized");
-        // TODO: inform client?
+        result_wr = write(connFd, INVALID_FORMAT.c_str(), INVALID_FORMAT.size());
+        if (result_wr < 0) {
+            frontend_logger.error("Error writing to socket");
+            *loop_exit_p = true;
+        }
         return;
     }
 
@@ -2770,7 +2797,11 @@ static void add_model_command(int connFd, SQLiteDBInterface *sqlite, bool *loop_
 
     if (JasmineGraphFrontEndCommon::modelExists(path, sqlite)) {
         frontend_logger.error("Model exists");
-        // TODO: inform client?
+        result_wr = write(connFd, "Model exists", strlen("Model exists"));
+        if (result_wr < 0) {
+            frontend_logger.error("Error writing to socket");
+            *loop_exit_p = true;
+        }
         return;
     }
 
