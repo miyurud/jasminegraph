@@ -769,7 +769,7 @@ long TriangleCountExecutor::getTriangleCount(
     OTEL_TRACE_OPERATION("worker_communication_" + host + "_partition_" + std::to_string(partitionId));
 
     int sockfd;
-    char data[INSTANCE_DATA_LENGTH + 1];
+    std::string data(INSTANCE_DATA_LENGTH + 1, '\0');
     bool loop = false;
     socklen_t len;
     struct sockaddr_in serv_addr;
@@ -818,7 +818,7 @@ long TriangleCountExecutor::getTriangleCount(
     }
 
     triangleCount_logger.log("Sent : " + JasmineGraphInstanceProtocol::HANDSHAKE, "info");
-    response = Utils::read_str_trim_wrapper(sockfd, data, INSTANCE_DATA_LENGTH);
+    response = Utils::read_str_trim_wrapper(sockfd, data.data(), INSTANCE_DATA_LENGTH);
 
     if (response.compare(JasmineGraphInstanceProtocol::HANDSHAKE_OK) == 0) {
         triangleCount_logger.log("Received : " + JasmineGraphInstanceProtocol::HANDSHAKE_OK, "info");
@@ -829,7 +829,7 @@ long TriangleCountExecutor::getTriangleCount(
         }
         triangleCount_logger.log("Sent : " + masterIP, "info");
 
-        response = Utils::read_str_trim_wrapper(sockfd, data, INSTANCE_DATA_LENGTH);
+        response = Utils::read_str_trim_wrapper(sockfd, data.data(), INSTANCE_DATA_LENGTH);
         if (response.compare(JasmineGraphInstanceProtocol::HOST_OK) == 0) {
             triangleCount_logger.log("Received : " + JasmineGraphInstanceProtocol::HOST_OK, "info");
         } else {
@@ -843,7 +843,7 @@ long TriangleCountExecutor::getTriangleCount(
         }
         triangleCount_logger.log("Sent : " + JasmineGraphInstanceProtocol::TRIANGLES, "info");
 
-        response = Utils::read_str_trim_wrapper(sockfd, data, INSTANCE_DATA_LENGTH);
+        response = Utils::read_str_trim_wrapper(sockfd, data.data(), INSTANCE_DATA_LENGTH);
         if (response.compare(JasmineGraphInstanceProtocol::OK) == 0) {
             triangleCount_logger.log("Received : " + JasmineGraphInstanceProtocol::OK, "info");
             result_wr = write(sockfd, std::to_string(graphId).c_str(), std::to_string(graphId).size());
@@ -853,7 +853,7 @@ long TriangleCountExecutor::getTriangleCount(
             }
             triangleCount_logger.log("Sent : Graph ID " + std::to_string(graphId), "info");
 
-            response = Utils::read_str_trim_wrapper(sockfd, data, INSTANCE_DATA_LENGTH);
+            response = Utils::read_str_trim_wrapper(sockfd, data.data(), INSTANCE_DATA_LENGTH);
         }
 
         if (response.compare(JasmineGraphInstanceProtocol::OK) == 0) {
@@ -866,7 +866,7 @@ long TriangleCountExecutor::getTriangleCount(
 
             triangleCount_logger.log("Sent : Partition ID " + std::to_string(partitionId), "info");
 
-            response = Utils::read_str_trim_wrapper(sockfd, data, INSTANCE_DATA_LENGTH);
+            response = Utils::read_str_trim_wrapper(sockfd, data.data(), INSTANCE_DATA_LENGTH);
         }
 
         if (response.compare(JasmineGraphInstanceProtocol::OK) == 0) {
@@ -878,7 +878,7 @@ long TriangleCountExecutor::getTriangleCount(
             }
             triangleCount_logger.log("Sent : Thread Priority " + std::to_string(threadPriority), "info");
 
-            response = Utils::read_str_trim_wrapper(sockfd, data, INSTANCE_DATA_LENGTH);
+            response = Utils::read_str_trim_wrapper(sockfd, data.data(), INSTANCE_DATA_LENGTH);
 
             // Send trace context to worker for trace propagation
             if (response.compare(JasmineGraphInstanceProtocol::OK) == 0) {
@@ -898,7 +898,7 @@ long TriangleCountExecutor::getTriangleCount(
                 }
 
                 triangleCount_logger.log("Sent : Trace Context " + traceContext, "info");
-                response = Utils::read_str_trim_wrapper(sockfd, data, INSTANCE_DATA_LENGTH);
+                response = Utils::read_str_trim_wrapper(sockfd, data.data(), INSTANCE_DATA_LENGTH);
             }
 
             triangleCount_logger.log("Got response : |" + response + "|", "info");
@@ -1259,7 +1259,7 @@ static string isFileAccessibleToWorker(std::string graphId, std::string partitio
                                        std::string aggregatorPort, std::string masterIP, std::string fileType,
                                        std::string fileName) {
     int sockfd;
-    char data[INSTANCE_DATA_LENGTH + 1];
+    std::string data(INSTANCE_DATA_LENGTH + 1, '\0');
     bool loop = false;
     socklen_t len;
     struct sockaddr_in serv_addr;
@@ -1296,7 +1296,7 @@ static string isFileAccessibleToWorker(std::string graphId, std::string partitio
     }
     triangleCount_logger.log("Sent : " + JasmineGraphInstanceProtocol::HANDSHAKE, "info");
 
-    string response = Utils::read_str_trim_wrapper(sockfd, data, INSTANCE_DATA_LENGTH);
+    string response = Utils::read_str_trim_wrapper(sockfd, data.data(), INSTANCE_DATA_LENGTH);
     if (response.compare(JasmineGraphInstanceProtocol::HANDSHAKE_OK) == 0) {
         triangleCount_logger.log("Received : " + JasmineGraphInstanceProtocol::HANDSHAKE_OK, "info");
         result_wr = write(sockfd, masterIP.c_str(), masterIP.size());
@@ -1306,7 +1306,7 @@ static string isFileAccessibleToWorker(std::string graphId, std::string partitio
         }
         triangleCount_logger.log("Sent : " + masterIP, "info");
 
-        response = Utils::read_str_trim_wrapper(sockfd, data, INSTANCE_DATA_LENGTH);
+        response = Utils::read_str_trim_wrapper(sockfd, data.data(), INSTANCE_DATA_LENGTH);
         if (response.compare(JasmineGraphInstanceProtocol::HOST_OK) == 0) {
             triangleCount_logger.log("Received : " + JasmineGraphInstanceProtocol::HOST_OK, "info");
         } else {
@@ -1319,7 +1319,7 @@ static string isFileAccessibleToWorker(std::string graphId, std::string partitio
             triangleCount_logger.log("Error writing to socket", "error");
         }
 
-        response = Utils::read_str_trim_wrapper(sockfd, data, INSTANCE_DATA_LENGTH);
+        response = Utils::read_str_trim_wrapper(sockfd, data.data(), INSTANCE_DATA_LENGTH);
         if (response.compare(JasmineGraphInstanceProtocol::SEND_FILE_TYPE) == 0) {
             result_wr = write(sockfd, fileType.c_str(), fileType.size());
 
@@ -1327,7 +1327,7 @@ static string isFileAccessibleToWorker(std::string graphId, std::string partitio
                 triangleCount_logger.log("Error writing to socket", "error");
             }
 
-            response = Utils::read_str_trim_wrapper(sockfd, data, INSTANCE_DATA_LENGTH);
+            response = Utils::read_str_trim_wrapper(sockfd, data.data(), INSTANCE_DATA_LENGTH);
             if (fileType.compare(JasmineGraphInstanceProtocol::FILE_TYPE_CENTRALSTORE_AGGREGATE) == 0) {
                 if (response.compare(JasmineGraphInstanceProtocol::OK) == 0) {
                     result_wr = write(sockfd, graphId.c_str(), graphId.size());
@@ -1336,7 +1336,7 @@ static string isFileAccessibleToWorker(std::string graphId, std::string partitio
                         triangleCount_logger.log("Error writing to socket", "error");
                     }
 
-                    response = Utils::read_str_trim_wrapper(sockfd, data, INSTANCE_DATA_LENGTH);
+                    response = Utils::read_str_trim_wrapper(sockfd, data.data(), INSTANCE_DATA_LENGTH);
                     if (response.compare(JasmineGraphInstanceProtocol::OK) == 0) {
                         result_wr = write(sockfd, partitionId.c_str(), partitionId.size());
 
@@ -1344,7 +1344,7 @@ static string isFileAccessibleToWorker(std::string graphId, std::string partitio
                             triangleCount_logger.log("Error writing to socket", "error");
                         }
 
-                        isFileAccessible = Utils::read_str_trim_wrapper(sockfd, data, INSTANCE_DATA_LENGTH);
+                        isFileAccessible = Utils::read_str_trim_wrapper(sockfd, data.data(), INSTANCE_DATA_LENGTH);
                     }
                 }
             } else if (fileType.compare(JasmineGraphInstanceProtocol::FILE_TYPE_CENTRALSTORE_COMPOSITE) == 0) {
@@ -1357,7 +1357,7 @@ static string isFileAccessibleToWorker(std::string graphId, std::string partitio
                         triangleCount_logger.log("Error writing to socket", "error");
                     }
 
-                    isFileAccessible = Utils::read_str_trim_wrapper(sockfd, data, INSTANCE_DATA_LENGTH);
+                    isFileAccessible = Utils::read_str_trim_wrapper(sockfd, data.data(), INSTANCE_DATA_LENGTH);
                 }
             }
         }
@@ -1372,7 +1372,7 @@ std::string TriangleCountExecutor::copyCompositeCentralStoreToAggregator(std::st
                                                                          std::string aggregatorDataPort,
                                                                          std::string fileName, std::string masterIP) {
     int sockfd;
-    char data[INSTANCE_DATA_LENGTH + 1];
+    std::string data(INSTANCE_DATA_LENGTH + 1, '\0');
     bool loop = false;
     socklen_t len;
     struct sockaddr_in serv_addr;
@@ -1417,7 +1417,7 @@ std::string TriangleCountExecutor::copyCompositeCentralStoreToAggregator(std::st
     }
     triangleCount_logger.log("Sent : " + JasmineGraphInstanceProtocol::HANDSHAKE, "info");
 
-    string response = Utils::read_str_trim_wrapper(sockfd, data, INSTANCE_DATA_LENGTH);
+    string response = Utils::read_str_trim_wrapper(sockfd, data.data(), INSTANCE_DATA_LENGTH);
     if (response.compare(JasmineGraphInstanceProtocol::HANDSHAKE_OK) == 0) {
         triangleCount_logger.log("Received : " + JasmineGraphInstanceProtocol::HANDSHAKE_OK, "info");
         result_wr = write(sockfd, masterIP.c_str(), masterIP.size());
@@ -1427,7 +1427,7 @@ std::string TriangleCountExecutor::copyCompositeCentralStoreToAggregator(std::st
         }
         triangleCount_logger.log("Sent : " + masterIP, "info");
 
-        response = Utils::read_str_trim_wrapper(sockfd, data, INSTANCE_DATA_LENGTH);
+        response = Utils::read_str_trim_wrapper(sockfd, data.data(), INSTANCE_DATA_LENGTH);
         if (response.compare(JasmineGraphInstanceProtocol::HOST_OK) == 0) {
             triangleCount_logger.log("Received : " + JasmineGraphInstanceProtocol::HOST_OK, "info");
         } else {
@@ -1442,7 +1442,7 @@ std::string TriangleCountExecutor::copyCompositeCentralStoreToAggregator(std::st
         triangleCount_logger.log("Sent : " + JasmineGraphInstanceProtocol::SEND_COMPOSITE_CENTRALSTORE_TO_AGGREGATOR,
                                  "info");
 
-        response = Utils::read_str_trim_wrapper(sockfd, data, INSTANCE_DATA_LENGTH);
+        response = Utils::read_str_trim_wrapper(sockfd, data.data(), INSTANCE_DATA_LENGTH);
         if (response.compare(JasmineGraphInstanceProtocol::SEND_FILE_NAME) == 0) {
             triangleCount_logger.log("Received : " + JasmineGraphInstanceProtocol::SEND_FILE_NAME, "info");
             result_wr = write(sockfd, fileName.c_str(), fileName.size());
@@ -1452,7 +1452,7 @@ std::string TriangleCountExecutor::copyCompositeCentralStoreToAggregator(std::st
             }
             triangleCount_logger.log("Sent : File Name " + fileName, "info");
 
-            response = Utils::read_str_trim_wrapper(sockfd, data, INSTANCE_DATA_LENGTH);
+            response = Utils::read_str_trim_wrapper(sockfd, data.data(), INSTANCE_DATA_LENGTH);
             if (response.compare(JasmineGraphInstanceProtocol::SEND_FILE_LEN) == 0) {
                 triangleCount_logger.log("Received : " + JasmineGraphInstanceProtocol::SEND_FILE_LEN, "info");
                 result_wr = write(sockfd, fileLength.c_str(), fileLength.size());
@@ -1462,7 +1462,7 @@ std::string TriangleCountExecutor::copyCompositeCentralStoreToAggregator(std::st
                 }
                 triangleCount_logger.log("Sent : File Length: " + fileLength, "info");
 
-                response = Utils::read_str_trim_wrapper(sockfd, data, INSTANCE_DATA_LENGTH);
+                response = Utils::read_str_trim_wrapper(sockfd, data.data(), INSTANCE_DATA_LENGTH);
                 if (response.compare(JasmineGraphInstanceProtocol::SEND_FILE_CONT) == 0) {
                     triangleCount_logger.log("Received : " + JasmineGraphInstanceProtocol::SEND_FILE_CONT, "info");
                     triangleCount_logger.log("Going to send file through service", "info");
@@ -1485,7 +1485,7 @@ std::string TriangleCountExecutor::copyCompositeCentralStoreToAggregator(std::st
             triangleCount_logger.log("Sent : " + JasmineGraphInstanceProtocol::FILE_RECV_CHK, "info");
             triangleCount_logger.log("Checking if file is received", "info");
 
-            response = Utils::read_str_trim_wrapper(sockfd, data, INSTANCE_DATA_LENGTH);
+            response = Utils::read_str_trim_wrapper(sockfd, data.data(), INSTANCE_DATA_LENGTH);
             if (response.compare(JasmineGraphInstanceProtocol::FILE_RECV_WAIT) == 0) {
                 triangleCount_logger.log("Received : " + JasmineGraphInstanceProtocol::FILE_RECV_WAIT, "info");
                 triangleCount_logger.log("Checking file status : " + to_string(count), "info");
@@ -1511,7 +1511,7 @@ std::string TriangleCountExecutor::copyCompositeCentralStoreToAggregator(std::st
             }
             triangleCount_logger.log("Sent : " + JasmineGraphInstanceProtocol::BATCH_UPLOAD_CHK, "info");
 
-            response = Utils::read_str_wrapper(sockfd, data, INSTANCE_DATA_LENGTH);
+            response = Utils::read_str_wrapper(sockfd, data.data(), INSTANCE_DATA_LENGTH);
             if (response.compare(JasmineGraphInstanceProtocol::BATCH_UPLOAD_WAIT) == 0) {
                 triangleCount_logger.log("Received : " + JasmineGraphInstanceProtocol::BATCH_UPLOAD_WAIT, "info");
                 sleep(1);
@@ -1535,7 +1535,7 @@ std::vector<string> TriangleCountExecutor::countCompositeCentralStoreTriangles(
     std::string aggregatorHostName, std::string aggregatorPort, std::string compositeCentralStoreFileList,
     std::string masterIP, std::string availableFileList, int threadPriority) {
     int sockfd;
-    char data[INSTANCE_DATA_LENGTH + 1];
+    std::string data(INSTANCE_DATA_LENGTH + 1, '\0');
     bool loop = false;
     socklen_t len;
     struct sockaddr_in serv_addr;
@@ -1571,7 +1571,7 @@ std::vector<string> TriangleCountExecutor::countCompositeCentralStoreTriangles(
     }
     triangleCount_logger.log("Sent : " + JasmineGraphInstanceProtocol::HANDSHAKE, "info");
 
-    string response = Utils::read_str_trim_wrapper(sockfd, data, INSTANCE_DATA_LENGTH);
+    string response = Utils::read_str_trim_wrapper(sockfd, data.data(), INSTANCE_DATA_LENGTH);
     if (response.compare(JasmineGraphInstanceProtocol::HANDSHAKE_OK) == 0) {
         triangleCount_logger.log("Received : " + JasmineGraphInstanceProtocol::HANDSHAKE_OK, "info");
         result_wr = write(sockfd, masterIP.c_str(), masterIP.size());
@@ -1582,7 +1582,7 @@ std::vector<string> TriangleCountExecutor::countCompositeCentralStoreTriangles(
         triangleCount_logger.log("Sent : " + masterIP, "info");
         triangleCount_logger.log("Port : " + aggregatorPort, "info");
 
-        response = Utils::read_str_wrapper(sockfd, data, INSTANCE_DATA_LENGTH);
+        response = Utils::read_str_wrapper(sockfd, data.data(), INSTANCE_DATA_LENGTH);
         if (response.compare(JasmineGraphInstanceProtocol::HOST_OK) == 0) {
             triangleCount_logger.log("Received : " + JasmineGraphInstanceProtocol::HOST_OK, "info");
         } else {
@@ -1597,7 +1597,7 @@ std::vector<string> TriangleCountExecutor::countCompositeCentralStoreTriangles(
         triangleCount_logger.log("Sent : " + JasmineGraphInstanceProtocol::AGGREGATE_COMPOSITE_CENTRALSTORE_TRIANGLES,
                                  "info");
 
-        response = Utils::read_str_trim_wrapper(sockfd, data, INSTANCE_DATA_LENGTH);
+        response = Utils::read_str_trim_wrapper(sockfd, data.data(), INSTANCE_DATA_LENGTH);
         if (response.compare(JasmineGraphInstanceProtocol::OK) == 0) {
             triangleCount_logger.log("Received : " + JasmineGraphInstanceProtocol::OK, "info");
             result_wr = write(sockfd, availableFileList.c_str(), availableFileList.size());
@@ -1608,7 +1608,7 @@ std::vector<string> TriangleCountExecutor::countCompositeCentralStoreTriangles(
 
             triangleCount_logger.log("Sent : Available File List " + availableFileList, "info");
 
-            response = Utils::read_str_trim_wrapper(sockfd, data, INSTANCE_DATA_LENGTH);
+            response = Utils::read_str_trim_wrapper(sockfd, data.data(), INSTANCE_DATA_LENGTH);
         }
 
         if (response.compare(JasmineGraphInstanceProtocol::OK) == 0) {
@@ -1631,13 +1631,13 @@ std::vector<string> TriangleCountExecutor::countCompositeCentralStoreTriangles(
                     std::string chunk = chunksVector.at(loopCount);
                     write(sockfd, chunk.c_str(), chunk.size());
                 } else {
-                    string chunkStatus = Utils::read_str_wrapper(sockfd, data, INSTANCE_DATA_LENGTH);
+                    string chunkStatus = Utils::read_str_wrapper(sockfd, data.data(), INSTANCE_DATA_LENGTH);
                     std::string chunk = chunksVector.at(loopCount);
                     write(sockfd, chunk.c_str(), chunk.size());
                 }
             }
 
-            response = Utils::read_str_trim_wrapper(sockfd, data, INSTANCE_DATA_LENGTH);
+            response = Utils::read_str_trim_wrapper(sockfd, data.data(), INSTANCE_DATA_LENGTH);
         }
 
         if (response.compare(JasmineGraphInstanceProtocol::OK) == 0) {
@@ -1650,7 +1650,7 @@ std::vector<string> TriangleCountExecutor::countCompositeCentralStoreTriangles(
 
             triangleCount_logger.log("Sent : Thread Priority " + std::to_string(threadPriority), "info");
 
-            response = Utils::read_str_trim_wrapper(sockfd, data, INSTANCE_DATA_LENGTH);
+            response = Utils::read_str_trim_wrapper(sockfd, data.data(), INSTANCE_DATA_LENGTH);
             string status = response.substr(response.size() - 5);
             std::basic_ostringstream<char> resultStream;
             resultStream << response.substr(0, response.size() - 5);
@@ -1660,7 +1660,7 @@ std::vector<string> TriangleCountExecutor::countCompositeCentralStoreTriangles(
                 if (result_wr < 0) {
                     triangleCount_logger.log("Error writing to socket", "error");
                 }
-                response = Utils::read_str_trim_wrapper(sockfd, data, INSTANCE_DATA_LENGTH);
+                response = Utils::read_str_trim_wrapper(sockfd, data.data(), INSTANCE_DATA_LENGTH);
                 status = response.substr(response.size() - 5);
                 resultStream << response.substr(0, response.size() - 5);
             }
@@ -1683,7 +1683,7 @@ std::string TriangleCountExecutor::copyCentralStoreToAggregator(std::string aggr
                                                                 std::string aggregatorDataPort, int graphId,
                                                                 int partitionId, std::string masterIP) {
     int sockfd;
-    char data[INSTANCE_DATA_LENGTH + 1];
+    std::string data(INSTANCE_DATA_LENGTH + 1, '\0');
     bool loop = false;
     socklen_t len;
     struct sockaddr_in serv_addr;
@@ -1725,7 +1725,7 @@ std::string TriangleCountExecutor::copyCentralStoreToAggregator(std::string aggr
     }
     triangleCount_logger.log("Sent : " + JasmineGraphInstanceProtocol::HANDSHAKE, "info");
 
-    string response = Utils::read_str_trim_wrapper(sockfd, data, INSTANCE_DATA_LENGTH);
+    string response = Utils::read_str_trim_wrapper(sockfd, data.data(), INSTANCE_DATA_LENGTH);
     if (response.compare(JasmineGraphInstanceProtocol::HANDSHAKE_OK) == 0) {
         triangleCount_logger.log("Received : " + JasmineGraphInstanceProtocol::HANDSHAKE_OK, "info");
         result_wr = write(sockfd, masterIP.c_str(), masterIP.size());
@@ -1735,7 +1735,7 @@ std::string TriangleCountExecutor::copyCentralStoreToAggregator(std::string aggr
         }
         triangleCount_logger.log("Sent : " + masterIP, "info");
 
-        response = Utils::read_str_wrapper(sockfd, data, INSTANCE_DATA_LENGTH);
+        response = Utils::read_str_wrapper(sockfd, data.data(), INSTANCE_DATA_LENGTH);
         if (response.compare(JasmineGraphInstanceProtocol::HOST_OK) == 0) {
             triangleCount_logger.log("Received : " + JasmineGraphInstanceProtocol::HOST_OK, "info");
         } else {
@@ -1749,7 +1749,7 @@ std::string TriangleCountExecutor::copyCentralStoreToAggregator(std::string aggr
         }
         triangleCount_logger.log("Sent : " + JasmineGraphInstanceProtocol::SEND_CENTRALSTORE_TO_AGGREGATOR, "info");
 
-        response = Utils::read_str_trim_wrapper(sockfd, data, INSTANCE_DATA_LENGTH);
+        response = Utils::read_str_trim_wrapper(sockfd, data.data(), INSTANCE_DATA_LENGTH);
         if (response.compare(JasmineGraphInstanceProtocol::SEND_FILE_NAME) == 0) {
             triangleCount_logger.log("Received : " + JasmineGraphInstanceProtocol::SEND_FILE_NAME, "info");
             result_wr = write(sockfd, fileName.c_str(), fileName.size());
@@ -1759,7 +1759,7 @@ std::string TriangleCountExecutor::copyCentralStoreToAggregator(std::string aggr
             }
             triangleCount_logger.log("Sent : File Name " + fileName, "info");
 
-            response = Utils::read_str_trim_wrapper(sockfd, data, INSTANCE_DATA_LENGTH);
+            response = Utils::read_str_trim_wrapper(sockfd, data.data(), INSTANCE_DATA_LENGTH);
             if (response.compare(JasmineGraphInstanceProtocol::SEND_FILE_LEN) == 0) {
                 triangleCount_logger.log("Received : " + JasmineGraphInstanceProtocol::SEND_FILE_LEN, "info");
                 result_wr = write(sockfd, fileLength.c_str(), fileLength.size());
@@ -1769,7 +1769,7 @@ std::string TriangleCountExecutor::copyCentralStoreToAggregator(std::string aggr
                 }
                 triangleCount_logger.log("Sent : File Length: " + fileLength, "info");
 
-                response = Utils::read_str_trim_wrapper(sockfd, data, INSTANCE_DATA_LENGTH);
+                response = Utils::read_str_trim_wrapper(sockfd, data.data(), INSTANCE_DATA_LENGTH);
                 if (response.compare(JasmineGraphInstanceProtocol::SEND_FILE_CONT) == 0) {
                     triangleCount_logger.log("Received : " + JasmineGraphInstanceProtocol::SEND_FILE_CONT, "info");
                     triangleCount_logger.log("Going to send file through service", "info");
@@ -1792,7 +1792,7 @@ std::string TriangleCountExecutor::copyCentralStoreToAggregator(std::string aggr
             triangleCount_logger.log("Sent : " + JasmineGraphInstanceProtocol::FILE_RECV_CHK, "info");
             triangleCount_logger.log("Checking if file is received", "info");
 
-            response = Utils::read_str_trim_wrapper(sockfd, data, INSTANCE_DATA_LENGTH);
+            response = Utils::read_str_trim_wrapper(sockfd, data.data(), INSTANCE_DATA_LENGTH);
             if (response.compare(JasmineGraphInstanceProtocol::FILE_RECV_WAIT) == 0) {
                 triangleCount_logger.log("Received : " + JasmineGraphInstanceProtocol::FILE_RECV_WAIT, "info");
                 triangleCount_logger.log("Checking file status : " + to_string(count), "info");
@@ -1818,7 +1818,7 @@ std::string TriangleCountExecutor::copyCentralStoreToAggregator(std::string aggr
             }
             triangleCount_logger.log("Sent : " + JasmineGraphInstanceProtocol::BATCH_UPLOAD_CHK, "info");
 
-            response = Utils::read_str_wrapper(sockfd, data, INSTANCE_DATA_LENGTH);
+            response = Utils::read_str_wrapper(sockfd, data.data(), INSTANCE_DATA_LENGTH);
             if (response.compare(JasmineGraphInstanceProtocol::BATCH_UPLOAD_WAIT) == 0) {
                 triangleCount_logger.log("Received : " + JasmineGraphInstanceProtocol::BATCH_UPLOAD_WAIT, "info");
                 sleep(1);
@@ -1845,7 +1845,7 @@ string TriangleCountExecutor::countCentralStoreTriangles(std::string aggregatorP
     // Set the trace context in this async thread
     OpenTelemetryUtil::receiveAndSetTraceContext(traceContext, "async worker communication");
     int sockfd;
-    char data[INSTANCE_DATA_LENGTH + 1];
+    std::string data(INSTANCE_DATA_LENGTH + 1, '\0');
     bool loop = false;
     socklen_t len;
     struct sockaddr_in serv_addr;
@@ -1881,7 +1881,7 @@ string TriangleCountExecutor::countCentralStoreTriangles(std::string aggregatorP
     }
     triangleCount_logger.log("Sent : " + JasmineGraphInstanceProtocol::HANDSHAKE, "info");
 
-    string response = Utils::read_str_trim_wrapper(sockfd, data, INSTANCE_DATA_LENGTH);
+    string response = Utils::read_str_trim_wrapper(sockfd, data.data(), INSTANCE_DATA_LENGTH);
     if (response.compare(JasmineGraphInstanceProtocol::HANDSHAKE_OK) == 0) {
         triangleCount_logger.log("Received : " + JasmineGraphInstanceProtocol::HANDSHAKE_OK, "info");
         result_wr = write(sockfd, masterIP.c_str(), masterIP.size());
@@ -1891,7 +1891,7 @@ string TriangleCountExecutor::countCentralStoreTriangles(std::string aggregatorP
         }
         triangleCount_logger.log("Sent : " + masterIP, "info");
 
-        response = Utils::read_str_wrapper(sockfd, data, INSTANCE_DATA_LENGTH);
+        response = Utils::read_str_wrapper(sockfd, data.data(), INSTANCE_DATA_LENGTH);
         if (response.compare(JasmineGraphInstanceProtocol::HOST_OK) == 0) {
             triangleCount_logger.log("Received : " + JasmineGraphInstanceProtocol::HOST_OK, "info");
         } else {
@@ -1905,7 +1905,7 @@ string TriangleCountExecutor::countCentralStoreTriangles(std::string aggregatorP
         }
         triangleCount_logger.log("Sent : " + JasmineGraphInstanceProtocol::AGGREGATE_CENTRALSTORE_TRIANGLES, "info");
 
-        response = Utils::read_str_trim_wrapper(sockfd, data, INSTANCE_DATA_LENGTH);
+        response = Utils::read_str_trim_wrapper(sockfd, data.data(), INSTANCE_DATA_LENGTH);
         if (response.compare(JasmineGraphInstanceProtocol::OK) == 0) {
             triangleCount_logger.log("Received : " + JasmineGraphInstanceProtocol::OK, "info");
             result_wr = write(sockfd, graphId.c_str(), graphId.size());
@@ -1915,7 +1915,7 @@ string TriangleCountExecutor::countCentralStoreTriangles(std::string aggregatorP
             }
             triangleCount_logger.log("Sent : Graph ID " + graphId, "info");
 
-            response = Utils::read_str_trim_wrapper(sockfd, data, INSTANCE_DATA_LENGTH);
+            response = Utils::read_str_trim_wrapper(sockfd, data.data(), INSTANCE_DATA_LENGTH);
         }
 
         if (response.compare(JasmineGraphInstanceProtocol::OK) == 0) {
@@ -1930,7 +1930,7 @@ string TriangleCountExecutor::countCentralStoreTriangles(std::string aggregatorP
             }
             triangleCount_logger.log("Sent : Partition ID " + partitionId, "info");
 
-            response = Utils::read_str_trim_wrapper(sockfd, data, INSTANCE_DATA_LENGTH);
+            response = Utils::read_str_trim_wrapper(sockfd, data.data(), INSTANCE_DATA_LENGTH);
         }
 
         if (response.compare(JasmineGraphInstanceProtocol::OK) == 0) {
@@ -1942,7 +1942,7 @@ string TriangleCountExecutor::countCentralStoreTriangles(std::string aggregatorP
             }
             triangleCount_logger.log("Sent : Partition ID List : " + partitionIdList, "info");
 
-            response = Utils::read_str_trim_wrapper(sockfd, data, INSTANCE_DATA_LENGTH);
+            response = Utils::read_str_trim_wrapper(sockfd, data.data(), INSTANCE_DATA_LENGTH);
         }
 
         if (response.compare(JasmineGraphInstanceProtocol::OK) == 0) {
@@ -1955,7 +1955,7 @@ string TriangleCountExecutor::countCentralStoreTriangles(std::string aggregatorP
 
             triangleCount_logger.log("Sent : Thread Priority " + std::to_string(threadPriority), "info");
 
-            response = Utils::read_str_trim_wrapper(sockfd, data, INSTANCE_DATA_LENGTH);
+            response = Utils::read_str_trim_wrapper(sockfd, data.data(), INSTANCE_DATA_LENGTH);
         }
 
         if (response.compare(JasmineGraphInstanceProtocol::OK) == 0) {
@@ -1971,7 +1971,7 @@ string TriangleCountExecutor::countCentralStoreTriangles(std::string aggregatorP
             }
             triangleCount_logger.log("Sent trace context: " + traceContext, "info");
 
-            response = Utils::read_str_trim_wrapper(sockfd, data, INSTANCE_DATA_LENGTH);
+            response = Utils::read_str_trim_wrapper(sockfd, data.data(), INSTANCE_DATA_LENGTH);
             string status = response.substr(response.size() - 5);
             std::basic_ostringstream<char> resultStream;
             resultStream << response.substr(0, response.size() - 5);
@@ -1982,7 +1982,7 @@ string TriangleCountExecutor::countCentralStoreTriangles(std::string aggregatorP
                 if (result_wr < 0) {
                     triangleCount_logger.log("Error writing to socket", "error");
                 }
-                response = Utils::read_str_trim_wrapper(sockfd, data, INSTANCE_DATA_LENGTH);
+                response = Utils::read_str_trim_wrapper(sockfd, data.data(), INSTANCE_DATA_LENGTH);
                 status = response.substr(response.size() - 5);
                 resultStream << response.substr(0, response.size() - 5);
             }

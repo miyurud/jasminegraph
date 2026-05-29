@@ -17,22 +17,29 @@ limitations under the License.
 #include <stdio.h>
 #include <unistd.h>
 
+#include <arpa/inet.h>
+
 #include <algorithm>
 #include <cctype>
 #include <cmath>
+#include <sstream>
 #include <functional>
 #include <string>
 #include <thread>
+#include <unordered_map>
+#include <unordered_set>
 
 #include "../knowledgegraph/construction/OllamaTupleStreamer.h"
 #include "../knowledgegraph/construction/Pipeline.h"
 #include "../knowledgegraph/construction/VLLMTupleStreamer.h"
 #include "../query/algorithms/triangles/StreamingTriangles.h"
+#include "../query/algorithms/triangles/HistoryTriangles.h"
 #include "../query/processor/cypher/runtime/InstanceHandler.h"
 #include "../query/processor/nlp/semanticbeamsearch/SemanticBeamSearch.h"
 #include "../server/JasmineGraphServer.h"
 #include "../util/hdfs/HDFSConnector.h"
 #include "../util/kafka/InstanceStreamHandler.h"
+#include "../util/kafka/WorkerKafkaConsumer.h"
 #include "../util/logger/Logger.h"
 #include "../util/telemetry/OpenTelemetryUtil.h"
 #include "JasmineGraphInstance.h"
@@ -58,9 +65,145 @@ std::thread JasmineGraphInstanceService::workerThread;
 
 std::string masterIP;
 
+namespace {
+
+constexpr size_t HISTORY_TRIANGLE_BATCH_SIZE = 1024;
+
+bool parsePartitionIdFromBitmapFileName(const std::string& fileName,
+                                        int graphId,
+                                        uint32_t& partitionId) {
+    const std::string prefix = "graph" + std::to_string(graphId) + "_part";
+    const std::string suffix = "_bitmaps.ebm";
+
+    if (fileName.rfind(prefix, 0) != 0) {
+        return false;
+    }
+    if (fileName.size() <= prefix.size() + suffix.size()) {
+        return false;
+    }
+    if (fileName.compare(fileName.size() - suffix.size(), suffix.size(), suffix) != 0) {
+        return false;
+    }
+
+    std::string partitionText =
+        fileName.substr(prefix.size(), fileName.size() - prefix.size() - suffix.size());
+    if (partitionText.empty()) {
+        return false;
+    }
+    if (!std::all_of(partitionText.begin(), partitionText.end(),
+                     [](unsigned char ch) { return std::isdigit(ch); })) {
+        return false;
+    }
+
+    partitionId = static_cast<uint32_t>(std::stoul(partitionText));
+    return true;
+}
+
+bool parsePartitionIdFromDeltaFileName(const std::string& fileName,
+                                       int graphId,
+                                       uint32_t& partitionId) {
+    const std::string prefix = "graph" + std::to_string(graphId) + "_part";
+    const std::string splitMarker = "_snap";
+    const std::string suffix = ".delta";
+
+    if (fileName.rfind(prefix, 0) != 0) {
+        return false;
+    }
+    if (fileName.size() <= prefix.size() + splitMarker.size() + suffix.size()) {
+        return false;
+    }
+    if (fileName.compare(fileName.size() - suffix.size(), suffix.size(), suffix) != 0) {
+        return false;
+    }
+
+    size_t snapPos = fileName.find(splitMarker, prefix.size());
+    if (snapPos == std::string::npos || snapPos <= prefix.size()) {
+        return false;
+    }
+
+    std::string partitionText = fileName.substr(prefix.size(), snapPos - prefix.size());
+    if (partitionText.empty()) {
+        return false;
+    }
+    if (!std::all_of(partitionText.begin(), partitionText.end(),
+                     [](unsigned char ch) { return std::isdigit(ch); })) {
+        return false;
+    }
+
+    partitionId = static_cast<uint32_t>(std::stoul(partitionText));
+    return true;
+}
+
+std::vector<uint32_t> discoverBitmapPartitions(const std::string& snapshotDir, int graphId) {
+    std::vector<std::string> files = Utils::getListOfFilesInDirectory(snapshotDir);
+    std::vector<uint32_t> partitionIds;
+    partitionIds.reserve(files.size());
+
+    for (const auto& file : files) {
+        uint32_t partitionId = 0;
+        if (parsePartitionIdFromBitmapFileName(file, graphId, partitionId) ||
+            parsePartitionIdFromDeltaFileName(file, graphId, partitionId)) {
+            partitionIds.push_back(partitionId);
+        }
+    }
+
+    std::sort(partitionIds.begin(), partitionIds.end());
+    partitionIds.erase(std::unique(partitionIds.begin(), partitionIds.end()), partitionIds.end());
+    return partitionIds;
+}
+
+bool sendAll(int sockfd, const void* data, size_t length) {
+    const char* cursor = static_cast<const char*>(data);
+    size_t sent = 0;
+    while (sent < length) {
+        ssize_t written = send(sockfd, cursor + sent, length - sent, 0);
+        if (written <= 0) {
+            return false;
+        }
+        sent += static_cast<size_t>(written);
+    }
+    return true;
+}
+
+bool sendUint32(int sockfd, uint32_t value) {
+    uint32_t networkValue = htonl(value);
+    return sendAll(sockfd, &networkValue, sizeof(networkValue));
+}
+
+bool sendUint64(int sockfd, uint64_t value) {
+    uint32_t high = static_cast<uint32_t>(value >> 32);
+    uint32_t low = static_cast<uint32_t>(value & 0xffffffffULL);
+    return sendUint32(sockfd, high) && sendUint32(sockfd, low);
+}
+
+bool sendDouble(int sockfd, double value) {
+    // Send double as 8 bytes
+    return sendAll(sockfd, &value, sizeof(double));
+}
+
+bool flushHistoryTriangleBatch(int sockfd,
+                               const std::vector<std::pair<std::string, std::string>>& batch) {
+    if (!sendUint32(sockfd, static_cast<uint32_t>(batch.size()))) {
+        return false;
+    }
+
+    for (const auto& edge : batch) {
+        if (!sendUint32(sockfd, static_cast<uint32_t>(edge.first.size())) ||
+            !sendAll(sockfd, edge.first.data(), edge.first.size()) ||
+            !sendUint32(sockfd, static_cast<uint32_t>(edge.second.size())) ||
+            !sendAll(sockfd, edge.second.data(), edge.second.size())) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+}  // namespace
+
 static void handshake_command(int connFd, bool *loop_exit_p);
 static inline void close_command(int connFd, bool *loop_exit_p);
-__attribute__((noreturn)) static inline void shutdown_command(int connFd);
+static inline void shutdown_command(int connFd, bool *loop_exit_p);
 static void ready_command(int connFd, bool *loop_exit_p);
 static void batch_upload_command(int connFd, bool *loop_exit_p);
 static void batch_upload_central_command(int connFd, bool *loop_exit_p);
@@ -99,6 +242,8 @@ static void triangles_command(
     std::map<std::string, JasmineGraphHashMapCentralStore> &graphDBMapCentralStores,
     std::map<std::string, JasmineGraphHashMapDuplicateCentralStore> &graphDBMapDuplicateCentralStores,
     bool *loop_exit_p);
+static void history_triangles_command(int connFd, bool *loop_exit_p);
+static void history_pagerank_command(int connFd, bool *loop_exit_p);
 static void streaming_triangles_command(
     int connFd, int serverPort, std::map<std::string, JasmineGraphIncrementalLocalStore *> &incrementalLocalStoreMap,
     bool *loop_exit_p);
@@ -130,6 +275,15 @@ static void initiate_model_collection_command(int connFd, bool *loop_exit_p);
 static void initiate_fragment_resolution_command(int connFd, bool *loop_exit_p);
 static void check_file_accessible_command(int connFd, bool *loop_exit_p);
 static void graph_stream_start_command(int connFd, InstanceStreamHandler &instanceStreamHandler, bool *loop_exit_p);
+static void graph_stream_batch_start_command(
+    int connFd,
+    InstanceStreamHandler &instanceStreamHandler,
+    bool *loop_exit_p);
+// Worker-direct Kafka streaming: worker consumes from Kafka independently
+static void worker_direct_kafka_stream_command(
+    int connFd,
+    std::map<std::string, JasmineGraphIncrementalLocalStore*>& incrementalLocalStoreMap,
+    bool *loop_exit_p);
 static void send_priority_command(int connFd, bool *loop_exit_p);
 static std::string initiate_command_common(int connFd, bool *loop_exit_p);
 static void batch_upload_common(int connFd, bool *loop_exit_p, bool batch_upload);
@@ -215,7 +369,7 @@ void *instanceservicesession(void *dummyPt) {
         } else if (line.compare(JasmineGraphInstanceProtocol::CLOSE) == 0) {
             close_command(connFd, &loop_exit);
         } else if (line.compare(JasmineGraphInstanceProtocol::SHUTDOWN) == 0) {
-            shutdown_command(connFd);
+            shutdown_command(connFd, &loop_exit);
         } else if (line.compare(JasmineGraphInstanceProtocol::READY) == 0) {
             ready_command(connFd, &loop_exit);
         } else if (line.compare(JasmineGraphInstanceProtocol::BATCH_UPLOAD) == 0) {
@@ -256,6 +410,10 @@ void *instanceservicesession(void *dummyPt) {
         } else if (line.compare(JasmineGraphInstanceProtocol::TRIANGLES) == 0) {
             triangles_command(connFd, serverPort, *graphDBMapLocalStores, *graphDBMapCentralStores,
                               *graphDBMapDuplicateCentralStores, &loop_exit);
+        } else if (line.compare(JasmineGraphInstanceProtocol::HISTORY_TRIANGLES) == 0) {
+            history_triangles_command(connFd, &loop_exit);
+        } else if (line.compare(JasmineGraphInstanceProtocol::HISTORY_PAGERANK) == 0) {
+            history_pagerank_command(connFd, &loop_exit);
         } else if (line.compare(JasmineGraphInstanceProtocol::INITIATE_STREAMING_TRIAN) == 0) {
             streaming_triangles_command(connFd, serverPort, incrementalLocalStoreMap, &loop_exit);
         } else if (line.compare(JasmineGraphInstanceProtocol::INITIATE_STREAMING_KG_CONSTRUCTION) == 0) {
@@ -306,6 +464,10 @@ void *instanceservicesession(void *dummyPt) {
             check_file_accessible_command(connFd, &loop_exit);
         } else if (line.compare(JasmineGraphInstanceProtocol::GRAPH_STREAM_START) == 0) {
             graph_stream_start_command(connFd, streamHandler, &loop_exit);
+        } else if (line.compare(JasmineGraphInstanceProtocol::GRAPH_STREAM_BATCH_START) == 0) {
+            graph_stream_batch_start_command(connFd, streamHandler, &loop_exit);
+        } else if (line.compare(JasmineGraphInstanceProtocol::WORKER_DIRECT_KAFKA_STREAM) == 0) {
+            worker_direct_kafka_stream_command(connFd, incrementalLocalStoreMap, &loop_exit);
         } else if (line.compare(JasmineGraphInstanceProtocol::SEND_PRIORITY) == 0) {
             send_priority_command(connFd, &loop_exit);
         } else if (line.compare(JasmineGraphInstanceProtocol::PUSH_PARTITION) == 0) {
@@ -406,6 +568,13 @@ void JasmineGraphInstanceService::run(string masterHost, string host, int server
         }
     }
 
+    // Explicitly release incremental stores to run their destructors before process exit.
+    for (auto &entry : incrementalLocalStore) {
+        delete entry.second;
+        entry.second = nullptr;
+    }
+    incrementalLocalStore.clear();
+
     pthread_mutex_destroy(&file_lock);
     exit(0);  // FIXME: Cleanup before exit.
 }
@@ -442,6 +611,68 @@ int deleteStreamingGraphPartition(std::string graphID, std::string partitionID) 
     string partitionFilePathPattern = Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder")
                                       + "/g" + graphID + "_p" + partitionID;
     status |= Utils::deleteAllMatchingFiles(partitionFilePathPattern);
+    return status;
+}
+
+/** Remove all temporal snapshot files for a graph from this worker.
+ *
+ * Deletes known temporal artifacts for this graph from the configured temporal
+ * snapshot directory (or the default datafolder/temporal_snapshots):
+ *   - graph{id}_part{p}_bitmaps.ebm      (legacy cumulative bitmap index)
+ *   - graph{id}_part{p}_snap{s}.delta    (delta snapshot segments)
+ *   - graph{id}_part{p}_snapmeta.bin     (snapshot metadata)
+ *   - graph{id}_part{p}_nodes.dict       (persistent node dictionary)
+ *   - graph{id}_part{p}_snap{s}.tgs      (legacy snapshot files)
+ */
+static int deleteTemporalSnapshotFilesForGraph(const std::string& graphID) {
+    std::string snapshotDataFolder =
+        Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.temporalsnapshotfolder");
+    if (snapshotDataFolder.empty()) {
+        snapshotDataFolder = Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder") +
+                             "/temporal_snapshots";
+    }
+
+    DIR* dir = opendir(snapshotDataFolder.c_str());
+    if (dir == nullptr) {
+        instance_logger.warn("Temporal snapshot directory not found or not accessible: " + snapshotDataFolder);
+        return -1;
+    }
+
+    const std::string graphPrefix = "graph" + graphID + "_";
+    struct dirent* entry;
+    int removedCount = 0;
+    int status = 0;
+
+    while ((entry = readdir(dir)) != nullptr) {
+        std::string fileName(entry->d_name);
+        if (fileName.find(graphPrefix) != 0) {
+            continue;
+        }
+
+        bool isLegacyBitmap = fileName.find("_bitmaps.ebm") != std::string::npos;
+        bool isDelta = fileName.find("_snap") != std::string::npos &&
+                       fileName.rfind(".delta") == fileName.size() - 6;
+        bool isSnapMeta = fileName.find("_snapmeta.bin") != std::string::npos;
+        bool isNodeDict = fileName.find("_nodes.dict") != std::string::npos;
+        bool isLegacySnapshot = fileName.find("_snap") != std::string::npos &&
+                                fileName.rfind(".tgs") == fileName.size() - 4;
+        if (!isLegacyBitmap && !isDelta && !isSnapMeta && !isNodeDict && !isLegacySnapshot) {
+            continue;
+        }
+
+        std::string fullPath = snapshotDataFolder + "/" + fileName;
+        if (remove(fullPath.c_str()) == 0) {
+            removedCount++;
+        } else {
+            instance_logger.error("Failed to remove temporal snapshot file: " + fullPath);
+            status = -1;
+        }
+    }
+
+    closedir(dir);
+    instance_logger.info("Removed " + std::to_string(removedCount) +
+                         " temporal snapshot files for graph " + graphID +
+                         " in " + snapshotDataFolder);
     return status;
 }
 
@@ -1026,7 +1257,6 @@ bool JasmineGraphInstanceService::duplicateCentralStore(int thisWorkerPort, int 
     std::string centralStoreFileUnCompressed = dataDirPath + "/" + centralGraphIdentifierUnCompressed;
     std::string centralStoreFileUnCompressedDestination = aggregatorDirPath + "/" + centralGraphIdentifierUnCompressed;
 
-    // temporary copy the central store into the aggregate folder in order to compress and send
     Utils::copyToDirectory(centralStoreFileUnCompressed, aggregatorDirPath);
 
     // compress the central store file before sending
@@ -2052,11 +2282,11 @@ static inline void close_command(int connFd, bool *loop_exit_p) {
     close(connFd);
 }
 
-static inline void shutdown_command(int connFd) {
+static inline void shutdown_command(int connFd, bool *loop_exit_p) {
+    *loop_exit_p = true;
     close(connFd);
     pid_t ppid = getppid();
     kill(ppid, SIGTERM);
-    exit(0);
 }
 
 static inline void ready_command(int connFd, bool *loop_exit_p) {
@@ -2227,6 +2457,7 @@ static void delete_graph_command(int connFd, bool *loop_exit_p) {
     instance_logger.info("Received partition ID: " + partitionID);
     deleteGraphPartition(graphID, partitionID);
     deleteStreamingGraphPartition(graphID, partitionID);
+    deleteTemporalSnapshotFilesForGraph(graphID);
     // pthread_mutex_lock(&file_lock);
     // TODO :: Update catalog file
     // pthread_mutex_unlock(&file_lock);
@@ -2251,6 +2482,7 @@ static void delete_graph_fragment_command(int connFd, bool *loop_exit_p) {
     instance_logger.info("Received Graph ID: " + graphID);
     // Method call for graph fragment deletion
     removeGraphFragments(graphID);
+    deleteTemporalSnapshotFilesForGraph(graphID);
     // pthread_mutex_lock(&file_lock);
     // TODO :: Update catalog file
     // pthread_mutex_unlock(&file_lock);
@@ -3104,6 +3336,345 @@ static void streaming_triangles_command(
 
     instance_logger.info("Streaming triangle count sent successfully");
 }
+
+static void history_triangles_command(int connFd, bool *loop_exit_p) {
+    if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::OK)) {
+        *loop_exit_p = true;
+        return;
+    }
+
+    char data[DATA_BUFFER_SIZE];
+    string graphID = Utils::read_str_trim_wrapper(connFd, data, INSTANCE_DATA_LENGTH);
+    if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::OK)) {
+        *loop_exit_p = true;
+        return;
+    }
+
+    string partitionId = Utils::read_str_trim_wrapper(connFd, data, INSTANCE_DATA_LENGTH);
+    if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::OK)) {
+        *loop_exit_p = true;
+        return;
+    }
+
+    string snapshotIdText = Utils::read_str_trim_wrapper(connFd, data, INSTANCE_DATA_LENGTH);
+    if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::OK)) {
+        *loop_exit_p = true;
+        return;
+    }
+
+    string priority = Utils::read_str_trim_wrapper(connFd, data, INSTANCE_DATA_LENGTH);
+    if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::OK)) {
+        *loop_exit_p = true;
+        return;
+    }
+
+    string traceContext = Utils::read_str_trim_wrapper(connFd, data, INSTANCE_DATA_LENGTH);
+    OpenTelemetryUtil::receiveAndSetTraceContext(traceContext, "history triangle counting");
+    OTEL_TRACE_FUNCTION();
+
+    (void)priority;
+
+    uint32_t snapshotId = static_cast<uint32_t>(std::stoul(snapshotIdText));
+    int graphIdInt = std::stoi(graphID);
+    uint32_t partitionIdInt = static_cast<uint32_t>(std::stoul(partitionId));
+
+    std::string snapshotDir =
+        Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder") +
+        "/temporal_snapshots";
+
+    auto start = std::chrono::high_resolution_clock::now();
+
+    // ── Step 1: Stream temporal edges to master with local deduplication ──────
+    std::unordered_map<std::string, uint32_t> nodeToIndex;
+    nodeToIndex.reserve(1 << 20);
+    uint32_t nodeCount = 0;
+    auto getOrAddNode = [&](const std::string &node) -> uint32_t {
+        auto it = nodeToIndex.find(node);
+        if (it != nodeToIndex.end()) return it->second;
+        uint32_t idx = nodeCount++;
+        nodeToIndex.emplace(node, idx);
+        return idx;
+    };
+
+    // Use a set to stream only unique edges seen across all snapshots in this partition.
+    // This drastically reduces RAM and network I/O.
+    std::unordered_set<uint64_t> seenEdges;
+    std::vector<std::pair<std::string, std::string>> batch;
+    batch.reserve(HISTORY_TRIANGLE_BATCH_SIZE);
+    uint64_t rawEdgesRead = 0;
+    uint64_t uniqueEdgesSent = 0;
+
+    // Local partition-only triangle counts are not used in distributed mode; send 0.
+    if (!sendUint64(connFd, 0)) {
+        *loop_exit_p = true;
+        return;
+    }
+
+    std::string filePath =
+        TemporalStorePersistence::generateBitmapFilePath(snapshotDir, graphIdInt, partitionIdInt);
+
+    TemporalStorePersistence::forEachActiveBitmapEdgeAtSnapshot(
+        filePath, snapshotId,
+        [&](const std::string &sourceId, const std::string &destId) {
+            rawEdgesRead++;
+            if (sourceId == destId) return true;
+
+            uint32_t u = getOrAddNode(sourceId);
+            uint32_t v = getOrAddNode(destId);
+            uint64_t encoded = (static_cast<uint64_t>(std::min(u, v)) << 32) | std::max(u, v);
+
+            if (seenEdges.insert(encoded).second) {
+                // New unique edge for this partition; stream to master.
+                batch.emplace_back(sourceId, destId);
+                uniqueEdgesSent++;
+
+                if (batch.size() >= HISTORY_TRIANGLE_BATCH_SIZE) {
+                    if (!flushHistoryTriangleBatch(connFd, batch)) {
+                        return false;  // Stop iteration early on network error
+                    }
+                    batch.clear();
+                }
+            }
+            return true;
+        });
+
+    // Final flush
+    if (!batch.empty() && !flushHistoryTriangleBatch(connFd, batch)) {
+        *loop_exit_p = true;
+        return;
+    }
+
+    // End-of-stream marker (0 size batch) + stats
+    if (!sendUint32(connFd, 0) ||
+        !sendUint64(connFd, rawEdgesRead)) {
+        *loop_exit_p = true;
+        return;
+    }
+
+    auto end = std::chrono::high_resolution_clock::now();
+    long durationMs =
+        std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
+    if (!sendUint64(connFd, static_cast<uint64_t>(durationMs))) {
+        *loop_exit_p = true;
+        return;
+    }
+
+    instance_logger.info("Distributed history triangles for partition " + partitionId +
+                         " completed. Sent " + std::to_string(uniqueEdgesSent) +
+                         " unique edges out of " + std::to_string(rawEdgesRead) +
+                         " total processed.");
+}
+
+// ── DISTRIBUTED PAGERANK COMPUTATION ON WORKER ────────────────────────────────
+static void history_pagerank_command(int connFd, bool *loop_exit_p) {
+    if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::OK)) {
+        *loop_exit_p = true;
+        return;
+    }
+
+    char data[DATA_BUFFER_SIZE];
+    string graphID = Utils::read_str_trim_wrapper(connFd, data, INSTANCE_DATA_LENGTH);
+    if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::OK)) {
+        *loop_exit_p = true;
+        return;
+    }
+
+    string partitionId = Utils::read_str_trim_wrapper(connFd, data, INSTANCE_DATA_LENGTH);
+    if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::OK)) {
+        *loop_exit_p = true;
+        return;
+    }
+
+    string snapshotIdText = Utils::read_str_trim_wrapper(connFd, data, INSTANCE_DATA_LENGTH);
+    if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::OK)) {
+        *loop_exit_p = true;
+        return;
+    }
+
+    string topKText = Utils::read_str_trim_wrapper(connFd, data, INSTANCE_DATA_LENGTH);
+    if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::OK)) {
+        *loop_exit_p = true;
+        return;
+    }
+
+    string maxIterationsText = Utils::read_str_trim_wrapper(connFd, data, INSTANCE_DATA_LENGTH);
+    if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::OK)) {
+        *loop_exit_p = true;
+        return;
+    }
+
+    string dampingFactorText = Utils::read_str_trim_wrapper(connFd, data, INSTANCE_DATA_LENGTH);
+    if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::OK)) {
+        *loop_exit_p = true;
+        return;
+    }
+
+    string threadPriority = Utils::read_str_trim_wrapper(connFd, data, INSTANCE_DATA_LENGTH);
+    if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::OK)) {
+        *loop_exit_p = true;
+        return;
+    }
+
+    string traceContext = Utils::read_str_trim_wrapper(connFd, data, INSTANCE_DATA_LENGTH);
+    OpenTelemetryUtil::receiveAndSetTraceContext(traceContext, "history pagerank computation");
+    OTEL_TRACE_FUNCTION();
+
+    (void)threadPriority;
+
+    uint32_t snapshotId = static_cast<uint32_t>(std::stoul(snapshotIdText));
+    int graphIdInt = std::stoi(graphID);
+    uint32_t partitionIdInt = static_cast<uint32_t>(std::stoul(partitionId));
+    int topK = std::stoi(topKText);
+    int maxIterations = std::stoi(maxIterationsText);
+    double dampingFactor = std::stod(dampingFactorText);
+
+    std::string snapshotDir =
+        Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder") +
+        "/temporal_snapshots";
+
+    auto startTime = std::chrono::high_resolution_clock::now();
+
+    // Load edges from bitmap file and build CSR graph locally
+    std::unordered_map<std::string, uint32_t> nodeToIndex;
+    std::unordered_set<uint64_t> seenEdges;
+    std::vector<std::vector<uint32_t>> adjacency;
+    uint64_t rawEdgesRead = 0;
+
+    std::string filePath =
+        TemporalStorePersistence::generateBitmapFilePath(snapshotDir, graphIdInt, partitionIdInt);
+
+    // First pass: collect unique edges and build node mapping
+    TemporalStorePersistence::forEachActiveBitmapEdgeAtSnapshot(
+        filePath, snapshotId,
+        [&](const std::string &sourceId, const std::string &destId) {
+            rawEdgesRead++;
+            if (sourceId == destId) return true;  // Skip self-loops
+
+            uint32_t u = 0, v = 0;
+            auto it_u = nodeToIndex.find(sourceId);
+            if (it_u == nodeToIndex.end()) {
+                u = nodeToIndex.size();
+                nodeToIndex[sourceId] = u;
+            } else {
+                u = it_u->second;
+            }
+
+            auto it_v = nodeToIndex.find(destId);
+            if (it_v == nodeToIndex.end()) {
+                v = nodeToIndex.size();
+                nodeToIndex[destId] = v;
+            } else {
+                v = it_v->second;
+            }
+
+            uint64_t encodedEdge = (static_cast<uint64_t>(std::min(u, v)) << 32) | std::max(u, v);
+            seenEdges.insert(encodedEdge);
+            return true;
+        });
+
+    uint32_t nodeCount = nodeToIndex.size();
+    if (nodeCount == 0) {
+        // No nodes found; send empty result
+        if (!sendUint32(connFd, 0)) {
+            *loop_exit_p = true;
+            return;
+        }
+        if (!sendUint64(connFd, 0) || !sendUint64(connFd, 0)) {
+            *loop_exit_p = true;
+            return;
+        }
+        instance_logger.warn("No nodes found in partition " + partitionId + " for snapshot " +
+                           snapshotIdText);
+        return;
+    }
+
+    // Build adjacency list from unique edges
+    adjacency.resize(nodeCount);
+    for (uint64_t encoded : seenEdges) {
+        uint32_t u = encoded >> 32;
+        uint32_t v = encoded & 0xFFFFFFFFULL;
+
+        // Add edges (both directions for undirected graph or just u->v for directed)
+        adjacency[u].push_back(v);
+    }
+
+    // Remove duplicates from adjacency lists
+    for (auto& neighbors : adjacency) {
+        std::sort(neighbors.begin(), neighbors.end());
+        neighbors.erase(std::unique(neighbors.begin(), neighbors.end()), neighbors.end());
+    }
+
+    // Run PageRank algorithm
+    std::vector<double> scores(nodeCount, 1.0 / nodeCount);
+    std::vector<double> newScores(nodeCount);
+    double dampingFactor_inv = 1.0 - dampingFactor;
+
+    for (int iter = 0; iter < maxIterations; ++iter) {
+        std::fill(newScores.begin(), newScores.end(), dampingFactor_inv / nodeCount);
+
+        for (uint32_t u = 0; u < nodeCount; ++u) {
+            if (adjacency[u].empty()) continue;
+
+            double contribution = scores[u] / adjacency[u].size();
+            for (uint32_t v : adjacency[u]) {
+                newScores[v] += dampingFactor * contribution;
+            }
+        }
+
+        scores = newScores;
+    }
+
+    // Create reverse mapping from index to node
+    std::vector<std::string> indexToNode(nodeCount);
+    for (const auto& [nodeId, idx] : nodeToIndex) {
+        indexToNode[idx] = nodeId;
+    }
+
+    // Get top-K nodes by score
+    std::vector<std::pair<uint32_t, double>> indexedScores;
+    for (uint32_t i = 0; i < nodeCount; ++i) {
+        indexedScores.emplace_back(i, scores[i]);
+    }
+
+    // Sort by score descending
+    std::sort(indexedScores.begin(), indexedScores.end(),
+              [](const auto& a, const auto& b) { return a.second > b.second; });
+
+    // Send top-K
+    uint32_t topKToSend = std::min(static_cast<uint32_t>(topK), nodeCount);
+    if (!sendUint32(connFd, topKToSend)) {
+        *loop_exit_p = true;
+        return;
+    }
+
+    for (uint32_t i = 0; i < topKToSend; ++i) {
+        const auto& [nodeIdx, score] = indexedScores[i];
+        const std::string& nodeId = indexToNode[nodeIdx];
+
+        if (!sendUint32(connFd, static_cast<uint32_t>(nodeId.size())) ||
+            !sendAll(connFd, nodeId.data(), nodeId.size()) ||
+            !sendDouble(connFd, score)) {
+            *loop_exit_p = true;
+            return;
+        }
+    }
+
+    auto endTime = std::chrono::high_resolution_clock::now();
+    long durationMs = std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime).count();
+
+    // Send raw edges count and duration
+    if (!sendUint64(connFd, rawEdgesRead) || !sendUint64(connFd, static_cast<uint64_t>(durationMs))) {
+        *loop_exit_p = true;
+        return;
+    }
+
+    instance_logger.info("Distributed history pagerank for partition " + partitionId +
+                         " completed. Sent top " + std::to_string(topKToSend) +
+                         " nodes out of " + std::to_string(nodeCount) +
+                         " total nodes, " + std::to_string(rawEdgesRead) + " edges processed.");
+}
+
+
 
 static void streaming_kg_construction(
     int connFd, int serverPort,
@@ -4521,6 +5092,167 @@ static void graph_stream_start_command(int connFd, InstanceStreamHandler &instan
     instance_logger.debug("Sent CRLF string to mark the end");
 }
 
+static void graph_stream_batch_start_command(
+    int connFd,
+    InstanceStreamHandler &instanceStreamHandler,
+    bool *loop_exit_p) {
+    // Send batch start acknowledgment
+    if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::GRAPH_STREAM_BATCH_START_ACK)) {
+        *loop_exit_p = true;
+        return;
+    }
+    instance_logger.debug("Sent : " + JasmineGraphInstanceProtocol::GRAPH_STREAM_BATCH_START_ACK);
+
+    // Receive batch size (number of edges in this batch)
+    int batch_size;
+    instance_logger.debug("Waiting for batch size");
+    ssize_t return_status = recv(connFd, &batch_size, sizeof(int), 0);
+    if (return_status > 0) {
+        batch_size = ntohl(batch_size);
+        instance_logger.debug("Received batch_size = " + std::to_string(batch_size));
+    } else {
+        instance_logger.error("Error while reading batch size");
+        *loop_exit_p = true;
+        return;
+    }
+
+    // Send batch size acknowledgment
+    if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::GRAPH_STREAM_C_length_ACK)) {
+        *loop_exit_p = true;
+        return;
+    }
+    instance_logger.debug("Acked for batch size");
+
+    // Receive total content length
+    int content_length;
+    instance_logger.debug("Waiting for batch content length");
+    return_status = recv(connFd, &content_length, sizeof(int), 0);
+    if (return_status > 0) {
+        content_length = ntohl(content_length);
+        instance_logger.debug("Received content_length = " + std::to_string(content_length));
+    } else {
+        instance_logger.error("Error while reading content length");
+        *loop_exit_p = true;
+        return;
+    }
+
+    // Send content length acknowledgment
+    if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::GRAPH_STREAM_C_length_ACK)) {
+        *loop_exit_p = true;
+        return;
+    }
+    instance_logger.debug("Acked for content length");
+
+    // Receive the entire batch message
+    instance_logger.debug("Waiting for batch edge data");
+    std::string batchData(content_length, 0);
+    return_status = recv(connFd, &batchData[0], content_length, 0);
+    if (return_status > 0) {
+        instance_logger.debug("Received batch edge data: " + std::to_string(batch_size) + " edges");
+    } else {
+        instance_logger.error("Error while reading batch data");
+        *loop_exit_p = true;
+        return;
+    }
+
+    // Process each edge in the batch (newline-separated)
+    std::stringstream ss(batchData);
+    std::string edgeString;
+    int processed = 0;
+    while (std::getline(ss, edgeString)) {
+        if (!edgeString.empty()) {
+            instanceStreamHandler.handleRequest(edgeString);
+            processed++;
+        }
+    }
+    instance_logger.debug("Processed " + std::to_string(processed) + " edges from batch");
+
+    // Send end acknowledgment
+    if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::GRAPH_STREAM_END_OF_EDGE)) {
+        *loop_exit_p = true;
+        return;
+    }
+    instance_logger.debug("Sent CRLF string to mark the end of batch");
+}
+
+static void worker_direct_kafka_stream_command(
+        int connFd,
+        std::map<std::string, JasmineGraphIncrementalLocalStore*>& incrementalLocalStoreMap,
+        bool *loop_exit_p) {
+    // Acknowledge the command
+    if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::WORKER_DIRECT_KAFKA_STREAM_ACK)) {
+        *loop_exit_p = true;
+        return;
+    }
+    instance_logger.info("Sent WORKER_DIRECT_KAFKA_STREAM_ACK, waiting for config JSON");
+
+    // Receive JSON config (may be large — use INSTANCE_LONG_DATA_LENGTH buffer)
+    char longData[INSTANCE_LONG_DATA_LENGTH + 1];
+    std::string configStr = Utils::read_str_trim_wrapper(connFd, longData, INSTANCE_LONG_DATA_LENGTH);
+    if (configStr.empty()) {
+        instance_logger.error("Received empty config for worker direct kafka stream");
+        *loop_exit_p = true;
+        return;
+    }
+    instance_logger.info("Received worker direct kafka config (" + std::to_string(configStr.size()) + " bytes)");
+
+    // Parse config JSON
+    WorkerKafkaConfig cfg;
+    try {
+        auto configJson = nlohmann::json::parse(configStr);
+        cfg.brokers            = configJson["brokers"].get<std::string>();
+        cfg.topic              = configJson["topic"].get<std::string>();
+        cfg.groupId            = configJson["groupId"].get<std::string>();
+        cfg.graphId            = configJson["graphId"].get<int>();
+        cfg.numberOfPartitions = configJson["numberOfPartitions"].get<int>();
+        cfg.temporalEnabled    = configJson["temporalEnabled"].get<bool>();
+        cfg.timeThreshold      = configJson["timeThreshold"].get<uint64_t>();
+        cfg.edgeThreshold      = configJson["edgeThreshold"].get<uint64_t>();
+        cfg.initialSnapshotId  = configJson["initialSnapshotId"].get<uint32_t>();
+        cfg.csvInputMode       = configJson.value("csvInputMode", false);
+        cfg.numConsumerThreads = configJson["numConsumerThreads"].get<int>();
+        cfg.workerIndex        = configJson.value("workerIndex", 0);
+        for (auto& p : configJson["ownedPartitions"]) {
+            cfg.ownedPartitions.push_back(p.get<int>());
+        }
+    } catch (const nlohmann::json::exception& e) {
+        instance_logger.error("Failed to parse worker direct kafka config: " + std::string(e.what()));
+        *loop_exit_p = true;
+        return;
+    }
+
+    instance_logger.info("Starting worker direct Kafka consumer for graph " +
+                         std::to_string(cfg.graphId) + ", partitions: " +
+                         std::to_string(cfg.ownedPartitions.size()) +
+                         ", threads: " + std::to_string(cfg.numConsumerThreads));
+
+    // Run the worker-side Kafka consumer (blocking until stream ends or error)
+    WorkerKafkaStats stats{0, 0, 0};
+    try {
+        WorkerKafkaConsumer wkc(cfg, incrementalLocalStoreMap);
+        stats = wkc.run();
+        instance_logger.info("Worker direct Kafka consumer finished for graph " +
+                             std::to_string(cfg.graphId) +
+                             ": totalMessages=" + std::to_string(stats.totalMessages) +
+                             " totalLocal=" + std::to_string(stats.totalLocal) +
+                             " totalCentral=" + std::to_string(stats.totalCentral));
+    } catch (const std::exception& e) {
+        instance_logger.error("[CRASH] WorkerKafkaConsumer threw exception: " + std::string(e.what()));
+    } catch (...) {
+        instance_logger.error("[CRASH] WorkerKafkaConsumer threw unknown exception");
+    }
+
+    // Notify master that this worker is done — always, even on exception
+    std::string doneMsg = JasmineGraphInstanceProtocol::WORKER_DIRECT_KAFKA_DONE +
+                          "|" + std::to_string(stats.totalMessages) +
+                          "|" + std::to_string(stats.totalLocal) +
+                          "|" + std::to_string(stats.totalCentral);
+    if (!Utils::send_str_wrapper(connFd, doneMsg)) {
+        instance_logger.error("Failed to send WORKER_DIRECT_KAFKA_DONE to master");
+    }
+    *loop_exit_p = true;
+}
+
 static void send_priority_command(int connFd, bool *loop_exit_p) {
     if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::OK)) {
         *loop_exit_p = true;
@@ -5406,7 +6138,9 @@ static void send_edges_command(int connFd, bool *loop_exit_p) {
     instance_logger.info("Received Partition ID: " + partitionID);
 
     size_t edgeDataSize = 0;
-    if (!stream_partition_edge_data(graphID, partitionID, [](const std::string &) { return true; }, &edgeDataSize)) {
+    bool streamedPartitionData =
+        stream_partition_edge_data(graphID, partitionID, [](const std::string &) { return true; }, &edgeDataSize);
+    if (!streamedPartitionData) {
         instance_logger.error("Failed to scan edge data for graph " + graphID + " partition " + partitionID);
         *loop_exit_p = true;
         return;

@@ -58,6 +58,7 @@ class Utils {
     };
 
     static std::string getJasmineGraphProperty(std::string key);
+    static std::string getJasmineGraphPropertyFallback(const std::vector<std::string> &keys);
 
     static std::vector<worker> getWorkerList(SQLiteDBInterface *sqlite);
 

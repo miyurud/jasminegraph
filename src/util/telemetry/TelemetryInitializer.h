@@ -22,9 +22,9 @@ enum class ServiceType {
 /**
  * Initialize OpenTelemetry for JasmineGraph services (unified API)
  * @param serviceType Type of service (ServiceType::MASTER or ServiceType::WORKER)
- * 
+ *
  * This is the recommended way to initialize telemetry. The OTLP endpoint is
- * set to the docker-compose Tempo service (http://tempo:4318/v1/traces) 
+ * set to the docker-compose Tempo service (http://tempo:4318/v1/traces)
  * Master uses a BatchProcessor; worker uses SimpleProcessor for immediate export.
  */
 void initializeOpenTelemetry(ServiceType serviceType);
@@ -42,7 +42,7 @@ void initializeOpenTelemetry();
 void initializeWorkerTelemetry();
 
 /**
- * Shutdown OpenTelemetry gracefully  
+ * Shutdown OpenTelemetry gracefully
  * This should be called before application exit in main.cpp
  */
 void shutdownOpenTelemetry();

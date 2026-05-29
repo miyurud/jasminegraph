@@ -15,8 +15,85 @@ limitations under the License.
 #include "../../JasmineGraphFrontEndProtocol.h"
 #include "../../../server/JasmineGraphServer.h"
 #include "../../../util/logger/Logger.h"
+#include "../../../util/Utils.h"
+#include <cstdlib>
+#include <dirent.h>
+#include <set>
+#include <sys/stat.h>
 
 Logger common_logger;
+
+static std::string getTemporalSnapshotDir() {
+    std::string configuredPath =
+        Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.temporalsnapshotfolder");
+    if (!configuredPath.empty()) {
+        return configuredPath;
+    }
+
+    return Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder") +
+           "/temporal_snapshots";
+}
+
+static std::string shellQuote(const std::string& value) {
+    std::string quoted = "'";
+    for (char c : value) {
+        if (c == '\'') {
+            quoted += "'\\''";
+        } else {
+            quoted += c;
+        }
+    }
+    quoted += "'";
+    return quoted;
+}
+
+static std::string buildWorkerTarget(const Utils::worker& worker) {
+    if (!worker.username.empty()) {
+        return worker.username + "@" + worker.hostname;
+    }
+    return worker.hostname;
+}
+
+static void deleteTemporalSnapshotsOnRemoteWorkers(SQLiteDBInterface *sqlite,
+                                                   const std::string& graphID,
+                                                   const std::string& snapshotDir) {
+    const std::vector<Utils::worker> workers = Utils::getWorkerList(sqlite);
+    std::set<std::string> visitedHosts;
+    std::string graphPrefix = "graph" + graphID + "_";
+
+    for (const auto& worker : workers) {
+        std::string hostTarget = buildWorkerTarget(worker);
+        if (hostTarget.empty()) {
+            continue;
+        }
+
+        if (!visitedHosts.insert(hostTarget).second) {
+            continue;
+        }
+
+        if (hostTarget == "localhost" || hostTarget == "127.0.0.1") {
+            continue;
+        }
+
+        std::string remoteCommand = "find " + shellQuote(snapshotDir) +
+                        " -maxdepth 1 -type f \\( "
+                        "-name " + shellQuote(graphPrefix + "*_bitmaps.ebm") +
+                        " -o -name " + shellQuote(graphPrefix + "*_snap*.delta") +
+                        " -o -name " + shellQuote(graphPrefix + "*_snapmeta.bin") +
+                        " -o -name " + shellQuote(graphPrefix + "*_nodes.dict") +
+                        " -o -name " + shellQuote(graphPrefix + "*_snap*.tgs") +
+                        " \\) -delete 2>/dev/null";
+        std::string sshCommand = "ssh -o BatchMode=yes -o ConnectTimeout=5 " +
+                                 shellQuote(hostTarget) + " " + shellQuote(remoteCommand);
+
+        int status = std::system(sshCommand.c_str());
+        if (status != 0) {
+            common_logger.warn("Failed remote temporal cleanup on host " + hostTarget +
+                               " for graph " + graphID +
+                               ". Snapshot files may remain on that worker.");
+        }
+    }
+}
 
 /**
  * This method checks if a graph exists in JasmineGraph.
@@ -75,6 +152,55 @@ void JasmineGraphFrontEndCommon::removeGraph(std::string graphID, SQLiteDBInterf
                       " WHERE idgraph = " + graphID);
 
     JasmineGraphServer::removeGraph(hostHasPartition, graphID, masterIP);
+
+    // Remove all temporal snapshot-related files for this graph:
+    //   graph{id}_part{n}_snap{n}.delta - delta snapshot segments
+    //   graph{id}_part{n}_bitmaps.ebm   - legacy bitmap index
+    //   graph{id}_part{n}_snapmeta.bin  - snapshot metadata
+    //   graph{id}_part{n}_nodes.dict    - persistent node dictionary
+    //   graph{id}_part{n}_snap{n}.tgs   - legacy snapshot data
+    std::string snapshotDir = getTemporalSnapshotDir();
+    DIR* dir = opendir(snapshotDir.c_str());
+    if (dir != nullptr) {
+        std::string graphPrefix = "graph" + graphID + "_";
+        struct dirent* entry;
+        int removedCount = 0;
+
+        while ((entry = readdir(dir)) != nullptr) {
+            std::string filename(entry->d_name);
+            if (filename.find(graphPrefix) != 0) {
+                continue;
+            }
+
+            bool isLegacyBitmap = filename.find("_bitmaps.ebm") != std::string::npos;
+            bool isDelta = filename.find("_snap") != std::string::npos &&
+                           filename.rfind(".delta") == filename.size() - 6;
+            bool isSnapMeta = filename.find("_snapmeta.bin") != std::string::npos;
+            bool isNodeDict = filename.find("_nodes.dict") != std::string::npos;
+            bool isLegacySnapshot = filename.find("_snap") != std::string::npos &&
+                                    filename.rfind(".tgs") == filename.size() - 4;
+            if (!isLegacyBitmap && !isDelta && !isSnapMeta && !isNodeDict && !isLegacySnapshot) {
+                continue;
+            }
+
+            std::string fullPath = snapshotDir + "/" + filename;
+            if (remove(fullPath.c_str()) == 0) {
+                removedCount++;
+            } else {
+                common_logger.error("Failed to remove temporal file: " + filename);
+            }
+        }
+        closedir(dir);
+
+        if (removedCount > 0) {
+            common_logger.info("Removed " + std::to_string(removedCount) +
+                               " temporal files for graph " + graphID);
+        }
+    }
+
+    // Enforce cleanup on all workers as a fallback in case instance-level delete
+    // path misses stale files in distributed snapshot folders.
+    deleteTemporalSnapshotsOnRemoteWorkers(sqlite, graphID, snapshotDir);
 
     sqlite->runUpdate("DELETE FROM worker_has_partition WHERE partition_graph_idgraph = " + graphID);
     sqlite->runUpdate("DELETE FROM partition WHERE graph_idgraph = " + graphID);

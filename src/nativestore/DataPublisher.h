@@ -19,6 +19,9 @@
 #include <unistd.h>
 
 #include <iostream>
+#include <string>
+#include <vector>
+#include <mutex>
 
 #ifndef WORKER_DATA_PUBLISHER
 #define WORKER_DATA_PUBLISHER
@@ -32,10 +35,12 @@ class DataPublisher {
     std::string worker_address, message;
     char buffer[1024] = {0};
     int data_port;
+    std::mutex socket_mutex;  // Protect socket operations from concurrent access
 
  public:
     DataPublisher(int, std::string, int);
     void publish(std::string);
+    void publishBatch(const std::vector<std::string>& messages);
     void queryPublish(std::string, std::string, std::string);
 
     ~DataPublisher();

@@ -45,6 +45,8 @@ class DBInterface {
     int getNextGraphId();
 
     std::string getPartitionAlgoByGraphID(std::string graphID);
+
+    std::string getDirectionByGraphID(std::string graphID);
 };
 
 #endif  // JASMINEGRAPH_SRC_UTIL_DBINTERFACE_H_

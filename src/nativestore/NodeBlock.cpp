@@ -13,6 +13,7 @@ limitations under the License.
 
 #include "NodeBlock.h"
 
+#include <memory>
 #include <sstream>
 #include <vector>
 
@@ -88,7 +89,7 @@ void NodeBlock::addProperty(std::string name, const char* value) {
     node_block_logger.debug("Attempting to add property: " + name + " to node at address: " +
         std::to_string(this->addr));
     if (this->propRef == 0) {
-        PropertyLink* newLink = PropertyLink::create(name, value);
+        std::unique_ptr<PropertyLink> newLink(PropertyLink::create(name, value));
         //        pthread_mutex_lock(&lockAddNodeProperty);
         if (newLink) {
             this->propRef = newLink->blockAddress;
@@ -108,7 +109,10 @@ void NodeBlock::addProperty(std::string name, const char* value) {
     } else {
         node_block_logger.debug("Property head exists. Inserting property: " + name +
             " to existing PropertyLink chain.");
-        this->propRef = this->getPropertyHead()->insert(name, value);
+        std::unique_ptr<PropertyLink> propertyHead(this->getPropertyHead());
+        if (propertyHead) {
+            this->propRef = propertyHead->insert(name, value);
+        }
         node_block_logger.debug("Updated propRef after insert: " + std::to_string(this->propRef));
     }
 }
@@ -117,7 +121,7 @@ void NodeBlock::addMetaProperty(std::string name, const char* value) {
     node_block_logger.debug("Attempting to add meta property: " + name + " to node at address: "
         + std::to_string(this->addr));
     if (this->metaPropRef == 0) {
-        MetaPropertyLink* newLink = MetaPropertyLink::create(name, value);
+        std::unique_ptr<MetaPropertyLink> newLink(MetaPropertyLink::create(name, value));
 
         if (newLink) {
             this->metaPropRef = newLink->blockAddress;
@@ -136,9 +140,19 @@ void NodeBlock::addMetaProperty(std::string name, const char* value) {
     } else {
         node_block_logger.debug("Meta property head exists. Inserting meta property: " + name +
             " to existing MetaPropertyLink chain.");
-        this->metaPropRef = this->getMetaPropertyHead()->insert(name, value);
+        std::unique_ptr<MetaPropertyLink> metaPropertyHead(this->getMetaPropertyHead());
+        if (metaPropertyHead) {
+            this->metaPropRef = metaPropertyHead->insert(name, value);
+        }
         node_block_logger.debug("Updated metaPropRef after insert: " + std::to_string(this->metaPropRef));
     }
+}
+
+static void freeRelationBlock(RelationBlock* relation) {
+    if (!relation) {
+        return;
+    }
+    delete relation;
 }
 
 bool NodeBlock::updateLocalRelation(RelationBlock* newRelation, bool relocateHead) {
@@ -164,26 +178,35 @@ bool NodeBlock::updateLocalRelation(RelationBlock* newRelation, bool relocateHea
                     " new relation does not contain current node in its source or destination");
             }
         }
-        return this->setLocalRelationHead(*newRelation);
+        bool result = this->setLocalRelationHead(*newRelation);
+        freeRelationBlock(currentHead);
+        return result;
     }
     RelationBlock* currentRelation = currentHead;
     if (currentHead == NULL) {
         return this->setLocalRelationHead(*newRelation);
     }
     while (currentRelation != nullptr) {
+        RelationBlock* nextRelation = nullptr;
         if (currentRelation->source.address == this->addr) {
             if (currentRelation->source.nextRelationId == 0) {
-                return currentRelation->setLocalNextSource(edgeReferenceAddress);
+                bool result = currentRelation->setLocalNextSource(edgeReferenceAddress);
+                freeRelationBlock(currentRelation);
+                return result;
             }
-            currentRelation = currentRelation->nextLocalSource();
+            nextRelation = currentRelation->nextLocalSource();
         } else if (!this->isDirected && currentRelation->destination.address == this->addr) {
             if (currentRelation->destination.nextRelationId == 0) {
-                return currentRelation->setLocalNextDestination(edgeReferenceAddress);
+                bool result = currentRelation->setLocalNextDestination(edgeReferenceAddress);
+                freeRelationBlock(currentRelation);
+                return result;
             }
-            currentRelation = currentRelation->nextLocalDestination();
+            nextRelation = currentRelation->nextLocalDestination();
         } else {
             node_block_logger.warn("Invalid relation block" + std::to_string(currentRelation->addr));
         }
+        freeRelationBlock(currentRelation);
+        currentRelation = nextRelation;
     }
     return false;
 }
@@ -211,7 +234,9 @@ bool NodeBlock::updateCentralRelation(RelationBlock* newRelation, bool relocateH
                     " new relation does not contain current node in its source or destination");
             }
         }
-        return this->setCentralRelationHead(*newRelation);
+        bool result = this->setCentralRelationHead(*newRelation);
+        freeRelationBlock(currentHead);
+        return result;
     } else {
         RelationBlock* currentRelation = currentHead;
         if (currentHead == NULL) {
@@ -219,21 +244,28 @@ bool NodeBlock::updateCentralRelation(RelationBlock* newRelation, bool relocateH
             return this->setCentralRelationHead(*newRelation);
         }  // Last Stopped
         while (currentRelation != NULL) {
+            RelationBlock* nextRelation = nullptr;
             if (currentRelation->source.address == this->addr) {
                 if (currentRelation->source.nextRelationId == 0) {
-                    return currentRelation->setCentralNextSource(edgeReferenceAddress);
+                    bool result = currentRelation->setCentralNextSource(edgeReferenceAddress);
+                    freeRelationBlock(currentRelation);
+                    return result;
                 } else {
-                    currentRelation = currentRelation->nextCentralSource();
+                    nextRelation = currentRelation->nextCentralSource();
                 }
             } else if (!this->isDirected && currentRelation->destination.address == this->addr) {
                 if (currentRelation->destination.nextRelationId == 0) {
-                    return currentRelation->setCentralNextDestination(edgeReferenceAddress);
+                    bool result = currentRelation->setCentralNextDestination(edgeReferenceAddress);
+                    freeRelationBlock(currentRelation);
+                    return result;
                 } else {
-                    currentRelation = currentRelation->nextCentralDestination();
+                    nextRelation = currentRelation->nextCentralDestination();
                 }
             } else {
                 node_block_logger.warn("Invalid relation block : " + std::to_string(currentRelation->addr));
             }
+            freeRelationBlock(currentRelation);
+            currentRelation = nextRelation;
         }
         return false;
     }

@@ -53,6 +53,11 @@ extern const string GRAPHID_SEND;
 extern const string SEND_MODE;
 extern const string TRIANGLES;
 extern const string STREAMING_TRIANGLES;
+extern const string HISTORY_TRIANGLE;
+extern const string HISTORY_TRIANGLE_TIMESTAMP;
+extern const string HISTORY_PAGERANK;
+extern const string HISTORY_PAGERANK_TIMESTAMP;
+extern const string HISTORY_BFS;
 extern const string K_CORE;
 extern const string K_VALUE;
 extern const string K_NN;
@@ -62,6 +67,7 @@ extern const string OUTPUT_FILE_NAME;
 extern const string OUTPUT_FILE_PATH;
 extern const string ADD_STREAM;
 extern const string ADD_STREAM_KAFKA;
+extern const string ADD_STREAM_KAFKA_CSV;
 extern const string ADD_STREAM_HDFS;
 extern const string SEND_GRAPH_HDFS;
 extern const string CONSTRUCT_KG;
@@ -97,6 +103,9 @@ extern const string SEMANTIC_BEAM_SEARCH;
 extern const string PROPERTIES;
 extern const string  UPDATE_PARTITION_META;
 extern const string  META;
+extern const string TEMPORAL_QUERY;
+extern const string TEMPORAL_SNAPSHOT;
+extern const string TEMPORAL_RANGE;
 
 class JasminGraphFrontEndProtocol {
     // Note that this protocol do not need a handshake session since the communication in most of the time is conducted

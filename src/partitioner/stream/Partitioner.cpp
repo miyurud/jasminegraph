@@ -19,6 +19,7 @@
 #include <vector>
 #include <ctime>
 #include <chrono>
+#include <functional>
 
 #include "../../util/logger/Logger.h"
 #include "../../util/Conts.h"
@@ -62,7 +63,7 @@ partitionedEdge Partitioner::ldgPartitioning(std::pair<std::string, std::string>
             (1 - (partitionSize / ((double)this->totalVertices / (double)this->numberOfPartitions)));
 
         if (partition.isExist(edge.first) && partition.isExist(edge.second)) {
-            partition.addEdge(edge);
+            partition.addEdge(edge, this->isDirect);
             this->totalEdges += 1;  // TODO: Check whether edge already exist
             return {{edge.first, id}, {edge.second, id}};
         }
@@ -98,7 +99,7 @@ partitionedEdge Partitioner::ldgPartitioning(std::pair<std::string, std::string>
     int secondIndex = distance(partitionScoresSecond.begin(),
                                max_element(partitionScoresSecond.begin(), partitionScoresSecond.end()));
     if (firstIndex == secondIndex) {
-        partitions[firstIndex].addEdge(edge);
+        partitions[firstIndex].addEdge(edge, this->isDirect);
     } else {
         partitions[firstIndex].addToEdgeCuts(edge.first, edge.second, secondIndex);
         partitions[secondIndex].addToEdgeCuts(edge.second, edge.first, firstIndex);
@@ -108,8 +109,10 @@ partitionedEdge Partitioner::ldgPartitioning(std::pair<std::string, std::string>
 }
 
 partitionedEdge Partitioner::hashPartitioning(std::pair<std::string, std::string> edge) {
-    int firstIndex = stoi(edge.first) % this->numberOfPartitions;    // Hash partitioning
-    int secondIndex = stoi(edge.second) % this->numberOfPartitions;  // Hash partitioning
+    // Hash string node IDs to handle both numeric and string identifiers
+    std::hash<std::string> hasher;
+    int firstIndex = static_cast<int>(hasher(edge.first) % this->numberOfPartitions);    // Hash partitioning
+    int secondIndex = static_cast<int>(hasher(edge.second) % this->numberOfPartitions);  // Hash partitioning
 
     if (firstIndex == secondIndex) {
         this->partitions[firstIndex].addEdge(edge, this->isDirect);
@@ -187,7 +190,7 @@ partitionedEdge Partitioner::fennelPartitioning(std::pair<std::string, std::stri
         double firstVertextIntraCost;
         double secondVertextIntraCost;
         if (partition.isExist(edge.first) && partition.isExist(edge.second)) {
-            partition.addEdge(edge);
+            partition.addEdge(edge, this->isDirect);
             this->totalEdges += 1;  // TODO: Check whether edge already exist
             return {{edge.first, id}, {edge.second, id}};
         }
@@ -216,7 +219,7 @@ partitionedEdge Partitioner::fennelPartitioning(std::pair<std::string, std::stri
     int secondIndex = distance(partitionScoresSecond.begin(),
                                max_element(partitionScoresSecond.begin(), partitionScoresSecond.end()));
     if (firstIndex == secondIndex) {
-        partitions[firstIndex].addEdge(edge);
+        partitions[firstIndex].addEdge(edge, this->isDirect);
     } else {
         partitions[firstIndex].addToEdgeCuts(edge.first, edge.second, secondIndex);
         partitions[secondIndex].addToEdgeCuts(edge.second, edge.first, firstIndex);
@@ -231,7 +234,7 @@ partitionedEdge Partitioner::fennelPartitioning(std::pair<std::string, std::stri
  **/
 std::pair<long, long> Partitioner::deserialize(std::string data) {
     std::vector<std::string> v = Partition::_split(data, ' ');
-    streaming_partitioner_logger.debug("Vertext/Node 1 = " + stoi(v[0]));
-    streaming_partitioner_logger.debug("Vertext/Node 2 = " + stoi(v[1]));
+    streaming_partitioner_logger.debug("Vertext/Node 1 = " + v[0]);
+    streaming_partitioner_logger.debug("Vertext/Node 2 = " + v[1]);
     return {stoi(v[0]), stoi(v[1])};
 }

@@ -78,8 +78,6 @@ static void add_graph_command(std::string masterIP,
     int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_p, std::string command);
 static void remove_graph_command(std::string masterIP,
     int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_p, std::string command);
-static void remove_all_graphs_command(std::string masterIP,
-    int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_p);
 static void triangles_command(std::string masterIP,
     int connFd, SQLiteDBInterface *sqlite, PerformanceSQLiteDBInterface *perfSqlite,
     JobScheduler *jobScheduler, bool *loop_exit_p, std::string command);
@@ -119,7 +117,7 @@ void *uifrontendservicesesion(void *dummyPt) {
         return NULL;
     }
 
-    char data[FRONTEND_DATA_LENGTH + 1];
+    std::string data(FRONTEND_DATA_LENGTH + 1, '\0');
     //  Initiate Thread
     thread input_stream_handler;
     std::string partitionCount = Utils::getJasmineGraphProperty("org.jasminegraph.server.npartitions");
@@ -135,7 +133,7 @@ void *uifrontendservicesesion(void *dummyPt) {
     int failCnt = 0;
     while (!loop_exit) {
         ui_frontend_logger.info("reading");
-        std::string line = JasmineGraphFrontEndCommon::readAndProcessInput(connFd, data, failCnt);
+        std::string line = JasmineGraphFrontEndCommon::readAndProcessInput(connFd, data.data(), failCnt);
         if (line.empty()) {
             break;
         }
@@ -167,8 +165,6 @@ void *uifrontendservicesesion(void *dummyPt) {
             triangles_command(masterIP, connFd, sqlite, perfSqlite, jobScheduler, &loop_exit, line);
         } else if (token.compare(RMGR) == 0) {
             remove_graph_command(masterIP, connFd, sqlite, &loop_exit, line);
-        } else if (token.compare(TRUNCATE) == 0) {
-            remove_all_graphs_command(masterIP, connFd, sqlite, &loop_exit);
         } else if (token.compare(IN_DEGREE) == 0) {
             get_degree_command(connFd, line, numberOfPartitions, "_idd_",  &loop_exit);
         } else if (token.compare(OUT_DEGREE) == 0) {
@@ -705,69 +701,6 @@ static void remove_graph_command(std::string masterIP,
     }
 }
 
-static void remove_all_graphs_command(std::string masterIP,
-    int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_p) {
-    ui_frontend_logger.info("Removing all graphs");
-
-    // Get all graph IDs
-    string sqlStatement = "SELECT idgraph FROM graph";
-    std::vector<vector<pair<string, string>>> graphIdResults = sqlite->runSelect(sqlStatement);
-
-    if (graphIdResults.empty()) {
-        ui_frontend_logger.info("No graphs to remove");
-        int result_wr = write(connFd, DONE.c_str(), DONE.size());
-        if (result_wr < 0) {
-            ui_frontend_logger.error("Error writing to socket");
-            *loop_exit_p = true;
-            return;
-        }
-        result_wr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
-        if (result_wr < 0) {
-            ui_frontend_logger.error("Error writing to socket");
-            *loop_exit_p = true;
-        }
-        return;
-    }
-
-    int removedCount = 0;
-    int totalCount = graphIdResults.size();
-
-    // Remove each graph
-    for (const auto& result : graphIdResults) {
-        string graphID = result[0].second;
-        ui_frontend_logger.info("Removing graph with ID: " + graphID);
-
-        if (JasmineGraphFrontEndCommon::graphExistsByID(graphID, sqlite)) {
-            JasmineGraphFrontEndCommon::removeGraph(graphID, sqlite, masterIP);
-            removedCount++;
-        } else {
-            ui_frontend_logger.warn("Graph with ID " + graphID + " does not exist or cannot be removed");
-        }
-    }
-
-    // Differentiate between complete success and partial failure
-    if (removedCount == totalCount) {
-        ui_frontend_logger.info("Successfully removed all " + to_string(totalCount) + " graphs");
-    } else if (removedCount > 0) {
-        ui_frontend_logger.error("Partial failure: Removed only " + to_string(removedCount) + " out of " +
-                                 to_string(totalCount) + " graphs");
-    } else {
-        ui_frontend_logger.error("Failed to remove any graphs (0 out of " + to_string(totalCount) + ")");
-    }
-
-    int result_wr = write(connFd, DONE.c_str(), DONE.size());
-    if (result_wr < 0) {
-        ui_frontend_logger.error("Error writing to socket");
-        *loop_exit_p = true;
-        return;
-    }
-    result_wr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
-    if (result_wr < 0) {
-        ui_frontend_logger.error("Error writing to socket");
-        *loop_exit_p = true;
-    }
-}
-
 static void triangles_command(std::string masterIP, int connFd,
     SQLiteDBInterface *sqlite, PerformanceSQLiteDBInterface *perfSqlite,
     JobScheduler *jobScheduler, bool *loop_exit_p, std::string command) {
@@ -804,7 +737,9 @@ static void triangles_command(std::string masterIP, int connFd,
             *loop_exit_p = true;
         }
     } else {
-        if (!(std::find_if(priority.begin(), priority.end(), [](unsigned char c) { return !std::isdigit(c); }) ==
+                if (!(std::find_if(priority.begin(), priority.end(), [](unsigned char c) {
+                                    return !std::isdigit(c);
+                            }) ==
               priority.end())) {
             *loop_exit_p = true;
             string error_message = "Priority should be numeric and > 1 or empty";

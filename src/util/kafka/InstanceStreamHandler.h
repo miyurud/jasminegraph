@@ -19,8 +19,11 @@
 #include <condition_variable>
 #include <queue>
 #include <map>
+#include <set>
 #include <string>
 #include <atomic>
+#include <vector>
+#include <nlohmann/json.hpp>
 #include "../../localstore/incremental/JasmineGraphIncrementalLocalStore.h"
 
 class InstanceStreamHandler {
@@ -31,17 +34,37 @@ class InstanceStreamHandler {
     ~InstanceStreamHandler();
 
     void handleRequest(const std::string& nodeString);
+    // Fast overload: caller supplies pre-computed graphIdentifier (e.g. "2_4") to skip
+    // the redundant json::parse inside extractGraphIdentifier on the hot path.
+    void handleRequest(const std::string& nodeString, const std::string& graphIdentifier);
+    // Fastest overload: caller passes the json object directly, eliminating obj.dump()
+    // and the subsequent json::parse in the writer thread (B2 + B3 fix).
+    void handleRequest(nlohmann::json obj, const std::string& graphIdentifier);
     void handleLocalEdge(std::string edge, std::string graphId,
                          std::string partitionId, std::string graphIdentifier, bool isEmbed);
     void handleCentralEdge(std::string edge, std::string graphId,
                            std::string partitionId, std::string graphIdentifier, bool isEmbed);
 
+    /**
+     * Pre-initialize stores and mutexes for known partitions.
+     * MUST be called from a single thread before any concurrent handleLocalEdge/handleCentralEdge calls.
+     * Eliminates data races during map insertion.
+     */
+    void preInitPartitions(int graphId, const std::vector<int>& partitions);
+
  private:
     std::map<std::string, std::thread> threads;
-    std::map<std::string, std::queue<std::string>> queues;
+    std::map<std::string, std::queue<nlohmann::json>> queues;
     std::map<std::string, std::condition_variable> cond_vars;
+    std::map<std::string, std::condition_variable> producer_cond_vars;
     std::map<std::string, std::mutex> queue_mutexes;
     std::atomic<bool> terminateThreads{false};
+    std::set<std::string> ownedStoreKeys_;
+    size_t maxQueueSizePerPartition = 50000;
+
+    // Protects all map structures from concurrent modification.
+    // Held briefly for lookup/insert; per-partition locks handle store operations.
+    std::mutex mapLock_;
 
         void threadFunction(const std::string& nodeString);
         static std::string extractGraphIdentifier(const std::string& nodeString);

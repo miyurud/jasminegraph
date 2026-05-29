@@ -76,7 +76,21 @@ void StreamingTriangleCountExecutor::execute() {
         }));
     }
 
-    if (partitionCount > 2) {
+    // Join local-count worker threads FIRST so that saveLocalValues() has written
+    // central_edges counts to streaming_partition before getCentralRelationCount reads them.
+    for (auto &thread : workerThreads) {
+        if (thread.joinable()) {
+            thread.join();
+        }
+    }
+
+    for (long res : intermRes) {
+        result += res;
+    }
+
+    // Central-store aggregation needs >=2 partitions and must run AFTER workers have
+    // committed their central_edges counts to the streaming_partition table.
+    if (partitionCount >= 2) {
         long aggregatedTriangleCount = StreamingTriangleCountExecutor::aggregateCentralStoreTriangles(
                 sqlite, streamingDB, graphId, masterIP, mode, partitionCount);
         if (mode == "0") {
@@ -87,16 +101,6 @@ void StreamingTriangleCountExecutor::execute() {
             saveCentralValues(streamingDB, graphId, std::to_string(aggregatedTriangleCount + old_result));
             result += (aggregatedTriangleCount + old_result);
         }
-    }
-
-    for (auto &thread : workerThreads) {
-        if (thread.joinable()) {
-            thread.join();
-        }
-    }
-
-    for (long res : intermRes) {
-        result += res;
     }
 
     streaming_triangleCount_logger.info("###STREAMING-TRIANGLE-COUNT-EXECUTOR### Completed local counting");
@@ -156,7 +160,7 @@ long StreamingTriangleCountExecutor::getTriangleCount(int graphId, std::string h
         }
     }
     sockfd = localSocketMap[port];
-    char data[DATA_BUFFER_SIZE];
+    std::string responseBuffer(DATA_BUFFER_SIZE, '\0');
 
     if (!Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::HANDSHAKE)) {
         streaming_triangleCount_logger.error("Error writing to socket");
@@ -164,7 +168,7 @@ long StreamingTriangleCountExecutor::getTriangleCount(int graphId, std::string h
     }
     streaming_triangleCount_logger.info("Sent : " + JasmineGraphInstanceProtocol::HANDSHAKE);
 
-    string response = Utils::read_str_trim_wrapper(sockfd, data, FRONTEND_DATA_LENGTH);
+    string response = Utils::read_str_trim_wrapper(sockfd, responseBuffer.data(), FRONTEND_DATA_LENGTH);
     if (response.compare(JasmineGraphInstanceProtocol::HANDSHAKE_OK) != 0) {
         streaming_triangleCount_logger.error("There was an error in the upload process and the response is : " +
                                              response);
@@ -178,7 +182,7 @@ long StreamingTriangleCountExecutor::getTriangleCount(int graphId, std::string h
     }
     streaming_triangleCount_logger.info("Sent : " + masterIP);
 
-    response = Utils::read_str_trim_wrapper(sockfd, data, FRONTEND_DATA_LENGTH);
+    response = Utils::read_str_trim_wrapper(sockfd, responseBuffer.data(), FRONTEND_DATA_LENGTH);
     if (response.compare(JasmineGraphInstanceProtocol::HOST_OK) != 0) {
         streaming_triangleCount_logger.error("Received : " + response + " instead of : " +
         JasmineGraphInstanceProtocol::HOST_OK);
@@ -192,7 +196,7 @@ long StreamingTriangleCountExecutor::getTriangleCount(int graphId, std::string h
     }
     streaming_triangleCount_logger.info("Sent : " + JasmineGraphInstanceProtocol::INITIATE_STREAMING_TRIAN);
 
-    response = Utils::read_str_trim_wrapper(sockfd, data, FRONTEND_DATA_LENGTH);
+    response = Utils::read_str_trim_wrapper(sockfd, responseBuffer.data(), FRONTEND_DATA_LENGTH);
     if (response.compare(JasmineGraphInstanceProtocol::OK) != 0) {
         streaming_triangleCount_logger.error("Received : " + response + " instead of : " +
                                              JasmineGraphInstanceProtocol::HOST_OK);
@@ -206,7 +210,7 @@ long StreamingTriangleCountExecutor::getTriangleCount(int graphId, std::string h
     }
     streaming_triangleCount_logger.info("Sent : Graph ID " + std::to_string(graphId));
 
-    response = Utils::read_str_trim_wrapper(sockfd, data, FRONTEND_DATA_LENGTH);
+    response = Utils::read_str_trim_wrapper(sockfd, responseBuffer.data(), FRONTEND_DATA_LENGTH);
     if (response.compare(JasmineGraphInstanceProtocol::OK) != 0) {
         streaming_triangleCount_logger.error("Received : " + response + " instead of : " +
                                              JasmineGraphInstanceProtocol::HOST_OK);
@@ -220,7 +224,7 @@ long StreamingTriangleCountExecutor::getTriangleCount(int graphId, std::string h
     }
     streaming_triangleCount_logger.info("Sent : Partition ID " + std::to_string(partitionId));
 
-    response = Utils::read_str_trim_wrapper(sockfd, data, FRONTEND_DATA_LENGTH);
+    response = Utils::read_str_trim_wrapper(sockfd, responseBuffer.data(), FRONTEND_DATA_LENGTH);
     if (response.compare(JasmineGraphInstanceProtocol::OK) != 0) {
         streaming_triangleCount_logger.error("Received : " + response + " instead of : " +
                                              JasmineGraphInstanceProtocol::HOST_OK);
@@ -235,7 +239,7 @@ long StreamingTriangleCountExecutor::getTriangleCount(int graphId, std::string h
     streaming_triangleCount_logger.info("Sent : local relation count " +
     std::to_string(oldResult.localRelationCount));
 
-    response = Utils::read_str_trim_wrapper(sockfd, data, FRONTEND_DATA_LENGTH);
+    response = Utils::read_str_trim_wrapper(sockfd, responseBuffer.data(), FRONTEND_DATA_LENGTH);
     if (response.compare(JasmineGraphInstanceProtocol::OK) != 0) {
         streaming_triangleCount_logger.error("Received : " + response + " instead of : " +
                                              JasmineGraphInstanceProtocol::HOST_OK);
@@ -250,7 +254,7 @@ long StreamingTriangleCountExecutor::getTriangleCount(int graphId, std::string h
     streaming_triangleCount_logger.info("Sent : Central relation count " +
                 std::to_string(oldResult.centralRelationCount));
 
-    response = Utils::read_str_trim_wrapper(sockfd, data, FRONTEND_DATA_LENGTH);
+    response = Utils::read_str_trim_wrapper(sockfd, responseBuffer.data(), FRONTEND_DATA_LENGTH);
     if (response.compare(JasmineGraphInstanceProtocol::OK) != 0) {
         streaming_triangleCount_logger.error("Received : " + response + " instead of : " +
                                              JasmineGraphInstanceProtocol::HOST_OK);
@@ -264,7 +268,7 @@ long StreamingTriangleCountExecutor::getTriangleCount(int graphId, std::string h
     }
     streaming_triangleCount_logger.info("Sent :  mode " + runMode);
 
-    string localRelationCount = Utils::read_str_trim_wrapper(sockfd, data, INSTANCE_DATA_LENGTH);
+    string localRelationCount = Utils::read_str_trim_wrapper(sockfd, responseBuffer.data(), INSTANCE_DATA_LENGTH);
     streaming_triangleCount_logger.info("Received Local relation count: " + localRelationCount);
 
     if (!Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::OK)) {
@@ -272,7 +276,7 @@ long StreamingTriangleCountExecutor::getTriangleCount(int graphId, std::string h
         return 0;
     }
 
-    string centralRelationCount = Utils::read_str_trim_wrapper(sockfd, data, INSTANCE_DATA_LENGTH);
+    string centralRelationCount = Utils::read_str_trim_wrapper(sockfd, responseBuffer.data(), INSTANCE_DATA_LENGTH);
     streaming_triangleCount_logger.info("Received Central relation count: " + centralRelationCount);
 
     if (!Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::OK)) {
@@ -280,7 +284,7 @@ long StreamingTriangleCountExecutor::getTriangleCount(int graphId, std::string h
         return 0;
     }
 
-    string triangles = Utils::read_str_trim_wrapper(sockfd, data, INSTANCE_DATA_LENGTH);
+    string triangles = Utils::read_str_trim_wrapper(sockfd, responseBuffer.data(), INSTANCE_DATA_LENGTH);
     streaming_triangleCount_logger.info("Received result: " + triangles);
 
     NativeStoreTriangleResult newResult{ std::stol(localRelationCount),
@@ -474,7 +478,7 @@ string StreamingTriangleCountExecutor::countCentralStoreTriangles(
     }
     sockfd = centralSocketMap[port];
 
-    char data[DATA_BUFFER_SIZE];
+    std::string responseBuffer(DATA_BUFFER_SIZE, '\0');
     std::string result = "";
 
     if (!Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::HANDSHAKE)) {
@@ -482,7 +486,7 @@ string StreamingTriangleCountExecutor::countCentralStoreTriangles(
     }
     streaming_triangleCount_logger.info("Sent : " + JasmineGraphInstanceProtocol::HANDSHAKE);
 
-    string response = Utils::read_str_trim_wrapper(sockfd, data, FRONTEND_DATA_LENGTH);
+    string response = Utils::read_str_trim_wrapper(sockfd, responseBuffer.data(), FRONTEND_DATA_LENGTH);
     if (response.compare(JasmineGraphInstanceProtocol::HANDSHAKE_OK) != 0) {
         streaming_triangleCount_logger.error("Received : " + response + " instead of : " +
                                              JasmineGraphInstanceProtocol::HANDSHAKE_OK);
@@ -496,7 +500,7 @@ string StreamingTriangleCountExecutor::countCentralStoreTriangles(
     }
     streaming_triangleCount_logger.info("Sent : " + masterIP);
 
-    response = Utils::read_str_trim_wrapper(sockfd, data, FRONTEND_DATA_LENGTH);
+    response = Utils::read_str_trim_wrapper(sockfd, responseBuffer.data(), FRONTEND_DATA_LENGTH);
     if (response.compare(JasmineGraphInstanceProtocol::HOST_OK) != 0) {
         streaming_triangleCount_logger.error("Received : " + response + " instead of : " +
                                              JasmineGraphInstanceProtocol::HOST_OK);
@@ -511,7 +515,7 @@ string StreamingTriangleCountExecutor::countCentralStoreTriangles(
     streaming_triangleCount_logger.info("Sent : " +
         JasmineGraphInstanceProtocol::AGGREGATE_STREAMING_CENTRALSTORE_TRIANGLES);
 
-    response = Utils::read_str_trim_wrapper(sockfd, data, FRONTEND_DATA_LENGTH);
+    response = Utils::read_str_trim_wrapper(sockfd, responseBuffer.data(), FRONTEND_DATA_LENGTH);
     if (response.compare(JasmineGraphInstanceProtocol::OK) != 0) {
         streaming_triangleCount_logger.error("Received : " + response + " instead of : " +
                                              JasmineGraphInstanceProtocol::HOST_OK);
@@ -525,7 +529,7 @@ string StreamingTriangleCountExecutor::countCentralStoreTriangles(
     }
     streaming_triangleCount_logger.info("Sent : Graph ID " + graphId);
 
-    response = Utils::read_str_trim_wrapper(sockfd, data, FRONTEND_DATA_LENGTH);
+    response = Utils::read_str_trim_wrapper(sockfd, responseBuffer.data(), FRONTEND_DATA_LENGTH);
     if (response.compare(JasmineGraphInstanceProtocol::OK) != 0) {
         streaming_triangleCount_logger.error("Received : " + response + " instead of : " +
                                              JasmineGraphInstanceProtocol::HOST_OK);
@@ -539,7 +543,7 @@ string StreamingTriangleCountExecutor::countCentralStoreTriangles(
     }
     streaming_triangleCount_logger.info("Sent : Partition ID " + partitionId);
 
-    response = Utils::read_str_trim_wrapper(sockfd, data, FRONTEND_DATA_LENGTH);
+    response = Utils::read_str_trim_wrapper(sockfd, responseBuffer.data(), FRONTEND_DATA_LENGTH);
     if (response.compare(JasmineGraphInstanceProtocol::OK) != 0) {
         streaming_triangleCount_logger.error("Received : " + response + " instead of : " +
                                              JasmineGraphInstanceProtocol::HOST_OK);
@@ -553,7 +557,7 @@ string StreamingTriangleCountExecutor::countCentralStoreTriangles(
     }
     streaming_triangleCount_logger.info("Sent : Partition ID List : " + partitionIdList);
 
-    response = Utils::read_str_trim_wrapper(sockfd, data, FRONTEND_DATA_LENGTH);
+    response = Utils::read_str_trim_wrapper(sockfd, responseBuffer.data(), FRONTEND_DATA_LENGTH);
     if (response.compare(JasmineGraphInstanceProtocol::OK) != 0) {
         streaming_triangleCount_logger.error("Received : " + response + " instead of : " +
                                              JasmineGraphInstanceProtocol::HOST_OK);
@@ -567,7 +571,7 @@ string StreamingTriangleCountExecutor::countCentralStoreTriangles(
     }
     streaming_triangleCount_logger.info("Sent : Central count list : " + centralCountList);
 
-    response = Utils::read_str_trim_wrapper(sockfd, data, FRONTEND_DATA_LENGTH);
+    response = Utils::read_str_trim_wrapper(sockfd, responseBuffer.data(), FRONTEND_DATA_LENGTH);
     if (response.compare(JasmineGraphInstanceProtocol::OK) != 0) {
         streaming_triangleCount_logger.error("Received : " + response + " instead of : " +
                                              JasmineGraphInstanceProtocol::HOST_OK);
@@ -581,7 +585,7 @@ string StreamingTriangleCountExecutor::countCentralStoreTriangles(
     }
     streaming_triangleCount_logger.info("Sent : Priority: " + threadPriority);
 
-    response = Utils::read_str_trim_wrapper(sockfd, data, FRONTEND_DATA_LENGTH);
+    response = Utils::read_str_trim_wrapper(sockfd, responseBuffer.data(), FRONTEND_DATA_LENGTH);
     if (response.compare(JasmineGraphInstanceProtocol::OK) != 0) {
         streaming_triangleCount_logger.error("Received : " + response + " instead of : " +
                                              JasmineGraphInstanceProtocol::HOST_OK);
@@ -595,7 +599,7 @@ string StreamingTriangleCountExecutor::countCentralStoreTriangles(
     }
     streaming_triangleCount_logger.info("Sent : mode " + runMode);
 
-    response = Utils::read_str_trim_wrapper(sockfd, data, FRONTEND_DATA_LENGTH);
+    response = Utils::read_str_trim_wrapper(sockfd, responseBuffer.data(), FRONTEND_DATA_LENGTH);
     response = Utils::trim_copy(response, " \f\n\r\t\v");
     string status = response.substr(response.size() - 5);
     result = response.substr(0, response.size() - 5);
@@ -604,7 +608,7 @@ string StreamingTriangleCountExecutor::countCentralStoreTriangles(
         if (!Utils::send_str_wrapper(sockfd, status)) {
             streaming_triangleCount_logger.error("Error writing to socket");
         }
-        response = Utils::read_str_trim_wrapper(sockfd, data, FRONTEND_DATA_LENGTH);
+        response = Utils::read_str_trim_wrapper(sockfd, responseBuffer.data(), FRONTEND_DATA_LENGTH);
         response = Utils::trim_copy(response, " \f\n\r\t\v");
         status = response.substr(response.size() - 5);
         std::string triangleResponse = response.substr(0, response.size() - 5);

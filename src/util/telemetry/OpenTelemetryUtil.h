@@ -48,98 +48,98 @@ bool isTelemetryEnabled();
 
 // Mock implementations for when OpenTelemetry is disabled
 namespace nostd {
-    template<typename T>
-    class shared_ptr {
-     public:
-        shared_ptr() = default;
-        shared_ptr(std::nullptr_t) {}
-        template<typename U>
-        shared_ptr(U*) {}
-        T* operator->() const { return nullptr; }
-        T& operator*() const { static T dummy; return dummy; }
-        operator bool() const { return false; }
-        T* get() const { return nullptr; }
-    };
+template<typename T>
+class shared_ptr {
+ public:
+    shared_ptr() = default;
+    shared_ptr(std::nullptr_t) {}
+    template<typename U>
+    shared_ptr(U*) {}
+    T* operator->() const { return nullptr; }
+    T& operator*() const { static T dummy; return dummy; }
+    operator bool() const { return false; }
+    T* get() const { return nullptr; }
+};
 
-    template<typename T>
-    class unique_ptr {
-     public:
-        unique_ptr() = default;
-        unique_ptr(std::nullptr_t) {}
-        template<typename U>
-        unique_ptr(U*) {}
-        T* operator->() const { return nullptr; }
-        T& operator*() const { static T dummy; return dummy; }
-        operator bool() const { return false; }
-        T* get() const { return nullptr; }
-        void reset() {}
-    };
+template<typename T>
+class unique_ptr {
+ public:
+    unique_ptr() = default;
+    unique_ptr(std::nullptr_t) {}
+    template<typename U>
+    unique_ptr(U*) {}
+    T* operator->() const { return nullptr; }
+    T& operator*() const { static T dummy; return dummy; }
+    operator bool() const { return false; }
+    T* get() const { return nullptr; }
+    void reset() {}
+};
 }  // namespace nostd
 
 namespace trace_api {
-    enum class StatusCode { kOk };
+enum class StatusCode { kOk };
 
-    class SpanContext {
-     public:
-        SpanContext() = default;
-        SpanContext(bool, bool) {}
-        static SpanContext GetInvalid() { return SpanContext(); }
-        bool IsValid() const { return false; }
-    };
+class SpanContext {
+ public:
+    SpanContext() = default;
+    SpanContext(bool, bool) {}
+    static SpanContext GetInvalid() { return SpanContext(); }
+    bool IsValid() const { return false; }
+};
 
-    class Span {
-     public:
-        void SetAttribute(const std::string&, const std::string&) {}
-        void SetAttribute(const std::string&, double) {}
-        void SetStatus(StatusCode, const std::string& = "") {}
-        void End() {}
-        bool IsRecording() const { return false; }
-        SpanContext GetContext() const { return SpanContext::GetInvalid(); }
-    };
+class Span {
+ public:
+    void SetAttribute(const std::string&, const std::string&) {}
+    void SetAttribute(const std::string&, double) {}
+    void SetStatus(StatusCode, const std::string& = "") {}
+    void End() {}
+    bool IsRecording() const { return false; }
+    SpanContext GetContext() const { return SpanContext::GetInvalid(); }
+};
 
-    class Scope {
-     public:
-        Scope(nostd::shared_ptr<Span>) {}
-    };
+class Scope {
+ public:
+    Scope(nostd::shared_ptr<Span>) {}
+};
 
-    class Tracer {
-     public:
-        nostd::shared_ptr<Span> StartSpan(const std::string&) { return nostd::shared_ptr<Span>(); }
-        nostd::shared_ptr<Span> StartSpan(const std::string&, const struct StartSpanOptions&) {
-            return nostd::shared_ptr<Span>();
-        }
-    };
+class Tracer {
+ public:
+    nostd::shared_ptr<Span> StartSpan(const std::string&) { return nostd::shared_ptr<Span>(); }
+    nostd::shared_ptr<Span> StartSpan(const std::string&, const struct StartSpanOptions&) {
+        return nostd::shared_ptr<Span>();
+    }
+};
 
-    class TracerProvider {
-     public:
-        nostd::shared_ptr<Tracer> GetTracer(const std::string&, const std::string&) {
-            return nostd::shared_ptr<Tracer>();
-        }
-    };
+class TracerProvider {
+ public:
+    nostd::shared_ptr<Tracer> GetTracer(const std::string&, const std::string&) {
+        return nostd::shared_ptr<Tracer>();
+    }
+};
 
-    struct StartSpanOptions {
-        SpanContext parent;
-    };
+struct StartSpanOptions {
+    SpanContext parent;
+};
 
-    Span* GetSpan(void*);
+Span* GetSpan(void*);
 }  // namespace trace_api
 
 namespace metrics_api {
-    class Meter {};
-    class MeterProvider {
-     public:
-        nostd::shared_ptr<Meter> GetMeter(const std::string&, const std::string&) {
-            return nostd::shared_ptr<Meter>();
-        }
-    };
+class Meter {};
+class MeterProvider {
+ public:
+    nostd::shared_ptr<Meter> GetMeter(const std::string&, const std::string&) {
+        return nostd::shared_ptr<Meter>();
+    }
+};
 }  // namespace metrics_api
 
 namespace context {
-    class Token {};
-    class RuntimeContext {
-     public:
-        static void* GetCurrent() { return nullptr; }
-    };
+class Token {};
+class RuntimeContext {
+ public:
+    static void* GetCurrent() { return nullptr; }
+};
 }  // namespace context
 
 #endif
@@ -242,7 +242,7 @@ class OpenTelemetryUtil {
 #ifndef DISABLE_OPENTELEMETRY
     static thread_local trace_api::SpanContext remote_span_context_;
 #else
-    static thread_local int remote_span_context_;  // Mock with simple type
+static thread_local int remote_span_context_;  // Mock with simple type
 #endif
     static thread_local bool has_remote_context_;
 
@@ -260,13 +260,13 @@ class OpenTelemetryUtil {
     static thread_local std::unique_ptr<context::Token> context_token_;
     static thread_local nostd::shared_ptr<trace_api::Span> parent_span_;
 #else
-    // Mock static members for disabled OpenTelemetry (using safe types instead of void)
-    static std::shared_ptr<int> tracer_provider_;
-    static std::shared_ptr<int> meter_provider_;
+// Mock static members for disabled OpenTelemetry (using safe types instead of void)
+static std::shared_ptr<int> tracer_provider_;
+static std::shared_ptr<int> meter_provider_;
 
-    // Thread-local storage for worker context management - use safe types instead of void
-    static thread_local std::unique_ptr<int> context_token_;
-    static thread_local std::shared_ptr<int> parent_span_;
+// Thread-local storage for worker context management - use safe types instead of void
+static thread_local std::unique_ptr<int> context_token_;
+static thread_local std::shared_ptr<int> parent_span_;
 #endif
 };
 
