@@ -1613,7 +1613,7 @@ static TemporalTriangleResult countHistoryTrianglesDistributed(SQLiteDBInterface
         uint64_t localTriangles{0};
         uint64_t rawEdges{0};
         long durationMs{0};
-        std::future<bool> fut;
+        std::future<bool> taskSucceeded;
     };
     std::vector<WorkerTask> tasks;
     tasks.reserve(rows.size());
@@ -1626,19 +1626,19 @@ static TemporalTriangleResult countHistoryTrianglesDistributed(SQLiteDBInterface
         for (int pid : it->second) {
             tasks.push_back({w.workerID, pid, 0, 0, 0, {}});
             WorkerTask& task = tasks.back();
-            task.fut = std::async(
+            task.taskSucceeded = std::async(
                 std::launch::async,
                 [&aggregation, graphId, snapshotId, w, pid, &masterIP, &task]() mutable -> bool {
-                    long dur = 0;
-                    uint64_t raw = 0;
-                    uint64_t localTri = 0;
+                    long duration = 0;
+                    uint64_t rawEdges = 0;
+                    uint64_t localTriangles = 0;
                     bool ok = collectHistoryTriangleEdgesFromWorker(
                         graphId, snapshotId, w, pid, masterIP,
                         Conts::DEFAULT_THREAD_PRIORITY,
-                        aggregation, dur, raw, localTri);
-                    task.localTriangles = localTri;
-                    task.rawEdges       = raw;
-                    task.durationMs     = dur;
+                        aggregation, duration, rawEdges, localTriangles);
+                    task.localTriangles = localTriangles;
+                    task.rawEdges       = rawEdges;
+                    task.durationMs     = duration;
                     return ok;
                 });
         }
@@ -1660,7 +1660,7 @@ static TemporalTriangleResult countHistoryTrianglesDistributed(SQLiteDBInterface
     long maxWorkerDuration = 0;
 
     for (auto& task : tasks) {
-        bool ok = task.fut.get();
+        bool ok = task.taskSucceeded.get();
         if (ok) {
             partitionsProcessed++;
             totalLocalTriangles += task.localTriangles;
@@ -6274,7 +6274,7 @@ static HistoryPageRankResult countHistoryPageRankDistributed(SQLiteDBInterface* 
         std::vector<std::pair<std::string, double>> rankedNodes;
         uint64_t rawEdges{0};
         long durationMs{0};
-        std::future<bool> fut;
+        std::future<bool> taskSucceeded;
     };
     std::vector<WorkerTask> tasks;
     tasks.reserve(rows.size());
@@ -6287,18 +6287,18 @@ static HistoryPageRankResult countHistoryPageRankDistributed(SQLiteDBInterface* 
         for (int pid : it->second) {
             tasks.push_back({w.workerID, pid, {}, 0, 0, {}});
             WorkerTask& task = tasks.back();
-            task.fut = std::async(
+            task.taskSucceeded = std::async(
                 std::launch::async,
                 [graphId, snapshotId, w, pid, topK, maxIterations, dampingFactor,
                  &masterIP, &task]() mutable -> bool {
-                    long dur = 0;
-                    uint64_t raw = 0;
+                    long duration = 0;
+                    uint64_t rawEdges = 0;
                     bool ok = collectHistoryPageRankFromWorker(
                         graphId, snapshotId, w, pid, topK, maxIterations, dampingFactor,
                         masterIP, Conts::DEFAULT_THREAD_PRIORITY,
-                        task.rankedNodes, dur, raw);
-                    task.durationMs = dur;
-                    task.rawEdges = raw;
+                        task.rankedNodes, duration, rawEdges);
+                    task.durationMs = duration;
+                    task.rawEdges = rawEdges;
                     return ok;
                 });
         }
@@ -6319,7 +6319,7 @@ static HistoryPageRankResult countHistoryPageRankDistributed(SQLiteDBInterface* 
     long maxWorkerDuration = 0;
     std::unordered_map<std::string, double> aggregatedNodeScores;  // node -> highest score
     for (auto& task : tasks) {
-        bool ok = task.fut.get();
+        bool ok = task.taskSucceeded.get();
         if (ok) {
             partitionsProcessed++;
             totalRawEdges += task.rawEdges;
