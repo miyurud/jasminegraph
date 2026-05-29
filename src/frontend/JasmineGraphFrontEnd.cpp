@@ -1927,7 +1927,7 @@ int JasmineGraphFrontEnd::run() {
     socklen_t len;
     bool loop = false;
     struct sockaddr_in svrAdd;
-    struct sockaddr_in clntAdd;
+    struct sockaddr_in clientAddress;
 
     // create socket
     listenFd = socket(AF_INET, SOCK_STREAM, 0);
@@ -1958,21 +1958,21 @@ int JasmineGraphFrontEnd::run() {
     listen(listenFd, MAX_PENDING_CONNECTIONS);
 
     std::vector<std::thread> threadVector;
-    len = sizeof(clntAdd);
+    len = sizeof(clientAddress);
 
     int noThread = 0;
 
     while (true) {
         frontend_logger.info("Frontend Listening");
 
-        // this is where client connects. svr will hang in this mode until client conn
-        connFd = accept(listenFd, (struct sockaddr *)&clntAdd, &len);
+        // this is where client connects. Server will hang in this mode until client connects
+        connFd = accept(listenFd, (struct sockaddr *)&clientAddress, &len);
 
         if (connFd < 0) {
             frontend_logger.error("Cannot accept connection");
             continue;
         }
-        frontend_logger.info("Connection successful from " + std::string(inet_ntoa(clntAdd.sin_addr)));
+        frontend_logger.info("Connection successful from " + std::string(inet_ntoa(clientAddress.sin_addr)));
 
         frontendservicesessionargs *sessionargs = new frontendservicesessionargs;
         sessionargs->masterIP = masterIP;
@@ -6195,194 +6195,6 @@ bool collectHistoryPageRankFromWorker(int graphId,
     Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::CLOSE);
     close(sockfd);
     return true;
-}
-
-// ── DISTRIBUTED PAGERANK COORDINATOR ────────────────────────────────────────
-// Coordinates PageRank computation across all worker partitions
-static HistoryPageRankResult countHistoryPageRankDistributed(SQLiteDBInterface* sqlite,
-                                                             int graphId,
-                                                             uint32_t snapshotId,
-                                                             int topK,
-                                                             int maxIterations,
-                                                             double dampingFactor,
-                                                             const std::string& masterIP) {
-    HistoryPageRankResult result{};
-    std::vector<Utils::worker> allWorkers = Utils::getWorkerList(sqlite);
-
-    // Query which workers host which partitions for this graph
-    std::string sqlStatement =
-        "SELECT DISTINCT worker_idworker, partition_idpartition "
-        "FROM worker_has_partition "
-        "WHERE partition_graph_idgraph=" + std::to_string(graphId) + ";";
-    const auto& rows = sqlite->runSelect(sqlStatement);
-
-    // workerID -> list of partition IDs
-    std::map<std::string, std::vector<int>> workerPartitionMap;
-    for (const auto& row : rows) {
-        workerPartitionMap[row.at(0).second].push_back(std::stoi(row.at(1).second));
-    }
-
-    if (workerPartitionMap.empty()) {
-        frontend_logger.warn("No worker-partition assignments found in worker_has_partition for graph " +
-                             std::to_string(graphId) +
-                             ". Falling back to remote temporal file discovery");
-
-        std::string snapshotDir = getTemporalSnapshotDir();
-        std::map<int, std::string> partitionOwner;
-        for (const auto& worker : allWorkers) {
-            std::set<int> discoveredPartitions =
-                discoverTemporalPartitionsForWorker(worker, graphId, snapshotDir);
-
-            if (discoveredPartitions.empty()) {
-                continue;
-            }
-
-            for (int partitionId : discoveredPartitions) {
-                auto inserted = partitionOwner.emplace(partitionId, worker.workerID);
-                if (!inserted.second) {
-                    frontend_logger.warn("Skipping duplicate discovered partition " +
-                                         std::to_string(partitionId) +
-                                         " for worker " + worker.workerID +
-                                         " (already assigned to worker " + inserted.first->second + ")");
-                    continue;
-                }
-                workerPartitionMap[worker.workerID].push_back(partitionId);
-            }
-        }
-
-        if (workerPartitionMap.empty()) {
-            frontend_logger.error("No worker-partition assignments found for graph " +
-                                  std::to_string(graphId) +
-                                  " and remote temporal partition discovery found nothing");
-            return result;
-        }
-
-        for (auto& [workerId, partitions] : workerPartitionMap) {
-            std::sort(partitions.begin(), partitions.end());
-            partitions.erase(std::unique(partitions.begin(), partitions.end()), partitions.end());
-        }
-
-        frontend_logger.info("Discovered " + std::to_string(partitionOwner.size()) +
-                             " remote temporal partitions for graph " +
-                             std::to_string(graphId));
-    }
-
-    // Per-task state (no shared mutation during async execution)
-    struct WorkerTask {
-        std::string workerID;
-        int partitionId{0};
-        std::vector<std::pair<std::string, double>> rankedNodes;
-        uint64_t rawEdges{0};
-        long durationMs{0};
-        std::future<bool> taskSucceeded;
-    };
-    std::vector<WorkerTask> tasks;
-    tasks.reserve(rows.size());
-
-    // Launch one async task per (worker, partition)
-    for (const auto& w : allWorkers) {
-        auto it = workerPartitionMap.find(w.workerID);
-        if (it == workerPartitionMap.end()) continue;
-
-        for (int pid : it->second) {
-            tasks.push_back({w.workerID, pid, {}, 0, 0, {}});
-            WorkerTask& task = tasks.back();
-            task.taskSucceeded = std::async(
-                std::launch::async,
-                [graphId, snapshotId, w, pid, topK, maxIterations, dampingFactor,
-                 &masterIP, &task]() mutable -> bool {
-                    long duration = 0;
-                    uint64_t rawEdges = 0;
-                    bool ok = collectHistoryPageRankFromWorker(
-                        graphId, snapshotId, w, pid, topK, maxIterations, dampingFactor,
-                        masterIP, Conts::DEFAULT_THREAD_PRIORITY,
-                        task.rankedNodes, duration, rawEdges);
-                    task.durationMs = duration;
-                    task.rawEdges = rawEdges;
-                    return ok;
-                });
-        }
-    }
-
-    if (tasks.empty()) {
-        frontend_logger.error(
-            "No runnable worker-partition tasks found for graph " +
-            std::to_string(graphId) +
-            ". Partition assignments may reference workers that are not currently registered");
-        return result;
-    }
-
-    // Collect results
-    int partitionsProcessed = 0;
-    int partitionsFailed = 0;
-    uint64_t totalRawEdges = 0;
-    long maxWorkerDuration = 0;
-    std::unordered_map<std::string, double> aggregatedNodeScores;  // node -> highest score
-    for (auto& task : tasks) {
-        bool ok = task.taskSucceeded.get();
-        if (ok) {
-            partitionsProcessed++;
-            totalRawEdges += task.rawEdges;
-            if (task.durationMs > maxWorkerDuration) maxWorkerDuration = task.durationMs;
-
-            // Aggregate ranked nodes from this worker partition
-            for (const auto& [nodeId, score] : task.rankedNodes) {
-                auto it = aggregatedNodeScores.find(nodeId);
-                if (it == aggregatedNodeScores.end() || score > it->second) {
-                    aggregatedNodeScores[nodeId] = score;
-                }
-            }
-
-            frontend_logger.info(
-                "Worker " + task.workerID +
-                " partition=" + std::to_string(task.partitionId) +
-                " topK_returned=" + std::to_string(task.rankedNodes.size()) +
-                " rawEdges=" + std::to_string(task.rawEdges) +
-                " dur=" + std::to_string(task.durationMs) + "ms");
-        } else {
-            partitionsFailed++;
-            frontend_logger.warn(
-                "Worker " + task.workerID +
-                " partition=" + std::to_string(task.partitionId) + " failed — skipped");
-        }
-    }
-
-    if (partitionsProcessed == 0) {
-        frontend_logger.error(
-            "All distributed history pagerank tasks failed for graph " +
-            std::to_string(graphId) + " snapshot=" + std::to_string(snapshotId) +
-            " (failed_tasks=" + std::to_string(partitionsFailed) + ")");
-        return result;
-    }
-
-    // Aggregate and sort: take top-K from all workers' results
-    std::vector<std::pair<std::string, double>> globalRankedNodes;
-    for (const auto& [nodeId, score] : aggregatedNodeScores) {
-        globalRankedNodes.emplace_back(nodeId, score);
-    }
-
-    // Sort descending by score
-    std::sort(globalRankedNodes.begin(), globalRankedNodes.end(),
-              [](const auto& a, const auto& b) { return a.second > b.second; });
-
-    // Keep only top-K
-    if (static_cast<int>(globalRankedNodes.size()) > topK) {
-        globalRankedNodes.resize(topK);
-    }
-
-    result.rankedNodes = globalRankedNodes;
-    result.rawEdges = totalRawEdges;
-    result.partitionsProcessed = partitionsProcessed;
-    result.durationMs = maxWorkerDuration;
-    result.totalNodes = aggregatedNodeScores.size();
-
-    frontend_logger.info(
-        "[histpgr distributed] partitions=" + std::to_string(partitionsProcessed) +
-        " total_nodes=" + std::to_string(aggregatedNodeScores.size()) +
-        " top_k=" + std::to_string(globalRankedNodes.size()) +
-        " raw_edges=" + std::to_string(totalRawEdges));
-
-    return result;
 }
 
 static bool countHistoryPageRankFromStagedBitmaps(SQLiteDBInterface *sqlite,
