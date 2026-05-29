@@ -2584,6 +2584,8 @@ static void add_graph_cust_command(std::string masterIP, int connFd, SQLiteDBInt
         XML = 3
     };
 
+    int graphTypeValue = 0;
+
     try {
         graphTypeValue = std::stoi(graphType);
     } catch (const std::exception&) {
