@@ -37,7 +37,6 @@ limitations under the License.
 #include "../query/algorithms/pagerank/HistoryPageRank.h"
 #include "../query/algorithms/bfs/HistoryBFS.h"
 #include "../query/algorithms/triangles/SheepTriangles.h"
-#include "../query/algorithms/triangles/SheepTriangles.h"
 #include "../query/processor/cypher/runtime/InstanceHandler.h"
 #include "../query/processor/cypher/util/SharedBuffer.h"
 #include "../query/processor/nlp/semanticbeamsearch/SemanticBeamSearch.h"

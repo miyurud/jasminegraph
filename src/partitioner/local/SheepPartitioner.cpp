@@ -189,9 +189,9 @@ void SheepPartitioner::calculateEdgeCuts() {
 string SheepPartitioner::extractGraphID(string_view outputPath) const {
     string graphID = "0";
     if (size_t lastSlash = outputPath.find_last_of("/\\"); lastSlash != string::npos) {
-        string_view filename = outputPath.substr(lastSlash + 1);
-        if (size_t firstUnderscore = filename.find('_'); firstUnderscore != string::npos) {
-            graphID = string(filename.substr(0, firstUnderscore));
+        string_view fileName = outputPath.substr(lastSlash + 1);
+        if (size_t firstUnderscore = fileName.find('_'); firstUnderscore != string::npos) {
+            graphID = string(fileName.substr(0, firstUnderscore));
         }
     }
     return graphID;
