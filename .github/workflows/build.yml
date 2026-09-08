@@ -77,7 +77,7 @@ jobs:
         python-version: 3.11
     - name: Install python dependencies Build
       run: |
-        pip install fastapi uvicorn httpx
+        pip install fastapi uvicorn httpx setuptools
 
       # 4. Start mock Ollama server in the background
     - name: Start Mock LLM Server
