@@ -41,6 +41,10 @@ using partition_id = short;
  */
 class SheepPartitioner {
  public:
+   /**
+    * Create a graph partitioner using the metadata database connection
+    * @param sqlite Metadata database interface
+    */
     explicit SheepPartitioner(SQLiteDBInterface *sqlite);
 
     /**
@@ -83,6 +87,8 @@ class SheepPartitioner {
     /**
      * Load graph from edge list file
      * Expected format: source_vertex target_vertex (per line)
+        * @param graphPath Path to the input graph file
+        * @return true if the graph was loaded successfully, false otherwise
      */
     bool loadGraph(const string &graphPath);
 
@@ -100,22 +106,36 @@ class SheepPartitioner {
     /**
      * Calculate partition score for a vertex
      * Score favors partitions with more neighbors and less load
+        * @param vertex Vertex to score
+        * @param partition Partition being evaluated
+        * @param maxPartitionSize Maximum allowed size of a partition
+        * @return Score for assigning the vertex to the partition
      */
     double calculatePartitionScore(vertex_id vertex, partition_id partition,
                                    size_t maxPartitionSize);
 
     /**
      * Write partitions to output files
+        * @param outputPath Base path for the output partition files
+        * @return true if the partitions were written successfully, false otherwise
      */
     bool writePartitions(const string &outputPath);
 
     /**
      * Extract graphID from outputPath (format: path/graphID_)
+        * @param outputPath Output path containing the graph identifier
+        * @return Extracted graph identifier
      */
     string extractGraphID(string_view outputPath) const;
 
     /**
      * Build local and central edge maps and counts from adjacency list
+        * @param partitionVertices Vertex sets assigned to each partition
+        * @param localEdgeCounts Number of local edges in each partition
+        * @param centralEdgeCounts Number of central edges in each partition
+        * @param localStoreSets Local store edge sets for each partition
+        * @param centralStoreSets Central store edge sets for each partition
+        * @param duplicateCentralStoreSets Duplicate central store edge sets for each partition
      */
     void buildEdgeMaps(
         std::vector<std::set<vertex_id>> &partitionVertices,
@@ -127,6 +147,8 @@ class SheepPartitioner {
 
     /**
      * Convert sets to vectors for serialization
+        * @param sets Store sets to convert
+        * @param maps Destination maps containing vectors instead of sets
      */
     void convertStoreSetsToMaps(
         const std::vector<std::map<int, std::unordered_set<int>>> &sets,
@@ -134,6 +156,13 @@ class SheepPartitioner {
 
     /**
      * Serialize and compress a single partition using FlatBuffers
+        * @param partitionId Partition to serialize
+        * @param outputPath Base path for the serialized output
+        * @param graphID Graph identifier
+        * @param localMap Local store data for the partition
+        * @param centralMap Central store data for the partition
+        * @param duplicateCentralMap Duplicate central store data for the partition
+        * @return true if serialization succeeds, false otherwise
      */
     bool serializeSinglePartition(
         size_t partitionId,
