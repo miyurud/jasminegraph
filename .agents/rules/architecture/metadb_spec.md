@@ -19,4 +19,4 @@ The MetaDB component serves as the global registry and source of truth for the d
 
 ## 3. Implicit Contracts & Constraints (Important for AI Agents)
 * **Single Source of Truth**: Any distributed feature added to JasmineGraph (like a new Temporal Index) MUST register its metadata through `SQLiteDBInterface`. If an agent hardcodes state into memory without persisting it here, the cluster will permanently lose track of that data if the Master node restarts.
-* **Thread Safety**: SQLite connections can be sensitive to concurrent threaded access depending on how they are compiled. Agents should use the provided mutexes in the `Server` class when modifying the MetaDB.
+* **Thread Safety**: SQLite connections can be sensitive to concurrent threaded access depending on how they are compiled. Agents should use the provided `sqliteMutex` in the `Utils` class when modifying the MetaDB concurrently.

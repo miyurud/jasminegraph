@@ -20,5 +20,5 @@ The Partitioner is responsible for dividing massive graph datasets into smaller,
 The directory structure distinguishes between `local` (offline, static graph partitioning) and `stream` (online, dynamic partitioning as data arrives). 
 
 ## 3. Implicit Contracts & Constraints (Important for AI Agents)
-* **ID Reformatting**: Raw datasets often have non-sequential string or integer IDs. The `MetisPartitioner` strictly reformats these into contiguous integers starting from `0` (via `vertexToIDMap`) because METIS requires zero-indexed contiguous arrays (`xadj`, `adjncy`). **Agents must map back to original IDs** before returning results to the user.
+* **ID Reformatting**: Raw datasets often have non-sequential string or integer IDs. The `MetisPartitioner` strictly reformats these into contiguous integers starting from `1` (via `vertexToIDMap`) to create the sequential format required by METIS (`xadj`, `adjncy`). **Agents must map back to original IDs** (using `idToVertexMap`) before returning results to the user.
 * **Central Store Overhead**: AI agents developing graph traversals must explicitly account for the "Central Store". If a query crosses a partition, the local worker must communicate with the master or another worker to fetch the missing edge from the central store.

@@ -26,6 +26,6 @@ JasmineGraph leverages Facebook AI Similarity Search (FAISS) for its underlying 
 * **Persistence (`save`/`load`)**: The index can be serialized to disk. This includes saving both the underlying FAISS index and the custom bidirectional ID mappings.
 
 ## 4. Implicit Contracts & Constraints (Important for AI Agents)
-* **Singleton Pattern**: `FaissIndex` manages instances via a static factory `getInstance(embeddingDim, filepath)`. AI agents must not attempt to construct it directly; they must use the factory method.
+* **Keyed-Instance Factory**: `FaissIndex` manages instances via a static keyed-instance factory `getInstance(embeddingDim, filepath)` — one instance per filepath. AI agents must not attempt to construct it directly; they must use the factory method.
 * **Thread Safety**: Access to the FAISS index and the ID mapping structures is guarded by a `std::mutex` (`mtx`). While it is thread-safe, heavy concurrent read/write workloads might experience lock contention.
 * **In-Memory Limitations**: `IndexFlatL2` holds all vectors in RAM. If the dataset exceeds available memory, the system will face Out-Of-Memory (OOM) errors. For massive temporal graphs, future specs should consider IVF (Inverted File) FAISS indices instead of Flat.
