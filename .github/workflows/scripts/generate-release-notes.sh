@@ -1,16 +1,19 @@
 #!/usr/bin/env bash
 # Builds RELEASE_NOTES.md for the current tag by grouping every PR merged into
-# the default branch since the previous tag, using each PR's label, title,
-# author and description. Requires: gh (authenticated via GH_TOKEN), jq, git
-# history with tags (checkout must use fetch-depth: 0).
+# develop since the previous tag, using each PR's label, title, author and
+# description. develop is used regardless of which branch the tag itself was
+# cut from (master or develop), because individual PRs are always raised
+# against develop - master only ever receives the bulk "merge develop into
+# master" PR, which carries no per-change detail of its own.
+# Requires: gh (authenticated via GH_TOKEN), jq, git history with tags
+# (checkout must use fetch-depth: 0).
 set -euo pipefail
 
 CURRENT_TAG="${GITHUB_REF_NAME}"
 REPO="${GITHUB_REPOSITORY}"
+PR_BASE_BRANCH="develop"
 
 PREV_TAG=$(git tag --sort=-creatordate | grep -Fxv "${CURRENT_TAG}" | head -n1 || true)
-
-DEFAULT_BRANCH=$(gh repo view "${REPO}" --json defaultBranchRef -q .defaultBranchRef.name)
 
 UNTIL=$(TZ=UTC git log -1 --date='format-local:%Y-%m-%dT%H:%M:%SZ' --format=%cd "${CURRENT_TAG}")
 if [[ -n ${PREV_TAG} ]]; then
@@ -19,7 +22,7 @@ else
     SINCE="1970-01-01T00:00:00Z"
 fi
 
-PRS_JSON=$(gh pr list --repo "${REPO}" --state merged --base "${DEFAULT_BRANCH}" \
+PRS_JSON=$(gh pr list --repo "${REPO}" --state merged --base "${PR_BASE_BRANCH}" \
     --json number,title,body,author,labels,mergedAt,url --limit 300)
 
 FILTERED=$(echo "${PRS_JSON}" | jq --arg since "${SINCE}" --arg until "${UNTIL}" \

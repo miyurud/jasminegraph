@@ -22,6 +22,17 @@ jobs:
             repository: ${{ github.repository }}
             fetch-depth: 0
 
+        - name: Determine release channel
+          id: channel
+          run: |
+            if git branch -r --contains "${{ github.sha }}" | grep -qE 'origin/master$'; then
+              echo "Tag is reachable from master: publishing a stable release."
+              echo "prerelease=false" >>"${GITHUB_OUTPUT}"
+            else
+              echo "Tag is not on master (develop or other branch): publishing a pre-release."
+              echo "prerelease=true" >>"${GITHUB_OUTPUT}"
+            fi
+
         - name: Docker Build
           run: |
             sed -i "s#org.jasminegraph.k8s.image=.*#org.jasminegraph.k8s.image=${IMAGE}#" ./conf/jasminegraph-server.properties
@@ -137,3 +148,4 @@ jobs:
             tag_name: ${{ github.ref_name }}
             files: jasminegraph-${{ github.ref_name }}-compose-bundle.zip
             body_path: RELEASE_NOTES.md
+            prerelease: ${{ steps.channel.outputs.prerelease }}
