@@ -22,6 +22,7 @@ limitations under the License.
 #include <queue>
 #include <chrono>
 #include <random>
+#include <filesystem>
 
 // Parallel processing configuration
 // These values scale with the number of available workers to adapt to system capabilities
@@ -1492,6 +1493,13 @@ void flushHeapToRunFile(
     if (pq.empty()) return;
 
     std::string workerPath = Utils::getJasmineGraphProperty("org.jasminegraph.worker.path");
+    std::error_code dirError;
+    std::filesystem::create_directories(workerPath, dirError);
+    if (dirError) {
+        execution_logger.error("OrderBy: Failed to create worker path directory: " + workerPath +
+                                " (" + dirError.message() + ")");
+    }
+
     std::string filename = workerPath + generateUniqueFilename();
     std::ofstream outFile(filename, std::ios::out | std::ios::binary);
 

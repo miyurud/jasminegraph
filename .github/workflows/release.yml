@@ -11,12 +11,27 @@ env:
 jobs:
     release:
       runs-on: ubuntu-latest
+      permissions:
+        contents: write
+        pull-requests: read
 
       steps:
-        - uses: actions/checkout@v4
+        - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
           with:
             ref: ${{github.ref}}
             repository: ${{ github.repository }}
+            fetch-depth: 0
+
+        - name: Determine release channel
+          id: channel
+          run: |
+            if git branch -r --contains "${{ github.sha }}" | grep -qE 'origin/master$'; then
+              echo "Tag is reachable from master: publishing a stable release."
+              echo "prerelease=false" >>"${GITHUB_OUTPUT}"
+            else
+              echo "Tag is not on master (develop or other branch): publishing a pre-release."
+              echo "prerelease=true" >>"${GITHUB_OUTPUT}"
+            fi
 
         - name: Docker Build
           run: |
@@ -40,3 +55,97 @@ jobs:
           run: |
             docker push "${IMAGE}"
             docker push "${IMAGE}-minimal"
+
+        - name: Prepare release bundle
+          run: |
+            BUNDLE_DIR="jasminegraph-${{ github.ref_name }}-compose-bundle"
+            mkdir -p "${BUNDLE_DIR}"
+            cp docker-compose.yml "${BUNDLE_DIR}/docker-compose.yml"
+            cp config.alloy "${BUNDLE_DIR}/config.alloy"
+            cp loki-config.yaml "${BUNDLE_DIR}/loki-config.yaml"
+            cp tempo-config.yaml "${BUNDLE_DIR}/tempo-config.yaml"
+            cp Dockerfile.grafana "${BUNDLE_DIR}/Dockerfile.grafana"
+            mkdir -p "${BUNDLE_DIR}/performance_tools"
+            cp performance_tools/grafana_dashboard.json "${BUNDLE_DIR}/performance_tools/grafana_dashboard.json"
+            cp -r conf "${BUNDLE_DIR}/conf"
+            mkdir -p "${BUNDLE_DIR}/tests/integration/env_init/config/hdfs"
+            cp tests/integration/env_init/config/hdfs/hadoop.env "${BUNDLE_DIR}/tests/integration/env_init/config/hdfs/hadoop.env"
+
+        - name: Pin jasminegraph image tag in bundled compose file
+          run: |
+            BUNDLE_DIR="jasminegraph-${{ github.ref_name }}-compose-bundle"
+            sed -i "s#image: jasminegraph:latest#image: ${IMAGE}#" "${BUNDLE_DIR}/docker-compose.yml"
+
+        - name: Add bundle README
+          run: |
+            BUNDLE_DIR="jasminegraph-${{ github.ref_name }}-compose-bundle"
+            cat > "${BUNDLE_DIR}/README.md" <<'EOF'
+            # JasmineGraph ${{ github.ref_name }} — Docker Compose Bundle
+
+            This bundle starts JasmineGraph together with its full dependency stack:
+            Kafka, Prometheus, Pushgateway, Grafana, Loki, Tempo, and Alloy.
+
+            ## Prerequisites
+
+            - Docker: https://docs.docker.com/get-docker/
+            - Docker Compose (bundled with Docker Desktop, or the `docker compose` CLI
+              plugin on Linux)
+
+            ## Usage
+
+            From this folder, run:
+
+                docker compose up
+
+            (Older Docker installs without the Compose v2 plugin can use the legacy
+            standalone binary instead: `docker-compose up`.)
+
+            JasmineGraph will be available on ports 7777/7778. Other services:
+
+            | Service      | Port(s)                       |
+            |--------------|--------------------------------|
+            | JasmineGraph | 7777, 7778                     |
+            | Prometheus   | 9090                            |
+            | Pushgateway  | 9091                            |
+            | Kafka        | 9092                            |
+            | Grafana      | 3001                            |
+            | Loki         | 3100                            |
+            | Tempo        | 3200, 4317, 4318, 14268         |
+            | Alloy        | 12345                           |
+
+            ## Things to know before you run this
+
+            - **Docker socket access**: the `jasminegraph` container mounts
+              `/var/run/docker.sock`, giving it control over the host's Docker daemon.
+              This is required by JasmineGraph's own container/worker management and is
+              expected behavior, not a misconfiguration.
+            - **Auto-created folders**: on first run, Docker Compose will create several
+              empty host directories next to this file (`env/databases/metadb`,
+              `env/databases/performancedb`, `env/data`, `prometheus_data`) to satisfy
+              bind mounts. This is normal.
+            - **Network subnet**: this stack uses a fixed Docker network (`jasminenet`,
+              subnet `172.28.5.0/24`). If another Compose project on your machine
+              already uses that subnet or network name, `docker compose up` may fail
+              until you stop the conflicting stack or edit the `networks:` section of
+              `docker-compose.yml`.
+            EOF
+
+        - name: Zip release bundle
+          run: |
+            BUNDLE_DIR="jasminegraph-${{ github.ref_name }}-compose-bundle"
+            zip -r "${BUNDLE_DIR}.zip" "${BUNDLE_DIR}"
+
+        - name: Generate release notes
+          env:
+            GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          run: |
+            chmod +x .github/workflows/scripts/generate-release-notes.sh
+            .github/workflows/scripts/generate-release-notes.sh
+
+        - name: Create GitHub Release
+          uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2.6.2
+          with:
+            tag_name: ${{ github.ref_name }}
+            files: jasminegraph-${{ github.ref_name }}-compose-bundle.zip
+            body_path: RELEASE_NOTES.md
+            prerelease: ${{ steps.channel.outputs.prerelease }}

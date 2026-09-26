@@ -1,0 +1,26 @@
+name: PR Description Check
+
+# Fails the PR when its description is empty, so every merged PR carries
+# enough context to feed the release notes generated at tag time.
+
+on:
+  pull_request:
+    types: [opened, edited, reopened, synchronize]
+
+permissions:
+  contents: read
+
+jobs:
+  check-description:
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Require a non-empty PR description
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const body = (context.payload.pull_request.body || "").trim();
+            if (body.length === 0) {
+              core.setFailed(
+                "This PR has no description. Please explain what changed and why before it can be merged."
+              );
+            }
