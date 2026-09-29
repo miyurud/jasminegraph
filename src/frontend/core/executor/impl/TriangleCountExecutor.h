@@ -27,6 +27,18 @@ limitations under the License.
 #include "../../CoreConstants.h"
 #include "../AbstractExecutor.h"
 
+// Enum for command types (used in logging and SLA tracking)
+enum class TriangleCountCommandType {
+    TRIANGLES,
+    SHEEP_TRIANGLES
+};
+
+// Enum for threading strategy
+enum class ThreadingStrategy {
+    THREAD_BASED,  // Uses std::thread
+    ASYNC_BASED    // Uses std::async
+};
+
 class TriangleCountExecutor : public AbstractExecutor {
  public:
     TriangleCountExecutor();
@@ -35,12 +47,17 @@ class TriangleCountExecutor : public AbstractExecutor {
 
     void execute();
 
-    int getUid();
+    static int getUid();
+
+    // Shared execute method for both regular and sheep executors
+    static void executeTriangleCount(SQLiteDBInterface *sqlite, PerformanceSQLiteDBInterface *perfDB,
+                                     const JobRequest &request, TriangleCountCommandType commandType,
+                                     ThreadingStrategy strategy, Logger &logger);
 
     static long getTriangleCount(
         int graphId, std::string host, int port, int dataPort, int partitionId, std::string masterIP, int uniqueId,
         bool isCompositeAggregation, int threadPriority, std::vector<std::vector<string>> fileCombinations,
-        std::map<std::string, std::string> *combinationWorkerMap_p,
+        std::map<std::string, std::string, std::less<>> *combinationWorkerMap_p,
         std::unordered_map<long, std::unordered_map<long, std::unordered_set<long>>> *triangleTree_p,
         std::mutex *triangleTreeMutex_p, const std::string& masterTraceContext);
 
@@ -58,6 +75,10 @@ class TriangleCountExecutor : public AbstractExecutor {
                                                     std::string aggregatorDataPort, int graphId, int partitionId,
                                                     std::string masterIP);
 
+    static long aggregateCentralStoreTriangles(SQLiteDBInterface *sqlite, std::string graphId, std::string masterIP,
+                                               int threadPriority,
+                                               const std::map<string, std::vector<string>, std::less<>> &partitionMap);
+
     static string countCentralStoreTriangles(std::string aggregatorPort, std::string host, std::string partitionId,
                                              std::string partitionIdList, std::string graphId, std::string masterIP,
                                              int threadPriority, std::string traceContext);
@@ -70,5 +91,33 @@ class TriangleCountExecutor : public AbstractExecutor {
     SQLiteDBInterface *sqlite;
     PerformanceSQLiteDBInterface *perfDB;
 };
+
+// Partition filtering and allocation helper functions (shared between executors)
+void allocate(int partitionId, const std::string &workerId, std::map<int, std::string> &allocation,
+              std::set<int> &remainingPartitions,
+              std::map<int, std::vector<std::string>> &availableWorkersByPartition,
+              std::map<std::string, int, std::less<>> &workerLoads);
+
+int alloc_plan(std::map<int, std::string> &allocation, std::set<int> &remainingPartitions,
+               std::map<int, std::vector<std::string>> &availableWorkersByPartition,
+               std::map<std::string, int, std::less<>> &workerLoads);
+
+std::vector<int> reallocate_parts(std::map<int, std::string> &allocation, std::set<int> &remainingPartitions,
+                                  const std::map<int, std::vector<std::string>> &originalAvailableWorkersByPartition);
+
+void scale_up(std::map<std::string, int, std::less<>> &workerLoads,
+              std::map<std::string, std::string, std::less<>> &workers, int partitionsToCopy);
+
+int alloc_net_plan(std::map<int, std::string> &allocation, std::vector<int> &partitionsToAllocate,
+                   std::map<int, std::pair<std::string, std::string>> &transfer,
+                   std::map<std::string, int, std::less<>> &networkLoads,
+                   std::map<std::string, int, std::less<>> &workerLoads,
+                   const std::map<int, std::vector<std::string>> &availableWorkersByPartition,
+                   int currentBestNetworkLoad);
+
+void filter_partitions(std::map<std::string, std::vector<std::string>, std::less<>> &partitionMap,
+                       SQLiteDBInterface *sqlite, const std::string &graphId);
+
+// Shared synchronization primitives and state
 
 #endif  // JASMINEGRAPH_TRIANGLECOUNTEXECUTOR_H

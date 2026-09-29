@@ -322,7 +322,7 @@ void OperatorExecutor::initializeMethodMap() {
 }
 
 void OperatorExecutor::AllNodeScan(SharedBuffer &buffer, std::string jsonPlan, GraphConfig gc) {
-    OTEL_TRACE_OPERATION("AllNodeScan");
+    OTEL_TRACE_OPERATION(OTelTraceOperations::ALL_NODE_SCAN);
 
     json query = json::parse(jsonPlan);
     NodeManager nodeManager(gc);
@@ -365,7 +365,7 @@ void OperatorExecutor::AllNodeScan(SharedBuffer &buffer, std::string jsonPlan, G
 }
 
 void OperatorExecutor::NodeScanByLabel(SharedBuffer &buffer, std::string jsonPlan, GraphConfig gc) {
-    OTEL_TRACE_OPERATION("NodeScanByLabel");
+    OTEL_TRACE_OPERATION(OTelTraceOperations::NODE_SCAN_BY_LABEL);
 
     json query = json::parse(jsonPlan);
     OpenTelemetryUtil::addSpanAttribute("scan.label", query["Label"].get<std::string>());
@@ -410,7 +410,7 @@ void OperatorExecutor::NodeScanByLabel(SharedBuffer &buffer, std::string jsonPla
 }
 
 void OperatorExecutor::ProduceResult(SharedBuffer &buffer, std::string jsonPlan, GraphConfig gc) {
-    OTEL_TRACE_OPERATION("ProduceResult");
+    OTEL_TRACE_OPERATION(OTelTraceOperations::PRODUCE_RESULT);
 
     json query = json::parse(jsonPlan);
     SharedBuffer sharedBuffer(INTER_OPERATOR_BUFFER_SIZE);
@@ -438,7 +438,7 @@ void OperatorExecutor::ProduceResult(SharedBuffer &buffer, std::string jsonPlan,
 }
 
 void OperatorExecutor::Filter(SharedBuffer &buffer, std::string jsonPlan, GraphConfig gc) {
-    OTEL_TRACE_OPERATION("Filter");
+    OTEL_TRACE_OPERATION(OTelTraceOperations::FILTER);
 
     json query = json::parse(jsonPlan);
     SharedBuffer sharedBuffer(INTER_OPERATOR_BUFFER_SIZE);
@@ -476,7 +476,7 @@ void OperatorExecutor::Filter(SharedBuffer &buffer, std::string jsonPlan, GraphC
 }
 
 void OperatorExecutor::UndirectedRelationshipTypeScan(SharedBuffer &buffer, std::string jsonPlan, GraphConfig gc) {
-    OTEL_TRACE_OPERATION("UndirectedRelationshipTypeScan");
+    OTEL_TRACE_OPERATION(OTelTraceOperations::UNDIRECTED_RELATIONSHIP_TYPE_SCAN);
 
     json query = json::parse(jsonPlan);
     OpenTelemetryUtil::addSpanAttribute("relationship.type", query["relType"].get<std::string>());
@@ -1432,6 +1432,8 @@ struct Row {
         json val1 = getNestedValue(data, sortKey);
         json val2 = getNestedValue(other.data, sortKey);
 
+        if (val1 == val2) return false;
+
         bool result;
         if (val1.is_number_integer() && val2.is_number_integer()) {
             result = val1.get<int>() > val2.get<int>();
@@ -1543,6 +1545,8 @@ void OperatorExecutor::OrderBy(SharedBuffer &buffer, std::string jsonPlan, Graph
         auto cmp = [&](const Row &a, const Row &b) {
             json val1 = a.getNestedValue(a.data, sortKey);
             json val2 = b.getNestedValue(b.data, sortKey);
+
+            if (val1 == val2) return false;
 
             bool result;
             if (val1.is_number_integer() && val2.is_number_integer()) {

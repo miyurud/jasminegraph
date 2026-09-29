@@ -18,27 +18,32 @@ std::string JobRequest::getJobId() const { return jobId; }
 
 void JobRequest::setJobId(std::string inputJobId) { jobId = inputJobId; }
 
-std::string JobRequest::getJobType() { return jobType; }
+std::string JobRequest::getJobType() const { return jobType; }
 
 void JobRequest::setJobType(std::string inputJobType) { jobType = inputJobType; }
 
 void JobRequest::addParameter(std::string key, std::string value) { requestParams[key] = value; }
 
-std::string JobRequest::getParameter(std::string key) { return requestParams[key]; }
+std::string JobRequest::getParameter(std::string key) const {
+    if (requestParams.find(key) != requestParams.end()) {
+        return requestParams.at(key);
+    }
+    return "";
+}
 
 void JobRequest::setPriority(int priority) { this->priority = priority; }
 
-int JobRequest::getPriority() { return priority; }
+int JobRequest::getPriority() const { return priority; }
 
 void JobRequest::setMasterIP(std::string masterip) { this->masterIP = masterip; }
 
-std::string JobRequest::getMasterIP() { return masterIP; }
+std::string JobRequest::getMasterIP() const { return masterIP; }
 
 void JobRequest::setBeginTime(std::chrono::time_point<std::chrono::system_clock> begin) {
     this->begin = begin;
 }
 
-std::chrono::time_point<std::chrono::system_clock> JobRequest::getBegin() {
+std::chrono::time_point<std::chrono::system_clock> JobRequest::getBegin() const {
     return begin;
 }
 
