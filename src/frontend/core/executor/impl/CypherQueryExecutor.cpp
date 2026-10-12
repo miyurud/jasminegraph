@@ -96,7 +96,7 @@ void CypherQueryExecutor::execute() {
 
     string queryPlan;
     {
-        OTEL_TRACE_OPERATION("parse_and_plan_query");
+        OTEL_TRACE_OPERATION(OTelTraceOperations::PARSE_AND_PLAN_QUERY);
 
         antlr4::ANTLRInputStream input(queryString);
         // Create a lexer from the input
@@ -144,12 +144,12 @@ void CypherQueryExecutor::execute() {
     std::vector<std::thread> workerThreads;
     int count = 0;
     {
-        OTEL_TRACE_OPERATION("distribute_to_workers");
+        OTEL_TRACE_OPERATION(OTelTraceOperations::DISTRIBUTE_TO_WORKERS);
 
         for (auto worker : workerList) {
             {
-                OTEL_TRACE_OPERATION("send_to_worker_" + std::string(worker.hostname) +
-                                     "_partition_" + std::to_string(count));
+                OTEL_TRACE_OPERATION(OTelTraceOperations::SEND_TO_WORKER + std::string(worker.hostname) +
+                                     OTelTraceOperations::PARTITION + std::to_string(count));
 
                 workerThreads.emplace_back(
                     doCypherQuery,
@@ -191,7 +191,7 @@ void CypherQueryExecutor::execute() {
     int result_wr;
     int closeFlag = 0;
     if (Operator::isAggregate) {
-        OTEL_TRACE_OPERATION("aggregate_results");
+        OTEL_TRACE_OPERATION(OTelTraceOperations::AGGREGATE_RESULTS);
         std::string aggregationType = "unknown";
         if (Operator::aggregateType == AggregationFactory::AVERAGE) {
             aggregationType = "average";
@@ -204,7 +204,7 @@ void CypherQueryExecutor::execute() {
 
         auto startTime = std::chrono::high_resolution_clock::now();
         if (Operator::aggregateType == AggregationFactory::AVERAGE) {
-            OTEL_TRACE_OPERATION("average_aggregation");
+            OTEL_TRACE_OPERATION(OTelTraceOperations::AVERAGE_AGGREGATION);
             Aggregation* aggregation = AggregationFactory::getAggregationMethod(AggregationFactory::AVERAGE);
             while (true) {
                 if (closeFlag == numberOfPartitions) {
@@ -224,7 +224,7 @@ void CypherQueryExecutor::execute() {
             aggregation->getResult(connFd);
         } else if (Operator::aggregateType == AggregationFactory::ASC ||
                    Operator::aggregateType == AggregationFactory::DESC) {
-            OTEL_TRACE_OPERATION("order_by_aggregation");
+            OTEL_TRACE_OPERATION(OTelTraceOperations::ORDER_BY_AGGREGATION);
 
             struct BufferEntry {
                 std::string value;
@@ -244,6 +244,9 @@ void CypherQueryExecutor::execute() {
                         cypher_logger.error("Missing key in val2 for comparison: " + Operator::aggregateKey);
                         return false;
                     }
+
+                    if (*val1 == *val2) return false;
+
                     bool result;
                     if (val1->is_number_integer() && val2->is_number_integer()) {
                         result = val1->get<int>() > val2->get<int>();
@@ -318,7 +321,7 @@ void CypherQueryExecutor::execute() {
         cypher_logger.info("Total time taken for aggregation: " + std::to_string(totalTime) + " ms");
         Operator::isAggregate = false;
     } else {
-        OTEL_TRACE_OPERATION("collect_non_aggregated_results");
+        OTEL_TRACE_OPERATION(OTelTraceOperations::COLLECT_NON_AGGREGATED_RESULTS);
 
         int count = 0;
         while (true) {
@@ -357,9 +360,9 @@ void CypherQueryExecutor::execute() {
     workerResponded = true;
     JobResponse jobResponse;
     jobResponse.setJobId(request.getJobId());
-    responseVector.push_back(jobResponse);
 
     responseVectorMutex.lock();
+    responseVector.push_back(jobResponse);
     responseMap[request.getJobId()] = jobResponse;
     responseVectorMutex.unlock();
 
@@ -390,7 +393,8 @@ void CypherQueryExecutor::execute() {
 void CypherQueryExecutor::doCypherQuery(const std::string& host, int port, const std::string& masterIP, int graphID,
                                                int PartitionId, const std::string& message, SharedBuffer &sharedBuffer,
                                                const std::string& masterTraceContext) {
-    OTEL_TRACE_OPERATION("worker_communication_" + host + "_partition_" + std::to_string(PartitionId));
+    OTEL_TRACE_OPERATION(OTelTraceOperations::WORKER_COMMUNICATION + host +
+                         OTelTraceOperations::PARTITION + std::to_string(PartitionId));
 
     Utils::sendQueryPlanToWorker(host, port, masterIP, graphID, PartitionId, message, sharedBuffer, masterTraceContext);
 }
