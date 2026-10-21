@@ -28,9 +28,9 @@ The Partitioner is responsible for dividing massive graph datasets into smaller,
 * **Mechanism**: Linear Deterministic Greedy (Stanton & Kliot) streaming partitioning algorithm.
 * **Formula**: Assigns vertices dynamically based on greedy neighbor overlap weighted by remaining capacity: $|N(v) \cap S_i| \times \left(1 - \frac{|S_i|}{n/k}\right)$, where $n$ is total vertices and $k$ is the partition count. Partitions nearing capacity are penalized linearly.
 
-### 2.5 Sheep Partitioner
-* **Mechanism**: An edge-centric streaming partitioner designed to minimize vertex replication across distributed workers.
-* **Characteristics**: Evaluates partition assignments for incoming edge streams by balancing vertex-cut replication ratios against worker storage balance, avoiding unnecessary cross-partition edge transfers.
+### 2.5 Sheep Partitioner (`SheepPartitioner.h`)
+* **Mechanism**: Implements a streaming graph partitioning algorithm based on elimination trees and balanced bin-packing (`src/partitioner/local/SheepPartitioner.h`).
+* **Characteristics**: Processes vertices in degree-sorted order and assigns them to partitions to minimize edge cuts while maintaining balance. Integrates directly with optimized query algorithms like `SheepTriangles` (`src/query/algorithms/triangles/SheepTriangles.h`) and executor `SheepTriangleCountExecutor`.
 
 ### 2.6 Streaming vs Local Partitioning Execution
 * **`local/` (Offline)**: Preprocesses static graph topologies (e.g., via METIS) to generate serialized edge lists, central store cut files, and attribute tables prior to loading.
