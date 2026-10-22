@@ -32,6 +32,7 @@ class AbstractExecutor {
     AbstractExecutor();
     AbstractExecutor(JobRequest jobRequest);
     static std::vector<std::vector<string>> getCombinations(std::vector<string> inputVector);
+    virtual ~AbstractExecutor() = default;
     virtual void execute() = 0;
     static int collectPerformaceData(PerformanceSQLiteDBInterface *perDB, std::string graphId,
                                                 std::string command, std::string category, int partitionCount,

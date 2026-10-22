@@ -38,7 +38,7 @@ void InstanceHandler::handleRequest(int connFd, bool *loop_exit_p,
     auto method = OperatorExecutor::methodMap[operatorExecutor.query["Operator"]];
 
     {
-        OTEL_TRACE_OPERATION("execute_operators");
+        OTEL_TRACE_OPERATION(OTelTraceOperations::EXECUTE_OPERATORS);
         // Launch the method in a new thread
         std::thread result(method, std::ref(operatorExecutor), std::ref(sharedBuffer),
                            std::string(operatorExecutor.queryPlan), gc);
@@ -46,7 +46,7 @@ void InstanceHandler::handleRequest(int connFd, bool *loop_exit_p,
         int time = 0;
 
         {
-            OTEL_TRACE_OPERATION("stream_results_to_master");
+            OTEL_TRACE_OPERATION(OTelTraceOperations::STREAM_RESULTS_TO_MASTER);
             while (true) {
                 string raw = sharedBuffer.get();
                 if (raw == "-1") {
