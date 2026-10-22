@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: 'Existing tag to release, e.g. v0.1.0'
+        description: 'Existing tag to release, e.g., v0.1.0'
         required: true
         type: string
 
@@ -29,7 +29,7 @@ jobs:
             GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           run: |
             if [[ "${TAG}" != v* ]]; then
-              echo "::error::Tag '${TAG}' is invalid: it must start with 'v' (e.g. v0.1.0)."
+              echo "::error::Tag '${TAG}' is invalid: it must start with 'v' (e.g., v0.1.0)."
               exit 1
             fi
             if ! gh api "repos/${{ github.repository }}/git/ref/tags/${TAG}" >/dev/null 2>&1; then

@@ -13,9 +13,10 @@ CURRENT_TAG="${TAG:-${GITHUB_REF_NAME}}"
 REPO="${GITHUB_REPOSITORY}"
 PR_BASE_BRANCH="develop"
 
-# Previous tag = the tag created just before CURRENT_TAG (so re-releasing an
-# older tag still gets the correct range, not the newest tag in the repo).
-PREV_TAG=$(git tag --sort=-creatordate | awk -v cur="${CURRENT_TAG}" 'found {print; exit} $0 == cur {found=1}' || true)
+# Previous tag = the nearest v* tag in the ancestry of the parent of CURRENT_TAG. This depends on commit
+# history, not on when a tag happened to be created, so re-created or back-filled tags cannot skew the range
+# (and re-releasing an older tag still gets the correct range). Empty for the first release.
+PREV_TAG=$(git describe --tags --abbrev=0 --match 'v*' "${CURRENT_TAG}^" 2>/dev/null || true)
 
 UNTIL=$(TZ=UTC git log -1 --date='format-local:%Y-%m-%dT%H:%M:%SZ' --format=%cd "${CURRENT_TAG}")
 if [[ -n ${PREV_TAG} ]]; then
