@@ -153,6 +153,32 @@ namespace nostd = telemetry::nostd;
 namespace context = telemetry::context;
 #endif
 
+namespace OTelTraceOperations {
+constexpr char PARSE_AND_PLAN_QUERY[] = "parse_and_plan_query";
+constexpr char DISTRIBUTE_TO_WORKERS[] = "distribute_to_workers";
+constexpr char SEND_TO_WORKER[] = "send_to_worker_";
+constexpr char AGGREGATE_RESULTS[] = "aggregate_results";
+constexpr char AVERAGE_AGGREGATION[] = "average_aggregation";
+constexpr char ORDER_BY_AGGREGATION[] = "order_by_aggregation";
+constexpr char COLLECT_NON_AGGREGATED_RESULTS[] = "collect_non_aggregated_results";
+constexpr char WORKER_COMMUNICATION[] = "worker_communication_";
+constexpr char WAIT_FOR_WORKER[] = "wait_for_worker_";
+constexpr char AGGREGATE_RESULT_WORKER[] = "aggregate_result_worker_";
+constexpr char DISTRIBUTE_TO_WORKER[] = "distribute_to_worker_";
+constexpr char EXECUTE_OPERATORS[] = "execute_operators";
+constexpr char STREAM_RESULTS_TO_MASTER[] = "stream_results_to_master";
+constexpr char ALL_NODE_SCAN[] = "AllNodeScan";
+constexpr char NODE_SCAN_BY_LABEL[] = "NodeScanByLabel";
+constexpr char PRODUCE_RESULT[] = "ProduceResult";
+constexpr char FILTER[] = "Filter";
+constexpr char UNDIRECTED_RELATIONSHIP_TYPE_SCAN[] = "UndirectedRelationshipTypeScan";
+constexpr char PARTITION[] = "_partition_";
+constexpr char ON[] = "_on_";
+constexpr char COLLECT_WORKER_RESULTS[] = "collect_worker_results";
+constexpr char CLEANUP_WORKER_DATA_STRUCTURES[] = "cleanup_worker_data_structures";
+constexpr char CENTRAL_STORE_AGGREGATION[] = "central_store_aggregation";
+}  // namespace OTelTraceOperations
+
 /**
  * Modern OpenTelemetry-based telemetry utility providing automatic parent-child tracing
  * and simplified metric recording. Replaces custom telemetry implementation.
@@ -296,6 +322,10 @@ class ScopedTracer {
     std::string operation_name_;
 };
 
+#define CONCAT_INNER(a, b) a ## b
+#define CONCAT(a, b) CONCAT_INNER(a, b)
+#define UNIQUE_VAR(prefix) CONCAT(prefix, __LINE__)
+
 /**
  * Convenience macro for automatic function tracing
  * Creates a scoped tracer that automatically traces the entire function
@@ -309,7 +339,7 @@ class ScopedTracer {
  * @param op_name Name of the operation to trace
  */
 #define OTEL_TRACE_OPERATION(op_name) \
-    ScopedTracer __operation_tracer(op_name)
+    ScopedTracer UNIQUE_VAR(__operation_tracer_)(op_name)
 
 /**
  * Convenience macro for tracing with attributes
@@ -317,4 +347,4 @@ class ScopedTracer {
  * @param attrs Map of attributes
  */
 #define OTEL_TRACE_WITH_ATTRS(op_name, attrs) \
-    ScopedTracer __operation_tracer(op_name, attrs)
+    ScopedTracer UNIQUE_VAR(__operation_tracer_)(op_name, attrs)
