@@ -69,17 +69,3 @@ docker run --rm jasminegraph:unit valgrind \
 *   **Exception Requests**: If a task genuinely requires exceeding the 200 LOC limit (e.g., vendor headers, third-party FlatBuffer definitions, dataset fixtures):
     1.  Create an issue titled `[Exception Request] <Reason>`.
     2.  Obtain explicit maintainer confirmation before opening the pull request.
-
-## 5. Mandatory PR Checklist Template
-
-Every pull request description submitted by or on behalf of an agent must include the following completed checklist:
-
-```markdown
-### Agent Verification Checklist
-- [ ] **Docker Build**: Ran `docker build -t jasminegraph:test .` with 0 warnings.
-- [ ] **Unit Tests**: Executed `JasmineGraphUnitTest` inside container (all tests pass).
-- [ ] **Valgrind**: Ran leak check for temporal/partitioning changes (0 leaks).
-- [ ] **Conventional Commits**: Commits follow `type(scope): description`.
-- [ ] **LOC Limit**: Under 200 lines modified (or exception approved).
-- [ ] **Human Review**: Awaiting maintainer approval (@miyurud).
-```
