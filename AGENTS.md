@@ -4,9 +4,8 @@ This workspace uses Antigravity Customizations to enforce engineering consistenc
 
 ## Quick Index & Map
 
-*   **Discoverable Rules Map & Component Index**: [.agents/README.md](.agents/README.md)
 *   **C++ Coding Standards**: [.agents/rules/01_coding_standards.md](.agents/rules/01_coding_standards.md) (smart pointers, non-blocking network socket patterns, secrets, legacy refactor RFCs)
-*   **Agent Behavioral Constraints**: [.agents/rules/02_agent_behavior.md](.agents/rules/02_agent_behavior.md) (PR limits, Conventional Commits, Docker build & Valgrind commands)
+*   **Agent Behavioral Constraints**: [.agents/rules/02_agent_behavior.md](.agents/rules/02_agent_behavior.md) (scope limits, Git commit standards [cbea.ms], Docker build & Valgrind commands)
 *   **Subsystem Architectural Specifications**: [.agents/rules/architecture/](.agents/rules/architecture/)
 
 ## Governance & Human Approval Gate

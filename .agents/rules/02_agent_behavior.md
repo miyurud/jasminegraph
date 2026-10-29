@@ -5,14 +5,34 @@ trigger: always_on
 # AI Agent Behavioral Constraints
 These rules apply to any AI Coding Agent (Antigravity, Claude Code, GitHub Copilot, etc.) operating in this workspace.
 
-## 1. PR Size, Commits & Scope Limits
+## 1. Scope Limits & Git Commit Standards
 
-*   **Small, Atomic PRs**: Limit code modifications to a maximum of **150–200 lines of code** per task. If a task requires changes across multiple subsystems, stop and prompt the user to break it down into smaller, independently verifiable milestones.
-*   **Conventional Commits**: Every commit message must strictly follow the [Conventional Commits](https://www.conventionalcommits.org/) standard:
-    *   `feat(rag): add planner module`
-    *   `fix(server): resolve socket deadlock in remote worker dispatch`
-    *   `test(partitioner): add unit test for sheep partitioner`
-    *   `docs(architecture): update central store specification`
+*   **Small, Atomic Scope**: Limit code modifications to a maximum of **150–200 lines of code** per task. If a task requires changes across multiple subsystems, stop and prompt the user to break it down into smaller, independently verifiable milestones.
+*   **Git Commit Guidelines**: Commit messages must adhere to the standard Git best practices outlined in [How to Write a Git Commit Message](https://cbea.ms/git-commit/) (The Seven Rules):
+    1.  **Separate subject from body with a blank line**.
+    2.  **Limit the subject line to 50 characters** (hard limit: 72 characters).
+    3.  **Capitalize the subject line** (e.g., `Add unit tests for sheep partitioner`).
+    4.  **Do not end the subject line with a period**.
+    5.  **Use the imperative mood in the subject line** (e.g., complete the sentence *"If applied, this commit will <your subject line>"* — use `Add`, `Fix`, `Refactor`, `Update`, not `Added`, `Fixing`, or `Fixes`).
+    6.  **Wrap the body at 72 characters**.
+    7.  **Use the body to explain what and why vs. how** (the diff shows *how*; the body explains context and *why* the change was made).
+
+### Example Commit Format
+
+```text
+Summarize changes in around 50 characters or less in imperative mood
+
+More detailed explanatory text, if necessary. Wrap it to about 72
+characters. The blank line separating the summary from the body is
+critical.
+
+Explain the problem that this commit is solving. Focus on why you are
+making this change as opposed to how (the code explains that). Are there
+side effects or other consequences of this change? Explain them here.
+
+- Bullet points are okay, preceded by a hyphen or asterisk
+- Separate paragraphs and bullets with blank lines
+```
 
 ## 2. Build Verification & Exact Commands
 
