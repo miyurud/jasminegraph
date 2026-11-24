@@ -638,7 +638,7 @@ std::string PerformanceUtil::getSLACategoryId(std::string command, std::string c
         return slaCategoryId;
     }
     scheduler_logger.log("Invalid SLA " + category + " for " + command + " command", "error");
-    return 0;
+    return "";
 }
 
 void PerformanceUtil::initiateCollectingRemoteSLAResourceUtilization(std::string host, int port,
