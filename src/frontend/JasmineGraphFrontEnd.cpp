@@ -7047,11 +7047,21 @@ static void sheep_command(const std::string& masterIP, int conn_fd, SQLiteDBInte
     string partitionCount = readTrimmedSocketInput(conn_fd);
     int numPartitions = 0;
     try {
-        numPartitions = std::stoi(partitionCount);
-    } catch (const std::invalid_argument&) {
+        size_t parsedChars = 0;
+        numPartitions = std::stoi(partitionCount, &parsedChars);
+        if (parsedChars != partitionCount.size()) {
+            throw std::invalid_argument("trailing characters in partition count");
+        }
+    } catch (const std::logic_error&) {  // std::invalid_argument and std::out_of_range
         frontend_logger.error("Invalid partition count received: " + partitionCount);
         *loop_exit_p = true;
         writeSocketLine(conn_fd, "error: invalid partition count", loop_exit_p);
+        return;
+    }
+    if (numPartitions <= 0) {
+        frontend_logger.error("Partition count must be a positive integer: " + partitionCount);
+        *loop_exit_p = true;
+        writeSocketLine(conn_fd, "error: partition count must be a positive integer", loop_exit_p);
         return;
     }
     frontend_logger.info("Number of partitions: " + to_string(numPartitions));
@@ -7069,13 +7079,15 @@ static void sheep_command(const std::string& masterIP, int conn_fd, SQLiteDBInte
     constexpr size_t CTIME_BUFFER_SIZE = 26;
     string uploadStartTime(CTIME_BUFFER_SIZE, '\0');
     ctime_r(&time, &uploadStartTime[0]);
+    // Drop the trailing '\0' padding so trim_copy can strip the newline
+    uploadStartTime.resize(uploadStartTime.find('\0'));
     uploadStartTime = Utils::trim_copy(uploadStartTime);
 
     string sqlStatement =
         "INSERT INTO graph (name,upload_path,upload_start_time,upload_end_time,graph_status_idgraph_status,"
         "vertexcount,centralpartitioncount,edgecount) VALUES(\"" +
-        graphName + R"(", ")" + graphPath + R"(", ")" + uploadStartTime + R"(", ""," )" +
-        to_string(Conts::GRAPH_STATUS::LOADING) + R"(", "", "", "")";
+        graphName + "\", \"" + graphPath + "\", \"" + uploadStartTime + "\", \"\", \"" +
+        to_string(Conts::GRAPH_STATUS::LOADING) + "\", \"\", \"\", \"\")";
     int graphID = sqlite->runInsert(sqlStatement);
 
     if (graphID < 0) {
@@ -7087,10 +7099,12 @@ static void sheep_command(const std::string& masterIP, int conn_fd, SQLiteDBInte
 
     frontend_logger.info("Graph record created with ID: " + to_string(graphID));
 
-    // Prepare output path in format: datafolder/graphID_
-    // The partitioner will append partition number and create central/local store files
-    string outputPath = Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder") +
-                        "/" + to_string(graphID) + "_";
+    // Prepare output path in format: ~/.jasminegraph/tmp/graphID/graphID_
+    // The partitioner will append partition number and create central/local store files.
+    // Use the master's temp directory (like MetisPartitioner) rather than the workers' datafolder, since
+    // workers receiving files into the same (shared) datafolder would overwrite them mid-upload.
+    string outputPath = Utils::getHomeDir() + "/.jasminegraph/tmp/" + to_string(graphID) + "/" +
+                        to_string(graphID) + "_";
 
     // Create SheepPartitioner instance and partition the graph
     SheepPartitioner sheepPartitioner(sqlite);
