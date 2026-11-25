@@ -62,7 +62,7 @@ force_remove() {
 
 build_and_run_on_k8s() {
     cd "$PROJECT_ROOT"
-    docker build -t jasminegraph . |& tee "$BUILD_LOG"
+    docker build -t jasminegraph:test . |& tee "$BUILD_LOG"
     build_status="${PIPESTATUS[0]}"
     if [ "$build_status" != '0' ]; then
         set +ex
