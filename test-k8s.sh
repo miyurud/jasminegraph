@@ -62,7 +62,7 @@ force_remove() {
 
 build_and_run_on_k8s() {
     cd "$PROJECT_ROOT"
-    docker build -t jasminegraph:test . |& tee "$BUILD_LOG"
+    docker build -t jasminegraph . |& tee "$BUILD_LOG"
     build_status="${PIPESTATUS[0]}"
     if [ "$build_status" != '0' ]; then
         set +ex
@@ -94,7 +94,7 @@ clear_resources() {
     else
         echo "No containers to stop and remove."
     fi
-    docker run -v '/tmp/jasminegraph:/tmp/jasminegraph' --entrypoint /bin/bash jasminegraph:test -c 'rm -rf /tmp/jasminegraph/*' || echo 'Not removing existing tmp logs'
+    docker run -v '/tmp/jasminegraph:/tmp/jasminegraph' --entrypoint /bin/bash jasminegraph:latest -c 'rm -rf /tmp/jasminegraph/*' || echo 'Not removing existing tmp logs'
     if [ ! -z "$(docker ps -a -q)" ]; then
         docker ps -a -q | xargs docker rm -f &>/dev/null
     fi
