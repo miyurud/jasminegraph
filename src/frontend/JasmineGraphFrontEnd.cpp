@@ -7148,8 +7148,8 @@ static void sheep_triangles_command(const std::string& masterIP, int conn_fd, SQ
     string priority = readTrimmedSocketInput(conn_fd);
 
     if (std::any_of(priority.begin(), priority.end(),
-                [](unsigned char c) { 
-                    return !std::isdigit(c); 
+                [](unsigned char c) {
+                    return !std::isdigit(c);
                 })) {
         *loop_exit_p = true;
         string error_message = "Priority should be numeric and > 1 or empty";

@@ -333,7 +333,7 @@ static void processTriangleCount(const std::string &masterIP, int conn_fd, SQLit
 
     if (std::any_of(priority.begin(), priority.end(),
                 [](unsigned char c) {
-                    return !std::isdigit(c); 
+                    return !std::isdigit(c);
                 })) {
         *loop_exit_p = true;
         sendResponse(conn_fd, "Priority should be numeric and > 1 or empty", loop_exit_p);
