@@ -960,7 +960,13 @@ std::vector<JasmineGraphServer::worker> JasmineGraphServer::getWorkers(size_t np
     if (jasminegraph_profile == PROFILE_K8S) {
         std::unique_ptr<K8sInterface> k8sInterface(new K8sInterface());
         if (k8sInterface->getJasmineGraphConfig("SCALE_ON_ADGR") != "true") {
-            return K8sWorkerController::workerList;
+            // Return only npart workers. The list can hold more after scale-up,
+            // and callers index per-partition buffers by worker position.
+            const auto &allWorkers = K8sWorkerController::workerList;
+            if (npart >= allWorkers.size()) {
+                return allWorkers;
+            }
+            return std::vector<JasmineGraphServer::worker>(allWorkers.begin(), allWorkers.begin() + npart);
         }
         workerListAll = &(K8sWorkerController::workerList);
         cpu_loads = scaleK8s(npart);
