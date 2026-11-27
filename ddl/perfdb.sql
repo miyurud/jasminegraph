@@ -91,3 +91,6 @@ values (2, 'pgrnk', 'latency');
 
 insert into sla_category (id, command, category)
 values (3, 'cypher', 'latency');
+
+insert into sla_category (id, command, category)
+values (4, 'sheep-triangles', 'latency');

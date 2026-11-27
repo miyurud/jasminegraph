@@ -18,10 +18,14 @@ limitations under the License.
 #include <fstream>
 #include <algorithm>
 #include <cmath>
+#include <limits>
 
 using namespace std;
 
 Logger sheep_partitioner_logger;
+
+// Largest vertex ID that fits in the int-based partition store format
+constexpr vertex_id MAX_VERTEX_ID = static_cast<vertex_id>(std::numeric_limits<int>::max());
 
 SheepPartitioner::SheepPartitioner(SQLiteDBInterface *sqlite)
     : sqlite(sqlite) {}
@@ -51,6 +55,13 @@ bool SheepPartitioner::loadGraph(const string &graphPath) {
         std::istringstream iss(line);
 
         if (iss >> source >> target) {
+            // Partition stores (partedgemapstore.fbs) hold vertex IDs as 32-bit int, so larger IDs
+            // would be silently truncated. Negative IDs also land here, as unsigned parsing wraps them.
+            if (source > MAX_VERTEX_ID || target > MAX_VERTEX_ID) {
+                sheep_partitioner_logger.error("Vertex ID out of supported range [0, " + to_string(MAX_VERTEX_ID) +
+                                               "] at line " + to_string(lineCount) + ": " + line);
+                return false;
+            }
             // Add edge to adjacency list
             adjacencyList[source].push_back(target);
             adjacencyList[target].push_back(source);
@@ -219,18 +230,22 @@ void SheepPartitioner::buildEdgeMaps(
             partition_id targetPart = vertexToPartition[target];
             partitionVertices[targetPart].insert(target);
 
+            // Safe narrowing: loadGraph() rejects IDs above MAX_VERTEX_ID
+            const int sourceKey = static_cast<int>(source);
+            const int targetKey = static_cast<int>(target);
+
             if (sourcePart == targetPart) {
                 // Local edge - both vertices in same partition
                 // Using set ensures no duplicates even if input has them
-                localStoreSets[sourcePart][source].insert(target);
+                localStoreSets[sourcePart][sourceKey].insert(targetKey);
                 // Count edges only once (when processing from lower vertex ID)
                 localEdgeCounts[sourcePart] += (source < target ? 1 : 0);
             } else {
                 // Cross-partition edge
                 // Add to source partition's central store
-                centralStoreSets[sourcePart][source].insert(target);
+                centralStoreSets[sourcePart][sourceKey].insert(targetKey);
                 // Add to target partition's duplicate central store
-                duplicateCentralStoreSets[targetPart][source].insert(target);
+                duplicateCentralStoreSets[targetPart][sourceKey].insert(targetKey);
                 // Count edges only once
                 centralEdgeCounts[sourcePart] += (source < target ? 1 : 0);
             }
@@ -375,6 +390,12 @@ std::vector<std::map<int, std::string>> SheepPartitioner::partitionGraph(int gra
     sheep_partitioner_logger.info("Output path: " + outputPath);
     sheep_partitioner_logger.info("Number of partitions: " + to_string(numberOfPartitions));
 
+    // Guard against division by zero in assignPartitions() and a huge resize from a negative count
+    if (numberOfPartitions <= 0) {
+        sheep_partitioner_logger.error("Number of partitions must be positive, got: " +
+                                       to_string(numberOfPartitions));
+        return fullFileList;
+    }
     this->numPartitions = numberOfPartitions;
 
     // Check if input graph exists

@@ -30,7 +30,7 @@ The Partitioner is responsible for dividing massive graph datasets into smaller,
 
 ### 2.5 Sheep Partitioner (`SheepPartitioner.h`)
 * **Mechanism**: Implements a streaming graph partitioning algorithm based on elimination trees and balanced bin-packing (`src/partitioner/local/SheepPartitioner.h`).
-* **Characteristics**: Processes vertices in degree-sorted order and assigns them to partitions to minimize edge cuts while maintaining balance. Integrates directly with optimized query algorithms like `SheepTriangles` (`src/query/algorithms/triangles/SheepTriangles.h`) and executor `SheepTriangleCountExecutor`.
+* **Characteristics**: Processes vertices in degree-sorted order and assigns them to partitions to minimize edge cuts while maintaining balance. Integrates directly with optimized query algorithms like `SheepTriangles` (`src/query/algorithms/triangles/SheepTriangles.h`).
 
 ### 2.6 Streaming vs Local Partitioning Execution
 * **`local/` (Offline)**: Preprocesses static graph topologies (e.g., via METIS) to generate serialized edge lists, central store cut files, and attribute tables prior to loading.
