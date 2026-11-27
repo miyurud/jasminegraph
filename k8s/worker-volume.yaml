@@ -11,5 +11,8 @@ spec:
     storage: 1Gi
   accessModes:
     - ReadWriteMany
+  claimRef:
+    namespace: default
+    name: "jasminegraph-worker<worker-id>-data-claim"
   hostPath:
     path: "/var/tmp/worker<worker-id>"
