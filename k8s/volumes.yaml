@@ -81,6 +81,9 @@ spec:
     storage: 1Gi
   accessModes:
     - ReadWriteMany
+  claimRef:
+    namespace: default
+    name: jasminegraph-data-claim
   hostPath:
     path: "${data_path}"
 
@@ -113,6 +116,9 @@ spec:
     storage: 1Gi
   accessModes:
     - ReadWriteOnce
+  claimRef:
+    namespace: default
+    name: common-config-claim
   hostPath:
     path: "${config_directory_path}"
 
@@ -145,6 +151,9 @@ spec:
     storage: 1Gi
   accessModes:
     - ReadWriteMany
+  claimRef:
+    namespace: default
+    name: jasminegraph-logs-claim
   hostPath:
     path: "${log_path}"
 
@@ -177,6 +186,9 @@ spec:
     storage: 1Gi
   accessModes:
     - ReadWriteMany
+  claimRef:
+    namespace: default
+    name: jasminegraph-aggregate-claim
   hostPath:
     path: "${aggregate_path}"
 
