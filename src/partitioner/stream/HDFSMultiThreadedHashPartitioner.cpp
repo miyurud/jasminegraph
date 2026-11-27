@@ -246,29 +246,11 @@ void HDFSMultiThreadedHashPartitioner::consumeEdgeCuts(int partitionIndex, Jasmi
         return;
     }
 
-    while (!terminateConsumers) {  // Check for termination flag
+    while (true) {  // Exits through the final flush below
         std::unique_lock<std::mutex> lock(edgeCutsMutexes[partitionIndex]);
         edgeCutsAvailableCV[partitionIndex].wait(lock, [this, partitionIndex] {
             return edgeCutsReady[partitionIndex] || terminateConsumers;  // Break if termination is signaled
         });
-
-        if (terminateConsumers) {
-            if (edgeCutsFile.is_open()) {
-                edgeCutsFile.close();
-                if (threadEdgeCount != 0) {
-                    hash_partitioner_logger.debug("Central edge consumer " + std::to_string(partitionIndex) +
-                                                  " generated file of " +
-                                                  std::to_string(threadEdgeCount) +
-                                                  " edges: " + filePath);
-                    partitionMutexArray[partitionIndex].lock();
-                    Utils::sendFileChunkToWorker(worker.hostname, worker.port, worker.dataPort, filePath, masterIp,
-                                                 JasmineGraphInstanceProtocol::HDFS_CENTRAL_STREAM_START,
-                                                 this->isEmbedGraph);
-                    partitionMutexArray[partitionIndex].unlock();
-                }
-            }
-            break;
-        }
 
         // Process edges from edgeCutsArrays
         while (!edgeCutsArrays[partitionIndex].empty()) {
@@ -334,6 +316,27 @@ void HDFSMultiThreadedHashPartitioner::consumeEdgeCuts(int partitionIndex, Jasmi
         }
 
         edgeCutsReady[partitionIndex] = false;  // Reset the flag after processing
+
+        // Check for termination only after the pending edges above are written,
+        // so the last partial file is always sent. Checking before processing
+        // (or in the loop condition) could drop the final edge cuts.
+        if (terminateConsumers) {
+            if (edgeCutsFile.is_open()) {
+                edgeCutsFile.close();
+                if (threadEdgeCount != 0) {
+                    hash_partitioner_logger.debug("Central edge consumer " + std::to_string(partitionIndex) +
+                                                  " generated file of " +
+                                                  std::to_string(threadEdgeCount) +
+                                                  " edges: " + filePath);
+                    partitionMutexArray[partitionIndex].lock();
+                    Utils::sendFileChunkToWorker(worker.hostname, worker.port, worker.dataPort, filePath, masterIp,
+                                                 JasmineGraphInstanceProtocol::HDFS_CENTRAL_STREAM_START,
+                                                 this->isEmbedGraph);
+                    partitionMutexArray[partitionIndex].unlock();
+                }
+            }
+            break;
+        }
     }
 
 //     Ensure the file is closed when the consumer is done

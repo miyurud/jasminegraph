@@ -22,6 +22,7 @@ limitations under the License.
 #include <sys/stat.h>
 #include <unistd.h>
 
+#include <cerrno>
 #include <chrono>
 #include <ctime>
 #include <filesystem>
@@ -49,6 +50,24 @@ int jasminegraph_profile = PROFILE_K8S;
 
 unordered_map<std::string, std::string> Utils::propertiesMap;
 std::mutex Utils::sqliteMutex;
+
+// Thread-safe replacement for gethostbyname(). gethostbyname() returns a pointer
+// to one process-wide static buffer, so concurrent lookups (e.g. the parallel
+// partition upload threads) overwrite each other's result and can leave
+// h_addr NULL. Here the result lives in thread-local storage and stays valid
+// until the same thread resolves again. Returns nullptr on failure.
+static struct hostent *resolveHostThreadSafe(const char *host) {
+    thread_local struct hostent hostEntry;
+    thread_local std::vector<char> hostBuffer(HOSTNAME_BUFFER_SIZE);
+    struct hostent *result = nullptr;
+    int hostError = 0;
+    int status;
+    while ((status = gethostbyname_r(host, &hostEntry, hostBuffer.data(), hostBuffer.size(), &result,
+                                     &hostError)) == ERANGE) {
+        hostBuffer.resize(hostBuffer.size() * 2);
+    }
+    return status == 0 ? result : nullptr;
+}
 
 std::vector<std::string> Utils::split(const std::string& s, char delimiter) {
     std::vector<std::string> tokens;
@@ -647,7 +666,9 @@ int Utils::connect_wrapper(int sock, const sockaddr* addr, socklen_t slen) {
                          std::string(inet_ntoa(((const struct sockaddr_in *)addr)->sin_addr)) + ":" +
                          std::to_string(ntohs(((const struct sockaddr_in *)addr)->sin_port)));
 
-        if (connect(sock, addr, slen) == 0) {
+        // EISCONN: an earlier attempt timed out (SO_SNDTIMEO) but the kernel
+        // finished the handshake in the background, so the socket is connected.
+        if (connect(sock, addr, slen) == 0 || errno == EISCONN) {
             // Connected successfully
             tv = {0, 0};
             if (setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, (char *)&tv, sizeof(tv)) == -1) {
@@ -1294,7 +1315,7 @@ bool Utils::uploadFileToWorker(std::string host, int port, int dataPort, int gra
         host = Utils::split(host, '@')[1];
     }
 
-    server = gethostbyname(host.c_str());
+    server = resolveHostThreadSafe(host.c_str());
     if (server == NULL) {
         util_logger.error("ERROR, no host named " + host);
         return false;
@@ -1396,7 +1417,7 @@ bool Utils::sendFileChunkToWorker(std::string host, int port, int dataPort, std:
         host = Utils::split(host, '@')[1];
     }
 
-    server = gethostbyname(host.c_str());
+    server = resolveHostThreadSafe(host.c_str());
     if (server == NULL) {
         util_logger.error("ERROR, no host named " + host);
         return false;
@@ -1525,7 +1546,7 @@ bool Utils::sendFileThroughService(std::string host, int dataPort, std::string f
         return false;
     }
 
-    server = gethostbyname(host.c_str());
+    server = resolveHostThreadSafe(host.c_str());
     if (server == NULL) {
         util_logger.error("ERROR, no host named " + host);
         return false;
@@ -1613,7 +1634,7 @@ bool Utils::transferPartition(std::string sourceWorker, int sourceWorkerPort, st
         return false;
     }
 
-    server = gethostbyname(sourceWorker.c_str());
+    server = resolveHostThreadSafe(sourceWorker.c_str());
     if (server == NULL) {
         util_logger.error("ERROR, no host named " + sourceWorker);
         return false;
@@ -1733,7 +1754,7 @@ bool Utils::sendQueryPlanToWorker(const std::string& host, int port, const std::
         actualHost = Utils::split(actualHost, '@')[1];
     }
 
-    server = gethostbyname(actualHost.c_str());
+    server = resolveHostThreadSafe(actualHost.c_str());
     if (server == NULL) {
         util_logger.error("ERROR, no host named " + host);
         return false;
@@ -1941,7 +1962,7 @@ bool Utils::sendSbsQueryPlanToWorker(std::string host, int port, std::string mas
     host = Utils::split(host, '@')[1];
     util_logger.debug("Resolved host: " + host);
   }
-  server = gethostbyname(host.c_str());
+  server = resolveHostThreadSafe(host.c_str());
   if (server == NULL) {
     util_logger.error("No host named " + host);
     close(sockfd);
@@ -2151,7 +2172,7 @@ std::optional<std::tuple<std::string, int, int>> Utils::getWorker(string partiti
         host = Utils::split(host, '@')[1];
     }
 
-    server = gethostbyname(host.c_str());
+    server = resolveHostThreadSafe(host.c_str());
     if (server == NULL) {
         util_logger.error("ERROR, no host named " + host);
         return std::nullopt;
@@ -2239,7 +2260,7 @@ string Utils::getPartitionAlgorithm(std::string graphID, std::string host) {
         host = Utils::split(host, '@')[1];
     }
 
-    server = gethostbyname(host.c_str());
+    server = resolveHostThreadSafe(host.c_str());
     if (server == NULL) {
         util_logger.error("ERROR, no host named " + host);
         return "";
@@ -2318,7 +2339,7 @@ string Utils::getGraphDirection(std::string graphID, std::string host) {
         host = Utils::split(host, '@')[1];
     }
 
-    server = gethostbyname(host.c_str());
+    server = resolveHostThreadSafe(host.c_str());
     if (server == NULL) {
         util_logger.error("ERROR, no host named " + host);
         return "";
@@ -2419,7 +2440,7 @@ bool Utils::sendDataFromWorkerToWorker(string masterIP, int graphID, string part
         host = Utils::split(host, '@')[1];
     }
 
-    server = gethostbyname(host.c_str());
+    server = resolveHostThreadSafe(host.c_str());
     if (server == NULL) {
         util_logger.error("ERROR, no host named " + host);
         return false;

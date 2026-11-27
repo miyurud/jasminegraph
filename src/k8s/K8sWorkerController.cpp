@@ -165,6 +165,10 @@ std::string K8sWorkerController::spawnWorker(int workerId) {
         serv_addr.sin_port = htons(Conts::JASMINEGRAPH_INSTANCE_PORT);
 
         if (Utils::connect_wrapper(sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
+            // Close the failed socket. A connect that timed out can still complete
+            // later, and the worker would block reading the idle connection.
+            close(sockfd);
+            sockfd = -1;
             waiting += 30;  // Added overhead in connection retry attempts
             sleep(10);
         } else {

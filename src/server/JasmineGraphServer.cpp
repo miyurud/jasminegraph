@@ -960,7 +960,13 @@ std::vector<JasmineGraphServer::worker> JasmineGraphServer::getWorkers(size_t np
     if (jasminegraph_profile == PROFILE_K8S) {
         std::unique_ptr<K8sInterface> k8sInterface(new K8sInterface());
         if (k8sInterface->getJasmineGraphConfig("SCALE_ON_ADGR") != "true") {
-            return K8sWorkerController::workerList;
+            // Return only npart workers. The list can hold more after scale-up,
+            // and callers index per-partition buffers by worker position.
+            const auto &allWorkers = K8sWorkerController::workerList;
+            if (npart >= allWorkers.size()) {
+                return allWorkers;
+            }
+            return std::vector<JasmineGraphServer::worker>(allWorkers.begin(), allWorkers.begin() + npart);
         }
         workerListAll = &(K8sWorkerController::workerList);
         cpu_loads = scaleK8s(npart);
@@ -1881,13 +1887,14 @@ void JasmineGraphServer::initiateFiles(std::string graphID, std::string training
 void JasmineGraphServer::initiateCommunication(std::string graphID, std::string trainingArgs, SQLiteDBInterface *sqlite,
                                                std::string masterIP) {
     int fl_clients = stoi(Utils::getJasmineGraphProperty("org.jasminegraph.fl_clients"));
-    int threadLimit = fl_clients + 1;
-    std::thread *workerThreads = new std::thread[threadLimit];
 
     Utils::worker workerInstance;
     vector<Utils::worker> workerVector = Utils::getWorkerList(sqlite);
 
-    int threadID = 0;
+    // One client thread per worker plus one server thread. Sized from the
+    // live worker list, which can exceed fl_clients after auto scale-up.
+    std::vector<std::thread> workerThreads;
+    workerThreads.reserve(workerVector.size() + 1);
 
     for (int i = 0; i < workerVector.size(); i++) {
         workerInstance = workerVector[i];
@@ -1895,21 +1902,18 @@ void JasmineGraphServer::initiateCommunication(std::string graphID, std::string 
         int serverPort = stoi(workerInstance.port);
 
         if (i == 0) {
-            workerThreads[threadID] =
-                std::thread(initiateServer, workerInstance.hostname, serverPort, trainingArgs, fl_clients, masterIP);
-            threadID++;
+            workerThreads.emplace_back(initiateServer, workerInstance.hostname, serverPort, trainingArgs, fl_clients,
+                                       masterIP);
         }
 
-        workerThreads[threadID] = std::thread(initiateClient, workerInstance.hostname, serverPort,
-                                              trainingArgs + " " + to_string(i), fl_clients, masterIP);
-        threadID++;
+        workerThreads.emplace_back(initiateClient, workerInstance.hostname, serverPort,
+                                   trainingArgs + " " + to_string(i), fl_clients, masterIP);
     }
 
-    for (int threadCount = 0; threadCount < threadLimit; threadCount++) {
-        workerThreads[threadCount].join();
+    for (auto &workerThread : workerThreads) {
+        workerThread.join();
     }
     server_logger.info("Federated learning commands sent");
-    delete[] workerThreads;
 }
 
 void JasmineGraphServer::initiateOrgCommunication(std::string graphID, std::string trainingArgs,
@@ -1917,7 +1921,6 @@ void JasmineGraphServer::initiateOrgCommunication(std::string graphID, std::stri
     int fl_clients = stoi(Utils::getJasmineGraphProperty("org.jasminegraph.fl_clients"));
     int orgs_count = stoi(Utils::getJasmineGraphProperty("org.jasminegraph.fl.num.orgs"));
     std::string flagPath = Utils::getJasmineGraphProperty("org.jasminegraph.fl.flag.file");
-    int threadLimit = fl_clients + 1;
     int org_thread_count = 0;
 
     Utils::editFlagOne(flagPath);
@@ -1953,35 +1956,33 @@ void JasmineGraphServer::initiateOrgCommunication(std::string graphID, std::stri
         server_logger.error("Error loading organization details");
     }
 
-    std::thread *workerThreads = new std::thread[threadLimit];
+    // Sized from the live worker list, which can exceed fl_clients after scale-up.
+    std::vector<std::thread> workerThreads;
+    workerThreads.reserve(workerVector.size() + 1);
     std::thread *communicationThread = new std::thread[1];
     communicationThread[0] = std::thread(receiveGlobalWeights, "localhost", 5000, "0", 1, "1");
     server_logger.info("Communication Thread Initiated");
-    int threadID = 0;
 
     for (int i = 0; i < workerVector.size(); i++) {
         workerInstance = workerVector[i];
         int serverPort = stoi(workerInstance.port);
 
         if (i == 0) {
-            workerThreads[threadID] =
-                std::thread(initiateOrgServer, workerInstance.hostname, serverPort, trainingArgs, fl_clients, masterIP);
-            threadID++;
+            workerThreads.emplace_back(initiateOrgServer, workerInstance.hostname, serverPort, trainingArgs,
+                                       fl_clients, masterIP);
         }
 
-        workerThreads[threadID] = std::thread(initiateClient, workerInstance.hostname, serverPort,
-                                              trainingArgs + " " + to_string(i), fl_clients, masterIP);
-        threadID++;
+        workerThreads.emplace_back(initiateClient, workerInstance.hostname, serverPort,
+                                   trainingArgs + " " + to_string(i), fl_clients, masterIP);
     }
 
     communicationThread[0].join();
 
-    for (int threadCount = 0; threadCount < threadLimit; threadCount++) {
-        workerThreads[threadCount].join();
+    for (auto &workerThread : workerThreads) {
+        workerThread.join();
     }
 
     server_logger.info("Federated learning commands sent");
-    delete[] workerThreads;
     delete[] communicationThread;
 }
 
